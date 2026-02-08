@@ -1,0 +1,14 @@
+{
+  "_comment": "Remind to run tests when Claude finishes a response. Copy into your project's .claude/settings.local.json under 'hooks'.",
+  "Stop": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "echo 'Reminder: run make test lint before considering work complete'"
+        }
+      ]
+    }
+  ]
+}

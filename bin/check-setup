@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Checks whether coding standards are properly set up for the current project.
+# Intended to be called from a global SessionStart hook in ~/.claude/settings.json.
+#
+# Output goes to stdout and is visible to Claude as hook context.
+set -euo pipefail
+
+STANDARDS_LINK="$HOME/coding-standards"
+WARNINGS=()
+
+# Only check inside git repos (skip non-project directories)
+if ! git rev-parse --is-inside-work-tree &>/dev/null; then
+  exit 0
+fi
+
+PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+
+# --- Check 1: Symlink exists ---
+if [ ! -d "$STANDARDS_LINK" ]; then
+  WARNINGS+=("~/coding-standards symlink does not exist. Create it: ln -s /path/to/coding_agent_standards ~/coding-standards")
+fi
+
+# --- Check 2: Standards referenced in CLAUDE.md or CLAUDE.local.md ---
+STANDARDS_REFERENCED=false
+for f in "$PROJECT_ROOT/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.local.md" "$PROJECT_ROOT/.claude/CLAUDE.md"; do
+  if [ -f "$f" ] && grep -q "coding-standards" "$f" 2>/dev/null; then
+    STANDARDS_REFERENCED=true
+    break
+  fi
+done
+
+if [ "$STANDARDS_REFERENCED" = false ]; then
+  WARNINGS+=("Coding standards not referenced. Add an @~/coding-standards/profiles/<profile>.md import to CLAUDE.md or CLAUDE.local.md in this project.")
+fi
+
+# --- Check 3: Hooks installed ---
+HOOKS_INSTALLED=false
+for f in "$PROJECT_ROOT/.claude/settings.json" "$PROJECT_ROOT/.claude/settings.local.json"; do
+  if [ -f "$f" ] && grep -q '"hooks"' "$f" 2>/dev/null; then
+    HOOKS_INSTALLED=true
+    break
+  fi
+done
+
+if [ "$HOOKS_INSTALLED" = false ]; then
+  WARNINGS+=("No hooks configured for this project. See ~/coding-standards/claude/hooks/ for templates.")
+fi
+
+# --- Check 4: Hook version drift ---
+if [ -d "$STANDARDS_LINK" ] && [ "$HOOKS_INSTALLED" = true ]; then
+  VERSION_FILE="$STANDARDS_LINK/claude/hooks/VERSION"
+  INSTALLED_VERSION_FILE="$PROJECT_ROOT/.claude/.hooks-version"
+  if [ -f "$VERSION_FILE" ]; then
+    CURRENT_VERSION="$(cat "$VERSION_FILE")"
+    if [ -f "$INSTALLED_VERSION_FILE" ]; then
+      INSTALLED_VERSION="$(cat "$INSTALLED_VERSION_FILE")"
+      if [ "$CURRENT_VERSION" != "$INSTALLED_VERSION" ]; then
+        WARNINGS+=("Hook templates have been updated (installed: $INSTALLED_VERSION, available: $CURRENT_VERSION). Review ~/coding-standards/claude/hooks/ for changes.")
+      fi
+    fi
+  fi
+fi
+
+# --- Output ---
+if [ ${#WARNINGS[@]} -gt 0 ]; then
+  echo "CODING STANDARDS SETUP:"
+  for w in "${WARNINGS[@]}"; do
+    echo "  - $w"
+  done
+fi

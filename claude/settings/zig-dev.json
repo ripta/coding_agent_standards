@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make *)",
+      "Bash(zig build *)",
+      "Bash(zig test *)",
+      "Bash(zig fmt *)",
+      "Bash(git *)"
+    ]
+  }
+}

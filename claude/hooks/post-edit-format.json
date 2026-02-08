@@ -1,0 +1,14 @@
+{
+  "_comment": "Auto-format after file edits. Copy into your project's .claude/settings.local.json under 'hooks'.",
+  "PostToolUse": [
+    {
+      "matcher": "Edit|Write",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "make fmt 2>/dev/null || true"
+        }
+      ]
+    }
+  ]
+}

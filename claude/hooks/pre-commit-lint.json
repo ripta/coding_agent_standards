@@ -1,0 +1,14 @@
+{
+  "_comment": "Run linters before committing. Copy into your project's .claude/settings.local.json under 'hooks'.",
+  "PreToolUse": [
+    {
+      "matcher": "Bash(git commit*)",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "make lint"
+        }
+      ]
+    }
+  ]
+}
