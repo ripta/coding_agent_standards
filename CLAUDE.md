@@ -12,20 +12,22 @@ This repository contains personal coding standards, best practices, and Claude C
 
 ## Usage
 
-Symlink this repo to a consistent path on each machine:
-
-```sh
-ln -s /actual/path/to/coding_agent_standards ~/coding-standards
-```
-
-Then import a profile from a project's `CLAUDE.md` or `CLAUDE.local.md`:
+Import a profile from a project's `CLAUDE.md` or `CLAUDE.local.md`:
 
 ```markdown
-@~/coding-standards/profiles/go-service.md
+@~/projects/coding_agent_standards/profiles/go-service.md
 ```
 
 For projects you don't own, use `CLAUDE.local.md` (auto-gitignored):
 
 ```markdown
-@~/coding-standards/profiles/oss-contrib.md
+@~/projects/coding_agent_standards/profiles/oss-contrib.md
 ```
+
+If the repo is at a non-standard path, symlink it:
+
+```sh
+ln -s /actual/path/to/coding_agent_standards ~/coding-standards
+```
+
+The setup checker (`bin/check-setup`) looks for this repo at `~/projects/coding_agent_standards` or `~/coding-standards`.

@@ -5,7 +5,15 @@
 # Output goes to stdout and is visible to Claude as hook context.
 set -euo pipefail
 
-STANDARDS_LINK="$HOME/coding-standards"
+# Resolve the standards repo: check known locations in order
+STANDARDS_DIR=""
+for candidate in "$HOME/coding-standards" "$HOME/projects/coding_agent_standards"; do
+  if [ -d "$candidate" ]; then
+    STANDARDS_DIR="$candidate"
+    break
+  fi
+done
+
 WARNINGS=()
 
 # Only check inside git repos (skip non-project directories)
@@ -15,22 +23,27 @@ fi
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 
-# --- Check 1: Symlink exists ---
-if [ ! -d "$STANDARDS_LINK" ]; then
-  WARNINGS+=("~/coding-standards symlink does not exist. Create it: ln -s /path/to/coding_agent_standards ~/coding-standards")
+# Don't check the standards repo itself
+if [ -n "$STANDARDS_DIR" ] && [ "$PROJECT_ROOT" = "$(cd "$STANDARDS_DIR" && git rev-parse --show-toplevel 2>/dev/null)" ]; then
+  exit 0
+fi
+
+# --- Check 1: Standards repo found ---
+if [ -z "$STANDARDS_DIR" ]; then
+  WARNINGS+=("Coding standards repo not found. Expected at ~/coding-standards or ~/projects/coding_agent_standards")
 fi
 
 # --- Check 2: Standards referenced in CLAUDE.md or CLAUDE.local.md ---
 STANDARDS_REFERENCED=false
 for f in "$PROJECT_ROOT/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.local.md" "$PROJECT_ROOT/.claude/CLAUDE.md"; do
-  if [ -f "$f" ] && grep -q "coding-standards" "$f" 2>/dev/null; then
+  if [ -f "$f" ] && grep -qE "(coding-standards|coding_agent_standards)" "$f" 2>/dev/null; then
     STANDARDS_REFERENCED=true
     break
   fi
 done
 
 if [ "$STANDARDS_REFERENCED" = false ]; then
-  WARNINGS+=("Coding standards not referenced. Add an @~/coding-standards/profiles/<profile>.md import to CLAUDE.md or CLAUDE.local.md in this project.")
+  WARNINGS+=("Coding standards not referenced. Add a @~/projects/coding_agent_standards/profiles/<profile>.md import to CLAUDE.md or CLAUDE.local.md in this project.")
 fi
 
 # --- Check 3: Hooks installed ---
@@ -43,19 +56,19 @@ for f in "$PROJECT_ROOT/.claude/settings.json" "$PROJECT_ROOT/.claude/settings.l
 done
 
 if [ "$HOOKS_INSTALLED" = false ]; then
-  WARNINGS+=("No hooks configured for this project. See ~/coding-standards/claude/hooks/ for templates.")
+  WARNINGS+=("No hooks configured for this project. See $STANDARDS_DIR/claude/hooks/ for templates.")
 fi
 
 # --- Check 4: Hook version drift ---
-if [ -d "$STANDARDS_LINK" ] && [ "$HOOKS_INSTALLED" = true ]; then
-  VERSION_FILE="$STANDARDS_LINK/claude/hooks/VERSION"
+if [ -n "$STANDARDS_DIR" ] && [ "$HOOKS_INSTALLED" = true ]; then
+  VERSION_FILE="$STANDARDS_DIR/claude/hooks/VERSION"
   INSTALLED_VERSION_FILE="$PROJECT_ROOT/.claude/.hooks-version"
   if [ -f "$VERSION_FILE" ]; then
     CURRENT_VERSION="$(cat "$VERSION_FILE")"
     if [ -f "$INSTALLED_VERSION_FILE" ]; then
       INSTALLED_VERSION="$(cat "$INSTALLED_VERSION_FILE")"
       if [ "$CURRENT_VERSION" != "$INSTALLED_VERSION" ]; then
-        WARNINGS+=("Hook templates have been updated (installed: $INSTALLED_VERSION, available: $CURRENT_VERSION). Review ~/coding-standards/claude/hooks/ for changes.")
+        WARNINGS+=("Hook templates have been updated (installed: $INSTALLED_VERSION, available: $CURRENT_VERSION). Review $STANDARDS_DIR/claude/hooks/ for changes.")
       fi
     fi
   fi

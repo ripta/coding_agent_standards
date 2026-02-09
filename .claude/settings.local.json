@@ -2,19 +2,19 @@
   "permissions": {
     "allow": [
       "Bash(cat:*)",
+      "Bash(chmod:*)",
       "Bash(echo:*)",
       "Bash(find:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(make:*)",
       "Bash(printf:*)",
+      "Bash(test:*)",
       "Bash(tree:*)",
       "Bash(wc:*)",
       "Bash(xargs:*)",
       "Bash(xxd:*)",
-      "WebSearch",
-      "Bash(test:*)",
-      "Bash(chmod:*)"
+      "WebSearch"
     ]
   }
 }
