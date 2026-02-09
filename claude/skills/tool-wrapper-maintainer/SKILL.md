@@ -74,5 +74,5 @@ exec "${CACHE_BIN}" "$@"
 
 - Always verify SHA256 for GLOOBIN tools
 - Keep `.cache/` in `.gitignore`
-- Test before committing
-- Commit message: `build: update <tool> to v<version>` or `build: add <tool> v<version>`
+- Test before considering the work done
+- Stop and yield to the user when finished; do not commit
