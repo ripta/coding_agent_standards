@@ -233,6 +233,18 @@ if [ -z "$context_segment" ]; then
     context_segment=" ${SEP} ${DIM}░░░░░░░░░░ --%${RESET}"
 fi
 
+# Model color based on context window pressure
+model_color=$FG_GREEN
+if [ -n "$pct" ] && [ "$pct" != "null" ] && [ "$pct" -ge 0 ] 2>/dev/null; then
+    if [ "$pct" -gt 95 ]; then
+        model_color="${BLINK}${FG_RED}"
+    elif [ "$pct" -gt 85 ]; then
+        model_color=$FG_RED
+    elif [ "$pct" -gt 70 ]; then
+        model_color=$FG_YELLOW
+    fi
+fi
+
 # --- Usage Data Fetch + Cache ---
 
 mkdir -p ${TMPDIR:-/tmp}/claude 2>/dev/null
