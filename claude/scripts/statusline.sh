@@ -37,6 +37,94 @@ BLINK=$'\033[5m'
 # Separator between segments
 SEP="${DIM}│${RESET}"
 
+# Helper functions
+get_oauth_token() {
+    if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+        echo "$CLAUDE_CODE_OAUTH_TOKEN"
+        return 0
+    fi
+
+    if command -v security >/dev/null 2>&1; then
+        local blob
+        blob=$(security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null)
+        if [ -n "$blob" ]; then
+            local token
+            token=$(echo "$blob" | jq -r '.claudeAiOauth.accessToken // empty' 2>/dev/null)
+            if [ -n "$token" ] && [ "$token" != "null" ]; then
+                echo "$token"
+                return 0
+            fi
+        fi
+    fi
+
+    echo ""
+}
+
+iso_to_epoch() {
+    local iso_str="$1"
+
+    # Try GNU date first
+    local epoch
+    epoch=$(date -d "${iso_str}" +%s 2>/dev/null)
+    if [ -n "$epoch" ]; then
+        echo "$epoch"
+        return 0
+    fi
+
+    # macOS date fallback
+    local stripped="${iso_str%%.*}"
+    stripped="${stripped%%Z}"
+    stripped="${stripped%%+*}"
+    stripped="${stripped%%-[0-9][0-9]:[0-9][0-9]}"
+
+    if [[ "$iso_str" == *"Z"* ]] || [[ "$iso_str" == *"+00:00"* ]] || [[ "$iso_str" == *"-00:00"* ]]; then
+        epoch=$(env TZ=UTC date -j -f "%Y-%m-%dT%H:%M:%S" "$stripped" +%s 2>/dev/null)
+    else
+        epoch=$(date -j -f "%Y-%m-%dT%H:%M:%S" "$stripped" +%s 2>/dev/null)
+    fi
+
+    if [ -n "$epoch" ]; then
+        echo "$epoch"
+        return 0
+    fi
+
+    return 1
+}
+
+format_reset_time() {
+    local iso_str="$1"
+    local style="$2"
+    [ -z "$iso_str" ] || [ "$iso_str" = "null" ] && return
+
+    local epoch
+    epoch=$(iso_to_epoch "$iso_str")
+    [ -z "$epoch" ] && return
+
+    local result=""
+    case "$style" in
+        time)
+            result=$(date -j -r "$epoch" +"%H:%M" 2>/dev/null)
+            [ -z "$result" ] && result=$(date -d "@$epoch" +"%H:%M" 2>/dev/null)
+            ;;
+        date)
+            result=$(date -j -r "$epoch" +"%b-%d" 2>/dev/null | tr '[:upper:]' '[:lower:]')
+            [ -z "$result" ] && result=$(date -d "@$epoch" +"%b-%d" 2>/dev/null | tr '[:upper:]' '[:lower:]')
+            ;;
+    esac
+    printf "%s" "$result"
+}
+
+usage_bar_color() {
+    local pct=$1
+    if [ "$pct" -gt 85 ]; then
+        printf "%s" "$FG_RED"
+    elif [ "$pct" -gt 70 ]; then
+        printf "%s" "$FG_YELLOW"
+    else
+        printf "%s" "$FG_GREEN"
+    fi
+}
+
 # Git info
 git_segment=""
 model_color=$FG_GREEN
@@ -115,8 +203,96 @@ if [ -z "$context_segment" ]; then
     context_segment=" ${SEP} ${DIM}░░░░░░░░░░ --%${RESET}"
 fi
 
+# Fetch usage data (cached)
+cache_file="${TMPDIR:-/tmp}/claude/statusline-usage-cache.json"
+cache_max_age=60
+mkdir -p ${TMPDIR:-/tmp}/claude 2>/dev/null
+
+needs_refresh=true
+usage_data=""
+
+if [ -f "$cache_file" ]; then
+    cache_mtime=$(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file" 2>/dev/null)
+    now=$(date +%s)
+    cache_age=$(( now - cache_mtime ))
+    if [ "$cache_age" -lt "$cache_max_age" ]; then
+        needs_refresh=false
+        usage_data=$(cat "$cache_file" 2>/dev/null)
+    fi
+fi
+
+if $needs_refresh; then
+    token=$(get_oauth_token)
+    if [ -n "$token" ] && [ "$token" != "null" ]; then
+        response=$(curl -s --max-time 5 \
+            -H "Accept: application/json" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $token" \
+            -H "anthropic-beta: oauth-2025-04-20" \
+            -H "User-Agent: claude-code/2.1.34" \
+            "https://api.anthropic.com/api/oauth/usage" 2>/dev/null)
+        if [ -n "$response" ] && echo "$response" | jq -e '.five_hour' >/dev/null 2>&1; then
+            usage_data="$response"
+            echo "$response" > "$cache_file"
+        fi
+    fi
+    if [ -z "$usage_data" ] && [ -f "$cache_file" ]; then
+        usage_data=$(cat "$cache_file" 2>/dev/null)
+    fi
+fi
+
+# Build usage quota segments
+build_usage_bar() {
+    local pct=$1
+    local bar_width=5
+    [ "$pct" -lt 0 ] 2>/dev/null && pct=0
+    [ "$pct" -gt 100 ] 2>/dev/null && pct=100
+
+    local filled=$(( pct * bar_width / 100 ))
+    local empty=$(( bar_width - filled ))
+    local bar_color
+    bar_color=$(usage_bar_color "$pct")
+
+    local filled_str="" empty_str=""
+    for ((i=0; i<filled; i++)); do filled_str+="█"; done
+    for ((i=0; i<empty; i++)); do empty_str+="░"; done
+
+    printf "%s" "${bar_color}${filled_str}${RESET}${DIM}${empty_str}${RESET}"
+}
+
+usage_segments=""
+if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
+    five_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
+    five_reset_iso=$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')
+    five_reset=$(format_reset_time "$five_reset_iso" "time")
+    five_bar=$(build_usage_bar "$five_pct")
+    five_color=$(usage_bar_color "$five_pct")
+
+    seven_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
+    seven_reset_iso=$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')
+    seven_reset=$(format_reset_time "$seven_reset_iso" "date")
+    seven_bar=$(build_usage_bar "$seven_pct")
+    seven_color=$(usage_bar_color "$seven_pct")
+
+    usage_segments=" ${SEP} ${five_bar} ${five_color}${five_pct}%${RESET} ${DIM}${five_reset}${RESET}"
+    usage_segments+=" ${SEP} ${seven_bar} ${seven_color}${seven_pct}%${RESET} ${DIM}${seven_reset}${RESET}"
+
+    extra_enabled=$(echo "$usage_data" | jq -r '.extra_usage.is_enabled // false')
+    if [ "$extra_enabled" = "true" ]; then
+        extra_used_raw=$(echo "$usage_data" | jq -r '.extra_usage.used_credits // 0')
+        if [ "$extra_used_raw" != "0" ] && [ "$extra_used_raw" != "0.0" ]; then
+            extra_pct=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' | awk '{printf "%.0f", $1}')
+            extra_bar=$(build_usage_bar "$extra_pct")
+            extra_color=$(usage_bar_color "$extra_pct")
+            extra_used=$(echo "$extra_used_raw" | awk '{printf "%.2f", $1/100}')
+            extra_limit=$(echo "$usage_data" | jq -r '.extra_usage.monthly_limit // 0' | awk '{printf "%.2f", $1/100}')
+            usage_segments+=" ${SEP} ${extra_bar} ${extra_color}\$${extra_used}${DIM}/${RESET}\$${extra_limit}"
+        fi
+    fi
+fi
+
 # Date and time
-current_datetime=$(date +"%Y/%m/%d %H:%M")
+current_datetime=$(date +"%Y-%m-%d %H:%M")
 
 # Build output: model | dir | git branch status | context bar | datetime
 echo -n "${model_color}${BOLD}${model}${RESET}"
@@ -124,3 +300,4 @@ echo -n " ${SEP} ${FG_BLUE}${BOLD} ${dir_name}${RESET}"
 echo -n "$git_segment"
 echo -n "$context_segment"
 echo -n " ${SEP} ${DIM}${current_datetime}${RESET}"
+echo -n "$usage_segments"
