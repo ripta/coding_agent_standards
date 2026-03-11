@@ -157,7 +157,7 @@ model=$(echo "$model" | sed 's/claude-//' | sed 's/-[0-9]*$//' | cut -c1-10)
 # --- Git Segment ---
 
 git_segment=""
-model_color=$FG_GREEN
+branch_color=$FG_CYAN
 if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
     branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
     [ -z "$branch" ] && branch=$(git -C "$cwd" rev-parse --short HEAD 2>/dev/null)
@@ -186,11 +186,10 @@ if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
     [ "$modified" -gt 0 ] && git_status+=" !$modified"
 
     if [ -n "$git_status" ]; then
-        model_color=$FG_YELLOW
-        git_segment=" ${SEP} ${FG_CYAN}${BOLD} $branch${RESET}${FG_YELLOW}${git_status}${RESET}"
+        branch_color=$FG_YELLOW
+        git_segment=" ${SEP} ${branch_color}${BOLD} $branch${RESET}${FG_YELLOW}${git_status}${RESET}"
     else
-        model_color=$FG_GREEN
-        git_segment=" ${SEP} ${FG_CYAN}${BOLD} $branch${RESET}"
+        git_segment=" ${SEP} ${branch_color}${BOLD} $branch${RESET}"
     fi
 fi
 
