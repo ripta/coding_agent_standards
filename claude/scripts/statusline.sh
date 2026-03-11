@@ -3,25 +3,15 @@
 # Claude Code statusline
 # https://cdn.discordapp.com/attachments/688614514505285632/688615423012634664/unknown.sh
 
+# --- Input Validation ---
+
 input=$(cat)
 if ! echo "$input" | jq -e . >/dev/null 2>&1; then
     echo "⚠ invalid input"
     exit 0
 fi
 
-cwd=$(echo "$input" | jq -r '.workspace.current_dir // empty' 2>/dev/null)
-dir_name=$(basename "$cwd" 2>/dev/null || echo "?")
-
-# Extract model - could be string or object with .id field
-model=$(echo "$input" | jq -r '
-  if .model | type == "object" then .model.id // .model.name // "claude"
-  elif .model | type == "string" then .model
-  else "claude"
-  end
-' 2>/dev/null)
-{ [ -z "$model" ] || [ "$model" = "null" ]; } && model="claude"
-# Clean up model name - remove claude- prefix and date suffix, truncate
-model=$(echo "$model" | sed 's/claude-//' | sed 's/-[0-9]*$//' | cut -c1-10)
+# --- Constants ---
 
 # ANSI color codes (foreground only)
 RESET=$'\033[0m'
@@ -37,7 +27,12 @@ BLINK=$'\033[5m'
 # Separator between segments
 SEP="${DIM}│${RESET}"
 
-# Helper functions
+# Usage cache settings
+cache_file="${TMPDIR:-/tmp}/claude/statusline-usage-cache.json"
+cache_max_age=180
+
+# --- Helper Functions ---
+
 get_oauth_token() {
     if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
         echo "$CLAUDE_CODE_OAUTH_TOKEN"
@@ -125,7 +120,42 @@ usage_bar_color() {
     fi
 }
 
-# Git info
+build_usage_bar() {
+    local pct=$1
+    local bar_width=5
+    [ "$pct" -lt 0 ] 2>/dev/null && pct=0
+    [ "$pct" -gt 100 ] 2>/dev/null && pct=100
+
+    local filled=$(( pct * bar_width / 100 ))
+    local empty=$(( bar_width - filled ))
+    local bar_color
+    bar_color=$(usage_bar_color "$pct")
+
+    local filled_str="" empty_str=""
+    for ((i=0; i<filled; i++)); do filled_str+="█"; done
+    for ((i=0; i<empty; i++)); do empty_str+="░"; done
+
+    printf "%s" "${bar_color}${filled_str}${RESET}${DIM}${empty_str}${RESET}"
+}
+
+# --- Data Extraction ---
+
+cwd=$(echo "$input" | jq -r '.workspace.current_dir // empty' 2>/dev/null)
+dir_name=$(basename "$cwd" 2>/dev/null || echo "?")
+
+# Extract model - could be string or object with .id field
+model=$(echo "$input" | jq -r '
+  if .model | type == "object" then .model.id // .model.name // "claude"
+  elif .model | type == "string" then .model
+  else "claude"
+  end
+' 2>/dev/null)
+{ [ -z "$model" ] || [ "$model" = "null" ]; } && model="claude"
+# Clean up model name - remove claude- prefix and date suffix, truncate
+model=$(echo "$model" | sed 's/claude-//' | sed 's/-[0-9]*$//' | cut -c1-10)
+
+# --- Git Segment ---
+
 git_segment=""
 model_color=$FG_GREEN
 if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
@@ -164,7 +194,8 @@ if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
     fi
 fi
 
-# Context progress bar (uses built-in used_percentage from Claude Code 2.1.6+)
+# --- Context Bar Segment ---
+
 context_segment=""
 pct=$(echo "$input" | jq '.context_window.used_percentage // empty' 2>/dev/null)
 if [ -n "$pct" ] && [ "$pct" != "null" ] && [ "$pct" -ge 0 ] 2>/dev/null; then
@@ -203,9 +234,8 @@ if [ -z "$context_segment" ]; then
     context_segment=" ${SEP} ${DIM}░░░░░░░░░░ --%${RESET}"
 fi
 
-# Fetch usage data (cached)
-cache_file="${TMPDIR:-/tmp}/claude/statusline-usage-cache.json"
-cache_max_age=60
+# --- Usage Data Fetch + Cache ---
+
 mkdir -p ${TMPDIR:-/tmp}/claude 2>/dev/null
 
 needs_refresh=true
@@ -241,24 +271,7 @@ if $needs_refresh; then
     fi
 fi
 
-# Build usage quota segments
-build_usage_bar() {
-    local pct=$1
-    local bar_width=5
-    [ "$pct" -lt 0 ] 2>/dev/null && pct=0
-    [ "$pct" -gt 100 ] 2>/dev/null && pct=100
-
-    local filled=$(( pct * bar_width / 100 ))
-    local empty=$(( bar_width - filled ))
-    local bar_color
-    bar_color=$(usage_bar_color "$pct")
-
-    local filled_str="" empty_str=""
-    for ((i=0; i<filled; i++)); do filled_str+="█"; done
-    for ((i=0; i<empty; i++)); do empty_str+="░"; done
-
-    printf "%s" "${bar_color}${filled_str}${RESET}${DIM}${empty_str}${RESET}"
-}
+# --- Usage Segment Assembly ---
 
 usage_segments=""
 if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
@@ -291,10 +304,10 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     fi
 fi
 
-# Date and time
+# --- Output Assembly ---
+
 current_datetime=$(date +"%Y-%m-%d %H:%M")
 
-# Build output: model | dir | git branch status | context bar | datetime
 echo -n "${model_color}${BOLD}${model}${RESET}"
 echo -n " ${SEP} ${FG_BLUE}${BOLD} ${dir_name}${RESET}"
 echo -n "$git_segment"
