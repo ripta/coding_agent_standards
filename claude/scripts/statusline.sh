@@ -152,7 +152,7 @@ model=$(echo "$input" | jq -r '
 ' 2>/dev/null)
 { [ -z "$model" ] || [ "$model" = "null" ]; } && model="claude"
 # Clean up model name - remove claude- prefix and date suffix, truncate
-model=$(echo "$model" | sed 's/claude-//' | sed 's/-[0-9]*$//' | cut -c1-10)
+model=$(echo "$model" | sed 's/claude-//' | sed 's/-[0-9]\{8,\}$//' | cut -c1-10)
 
 # --- Git Segment ---
 
