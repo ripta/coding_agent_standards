@@ -7,7 +7,8 @@ This repository contains personal coding standards, best practices, and Claude C
 - `languages/` - Language-specific coding standards
 - `practices/` - Cross-cutting practices (testing, error handling, security)
 - `project-management/` - Plans, proposals, design, and tracking standards
-- `claude/` - Claude Code skills, hooks, and rules
+- `.claude/` - Project-local Claude Code config for this repo (skills, settings)
+- `claude/` - Claude Code skills, hooks, and rules exported for use by other projects (via `--add-dir` or `@import`)
 - `profiles/` - Composable project profiles that import from the above
 
 ## Usage

@@ -9,7 +9,8 @@ coding_agent_standards/
 ├── languages/          Language-specific standards
 ├── practices/          Cross-cutting practices
 ├── project-management/ Plans, proposals, design, and tracking standards
-├── claude/             Claude Code skills, hooks, rules, and settings
+├── .claude/            Project-local Claude Code config (skills, settings) for this repo
+├── claude/             Claude Code skills, hooks, rules, and settings (exported to other projects)
 ├── profiles/           Composable project profiles
 └── bin/                Utility scripts
 ```
@@ -51,7 +52,11 @@ Rules, hooks, settings, and skills for Claude Code agents:
 - **Rules** -- decision-making boundaries, work discipline, git workflow, commit/PR style
 - **Hooks** -- templates for auto-formatting on edit, pre-commit linting, test reminders
 - **Settings** -- tool permission whitelists per language ecosystem
-- **Skills** -- specialized agents for code review, testing, linting, Makefile maintenance, etc.
+- **Skills** -- specialized agents for code review, testing, linting, Makefile maintenance, etc. These live in `claude/skills/` and are exported to other projects that import this repo.
+
+Note the distinction between `.claude/` and `claude/`:
+- **`.claude/`** is the standard Claude Code project config directory. Skills and settings here apply when working **in this repo** (e.g., `standards-synthesizer` for onboarding new languages).
+- **`claude/`** contains skills, hooks, rules, and settings **exported to other projects** that reference this repo via `--add-dir` or `@import`.
 
 ### Profiles
 
