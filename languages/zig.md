@@ -11,7 +11,6 @@
 
 - One type or concept per file
 - Re-exports via `pub const` in parent modules
-- Primitive/operation modules export arrays that get aggregated in a `mod.zig`
 - Code organization within files: imports, helpers, public types, public arrays, implementation, tests
 
 ## Error Handling
@@ -33,21 +32,15 @@
 ## Testing
 
 - Unit tests: embedded `test "description" { ... }` blocks at the bottom of source files
-- Integration tests: golden file approach in `tests/integration/`
-  - `*.stdin` for input, `*.stdout.golden` and `*.stderr.golden` for expected output
-  - `*.flags` for per-test CLI flags, `*.exitcode` for expected exit codes
-  - Update with `zig build update-golden`; validate no `FAIL:` appears in golden files
-- Formatter tests: separate golden files in `tests/formatting/`
+- Use `std.testing` for assertions in unit tests
+- Run tests with `zig build test` or via Makefile targets
 
 ## Build System
 
 - Use Makefile as the entry point; Makefile targets call `zig build` subcommands
-- Dynamic test discovery: iterate test directory at build time via `build.zig`
-- Symlink standard library to `zig-out/lib/`
 - Build options via `addOptions()` for compile-time constants
 
 ## Comments
 
 - Doc comments: `///` before functions and types
-- Stack effect notation in comments: `( input -- output )`
 - Preserve existing comment style and tone when editing

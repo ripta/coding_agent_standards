@@ -19,6 +19,7 @@ coding_agent_standards/
 
 Standards for each language/framework covering naming, project structure, error handling, testing, and tooling:
 
+- **1z** (`1z.md`) -- stack-oriented functional language, naming conventions, testing, quotation-based control flow
 - **Go** (`go.md`) -- packages, error wrapping, concurrency, build patterns
 - **CGO** (`cgo.md`) -- C FFI bridge layers, type conversions, memory management, gomobile
 - **Swift** (`swift.md`) -- SwiftUI, async/await, SPM, Go/C library integration
@@ -70,6 +71,8 @@ Composable profiles that bundle the right standards for a given project type. Ea
 | `swift-macos-app` | SwiftUI macOS apps |
 | `swift-cli` | Swift command-line tools |
 | `rust-project` | Rust projects |
+| `1z-project` | 1z standalone projects |
+| `1z-interpreter` | 1z interpreter (Zig + 1z) |
 | `zig-project` | Zig projects |
 | `svelte-app` | Svelte/SvelteKit apps |
 | `oss-contrib` | Lightweight profile for contributing to repos you don't own |
