@@ -7,6 +7,7 @@ Minimal standards applied to all projects.
 @../claude/rules/git-workflow.md
 @../claude/rules/commit-style.md
 @../claude/rules/pr-style.md
+@../claude/rules/shell-discipline.md
 @../practices/code-review.md
 @../project-management/design.md
 @../project-management/plans.md
