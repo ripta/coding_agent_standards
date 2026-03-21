@@ -40,6 +40,15 @@
 - Use Makefile as the entry point; Makefile targets call `zig build` subcommands
 - Build options via `addOptions()` for compile-time constants
 
+## Sandbox and Standard Library Access
+
+- Disable the sandbox when running build commands. The sandbox blocks access to
+  Zig standard library files. If you see `PermissionDenied` errors for `std.zig`
+  or similar, that is the sandbox.
+- Note: There is currently no doc tool that allows querying the Zig stdlib from
+  the command line. Once such a tool exists, this sandbox-disabling rule may be
+  removable.
+
 ## Comments
 
 - Doc comments: `///` before functions and types
