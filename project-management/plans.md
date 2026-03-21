@@ -10,6 +10,14 @@ A phase is a unit of implementation work. Each phase implements exactly one prop
 - Proposal numbers are permanent and never change
 - Milestones within a phase are numbered from `.1` upward (e.g., Phase 5.1, 5.2, 5.3)
 
+## Before Starting a Phase
+
+- Before beginning implementation work on a proposal, check its status field.
+- Only `accepted` or `scheduled` proposals may be implemented.
+- If the status is `draft`, `deferred`, or `rejected`, stop and tell the user. This applies even if the user asks you to implement it -- flag the status conflict and ask for confirmation to change the status first.
+- A detailed implementation plan does NOT imply the proposal has been accepted. The status field is the sole source of truth.
+- Creating a proposal is NOT the same as promoting it. Do not promote a proposal to a phase unless the user explicitly asks. A plan document that contains phase numbers or milestones does not authorize promotion; it is a design sketch until the user says to schedule it.
+
 ## Promoting a Proposal to a Phase
 
 When a proposal is accepted and scheduled for implementation:
@@ -23,6 +31,8 @@ When a proposal is accepted and scheduled for implementation:
 4. Create milestones numbered from `.1` upward within each new phase.
 5. Add the phase(s) to the status summary table and the pending phases section in the implementation plan.
 6. Update the proposal's status (and any proposal index) to reflect that implementation is underway.
+7. Do not combine or fold phases together; each phase is separate by default.
+8. Milestone tables use three columns by default: Milestone, Description, and Status. Valid status values are `NOT STARTED`, `IN PROGRESS`, or `DONE`. Projects may override this format.
 
 ## Milestone Workflow
 
