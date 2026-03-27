@@ -143,16 +143,17 @@ build_usage_bar() {
 cwd=$(echo "$input" | jq -r '.workspace.current_dir // empty' 2>/dev/null)
 dir_name=$(basename "$cwd" 2>/dev/null || echo "?")
 
-# Extract model - could be string or object with .id field
+# Extract model - prefer display_name, fall back to id/name/string
 model=$(echo "$input" | jq -r '
-  if .model | type == "object" then .model.id // .model.name // "claude"
+  if .model | type == "object" then .model.display_name // .model.id // .model.name // "claude"
   elif .model | type == "string" then .model
   else "claude"
   end
 ' 2>/dev/null)
 { [ -z "$model" ] || [ "$model" = "null" ]; } && model="claude"
-# Clean up model name - remove claude- prefix and date suffix, truncate
-model=$(echo "$model" | sed 's/claude-//' | sed 's/-[0-9]\{8,\}$//' | cut -c1-10)
+# If display_name not available, clean up the raw model ID:
+# remove claude- prefix and trailing date suffix (8+ digits)
+model=$(echo "$model" | sed 's/^claude-//' | sed 's/-[0-9]\{8,\}$//')
 
 # --- Git Segment ---
 
