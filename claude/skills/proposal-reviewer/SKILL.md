@@ -44,7 +44,7 @@ Before engaging the user on any questions:
 2. If there are no open design questions (the section is empty or absent), ask the user if there are new items they want to discuss relating to the proposal using AskUserQuestion. If no new items, offer to accept the proposal and stop.
 3. Present a numbered summary of all open questions, showing any candidate options already listed
 4. Flag questions that are related or dependent on each other
-5. Ask the user which question to tackle first using AskUserQuestion, or default to document order if they have no preference
+5. Recommend a starting order that prioritizes the most foundational questions first — questions that other questions depend on, that affect the most components or interfaces, or that constrain the solution space for later decisions. Present this recommended order and ask the user which question to tackle first using AskUserQuestion
 
 ### Phase 5: Resolve Questions
 
@@ -147,7 +147,7 @@ Add a reference to the new ADR in the proposal's References section.
 
 #### 8. Next
 
-Show the count of remaining open questions. Ask the user to pick the next question or stop the session.
+Show the count of remaining open questions, ordered by foundational impact (widest-effect and most-depended-on first). Ask the user to pick the next question or stop the session.
 
 ### Phase 6: Wrap-Up
 
