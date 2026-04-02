@@ -149,9 +149,19 @@ Add a reference to the new ADR in the proposal's References section.
 
 Show the count of remaining open questions, ordered by foundational impact (widest-effect and most-depended-on first). Ask the user to pick the next question or stop the session.
 
-### Phase 6: Wrap-Up
+### Phase 6: Coherence Review
 
-When the user stops or all questions are resolved:
+When all open questions have been resolved, review the settled decisions as a whole before wrapping up:
+
+1. **Consistency check**: Read through all settled decisions together and verify they are internally consistent — no contradictions, no decisions that undermine each other's rationale, and no implicit assumptions that conflict. If inconsistencies are found, present them to the user via AskUserQuestion and resolve before continuing.
+
+2. **Gap analysis**: Consider whether the combined decisions reveal new design questions that weren't visible when questions were addressed individually — e.g., integration concerns, missing error handling paths, or undecided behavioral edge cases. If gaps are found, present them to the user via AskUserQuestion and ask whether to:
+   - Add them as new open questions in the proposal (and loop back to Phase 5 to resolve them)
+   - Note them in the proposal as known future work without resolving now
+
+### Phase 7: Wrap-Up
+
+When the user stops or all questions are resolved (and the coherence review is complete):
 
 - **All resolved**: Ask if the proposal should advance to `accepted`. If yes, update the status.
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
