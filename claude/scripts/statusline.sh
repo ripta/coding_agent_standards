@@ -27,8 +27,9 @@ BLINK=$'\033[5m'
 # Separator between segments
 SEP="${DIM}│${RESET}"
 
-# Usage cache settings
-cache_file="${TMPDIR:-/tmp}/claude/statusline-usage-cache.json"
+# Cache settings
+cache_dir="${TMPDIR:-/tmp}/claude"
+cache_file="${cache_dir}/statusline-usage-cache.json"
 cache_max_age=180
 
 # --- Helper Functions ---
@@ -109,6 +110,61 @@ format_reset_time() {
     printf "%s" "$result"
 }
 
+resolve_bedrock_arn() {
+    local arn="$1"
+
+    # Extract region and resource type from the ARN
+    # Format: arn:aws:bedrock:<region>:<account>:<resource-type>/<resource-id>
+    local region resource_type resource_id
+    region=$(echo "$arn" | cut -d: -f4)
+    resource_type=$(echo "$arn" | cut -d: -f6 | cut -d/ -f1)
+    resource_id=$(echo "$arn" | cut -d/ -f2)
+
+    # For foundation-model ARNs, the resource ID is already a readable model name
+    if [ "$resource_type" = "foundation-model" ]; then
+        echo "$resource_id"
+        return 0
+    fi
+
+    # For inference profiles, try to resolve via AWS CLI with caching
+    if [ "$resource_type" = "application-inference-profile" ] || [ "$resource_type" = "inference-profile" ]; then
+        local profile_cache="${cache_dir}/bedrock-profile-${resource_id}.txt"
+
+        # Check cache first (cache for 1 hour)
+        if [ -f "$profile_cache" ]; then
+            local pc_mtime pc_age
+            pc_mtime=$(stat -c %Y "$profile_cache" 2>/dev/null || stat -f %m "$profile_cache" 2>/dev/null)
+            pc_age=$(( $(date +%s) - pc_mtime ))
+            if [ "$pc_age" -lt 3600 ]; then
+                cat "$profile_cache"
+                return 0
+            fi
+        fi
+
+        # Try AWS CLI
+        if command -v aws >/dev/null 2>&1; then
+            local profile_name
+            profile_name=$(aws bedrock get-inference-profile \
+                --inference-profile-identifier "$arn" \
+                --region "$region" \
+                --query 'inferenceProfileName' \
+                --output text 2>/dev/null)
+            if [ -n "$profile_name" ] && [ "$profile_name" != "None" ]; then
+                echo "$profile_name" > "$profile_cache"
+                echo "$profile_name"
+                return 0
+            fi
+        fi
+
+        # Fallback: short profile ID
+        echo "bedrock:${resource_id:0:12}"
+        return 0
+    fi
+
+    # Unknown resource type: just show the tail
+    echo "bedrock:${resource_id}"
+}
+
 usage_bar_color() {
     local pct=$1
     if [ "$pct" -gt 85 ]; then
@@ -140,6 +196,8 @@ build_usage_bar() {
 
 # --- Data Extraction ---
 
+mkdir -p "$cache_dir" 2>/dev/null
+
 cwd=$(echo "$input" | jq -r '.workspace.current_dir // empty' 2>/dev/null)
 dir_name=$(basename "$cwd" 2>/dev/null || echo "?")
 
@@ -151,6 +209,10 @@ model=$(echo "$input" | jq -r '
   end
 ' 2>/dev/null)
 { [ -z "$model" ] || [ "$model" = "null" ]; } && model="claude"
+# Resolve Bedrock ARNs to friendly names
+if [[ "$model" == arn:aws:bedrock:* ]]; then
+    model=$(resolve_bedrock_arn "$model")
+fi
 # If display_name not available, clean up the raw model ID:
 # remove claude- prefix and trailing date suffix (8+ digits)
 model=$(echo "$model" | sed 's/^claude-//' | sed 's/-[0-9]\{8,\}$//')
@@ -247,8 +309,6 @@ if [ -n "$pct" ] && [ "$pct" != "null" ] && [ "$pct" -ge 0 ] 2>/dev/null; then
 fi
 
 # --- Usage Data Fetch + Cache ---
-
-mkdir -p ${TMPDIR:-/tmp}/claude 2>/dev/null
 
 needs_refresh=true
 usage_data=""
