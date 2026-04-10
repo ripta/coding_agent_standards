@@ -6,6 +6,8 @@
       "Bash(chmod:*)",
       "Bash(echo:*)",
       "Bash(find:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue view:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(make:*)",
