@@ -27,10 +27,15 @@ BLINK=$'\033[5m'
 # Separator between segments
 SEP="${DIM}│${RESET}"
 
+# Prevent index.lock contention with Claude Code's own git operations
+# (see anthropics/claude-code#11005)
+export GIT_OPTIONAL_LOCKS=0
+
 # Cache settings
 cache_dir="${TMPDIR:-/tmp}/claude"
 cache_file="${cache_dir}/statusline-usage-cache.json"
 cache_max_age=180
+git_cache_max_age=5
 
 # --- Helper Functions ---
 
@@ -220,40 +225,55 @@ model=$(echo "$model" | sed 's/^claude-//' | sed 's/-[0-9]\{8,\}$//')
 # --- Git Segment ---
 
 git_segment=""
-branch_color=$FG_CYAN
-if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
-    branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
-    [ -z "$branch" ] && branch=$(git -C "$cwd" rev-parse --short HEAD 2>/dev/null)
+git_cache_key=$(printf '%s' "$cwd" | md5 -q 2>/dev/null || printf '%s' "$cwd" | md5sum 2>/dev/null | cut -d' ' -f1)
+git_cache_file="${cache_dir}/statusline-git-${git_cache_key}.txt"
 
-    # Get status counts
-    status=$(git -C "$cwd" status --porcelain 2>/dev/null)
-    if [ -n "$status" ]; then
-        staged=$(echo "$status" | grep -c '^[MADRC]')
-        modified=$(echo "$status" | grep -c '^.[MD]')
-    else
-        staged=0
-        modified=0
+if [ -f "$git_cache_file" ]; then
+    gc_mtime=$(stat -c %Y "$git_cache_file" 2>/dev/null || stat -f %m "$git_cache_file" 2>/dev/null)
+    gc_age=$(( $(date +%s) - gc_mtime ))
+    if [ "$gc_age" -lt "$git_cache_max_age" ]; then
+        git_segment=$(cat "$git_cache_file")
+    fi
+fi
+
+if [ -z "$git_segment" ]; then
+    branch_color=$FG_CYAN
+    if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
+        branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
+        [ -z "$branch" ] && branch=$(git -C "$cwd" rev-parse --short HEAD 2>/dev/null)
+
+        # Get status counts
+        status=$(git -C "$cwd" status --porcelain 2>/dev/null)
+        if [ -n "$status" ]; then
+            staged=$(echo "$status" | grep -c '^[MADRC]')
+            modified=$(echo "$status" | grep -c '^.[MD]')
+        else
+            staged=0
+            modified=0
+        fi
+
+        # Ahead/behind
+        ahead=$(git -C "$cwd" rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
+        behind=$(git -C "$cwd" rev-list --count HEAD..@{u} 2>/dev/null || echo 0)
+        ahead=${ahead:-0}
+        behind=${behind:-0}
+
+        # Build compact git status (starship style)
+        git_status=""
+        [ "$ahead" -gt 0 ] && git_status+=" ⇡$ahead"
+        [ "$behind" -gt 0 ] && git_status+=" ⇣$behind"
+        [ "$staged" -gt 0 ] && git_status+=" +$staged"
+        [ "$modified" -gt 0 ] && git_status+=" !$modified"
+
+        if [ -n "$git_status" ]; then
+            branch_color=$FG_YELLOW
+            git_segment=" ${SEP} ${branch_color}${BOLD} $branch${RESET}${FG_YELLOW}${git_status}${RESET}"
+        else
+            git_segment=" ${SEP} ${branch_color}${BOLD} $branch${RESET}"
+        fi
     fi
 
-    # Ahead/behind
-    ahead=$(git -C "$cwd" rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
-    behind=$(git -C "$cwd" rev-list --count HEAD..@{u} 2>/dev/null || echo 0)
-    ahead=${ahead:-0}
-    behind=${behind:-0}
-
-    # Build compact git status (starship style)
-    git_status=""
-    [ "$ahead" -gt 0 ] && git_status+=" ⇡$ahead"
-    [ "$behind" -gt 0 ] && git_status+=" ⇣$behind"
-    [ "$staged" -gt 0 ] && git_status+=" +$staged"
-    [ "$modified" -gt 0 ] && git_status+=" !$modified"
-
-    if [ -n "$git_status" ]; then
-        branch_color=$FG_YELLOW
-        git_segment=" ${SEP} ${branch_color}${BOLD} $branch${RESET}${FG_YELLOW}${git_status}${RESET}"
-    else
-        git_segment=" ${SEP} ${branch_color}${BOLD} $branch${RESET}"
-    fi
+    [ -n "$git_segment" ] && printf '%s' "$git_segment" > "$git_cache_file"
 fi
 
 # --- Context Bar Segment ---
