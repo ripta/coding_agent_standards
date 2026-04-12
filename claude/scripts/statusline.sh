@@ -218,9 +218,9 @@ model=$(echo "$input" | jq -r '
 if [[ "$model" == arn:aws:bedrock:* ]]; then
     model=$(resolve_bedrock_arn "$model")
 fi
-# If display_name not available, clean up the raw model ID:
-# remove claude- prefix and trailing date suffix (8+ digits)
-model=$(echo "$model" | sed 's/^claude-//' | sed 's/-[0-9]\{8,\}$//')
+# Clean up model name:
+# remove claude- prefix, trailing date suffix (8+ digits), and parenthesized context size
+model=$(echo "$model" | sed 's/^claude-//' | sed 's/-[0-9]\{8,\}$//' | sed 's/ *([^)]*context[^)]*)$//')
 
 # --- Git Segment ---
 
@@ -280,6 +280,18 @@ fi
 
 context_segment=""
 pct=$(echo "$input" | jq '.context_window.used_percentage // empty' 2>/dev/null)
+
+# Recalculate pct relative to auto-compact window if configured
+cap_segment=""
+if [ -n "$CLAUDE_CODE_AUTO_COMPACT_WINDOW" ] && [ "$CLAUDE_CODE_AUTO_COMPACT_WINDOW" -gt 0 ] 2>/dev/null; then
+    ctx_size=$(echo "$input" | jq '.context_window.context_window_size // empty' 2>/dev/null)
+    if [ -n "$ctx_size" ] && [ "$ctx_size" -gt 0 ] 2>/dev/null && [ -n "$pct" ] && [ "$pct" != "null" ]; then
+        pct=$(( pct * ctx_size / CLAUDE_CODE_AUTO_COMPACT_WINDOW ))
+    fi
+    cap_k=$(( CLAUDE_CODE_AUTO_COMPACT_WINDOW / 1000 ))
+    cap_segment=" ${DIM}@${cap_k}k${RESET}"
+fi
+
 if [ -n "$pct" ] && [ "$pct" != "null" ] && [ "$pct" -ge 0 ] 2>/dev/null; then
     # Build progress bar (10 chars wide)
     bar_width=5
@@ -400,7 +412,7 @@ fi
 
 current_datetime=$(date +"%Y-%m-%d %H:%M")
 
-echo -n "${model_color}${BOLD}${model}${RESET}"
+echo -n "${model_color}${BOLD}${model}${RESET}${cap_segment}"
 echo -n " ${SEP} ${FG_BLUE}${BOLD} ${dir_name}${RESET}"
 echo -n "$git_segment"
 echo -n "$context_segment"
