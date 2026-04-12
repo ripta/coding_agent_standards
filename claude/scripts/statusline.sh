@@ -34,7 +34,7 @@ export GIT_OPTIONAL_LOCKS=0
 # Cache settings
 cache_dir="${TMPDIR:-/tmp}/claude"
 cache_file="${cache_dir}/statusline-usage-cache.json"
-cache_max_age=180
+cache_max_age=120
 git_cache_max_age=5
 
 # --- Helper Functions ---
@@ -172,9 +172,9 @@ resolve_bedrock_arn() {
 
 usage_bar_color() {
     local pct=$1
-    if [ "$pct" -gt 85 ]; then
+    if [ "$pct" -gt 95 ]; then
         printf "%s" "$FG_RED"
-    elif [ "$pct" -gt 70 ]; then
+    elif [ "$pct" -gt 80 ]; then
         printf "%s" "$FG_YELLOW"
     else
         printf "%s" "$FG_GREEN"
@@ -282,7 +282,7 @@ context_segment=""
 pct=$(echo "$input" | jq '.context_window.used_percentage // empty' 2>/dev/null)
 if [ -n "$pct" ] && [ "$pct" != "null" ] && [ "$pct" -ge 0 ] 2>/dev/null; then
     # Build progress bar (10 chars wide)
-    bar_width=10
+    bar_width=5
     filled=$((pct * bar_width / 100))
     [ "$filled" -gt "$bar_width" ] && filled=$bar_width
     empty=$((bar_width - filled))
@@ -383,7 +383,7 @@ if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     usage_segments+=" ${SEP} ${seven_bar} ${seven_color}${seven_pct}%${RESET} ${DIM}${seven_reset}${RESET}"
 
     extra_enabled=$(echo "$usage_data" | jq -r '.extra_usage.is_enabled // false')
-    if [ "$extra_enabled" = "true" ]; then
+    if [ "$extra_enabled" = "true" ] && { [ "$five_pct" -ge 90 ] || [ "$seven_pct" -ge 90 ]; }; then
         extra_used_raw=$(echo "$usage_data" | jq -r '.extra_usage.used_credits // 0')
         if [ "$extra_used_raw" != "0" ] && [ "$extra_used_raw" != "0.0" ]; then
             extra_pct=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' | awk '{printf "%.0f", $1}')
