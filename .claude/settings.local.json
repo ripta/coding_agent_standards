@@ -1,6 +1,11 @@
 {
   "permissions": {
     "allow": [
+      "Bash(aws bedrock:*)",
+      "Bash(aws ce:*)",
+      "Bash(aws cloudtrail:*)",
+      "Bash(aws cloudwatch:*)",
+      "Bash(aws pricing:*)",
       "Bash(cat:*)",
       "Bash(cg:*)",
       "Bash(chmod:*)",
@@ -8,6 +13,9 @@
       "Bash(find:*)",
       "Bash(gh issue list:*)",
       "Bash(gh issue view:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(make:*)",
