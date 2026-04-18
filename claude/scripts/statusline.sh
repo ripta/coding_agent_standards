@@ -61,12 +61,25 @@ cache_max_age=120
 git_cache_max_age=5
 bedrock_cache_max_age=300
 
-# Bedrock pricing: $/1M tokens (input output)
-# Override with BEDROCK_INPUT_PRICE_PER_MTOK / BEDROCK_OUTPUT_PRICE_PER_MTOK env vars
+# Bedrock pricing: $/1M tokens (input output cache_read cache_write_5m)
+# Source: AWS Bedrock Global Cross-region Inference, US West (Oregon)
+# Override input/output with BEDROCK_INPUT_PRICE_PER_MTOK / BEDROCK_OUTPUT_PRICE_PER_MTOK env vars
 declare -A BEDROCK_PRICES=(
-    ["anthropic.claude-opus-4-6-v1"]="15.00 75.00"
-    ["anthropic.claude-sonnet-4-6-v1"]="3.00 15.00"
-    ["anthropic.claude-haiku-4-5-v1"]="0.80 4.00"
+    # Opus family
+    ["anthropic.claude-opus-4-7-v1"]="5.00 25.00 0.50 6.25"
+    ["anthropic.claude-opus-4-6-v1"]="5.00 25.00 0.50 6.25"
+    ["anthropic.claude-opus-4-5-v1"]="5.00 25.00 0.50 6.25"
+    # Sonnet 4.6
+    ["anthropic.claude-sonnet-4-6-v1"]="3.00 15.00 0.30 3.75"
+    ["anthropic.claude-sonnet-4-6-long-context-v1"]="3.00 15.00 0.30 3.75"
+    # Sonnet 4.5 (long-context priced higher)
+    ["anthropic.claude-sonnet-4-5-v1"]="3.00 15.00 0.30 3.75"
+    ["anthropic.claude-sonnet-4-5-long-context-v1"]="6.00 22.50 0.60 7.50"
+    # Sonnet 4 (long-context priced higher)
+    ["anthropic.claude-sonnet-4-v1"]="3.00 15.00 0.30 3.75"
+    ["anthropic.claude-sonnet-4-long-context-v1"]="6.00 22.50 0.60 7.50"
+    # Haiku 4.5
+    ["anthropic.claude-haiku-4-5-v1"]="1.00 5.00 0.10 1.25"
 )
 
 # --- Helper Functions ---
@@ -365,6 +378,30 @@ fetch_bedrock_usage_bg() {
                     \"Period\": 86400,
                     \"Stat\": \"Sum\"
                 }
+            },
+            {
+                \"Id\": \"cache_read_tokens\",
+                \"MetricStat\": {
+                    \"Metric\": {
+                        \"Namespace\": \"AWS/Bedrock\",
+                        \"MetricName\": \"CacheReadInputTokenCount\",
+                        \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
+                    },
+                    \"Period\": 86400,
+                    \"Stat\": \"Sum\"
+                }
+            },
+            {
+                \"Id\": \"cache_write_tokens\",
+                \"MetricStat\": {
+                    \"Metric\": {
+                        \"Namespace\": \"AWS/Bedrock\",
+                        \"MetricName\": \"CacheWriteInputTokenCount\",
+                        \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
+                    },
+                    \"Period\": 86400,
+                    \"Stat\": \"Sum\"
+                }
             }
         ]" \
         --output json 2>/dev/null)
@@ -375,26 +412,33 @@ fetch_bedrock_usage_bg() {
     fi
 
     # Get prices for cost calculation
-    local prices input_price output_price
+    local prices input_price output_price cache_read_price cache_write_price
     prices=$(get_bedrock_prices "$foundation_model")
     if [ -n "$prices" ]; then
         input_price=$(echo "$prices" | awk '{print $1}')
         output_price=$(echo "$prices" | awk '{print $2}')
+        cache_read_price=$(echo "$prices" | awk '{print $3}')
+        cache_write_price=$(echo "$prices" | awk '{print $4}')
     fi
 
     # Assemble composite JSON: sum tokens per window, calculate costs
     local result
     result=$(echo "$cw_response" | jq --arg today "$today" --arg yesterday "$yesterday" \
         --arg week_start "$seven_days_ago" \
-        --arg input_price "${input_price:-}" --arg output_price "${output_price:-}" '
-        # Extract input and output token arrays
+        --arg input_price "${input_price:-}" --arg output_price "${output_price:-}" \
+        --arg cache_read_price "${cache_read_price:-}" --arg cache_write_price "${cache_write_price:-}" '
+        # Extract token arrays
         (.MetricDataResults // []) as $results |
         ($results | map(select(.Id == "input_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $in |
         ($results | map(select(.Id == "output_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $out |
+        ($results | map(select(.Id == "cache_read_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $cr |
+        ($results | map(select(.Id == "cache_write_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $cw |
 
         # Build a date->value map for each metric
         (reduce range($in.Timestamps | length) as $i ({}; . + {($in.Timestamps[$i] | split("T")[0]): $in.Values[$i]})) as $in_map |
         (reduce range($out.Timestamps | length) as $i ({}; . + {($out.Timestamps[$i] | split("T")[0]): $out.Values[$i]})) as $out_map |
+        (reduce range($cr.Timestamps | length) as $i ({}; . + {($cr.Timestamps[$i] | split("T")[0]): $cr.Values[$i]})) as $cr_map |
+        (reduce range($cw.Timestamps | length) as $i ({}; . + {($cw.Timestamps[$i] | split("T")[0]): $cw.Values[$i]})) as $cw_map |
 
         # Sum tokens for each window
         def sum_range(start_date; end_date; map):
@@ -402,15 +446,25 @@ fetch_bedrock_usage_bg() {
 
         (sum_range($today; $today; $in_map)) as $today_in |
         (sum_range($today; $today; $out_map)) as $today_out |
+        (sum_range($today; $today; $cr_map)) as $today_cr |
+        (sum_range($today; $today; $cw_map)) as $today_cw |
         (sum_range($yesterday; $today; $in_map)) as $two_in |
         (sum_range($yesterday; $today; $out_map)) as $two_out |
+        (sum_range($yesterday; $today; $cr_map)) as $two_cr |
+        (sum_range($yesterday; $today; $cw_map)) as $two_cw |
         (sum_range($week_start; $today; $in_map)) as $seven_in |
         (sum_range($week_start; $today; $out_map)) as $seven_out |
+        (sum_range($week_start; $today; $cr_map)) as $seven_cr |
+        (sum_range($week_start; $today; $cw_map)) as $seven_cw |
 
         # Calculate costs if prices available
-        def calc_cost(in_tok; out_tok):
+        def calc_cost(in_tok; out_tok; cr_tok; cw_tok):
             if $input_price != "" and $output_price != "" then
-                ((in_tok * ($input_price | tonumber) + out_tok * ($output_price | tonumber)) / 1000000)
+                ( in_tok * ($input_price | tonumber)
+                + out_tok * ($output_price | tonumber)
+                + (if $cache_read_price != "" then cr_tok * ($cache_read_price | tonumber) else 0 end)
+                + (if $cache_write_price != "" then cw_tok * ($cache_write_price | tonumber) else 0 end)
+                ) / 1000000
                 | . * 100 | round | . / 100 | tostring
             else null end;
 
@@ -418,19 +472,30 @@ fetch_bedrock_usage_bg() {
             today: {
                 input_tokens: ($today_in | floor),
                 output_tokens: ($today_out | floor),
-                cost: calc_cost($today_in; $today_out)
+                cache_read_tokens: ($today_cr | floor),
+                cache_write_tokens: ($today_cw | floor),
+                cost: calc_cost($today_in; $today_out; $today_cr; $today_cw)
             },
             two_day: {
                 input_tokens: ($two_in | floor),
                 output_tokens: ($two_out | floor),
-                cost: calc_cost($two_in; $two_out)
+                cache_read_tokens: ($two_cr | floor),
+                cache_write_tokens: ($two_cw | floor),
+                cost: calc_cost($two_in; $two_out; $two_cr; $two_cw)
             },
             seven_day: {
                 input_tokens: ($seven_in | floor),
                 output_tokens: ($seven_out | floor),
-                cost: calc_cost($seven_in; $seven_out)
+                cache_read_tokens: ($seven_cr | floor),
+                cache_write_tokens: ($seven_cw | floor),
+                cost: calc_cost($seven_in; $seven_out; $seven_cr; $seven_cw)
             },
-            prices: (if $input_price != "" then {input: $input_price, output: $output_price} else null end),
+            prices: (if $input_price != "" then {
+                input: $input_price,
+                output: $output_price,
+                cache_read: (if $cache_read_price != "" then $cache_read_price else null end),
+                cache_write: (if $cache_write_price != "" then $cache_write_price else null end)
+            } else null end),
             fetched_at: (now | todate)
         }
     ' 2>/dev/null)
