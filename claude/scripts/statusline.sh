@@ -2,6 +2,29 @@
 #
 # Claude Code statusline
 # https://cdn.discordapp.com/attachments/688614514505285632/688615423012634664/unknown.sh
+#
+# Cache files (stored in ${TMPDIR:-/tmp}/claude/):
+#
+#   statusline-usage-cache.json         Paid-account OAuth usage data (5hr/7day/extra quotas)
+#                                       TTL: 120s
+#
+#   statusline-git-<md5>.txt            Git branch/status per working directory
+#                                       TTL: 5s. Key is MD5 of the cwd path.
+#
+#   bedrock-profile-<id>.txt            Bedrock inference profile → display name
+#                                       TTL: 1 hour. Used by resolve_bedrock_arn().
+#
+#   bedrock-model-<id>.txt              Bedrock inference profile → foundation model ID
+#                                       TTL: 1 hour. Used for price table lookup.
+#
+#   bedrock-usage-<id>.json             Composite Bedrock usage: tokens + cost for
+#                                       today / 2-day / 7-day windows.
+#                                       TTL: 5 min. Refreshed in background after expiry.
+#
+#   bedrock-usage-<id>.lock             Transient lock to prevent concurrent background
+#                                       refreshes. Auto-removed after fetch completes;
+#                                       stale locks (>60s) are force-removed.
+#
 
 # --- Input Validation ---
 
@@ -36,6 +59,15 @@ cache_dir="${TMPDIR:-/tmp}/claude"
 cache_file="${cache_dir}/statusline-usage-cache.json"
 cache_max_age=120
 git_cache_max_age=5
+bedrock_cache_max_age=300
+
+# Bedrock pricing: $/1M tokens (input output)
+# Override with BEDROCK_INPUT_PRICE_PER_MTOK / BEDROCK_OUTPUT_PRICE_PER_MTOK env vars
+declare -A BEDROCK_PRICES=(
+    ["anthropic.claude-opus-4-6-v1"]="15.00 75.00"
+    ["anthropic.claude-sonnet-4-6-v1"]="3.00 15.00"
+    ["anthropic.claude-haiku-4-5-v1"]="0.80 4.00"
+)
 
 # --- Helper Functions ---
 
@@ -199,6 +231,288 @@ build_usage_bar() {
     printf "%s" "${bar_color}${filled_str}${RESET}${DIM}${empty_str}${RESET}"
 }
 
+format_tokens() {
+    local count="$1"
+    [ -z "$count" ] || [ "$count" = "null" ] && { echo "0"; return; }
+    # Truncate any decimal (CloudWatch can return floats)
+    count=${count%%.*}
+    if [ "$count" -ge 1000000000 ] 2>/dev/null; then
+        awk "BEGIN {printf \"%.1fB\", $count/1000000000}"
+    elif [ "$count" -ge 1000000 ] 2>/dev/null; then
+        awk "BEGIN {printf \"%.1fM\", $count/1000000}"
+    elif [ "$count" -ge 1000 ] 2>/dev/null; then
+        awk "BEGIN {printf \"%.1fK\", $count/1000}"
+    else
+        echo "$count"
+    fi
+}
+
+get_date_offset() {
+    local days="$1"
+    if [ "$days" -ge 0 ] 2>/dev/null; then
+        date -v+${days}d +%Y-%m-%d 2>/dev/null || date -d "+${days} days" +%Y-%m-%d 2>/dev/null
+    else
+        local abs=$(( -days ))
+        date -v-${abs}d +%Y-%m-%d 2>/dev/null || date -d "${abs} days ago" +%Y-%m-%d 2>/dev/null
+    fi
+}
+
+get_bedrock_foundation_model() {
+    local arn="$1"
+    local region resource_type resource_id
+    region=$(echo "$arn" | cut -d: -f4)
+    resource_type=$(echo "$arn" | cut -d: -f6 | cut -d/ -f1)
+    resource_id=$(echo "$arn" | cut -d/ -f2)
+
+    # For foundation-model ARNs, the resource ID is already the model name
+    if [ "$resource_type" = "foundation-model" ]; then
+        echo "$resource_id"
+        return 0
+    fi
+
+    # For inference profiles, resolve to the underlying foundation model
+    local model_cache="${cache_dir}/bedrock-model-${resource_id}.txt"
+    if [ -f "$model_cache" ]; then
+        local mc_mtime mc_age
+        mc_mtime=$(stat -c %Y "$model_cache" 2>/dev/null || stat -f %m "$model_cache" 2>/dev/null)
+        mc_age=$(( $(date +%s) - mc_mtime ))
+        if [ "$mc_age" -lt 3600 ]; then
+            cat "$model_cache"
+            return 0
+        fi
+    fi
+
+    if command -v aws >/dev/null 2>&1; then
+        local foundation_model
+        foundation_model=$(aws bedrock get-inference-profile \
+            --inference-profile-identifier "$arn" \
+            --region "$region" \
+            --query 'models[0].modelArn' \
+            --output text 2>/dev/null)
+        if [ -n "$foundation_model" ] && [ "$foundation_model" != "None" ]; then
+            # Extract model ID from foundation model ARN
+            local fm_id
+            fm_id=$(echo "$foundation_model" | cut -d/ -f2)
+            if [ -n "$fm_id" ]; then
+                echo "$fm_id" > "$model_cache"
+                echo "$fm_id"
+                return 0
+            fi
+        fi
+    fi
+
+    echo ""
+}
+
+get_bedrock_prices() {
+    local foundation_model="$1"
+
+    # Env var overrides take priority
+    if [ -n "$BEDROCK_INPUT_PRICE_PER_MTOK" ] && [ -n "$BEDROCK_OUTPUT_PRICE_PER_MTOK" ]; then
+        echo "$BEDROCK_INPUT_PRICE_PER_MTOK $BEDROCK_OUTPUT_PRICE_PER_MTOK"
+        return 0
+    fi
+
+    # Look up in price table
+    if [ -n "$foundation_model" ] && [ -n "${BEDROCK_PRICES[$foundation_model]+x}" ]; then
+        echo "${BEDROCK_PRICES[$foundation_model]}"
+        return 0
+    fi
+
+    echo ""
+}
+
+fetch_bedrock_usage_bg() {
+    local model_id="$1"
+    local region="$2"
+    local foundation_model="$3"
+    local composite_cache="${cache_dir}/bedrock-usage-${model_id}.json"
+    local lock_file="${cache_dir}/bedrock-usage-${model_id}.lock"
+
+    local today tomorrow yesterday seven_days_ago
+    today=$(get_date_offset 0)
+    tomorrow=$(get_date_offset 1)
+    yesterday=$(get_date_offset -1)
+    seven_days_ago=$(get_date_offset -6)
+
+    # Fetch 7 days of token data in a single API call
+    local cw_response
+    cw_response=$(aws cloudwatch get-metric-data \
+        --region "$region" \
+        --start-time "${seven_days_ago}T00:00:00Z" \
+        --end-time "${tomorrow}T00:00:00Z" \
+        --metric-data-queries "[
+            {
+                \"Id\": \"input_tokens\",
+                \"MetricStat\": {
+                    \"Metric\": {
+                        \"Namespace\": \"AWS/Bedrock\",
+                        \"MetricName\": \"InputTokenCount\",
+                        \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
+                    },
+                    \"Period\": 86400,
+                    \"Stat\": \"Sum\"
+                }
+            },
+            {
+                \"Id\": \"output_tokens\",
+                \"MetricStat\": {
+                    \"Metric\": {
+                        \"Namespace\": \"AWS/Bedrock\",
+                        \"MetricName\": \"OutputTokenCount\",
+                        \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
+                    },
+                    \"Period\": 86400,
+                    \"Stat\": \"Sum\"
+                }
+            }
+        ]" \
+        --output json 2>/dev/null)
+
+    if [ -z "$cw_response" ]; then
+        rm -f "$lock_file"
+        return 1
+    fi
+
+    # Get prices for cost calculation
+    local prices input_price output_price
+    prices=$(get_bedrock_prices "$foundation_model")
+    if [ -n "$prices" ]; then
+        input_price=$(echo "$prices" | awk '{print $1}')
+        output_price=$(echo "$prices" | awk '{print $2}')
+    fi
+
+    # Assemble composite JSON: sum tokens per window, calculate costs
+    local result
+    result=$(echo "$cw_response" | jq --arg today "$today" --arg yesterday "$yesterday" \
+        --arg week_start "$seven_days_ago" \
+        --arg input_price "${input_price:-}" --arg output_price "${output_price:-}" '
+        # Extract input and output token arrays
+        (.MetricDataResults // []) as $results |
+        ($results | map(select(.Id == "input_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $in |
+        ($results | map(select(.Id == "output_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $out |
+
+        # Build a date->value map for each metric
+        (reduce range($in.Timestamps | length) as $i ({}; . + {($in.Timestamps[$i] | split("T")[0]): $in.Values[$i]})) as $in_map |
+        (reduce range($out.Timestamps | length) as $i ({}; . + {($out.Timestamps[$i] | split("T")[0]): $out.Values[$i]})) as $out_map |
+
+        # Sum tokens for each window
+        def sum_range(start_date; end_date; map):
+            [map | to_entries[] | select(.key >= start_date and .key <= end_date) | .value] | add // 0;
+
+        (sum_range($today; $today; $in_map)) as $today_in |
+        (sum_range($today; $today; $out_map)) as $today_out |
+        (sum_range($yesterday; $today; $in_map)) as $two_in |
+        (sum_range($yesterday; $today; $out_map)) as $two_out |
+        (sum_range($week_start; $today; $in_map)) as $seven_in |
+        (sum_range($week_start; $today; $out_map)) as $seven_out |
+
+        # Calculate costs if prices available
+        def calc_cost(in_tok; out_tok):
+            if $input_price != "" and $output_price != "" then
+                ((in_tok * ($input_price | tonumber) + out_tok * ($output_price | tonumber)) / 1000000)
+                | . * 100 | round | . / 100 | tostring
+            else null end;
+
+        {
+            today: {
+                input_tokens: ($today_in | floor),
+                output_tokens: ($today_out | floor),
+                cost: calc_cost($today_in; $today_out)
+            },
+            two_day: {
+                input_tokens: ($two_in | floor),
+                output_tokens: ($two_out | floor),
+                cost: calc_cost($two_in; $two_out)
+            },
+            seven_day: {
+                input_tokens: ($seven_in | floor),
+                output_tokens: ($seven_out | floor),
+                cost: calc_cost($seven_in; $seven_out)
+            },
+            prices: (if $input_price != "" then {input: $input_price, output: $output_price} else null end),
+            fetched_at: (now | todate)
+        }
+    ' 2>/dev/null)
+
+    if [ -n "$result" ] && echo "$result" | jq -e '.today' >/dev/null 2>&1; then
+        echo "$result" > "$composite_cache"
+    fi
+
+    rm -f "$lock_file"
+}
+
+get_bedrock_usage() {
+    local arn="$1"
+    local region model_id
+    region=$(echo "$arn" | cut -d: -f4)
+    model_id=$(echo "$arn" | cut -d/ -f2)
+
+    local composite_cache="${cache_dir}/bedrock-usage-${model_id}.json"
+    local lock_file="${cache_dir}/bedrock-usage-${model_id}.lock"
+
+    # Check composite cache
+    if [ -f "$composite_cache" ]; then
+        local cc_mtime cc_age
+        cc_mtime=$(stat -c %Y "$composite_cache" 2>/dev/null || stat -f %m "$composite_cache" 2>/dev/null)
+        cc_age=$(( $(date +%s) - cc_mtime ))
+        if [ "$cc_age" -lt "$bedrock_cache_max_age" ]; then
+            cat "$composite_cache"
+            return 0
+        fi
+
+        # Cache is stale — return stale data and refresh in background
+        if ! command -v aws >/dev/null 2>&1; then
+            cat "$composite_cache"
+            return 0
+        fi
+
+        # Don't launch another background refresh if one is already running
+        if [ -f "$lock_file" ]; then
+            local lk_mtime lk_age
+            lk_mtime=$(stat -c %Y "$lock_file" 2>/dev/null || stat -f %m "$lock_file" 2>/dev/null)
+            lk_age=$(( $(date +%s) - lk_mtime ))
+            # Stale lock (>60s) — remove it
+            if [ "$lk_age" -gt 60 ]; then
+                rm -f "$lock_file"
+            else
+                cat "$composite_cache"
+                return 0
+            fi
+        fi
+
+        # Resolve foundation model for pricing
+        local foundation_model
+        foundation_model=$(get_bedrock_foundation_model "$arn")
+
+        # Launch background refresh
+        touch "$lock_file"
+        fetch_bedrock_usage_bg "$model_id" "$region" "$foundation_model" &
+        disown 2>/dev/null
+
+        cat "$composite_cache"
+        return 0
+    fi
+
+    # No cache at all — first run, must block
+    if ! command -v aws >/dev/null 2>&1; then
+        return 1
+    fi
+
+    local foundation_model
+    foundation_model=$(get_bedrock_foundation_model "$arn")
+
+    touch "$lock_file"
+    fetch_bedrock_usage_bg "$model_id" "$region" "$foundation_model"
+
+    if [ -f "$composite_cache" ]; then
+        cat "$composite_cache"
+        return 0
+    fi
+
+    return 1
+}
+
 # --- Data Extraction ---
 
 mkdir -p "$cache_dir" 2>/dev/null
@@ -214,8 +528,11 @@ model=$(echo "$input" | jq -r '
   end
 ' 2>/dev/null)
 { [ -z "$model" ] || [ "$model" = "null" ]; } && model="claude"
-# Resolve Bedrock ARNs to friendly names
+# Preserve raw model string for Bedrock usage detection
+model_raw="$model"
+is_bedrock=false
 if [[ "$model" == arn:aws:bedrock:* ]]; then
+    is_bedrock=true
     model=$(resolve_bedrock_arn "$model")
 fi
 # Clean up model name:
@@ -342,43 +659,79 @@ fi
 
 # --- Usage Data Fetch + Cache ---
 
-needs_refresh=true
+bedrock_usage_data=""
 usage_data=""
 
-if [ -f "$cache_file" ]; then
-    cache_mtime=$(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file" 2>/dev/null)
-    now=$(date +%s)
-    cache_age=$(( now - cache_mtime ))
-    if [ "$cache_age" -lt "$cache_max_age" ]; then
-        needs_refresh=false
-        usage_data=$(cat "$cache_file" 2>/dev/null)
-    fi
-fi
-
-if $needs_refresh; then
-    token=$(get_oauth_token)
-    if [ -n "$token" ] && [ "$token" != "null" ]; then
-        response=$(curl -s --max-time 5 \
-            -H "Accept: application/json" \
-            -H "Content-Type: application/json" \
-            -H "Authorization: Bearer $token" \
-            -H "anthropic-beta: oauth-2025-04-20" \
-            -H "User-Agent: claude-code/2.1.34" \
-            "https://api.anthropic.com/api/oauth/usage" 2>/dev/null)
-        if [ -n "$response" ] && echo "$response" | jq -e '.five_hour' >/dev/null 2>&1; then
-            usage_data="$response"
-            echo "$response" > "$cache_file"
+if $is_bedrock; then
+    bedrock_usage_data=$(get_bedrock_usage "$model_raw")
+else
+    needs_refresh=true
+    if [ -f "$cache_file" ]; then
+        cache_mtime=$(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file" 2>/dev/null)
+        now=$(date +%s)
+        cache_age=$(( now - cache_mtime ))
+        if [ "$cache_age" -lt "$cache_max_age" ]; then
+            needs_refresh=false
+            usage_data=$(cat "$cache_file" 2>/dev/null)
         fi
     fi
-    if [ -z "$usage_data" ] && [ -f "$cache_file" ]; then
-        usage_data=$(cat "$cache_file" 2>/dev/null)
+
+    if $needs_refresh; then
+        token=$(get_oauth_token)
+        if [ -n "$token" ] && [ "$token" != "null" ]; then
+            response=$(curl -s --max-time 5 \
+                -H "Accept: application/json" \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer $token" \
+                -H "anthropic-beta: oauth-2025-04-20" \
+                -H "User-Agent: claude-code/2.1.34" \
+                "https://api.anthropic.com/api/oauth/usage" 2>/dev/null)
+            if [ -n "$response" ] && echo "$response" | jq -e '.five_hour' >/dev/null 2>&1; then
+                usage_data="$response"
+                echo "$response" > "$cache_file"
+            fi
+        fi
+        if [ -z "$usage_data" ] && [ -f "$cache_file" ]; then
+            usage_data=$(cat "$cache_file" 2>/dev/null)
+        fi
     fi
 fi
 
 # --- Usage Segment Assembly ---
 
 usage_segments=""
-if [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
+if $is_bedrock && [ -n "$bedrock_usage_data" ] && echo "$bedrock_usage_data" | jq -e '.today' >/dev/null 2>&1; then
+    today_in=$(echo "$bedrock_usage_data" | jq -r '.today.input_tokens // 0')
+    today_out=$(echo "$bedrock_usage_data" | jq -r '.today.output_tokens // 0')
+    today_total=$(( today_in + today_out ))
+    today_cost=$(echo "$bedrock_usage_data" | jq -r '.today.cost // empty')
+    today_fmt=$(format_tokens "$today_total")
+
+    two_in=$(echo "$bedrock_usage_data" | jq -r '.two_day.input_tokens // 0')
+    two_out=$(echo "$bedrock_usage_data" | jq -r '.two_day.output_tokens // 0')
+    two_total=$(( two_in + two_out ))
+    two_cost=$(echo "$bedrock_usage_data" | jq -r '.two_day.cost // empty')
+    two_fmt=$(format_tokens "$two_total")
+
+    seven_in=$(echo "$bedrock_usage_data" | jq -r '.seven_day.input_tokens // 0')
+    seven_out=$(echo "$bedrock_usage_data" | jq -r '.seven_day.output_tokens // 0')
+    seven_total=$(( seven_in + seven_out ))
+    seven_cost=$(echo "$bedrock_usage_data" | jq -r '.seven_day.cost // empty')
+    seven_fmt=$(format_tokens "$seven_total")
+
+    # Build segments: "1d 31.1K $1.84" or "1d 31.1K" if no prices
+    for label_day in "1d:$today_fmt:$today_cost" "2d:$two_fmt:$two_cost" "7d:$seven_fmt:$seven_cost"; do
+        lbl="${label_day%%:*}"
+        rest="${label_day#*:}"
+        tok="${rest%%:*}"
+        cost="${rest#*:}"
+        seg=" ${SEP} ${DIM}${lbl}${RESET} ${FG_CYAN}${tok}${RESET}"
+        if [ -n "$cost" ] && [ "$cost" != "null" ]; then
+            seg+=" ${DIM}\$${cost}${RESET}"
+        fi
+        usage_segments+="$seg"
+    done
+elif [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     five_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
     five_reset_iso=$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')
     five_reset=$(format_reset_time "$five_reset_iso" "time")
