@@ -62,24 +62,34 @@ git_cache_max_age=5
 bedrock_cache_max_age=300
 
 # Bedrock pricing: $/1M tokens (input output cache_read cache_write_5m)
-# Source: AWS Bedrock Global Cross-region Inference, US West (Oregon)
+# Source: AWS Bedrock pricing, US West (Oregon)
 # Override input/output with BEDROCK_INPUT_PRICE_PER_MTOK / BEDROCK_OUTPUT_PRICE_PER_MTOK env vars
+#
+# Keys are the exact modelId values returned by `aws bedrock
+# list-foundation-models`. AWS is inconsistent about whether the ID ends in
+# "-v1" or a dated "-YYYYMMDD-v1:0" — we key on whatever is real, not on
+# normalized forms. Verified against us-west-2 on 2026-04-20.
 declare -A BEDROCK_PRICES=(
-    # Opus family
-    ["anthropic.claude-opus-4-7-v1"]="5.00 25.00 0.50 6.25"
+    # Opus 4.x
+    ["anthropic.claude-opus-4-7"]="5.00 25.00 0.50 6.25"
     ["anthropic.claude-opus-4-6-v1"]="5.00 25.00 0.50 6.25"
-    ["anthropic.claude-opus-4-5-v1"]="5.00 25.00 0.50 6.25"
-    # Sonnet 4.6
-    ["anthropic.claude-sonnet-4-6-v1"]="3.00 15.00 0.30 3.75"
-    ["anthropic.claude-sonnet-4-6-long-context-v1"]="3.00 15.00 0.30 3.75"
-    # Sonnet 4.5 (long-context priced higher)
-    ["anthropic.claude-sonnet-4-5-v1"]="3.00 15.00 0.30 3.75"
-    ["anthropic.claude-sonnet-4-5-long-context-v1"]="6.00 22.50 0.60 7.50"
-    # Sonnet 4 (long-context priced higher)
-    ["anthropic.claude-sonnet-4-v1"]="3.00 15.00 0.30 3.75"
-    ["anthropic.claude-sonnet-4-long-context-v1"]="6.00 22.50 0.60 7.50"
+    ["anthropic.claude-opus-4-5-20251101-v1:0"]="5.00 25.00 0.50 6.25"
+    ["anthropic.claude-opus-4-1-20250805-v1:0"]="15.00 75.00 1.50 18.75"
+    ["anthropic.claude-opus-4-20250514-v1:0"]="15.00 75.00 1.50 18.75"
+    # Sonnet 4.x
+    ["anthropic.claude-sonnet-4-6"]="3.00 15.00 0.30 3.75"
+    ["anthropic.claude-sonnet-4-5-20250929-v1:0"]="3.00 15.00 0.30 3.75"
+    ["anthropic.claude-sonnet-4-20250514-v1:0"]="3.00 15.00 0.30 3.75"
     # Haiku 4.5
-    ["anthropic.claude-haiku-4-5-v1"]="1.00 5.00 0.10 1.25"
+    ["anthropic.claude-haiku-4-5-20251001-v1:0"]="1.00 5.00 0.10 1.25"
+    # Sonnet 3.7
+    ["anthropic.claude-3-7-sonnet-20250219-v1:0"]="3.00 15.00 0.30 3.75"
+    # Haiku 3.5
+    ["anthropic.claude-3-5-haiku-20241022-v1:0"]="0.80 4.00 0.08 1.00"
+    # Haiku 3
+    ["anthropic.claude-3-haiku-20240307-v1:0"]="0.25 1.25 0.03 0.30"
+    # Sonnet 3 (legacy)
+    ["anthropic.claude-3-sonnet-20240229-v1:0"]="3.00 15.00 0.30 3.75"
 )
 
 # --- Helper Functions ---
@@ -261,12 +271,35 @@ format_tokens() {
 }
 
 get_date_offset() {
+    # Uses local time. CloudWatch is fetched hourly and bucketed by local date
+    # in jq using the offset from get_local_tz_offset_seconds().
     local days="$1"
     if [ "$days" -ge 0 ] 2>/dev/null; then
         date -v+${days}d +%Y-%m-%d 2>/dev/null || date -d "+${days} days" +%Y-%m-%d 2>/dev/null
     else
         local abs=$(( -days ))
         date -v-${abs}d +%Y-%m-%d 2>/dev/null || date -d "${abs} days ago" +%Y-%m-%d 2>/dev/null
+    fi
+}
+
+# Seconds offset from UTC for local time (e.g., PDT → -25200).
+# Used to convert CloudWatch UTC timestamps into local-date bucket keys.
+get_local_tz_offset_seconds() {
+    local off
+    off=$(date +%z 2>/dev/null)
+    [ -z "$off" ] && { echo 0; return; }
+    # Format is ±HHMM
+    local sign="${off:0:1}"
+    local hh="${off:1:2}"
+    local mm="${off:3:2}"
+    # Strip leading zeros to avoid octal interpretation
+    hh=$((10#$hh))
+    mm=$((10#$mm))
+    local total=$(( hh * 3600 + mm * 60 ))
+    if [ "$sign" = "-" ]; then
+        echo "-$total"
+    else
+        echo "$total"
     fi
 }
 
@@ -348,12 +381,27 @@ fetch_bedrock_usage_bg() {
     yesterday=$(get_date_offset -1)
     seven_days_ago=$(get_date_offset -6)
 
-    # Fetch 7 days of token data in a single API call
+    # CloudWatch aggregates by UTC-aligned buckets when Period=86400, which
+    # causes today's usage to land in yesterday's bucket for negative-offset
+    # timezones (e.g., PDT). Fetch hourly instead and bucket by local date in
+    # jq below.
+    #
+    # Widen the range by 1 day on each side so local-day windows that straddle
+    # UTC midnight are fully covered.
+    local tz_offset
+    tz_offset=$(get_local_tz_offset_seconds)
+
+    local range_start range_end
+    range_start=$(get_date_offset -7)
+    range_end=$(get_date_offset 2)
+
+    # Force UTC output so the timestamps we hand to jq are unambiguous
+    # (jq's fromdateiso8601 requires trailing Z, not ±HH:MM).
     local cw_response
-    cw_response=$(aws cloudwatch get-metric-data \
+    cw_response=$(TZ=UTC aws cloudwatch get-metric-data \
         --region "$region" \
-        --start-time "${seven_days_ago}T00:00:00Z" \
-        --end-time "${tomorrow}T00:00:00Z" \
+        --start-time "${range_start}T00:00:00Z" \
+        --end-time "${range_end}T00:00:00Z" \
         --metric-data-queries "[
             {
                 \"Id\": \"input_tokens\",
@@ -363,7 +411,7 @@ fetch_bedrock_usage_bg() {
                         \"MetricName\": \"InputTokenCount\",
                         \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
                     },
-                    \"Period\": 86400,
+                    \"Period\": 3600,
                     \"Stat\": \"Sum\"
                 }
             },
@@ -375,7 +423,7 @@ fetch_bedrock_usage_bg() {
                         \"MetricName\": \"OutputTokenCount\",
                         \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
                     },
-                    \"Period\": 86400,
+                    \"Period\": 3600,
                     \"Stat\": \"Sum\"
                 }
             },
@@ -387,7 +435,7 @@ fetch_bedrock_usage_bg() {
                         \"MetricName\": \"CacheReadInputTokenCount\",
                         \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
                     },
-                    \"Period\": 86400,
+                    \"Period\": 3600,
                     \"Stat\": \"Sum\"
                 }
             },
@@ -399,7 +447,7 @@ fetch_bedrock_usage_bg() {
                         \"MetricName\": \"CacheWriteInputTokenCount\",
                         \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
                     },
-                    \"Period\": 86400,
+                    \"Period\": 3600,
                     \"Stat\": \"Sum\"
                 }
             }
@@ -425,8 +473,17 @@ fetch_bedrock_usage_bg() {
     local result
     result=$(echo "$cw_response" | jq --arg today "$today" --arg yesterday "$yesterday" \
         --arg week_start "$seven_days_ago" \
+        --argjson tz_offset "$tz_offset" \
         --arg input_price "${input_price:-}" --arg output_price "${output_price:-}" \
         --arg cache_read_price "${cache_read_price:-}" --arg cache_write_price "${cache_write_price:-}" '
+        # Convert an hourly CloudWatch timestamp (UTC, "...Z" or "...+00:00")
+        # to a local-date string ("YYYY-MM-DD") by shifting by $tz_offset.
+        def to_local_date($ts):
+            ($ts | sub("\\+00:00$"; "Z"))
+            | fromdateiso8601
+            | . + $tz_offset
+            | strftime("%Y-%m-%d");
+
         # Extract token arrays
         (.MetricDataResults // []) as $results |
         ($results | map(select(.Id == "input_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $in |
@@ -434,11 +491,17 @@ fetch_bedrock_usage_bg() {
         ($results | map(select(.Id == "cache_read_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $cr |
         ($results | map(select(.Id == "cache_write_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $cw |
 
-        # Build a date->value map for each metric
-        (reduce range($in.Timestamps | length) as $i ({}; . + {($in.Timestamps[$i] | split("T")[0]): $in.Values[$i]})) as $in_map |
-        (reduce range($out.Timestamps | length) as $i ({}; . + {($out.Timestamps[$i] | split("T")[0]): $out.Values[$i]})) as $out_map |
-        (reduce range($cr.Timestamps | length) as $i ({}; . + {($cr.Timestamps[$i] | split("T")[0]): $cr.Values[$i]})) as $cr_map |
-        (reduce range($cw.Timestamps | length) as $i ({}; . + {($cw.Timestamps[$i] | split("T")[0]): $cw.Values[$i]})) as $cw_map |
+        # Build a local-date -> summed-value map for each metric.
+        # Multiple hourly buckets may share the same local date, so we add.
+        def bucket(series):
+            reduce range(series.Timestamps | length) as $i ({};
+                (to_local_date(series.Timestamps[$i])) as $d
+                | .[$d] = ((.[$d] // 0) + series.Values[$i]));
+
+        (bucket($in))  as $in_map  |
+        (bucket($out)) as $out_map |
+        (bucket($cr))  as $cr_map  |
+        (bucket($cw))  as $cw_map  |
 
         # Sum tokens for each window
         def sum_range(start_date; end_date; map):
