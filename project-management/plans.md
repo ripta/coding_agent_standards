@@ -40,6 +40,15 @@ When a proposal is accepted and scheduled for implementation:
 - Confirm with the user before moving on to a new milestone
 - Phases and milestones are project management artifacts; do not reference phase or milestone numbers in code or comments
 
+## Artifact Sync
+
+Every implementation plan must include steps to update tracking artifacts as work progresses. These updates are part of the work, not an afterthought.
+
+- When a milestone completes: update the phase document status and the phase index (if present)
+- When a phase completes: update the phase status to COMPLETE, update the proposal status, and update both index pages (if present)
+- When a phase begins: update the phase status to IN PROGRESS and update both index pages (if present)
+- Plans must list which tracking artifacts exist and will be updated; do not assume they can be skipped
+
 ## Phase Document Format
 
 ```markdown
@@ -81,3 +90,25 @@ User-facing issue this phase solves.
 
 - File: `phase-N-short-description.md`
 - Example: `phase-12-user-authentication.md`
+
+## Phase Index (Optional)
+
+When creating the first phase for a project, offer to create an `index.md` in the phases directory. The index makes scanning many phases easier at the cost of maintaining an extra file.
+
+Contents:
+
+- A brief explanation that each phase implements one proposal (or a portion of one), and each phase contains one or more milestones
+- A status summary table with columns: Phase, Proposal, Description, Status, Progress
+- One row per phase; progress shown as completed/total milestones (e.g., `3/5`)
+- A note to update the file as phases progress
+
+Example table:
+
+```markdown
+| Phase | Proposal | Description | Status | Progress |
+|-------|----------|-------------|--------|----------|
+| 1 | PROJ-001 | Short description | DONE | 4/4 |
+| 2 | PROJ-002 | Short description | IN PROGRESS | 2/5 |
+```
+
+Update the index whenever a phase is created, a milestone completes, or a phase status changes.

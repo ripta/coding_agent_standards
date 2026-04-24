@@ -59,3 +59,25 @@ should be extracted to an ADR and referenced here.
 - Numbers are permanent and never reused
 - One proposal per file
 - File naming: `PROJ-NNN-short-description.md` (kebab-case)
+
+## Proposal Index (Optional)
+
+When creating the first proposal for a project, offer to create an `index.md` in the proposals directory. The index makes scanning many proposals easier at the cost of maintaining an extra file.
+
+Contents:
+
+- Optional link to a glossary or other shared references at the top
+- A table with columns: Proposal, Description, Status
+- One row per proposal, with the proposal ID linking to its file
+- An optional dependency graph section for active proposals, topologically ordered with arrows (`←`) pointing to dependencies; omit implemented proposals
+
+Example table:
+
+```markdown
+| Proposal | Description | Status |
+|----------|-------------|--------|
+| [PROJ-001](PROJ-001-short-description.md) | Short description | implemented |
+| [PROJ-002](PROJ-002-short-description.md) | Short description | accepted |
+```
+
+Update the index whenever a proposal is created or its status changes.
