@@ -117,7 +117,7 @@ If the decision is architecturally significant (cross-component, hard to reverse
 If yes, create an ADR following the format from `project-management/design.md`:
 
 ```markdown
-# ADR-NNNN: Short Descriptive Title
+# ADR-NN: Short Descriptive Title
 
 **Status**: Accepted
 **Date**: YYYY-MM-DD
@@ -141,7 +141,7 @@ What other options did we evaluate?
 - PROJ-NNN (originating proposal)
 ```
 
-Determine the ADR number by scanning existing ADR files for the next sequential number. Use 4-digit zero-padding (`ADR-0001`). Place the ADR alongside existing ADRs, or ask the user for the directory if none exist.
+Determine the ADR number by scanning existing ADR files for the next sequential number. Use 2-digit zero-padding (`ADR-01`). Place the ADR alongside existing ADRs, or ask the user for the directory if none exist.
 
 Add a reference to the new ADR in the proposal's References section.
 

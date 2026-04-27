@@ -5,11 +5,9 @@
 Documents reference each other using these patterns:
 
 - Proposals reference dependencies: `Depends on: PROJ-001, PROJ-002`
-- Proposals reference ADRs: `Follows: ADR-0001`
+- Proposals reference ADRs: `Follows: ADR-01`
 - Phases reference proposals: `Implements: PROJ-003`
 - ADRs reference proposals: `Origin: PROJ-001`
-- Code comments reference proposals: `// PROJ-001: explanation`
-- Code comments reference ADRs: `// ADR-0001: explanation`
 
 ## Metadata
 

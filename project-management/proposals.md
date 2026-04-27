@@ -50,7 +50,7 @@ Minor decisions with dates. Significant architectural decisions
 should be extracted to an ADR and referenced here.
 
 ## References
-- ADR-NNN: decision explanation
+- ADR-NN: decision explanation
 ```
 
 ## Rules

@@ -16,7 +16,7 @@ proposed → accepted → superseded / deprecated
 ## ADR Document Format
 
 ```markdown
-# ADR-NNNN: Short Descriptive Title
+# ADR-NN: Short Descriptive Title
 
 **Status**: Accepted
 **Date**: YYYY-MM-DD
@@ -44,8 +44,7 @@ What other options did we evaluate?
 ## Rules
 
 - ADRs are immutable once accepted; to change, create a new superseding ADR
-- Sequential numbering with 4-digit zero-padding: `ADR-0001`, `ADR-0002`, etc.
-- File naming: `ADR-NNNN-short-description.md` (kebab-case)
+- Sequential numbering with 2-digit zero-padding: `ADR-01`, `ADR-02`, etc.
+- File naming: `ADR-NN-short-description.md` (kebab-case)
 - Numbers are permanent and never reused
 - Old ADRs stay in the repo marked as superseded, not deleted
-- Reference ADRs in code comments: `// ADR-0001: explanation`
