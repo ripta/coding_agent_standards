@@ -3,7 +3,7 @@
 This document characterizes the author's writing voice as observed in commit messages
 and code comments across personal projects. It is descriptive, not
 prescriptive; it is a reference for what the voice sounds like, not a set of rules to follow.
-For formatting rules, see `claude/rules/commit-style.md`.
+For formatting rules, see `commit-style.md`.
 
 ## Commit Messages
 
