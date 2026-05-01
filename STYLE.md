@@ -2,7 +2,7 @@
 
 This document characterizes the author's writing voice as observed in commit messages
 and code comments across personal projects. It is descriptive, not
-prescriptive — a reference for what the voice sounds like, not a set of rules to follow.
+prescriptive; it is a reference for what the voice sounds like, not a set of rules to follow.
 For formatting rules, see `claude/rules/commit-style.md`.
 
 ## Commit Messages
@@ -40,7 +40,7 @@ The register tracks the emotional context of the work, not a fixed persona.
 ### Bodies explain "why"
 
 When commit bodies appear, they describe the problem and how the fix addresses it. The
-language is conversational but technically precise — a scheduler fix opens with "The
+language is conversational but technically precise: a scheduler fix opens with "The
 scheduler's runLoop break condition only checked for sleepers and IO waiters," and a
 coroutine rewrite notes "We don't need to reparse, which means no reexecution (and no
 doubling of side-effects), and no gnarly error threading."
@@ -76,7 +76,7 @@ to external references in the body.
 
 Doc comments follow standard convention for the language: the exported identifier name
 leads the sentence, and the description is concise and functional. The author does not
-over-document — comments appear on types, constructors, and non-obvious public methods,
+over-document; comments appear on types, constructors, and non-obvious public methods,
 not on every exported symbol. Some doc comments include domain-specific notation:
 `/// send ( val ch -- )`, `/// try-receive ( ch -- val/f flag )`.
 
@@ -129,7 +129,7 @@ Mathematical notation appears inline: `// log2(10) ~ 3.32193`, `// scale = 2^(-p
 
 Formality is context-dependent, not personality-fixed. A scheduler doc comment is precise
 and structured; a debugging commit subject can be profane. The author does not maintain a
-uniform register — the writing shifts to match the situation, from careful technical
+uniform register; the writing shifts to match the situation, from careful technical
 exposition to `ui: filter fix take 84`.
 
 ### Directness
@@ -145,7 +145,7 @@ to return the same constant?"
 Humor appears in service of honesty. Frustration is expressed directly (`istg this keeps
 breaking`, `filter fix take 84`, the `:(` emoticon on an API integration commit). Self-awareness
 surfaces as mild self-deprecation (`whoops!`, `forgot this one`, `Adds tests lol`). There
-is no affectation — the humor reads as a person talking to themselves in the commit log.
+is no affectation; the humor reads as a person talking to themselves in the commit log.
 
 ### Technical precision amid informality
 
@@ -154,6 +154,30 @@ cited by number. Unicode code points are referenced precisely (`U+1D455`, `U+210
 Diacritical marks appear where etymologically correct: `coöperative`, `reëxport`,
 `reïmplement`. Foreign phrases retain their marks: `à la`. Set notation and mathematical
 formulas are written inline in comments. The informality is in register, not in rigor.
+
+## Documentation Prose
+
+### Sentence structure
+
+Full sentences, not telegraphic fragments. "Mappings are managed using the
+`elastane identity map` command" rather than "Managed via `elastane identity map`."
+References are integrated into sentence flow rather than parenthesized:
+"entries in the registry's `_IdentityMapEntry` nodes" rather than "entries in
+the registry (`_IdentityMapEntry` nodes)."
+
+### Density
+
+Sentences do one job. When a sentence is carrying two ideas, split it into two
+sentences. Filler words that add no information are cut; "categories" rather than
+"four categories" when the count is evident from context.
+
+### Structure over decoration
+
+Prose descriptions are preferred over diagrams that amount to boxes containing
+numbered step lists. Bold label headers are omitted when the content is
+self-evident (a table does not need an **Inventory:** label above it). Key-value
+label structures like **Definition:** / **AC treatment:** / **Why:** are
+collapsed into natural flowing paragraphs.
 
 ## Vocabulary and Phrasing
 
@@ -167,10 +191,14 @@ Domain-specific terms are coined when they clarify a distinction: "stopping erro
 "defensively" limiting something, or "spruc[ing] up" a feature, or noting something is
 "long-overdue."
 
-Semicolons connect related clauses. Em dashes appear in commit bodies for
-interruptions or restatements. Underscores mark emphasis in commit messages
-where markdown rendering is available: `_ignores_ all HTML instead of skipping
-_additional_ processing`.
+Semicolons connect related independent clauses. Colons introduce specifics.
+Em dashes are reserved for genuine parenthetical insertions that would be
+ambiguous with commas—typically because the parenthetical itself contains
+commas. They are not used as generic separators between clauses, and are not
+used to join independent clauses (use a semicolon) or to introduce specifics
+(use a colon). No spaces around em dashes. Underscores mark emphasis in commit
+messages where markdown rendering is available: `_ignores_ all HTML instead of
+skipping _additional_ processing`.
 
 Capitalization defaults to lowercase. ALL CAPS is reserved for warning-level annotations
 (`SECURITY WARNING:`, `NOTE:`). Older commits occasionally use title case for merge or
