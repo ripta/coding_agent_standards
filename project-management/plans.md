@@ -39,6 +39,7 @@ When a proposal is accepted and scheduled for implementation:
 - Read and maintain the implementation plan before and after every milestone
 - Confirm with the user before moving on to a new milestone
 - Phases and milestones are project management artifacts; do not reference phase or milestone numbers in code or comments
+- If the originating proposal defers a decision to an empirical-review or follow-up milestone, that milestone must explicitly name the deferred questions it is responsible for revisiting (see `proposals.md` "Deferring Decisions")
 
 ## Artifact Sync
 

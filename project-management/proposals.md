@@ -60,6 +60,18 @@ should be extracted to an ADR and referenced here.
 - One proposal per file
 - File naming: `PROJ-NNN-short-description.md` (kebab-case)
 
+## Deferring Decisions
+
+When a design question cannot be resolved at proposal time and is intentionally deferred, the deferral must point at a concrete revisit mechanism. Vague deferrals like "revisit if needed" or "we'll see in implementation" are not acceptable, because the question gets forgotten.
+
+Acceptable revisit hooks include:
+
+- A specific milestone in the proposal that revisits the question (e.g., "validated under the empirical-review milestone")
+- A named follow-up proposal that will be filed to capture the resolution (e.g., "if X is observed, file PROJ-NNN with the chosen mitigation")
+- A condition tied to a specific artifact, such as golden output review or a performance benchmark, that determines when the question is reopened
+
+Every deferred question must move from the Open section to the Settled section as a "decision to defer" with the revisit hook captured both in the settled entry and in the Decision Log.
+
 ## Proposal Index (Optional)
 
 When creating the first proposal for a project, offer to create an `index.md` in the proposals directory. The index makes scanning many proposals easier at the cost of maintaining an extra file.
