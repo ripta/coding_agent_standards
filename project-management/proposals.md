@@ -55,10 +55,13 @@ should be extracted to an ADR and referenced here.
 
 ## Rules
 
-- Sequential numbering per project: `PROJ-001`, `PROJ-002`, etc.
+- Sequential numbering per project, prefixed with a short project-specific token in place of `PROJ`. Pick a prefix that
+  is easily distinguishable and identifiable for the project (e.g., `HP-001` for hotpod, `RPT-001` for a project named
+  Reporting). `PROJ-` is permitted but discouraged when a more specific prefix is available; the prefix is fixed once
+  chosen.
 - Numbers are permanent and never reused
 - One proposal per file
-- File naming: `PROJ-NNN-short-description.md` (kebab-case)
+- File naming: `<PREFIX>-NNN-short-description.md` (kebab-case), where `<PREFIX>` is the project-specific token
 
 ## Deferring Decisions
 
