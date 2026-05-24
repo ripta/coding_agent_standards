@@ -29,6 +29,15 @@ If no arguments were given, the scope is the whole repository and
 
 Resolve the scope to a concrete path before continuing, and report it in Phase 2.
 
+Then establish two paths used throughout:
+
+- **citation base** — the directory `ARCHITECTURE.md` is written to (the scope
+  root, or the working directory for a whole-repo run). Every citation in the
+  document is written relative to this directory.
+- **repository root** (`git rev-parse --show-toplevel`) — used only to express
+  the citation base in a relative, non-absolute form in the document's header
+  note (see Phase 3, section 1).
+
 ### Phase 1: Classify the Project
 
 Inspect manifests (e.g. `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`),
@@ -46,23 +55,35 @@ reading code over README/docs when they disagree.
 
 ### Phase 2: Plan & Report
 
-Before writing the file, briefly tell the user the resolved scope, the detected
-project type(s), and a high-level outline of what you've discovered. Keep this
-short — it confirms direction before the full pass.
+Before writing the file, briefly tell the user the resolved scope, the citation
+base (expressed relative to the repository root, so the user sees what paths will
+be anchored to), the detected project type(s), and a high-level outline of what
+you've discovered. Keep this short — it confirms direction before the full pass.
 
 ### Phase 3: Write ARCHITECTURE.md
 
 Write the full document in one pass as well-structured Markdown with a table of
 contents and the sections below. Ground every claim in actual code with
 `file:line` citations, using links of the form
-`[path/to/file.ext:42](path/to/file.ext#L42)` where possible. If something is
-ambiguous or you're guessing, say so explicitly.
+`[path/to/file.ext:42](path/to/file.ext#L42)`. If something is ambiguous or
+you're guessing, say so explicitly.
+
+Citation paths MUST be relative to the citation base (the directory containing
+this document), so the links resolve when the document is opened. Never emit an
+absolute path or one beginning with `/` or `~`, and never leak a symlinked or
+machine-specific prefix. If a tool reports an absolute path, strip everything up
+to and including the citation base before citing it.
 
 Emit only the section variants relevant to the detected project type. For
 full-stack projects, cover each side.
 
 #### 1. Orientation (always)
 
+- A one-line note, near the top of the document, stating the citation base so
+  readers know what every path is relative to. Express it relative to the
+  repository root — never as an absolute path. For a whole-repo run write "All
+  paths are relative to the repository root."; when scoped, name the scope, e.g.
+  "All paths are relative to `packages/api/`."
 - Language(s), framework(s), build/runtime tooling.
 - How the project is consumed or exposed, and how it's versioned:
   - backend → HTTP server / RPC / GraphQL / outbox views
@@ -146,9 +167,13 @@ questions you couldn't resolve from the code alone.
 - Read-only except for writing/overwriting `ARCHITECTURE.md` at the scope root.
 - If arguments are given, confine exploration and output to that scope; with no
   arguments, cover the whole repository and write to the working directory.
-- Ground every claim in code with `[path:line](path#L42)` citations. Flag
-  guesses explicitly, and prefer reading code over README/docs when they
-  disagree.
+- Ground every claim in code with `[path:line](path#L42)` citations. Paths must
+  be relative to the citation base (the directory containing the document) —
+  never absolute, never starting with `/` or `~`, and never leaking a symlinked
+  or machine-specific prefix. Flag guesses explicitly, and prefer reading code
+  over README/docs when they disagree.
+- Declare the citation base near the top of the document, expressed relative to
+  the repository root (not as an absolute path).
 - Report the resolved scope and detected project type before writing; write the
   document in one pass; print a summary plus open questions afterward.
 - Emit only the section variants relevant to the detected project type; for
