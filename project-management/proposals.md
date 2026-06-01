@@ -17,6 +17,8 @@ draft → designing → accepted → scheduled → implemented
 - **implemented**: Work merged
 - **deferred**: Paused indefinitely; may revisit
 - **rejected**: Will not implement
+- **superseded**: Replaced or superseded by a different ADR (with reference to other ADR)
+- **retracted**: No longer in effect (with reason)
 
 ## Proposal Document Format
 
