@@ -26,6 +26,10 @@
       "Bash(xargs:*)",
       "Bash(xxd:*)",
       "WebFetch(domain:api.anthropic.com)",
+      "WebFetch(domain:aws.amazon.com)",
+      "WebFetch(domain:claude.com)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:www.anthropic.com)",
       "WebSearch"
     ]
   }

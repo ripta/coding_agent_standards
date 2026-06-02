@@ -68,9 +68,10 @@ bedrock_cache_max_age=300
 # Keys are the exact modelId values returned by `aws bedrock
 # list-foundation-models`. AWS is inconsistent about whether the ID ends in
 # "-v1" or a dated "-YYYYMMDD-v1:0" — we key on whatever is real, not on
-# normalized forms. Verified against us-west-2 on 2026-04-20.
+# normalized forms. Verified against us-west-2 on 2026-06-02.
 declare -A BEDROCK_PRICES=(
     # Opus 4.x
+    ["anthropic.claude-opus-4-8"]="5.00 25.00 0.50 6.25"
     ["anthropic.claude-opus-4-7"]="5.00 25.00 0.50 6.25"
     ["anthropic.claude-opus-4-6-v1"]="5.00 25.00 0.50 6.25"
     ["anthropic.claude-opus-4-5-20251101-v1:0"]="5.00 25.00 0.50 6.25"
