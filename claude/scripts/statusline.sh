@@ -867,17 +867,20 @@ elif [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     five_bar=$(build_usage_bar "$five_pct")
     five_color=$(usage_bar_color "$five_pct")
 
-    seven_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
-    seven_reset_iso=$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')
-    seven_reset=$(format_reset_time "$seven_reset_iso" "date")
-    seven_bar=$(build_usage_bar "$seven_pct")
-    seven_color=$(usage_bar_color "$seven_pct")
-
     usage_segments=" ${SEP} ${five_bar} ${five_color}${five_pct}%${RESET} ${DIM}${five_reset}${RESET}"
-    usage_segments+=" ${SEP} ${seven_bar} ${seven_color}${seven_pct}%${RESET} ${DIM}${seven_reset}${RESET}"
+
+    # Enterprise plans return .seven_day as null — no per-user weekly cap.
+    if echo "$usage_data" | jq -e '.seven_day' >/dev/null 2>&1; then
+        seven_pct=$(echo "$usage_data" | jq -r '.seven_day.utilization // 0' | awk '{printf "%.0f", $1}')
+        seven_reset_iso=$(echo "$usage_data" | jq -r '.seven_day.resets_at // empty')
+        seven_reset=$(format_reset_time "$seven_reset_iso" "date")
+        seven_bar=$(build_usage_bar "$seven_pct")
+        seven_color=$(usage_bar_color "$seven_pct")
+        usage_segments+=" ${SEP} ${seven_bar} ${seven_color}${seven_pct}%${RESET} ${DIM}${seven_reset}${RESET}"
+    fi
 
     extra_enabled=$(echo "$usage_data" | jq -r '.extra_usage.is_enabled // false')
-    if [ "$extra_enabled" = "true" ] && { [ "$five_pct" -ge 90 ] || [ "$seven_pct" -ge 90 ]; }; then
+    if [ "$extra_enabled" = "true" ] && { [ "$five_pct" -ge 90 ] || [ "${seven_pct:-0}" -ge 90 ]; }; then
         extra_used_raw=$(echo "$usage_data" | jq -r '.extra_usage.used_credits // 0')
         if [ "$extra_used_raw" != "0" ] && [ "$extra_used_raw" != "0.0" ]; then
             extra_pct=$(echo "$usage_data" | jq -r '.extra_usage.utilization // 0' | awk '{printf "%.0f", $1}')
