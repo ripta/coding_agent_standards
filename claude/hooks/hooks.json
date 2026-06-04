@@ -1,15 +1,18 @@
 {
+  "_disabled": [
+    {
+      "_note": "DISABLED: `make lint` on `git commit`. Blocks commits in projects without a Makefile/`lint` target. To re-enable, move this object (without `_note`) into `hooks.PreToolUse`.",
+      "matcher": "Bash(git commit*)",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "make lint"
+        }
+      ]
+    }
+  ],
   "hooks": {
     "PreToolUse": [
-      {
-        "matcher": "Bash(git commit*)",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "make lint"
-          }
-        ]
-      },
       {
         "matcher": "Bash",
         "hooks": [
