@@ -1,0 +1,13 @@
+{
+  "name": "coding-standards",
+  "owner": {
+    "name": "Ripta Pasay"
+  },
+  "plugins": [
+    {
+      "name": "coding-standards",
+      "source": ".",
+      "description": "Personal coding standards: skills, hooks, and agents reusable across projects"
+    }
+  ]
+}
