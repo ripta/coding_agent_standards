@@ -30,28 +30,40 @@ draft → designing → accepted → scheduled → implemented
 **Updated:** YYYY-MM-DD
 
 ## Dependencies
+
 - PROJ-NNN (if any)
 
+## Impacts
+
+- PROJ-NNN — section(s) of this proposal that affect it
+
 ## Summary
+
 Brief description of the proposal.
 
 ## Motivation
+
 Why this change is needed.
 
 ## Design Decisions (Settled)
+
 Decisions made with rationale.
 
 ## Design Decisions (Open)
+
 Unresolved questions with candidate options.
 
 ## Milestones
+
 Implementable chunks of work.
 
 ## Decision Log
+
 Minor decisions with dates. Significant architectural decisions
 should be extracted to an ADR and referenced here.
 
 ## References
+
 - ADR-NN: decision explanation
 ```
 
@@ -76,6 +88,21 @@ Acceptable revisit hooks include:
 - A condition tied to a specific artifact, such as golden output review or a performance benchmark, that determines when the question is reopened
 
 Every deferred question must move from the Open section to the Settled section as a "decision to defer" with the revisit hook captured both in the settled entry and in the Decision Log.
+
+## Cross-Proposal Impact
+
+When a design decision in one proposal would change later proposals, the first proposal must note this. If proposal A has a decision that affects proposals B and C, A's text says so, and B and C are updated at the time A is decided, reviewed, or designed.
+
+The Dependencies section already captures one direction (Y depends on X). The reverse — that X knows Y cares about a specific part of X — is worth capturing too. Note the impacted proposal *and* the specific section(s) of this proposal it cares about, not the entirety (unless that's accurate).
+
+This is a recommended practice, not a strict requirement. Prioritize it on:
+
+- Large projects (roughly 100+ proposals) where holding all the cross-references in your head no longer works.
+- Projects that draft proposals in waves of 3–4 or more at once, where drift is most likely.
+
+For small projects with one proposal in flight at a time, the maintenance cost usually isn't worth it.
+
+Rot is expected. The list of impacted proposals can grow stale as work progresses. When drift is obvious while editing a proposal, fix or remove the stale references opportunistically, even if cleanup wasn't why you opened the file. If rot becomes unmanageable, this approach may be replaced with something else.
 
 ## Proposal Index (Optional)
 
