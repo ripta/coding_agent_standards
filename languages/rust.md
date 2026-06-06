@@ -44,9 +44,11 @@
 
 ## Unsafe
 
-- Minimize usage; only for system interactions (process groups, libc calls)
+- Minimize usage; only for system interactions (FFI, libc calls), `unsafe` trait impls, or layout-sensitive patterns
 - Wrap immediately in safe abstractions
-- Document the safety justification
+- Every `unsafe` block, `unsafe impl`, and `unsafe fn` must carry a `// SAFETY:` justification
+- Enable Clippy's `undocumented_unsafe_blocks` lint so CI rejects unjustified unsafe sites
+- See [`rust-unsafe.md`](./rust-unsafe.md) for the full convention, enforcement, and categories of justification
 
 ## Formatting & Linting
 
