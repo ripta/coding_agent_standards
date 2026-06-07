@@ -17,6 +17,7 @@ A phase is a unit of implementation work. Each phase implements exactly one prop
 - If the status is `draft`, `deferred`, or `rejected`, stop and tell the user. This applies even if the user asks you to implement it -- flag the status conflict and ask for confirmation to change the status first.
 - A detailed implementation plan does NOT imply the proposal has been accepted. The status field is the sole source of truth.
 - Creating a proposal is NOT the same as promoting it. Do not promote a proposal to a phase unless the user explicitly asks. A plan document that contains phase numbers or milestones does not authorize promotion; it is a design sketch until the user says to schedule it.
+- Evaluate whether the planned work requires refactoring existing code. If a feature would be substantially cleaner after restructuring nearby code, include that work in the phase scope rather than deferring it or working around it.
 
 ## Promoting a Proposal to a Phase
 

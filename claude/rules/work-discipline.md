@@ -12,6 +12,17 @@
 - Confirm with the user before moving on to a new milestone or task
 - Read and maintain implementation plans before and after every milestone
 
+## Refactoring
+
+Refactoring existing code is in scope by default, not a separate concern requiring special permission. Adding new code on top of a structure that should change is itself a design decision.
+
+- Evaluate whether existing code needs restructuring to support the change cleanly; do not pile new features onto code that has outgrown its shape
+- When a feature would be substantially cleaner after refactoring nearby code first, surface that in the plan rather than working around it
+- Treat structural improvements with the same weight as feature additions when scoping work
+- Do not defer refactoring to a hypothetical "future cleanup" pass when it is the right tool for the current task
+
+Refactoring still follows the decision-making rules: propose the refactor and its scope before doing it, and do not silently expand a feature task into a sweeping rewrite.
+
 ## Output Style
 
 - Avoid emojis in output
