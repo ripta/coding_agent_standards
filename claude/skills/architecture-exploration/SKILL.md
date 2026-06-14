@@ -7,7 +7,7 @@ description: |
   reference to it. If invoked with arguments, scopes the exploration to that
   directory/crate/subproject. Read-only except for writing ARCHITECTURE.md.
 model: opus
-allowed-tools: Read, Glob, Grep, Bash, Write
+allowed-tools: Read, Glob, Grep, Bash, Write, Task
 ---
 
 You produce a deep technical reference document for a project's architecture by
@@ -15,9 +15,16 @@ investigating its code. You write the result to `ARCHITECTURE.md` (overwriting
 if it exists) at the root of the explored scope. Apart from that one file, this
 is a strictly read-only exploration — do not modify any other files.
 
+You act as an **orchestrator**: you classify the project yourself, then fan out
+the bulk of the discovery to parallel `Explore` subagents (one per section),
+and finally synthesize their findings into the document. This keeps the raw file
+reading out of your context (cheaper) and runs the independent sections
+concurrently (faster). The subagents locate and quote code; you verify and
+write.
+
 ## Workflow
 
-### Phase 0: Determine Scope
+### Phase 1: Determine Scope
 
 If the skill was invoked with arguments, treat them as a scope restriction — a
 directory, crate, subproject, package, or module. Confine all exploration,
@@ -27,7 +34,7 @@ root rather than the working directory.
 If no arguments were given, the scope is the whole repository and
 `ARCHITECTURE.md` goes in the current working directory.
 
-Resolve the scope to a concrete path before continuing, and report it in Phase 2.
+Resolve the scope to a concrete path before continuing, and report it in Phase 4.
 
 Then establish two paths used throughout:
 
@@ -36,9 +43,9 @@ Then establish two paths used throughout:
   document is written relative to this directory.
 - **repository root** (`git rev-parse --show-toplevel`) — used only to express
   the citation base in a relative, non-absolute form in the document's header
-  note (see Phase 3, section 1).
+  note (see Phase 6, section 1).
 
-### Phase 1: Classify the Project
+### Phase 2: Classify the Project
 
 Inspect manifests (e.g. `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`),
 entrypoints, and the directory layout within scope to determine the project
@@ -51,28 +58,114 @@ type(s):
 - **full-stack** — more than one of the above
 
 This classification drives which variant of each later section you emit. Prefer
-reading code over README/docs when they disagree.
+reading code over README/docs when they disagree. Do this yourself (don't
+delegate) — it's cheap and it gates the fan-out: the detected type(s) decide
+which section variants the discovery agents are briefed to gather.
 
-### Phase 2: Plan & Report
+### Phase 3: Size & Plan the Fan-out
 
-Before writing the file, briefly tell the user the resolved scope, the citation
-base (expressed relative to the repository root, so the user sees what paths will
-be anchored to), the detected project type(s), and a high-level outline of what
-you've discovered. Keep this short — it confirms direction before the full pass.
+Decide how many discovery agents to spawn and how to partition the work. The base
+is one agent per section (§§2–6 of Phase 6); size only changes whether a heavy
+section is *sharded*, not the number of sections. Measure cheaply — these are
+read-only and piggyback on the classify pass:
 
-### Phase 3: Write ARCHITECTURE.md
+- **`N_files`** — `git ls-files -- <scope> | wc -l`. Tracked files only; excludes
+  the gitignored vendor/build noise that a raw `find` would inflate.
+- **`N_units`** — count of the natural partition unit for the detected type, via
+  one targeted grep (you know the framework by now): route/handler registrations
+  (backend), route entries + top-level components (frontend), command definitions
+  (CLI), exported symbols or top-level modules (library).
+- **`N_dirs`** — significant top-level directories in scope.
 
-Write the full document in one pass as well-structured Markdown with a table of
-contents and the sections below. Ground every claim in actual code with
-`file:line` citations, using links of the form
-`[path/to/file.ext:42](path/to/file.ext#L42)`. If something is ambiguous or
-you're guessing, say so explicitly.
+Apply these as **rough, tunable defaults** — not hard rules:
+
+- `N_files` ≲ 25 → **skip the fan-out** and explore inline; the orchestration
+  overhead outweighs the parallelism on a project this small.
+- `N_units` ≳ 30 → shard Public Surface (§2) into ⌈`N_units` / 20⌉ agents.
+- Many cross-cutting categories apply → split Cross-cutting (§4) into two agents
+  (data/auth/persistence ∥ observability/config/jobs/testing).
+- Large surface → give Key Flows (§3) one agent per flow (2–3) rather than one
+  agent for all.
+
+Two guardrails override the table:
+
+- **Shard along structural boundaries that tile cleanly** — per router file, per
+  command group, per top-level package — so the shards partition the surface
+  exhaustively with no gaps or overlap. Never shard by an arbitrary file range.
+- **Cap the fan-out at ~10–12 agents.** Beyond that, findings reflood the
+  synthesis context — the exact cost this delegation exists to avoid — and the
+  dedup work grows faster than the parallelism helps.
+
+Carry the resulting agent list into Phase 4 (to report) and Phase 5 (to dispatch).
+
+### Phase 4: Report
+
+Before fanning out, briefly tell the user the resolved scope, the citation base
+(expressed relative to the repository root, so the user sees what paths will be
+anchored to), the detected project type(s), the planned fan-out (agent count and
+how sections are partitioned), and a high-level outline of what you've discovered.
+Keep this short — it confirms direction before the full pass.
+
+### Phase 5: Parallel Discovery (fan out)
+
+Dispatch one `Explore` subagent per documentation section to gather its raw
+material concurrently. **Issue all the Task calls in a single message** so they
+run in parallel. Follow the fan-out plan from Phase 3: default to one agent per
+section in Phase 6 (§§2–6), sharding the heavy sections as that plan decided.
+
+Give every discovery agent the same **shared brief**, then its section-specific
+task:
+
+> You are gathering material for one section of an ARCHITECTURE.md. This is a
+> strictly read-only task — do not modify any files. Confine your exploration to
+> the scope `<resolved scope path>`. The project is classified as
+> `<detected type(s)>`.
+>
+> Your deliverable IS the evidence, not prose. For every claim, return the exact
+> `file:line` plus a **verbatim** code snippet (a few lines) proving it — these
+> become citations I cannot re-derive, so paraphrase is useless to me. Express
+> every path **relative to `<citation base>`**; never return an absolute path or
+> one starting with `/` or `~`. Prefer reading code over README/docs when they
+> disagree. If something is ambiguous or you are inferring, say so explicitly and
+> mark it as a guess. Be thorough within your section and ignore everything
+> outside it.
+
+Brief each agent against the matching Phase 6 section spec (§§2–6), and emit only
+the variant relevant to the detected type(s). Suggested split:
+
+- **Orientation & layout** → §1 (languages, frameworks, build/runtime tooling,
+  how it's consumed/exposed and versioned, top-level directory map).
+- **Public Surface Area** → §2.
+- **Key Flows** → §3 (identify and trace 2–3 representative flows end-to-end with
+  a `file:line` at every hop).
+- **Cross-cutting Concerns** → §4 (may be split across two agents).
+- **Mental Model** → §5 (core abstractions, conventions/idioms, sharp edges,
+  TODOs, tech debt).
+- **Onboarding** → §6 (run commands, add-a-unit recipe, first files to read).
+
+You may also do a quick `Glob`/`Bash` pass yourself for the directory map and
+manifests if that's faster than briefing an agent for it.
+
+### Phase 6: Synthesize & Write ARCHITECTURE.md
+
+Assemble the agents' findings into the full document in one pass — well-structured
+Markdown with a table of contents and the sections below. Ground every claim in
+actual code with `file:line` citations, using links of the form
+`[path/to/file.ext:42](path/to/file.ext#L42)`. If something is ambiguous or a
+subagent flagged it as a guess, carry that caveat through — never launder an
+inference into a confident claim.
+
+**Spot-verify before committing citations.** The discovery agents locate code but
+don't audit it, so their line numbers can drift. Before writing, sample a handful
+of the returned citations across different sections and confirm them yourself with
+`Grep`/`Read`. If a sample is wrong, distrust that agent's batch and re-check its
+citations more broadly. Discard any claim you can't ground.
 
 Citation paths MUST be relative to the citation base (the directory containing
 this document), so the links resolve when the document is opened. Never emit an
 absolute path or one beginning with `/` or `~`, and never leak a symlinked or
-machine-specific prefix. If a tool reports an absolute path, strip everything up
-to and including the citation base before citing it.
+machine-specific prefix. If a subagent or tool reports an absolute path, strip
+everything up to and including the citation base before citing it.
 
 Emit only the section variants relevant to the detected project type. For
 full-stack projects, cover each side.
@@ -157,7 +250,7 @@ Cover the following where they apply; skip what's genuinely N/A:
   the files to touch.
 - The 3 files to read first, in order, and why.
 
-### Phase 4: Summarize
+### Phase 7: Summarize
 
 After writing the document, print a short summary of what's in it and any open
 questions you couldn't resolve from the code alone.
@@ -165,8 +258,14 @@ questions you couldn't resolve from the code alone.
 ## Rules
 
 - Read-only except for writing/overwriting `ARCHITECTURE.md` at the scope root.
+  Discovery subagents are read-only too — brief them as such.
 - If arguments are given, confine exploration and output to that scope; with no
-  arguments, cover the whole repository and write to the working directory.
+  arguments, cover the whole repository and write to the working directory. Pass
+  the resolved scope to every subagent so none strays outside it.
+- Classify the project yourself; fan out the per-section discovery to parallel
+  `Explore` subagents (all Task calls in one message); then synthesize. Require
+  each subagent to return `file:line` plus a verbatim snippet for every claim,
+  and spot-verify a sample of those citations yourself before writing.
 - Ground every claim in code with `[path:line](path#L42)` citations. Paths must
   be relative to the citation base (the directory containing the document) —
   never absolute, never starting with `/` or `~`, and never leaking a symlinked
@@ -174,7 +273,7 @@ questions you couldn't resolve from the code alone.
   over README/docs when they disagree.
 - Declare the citation base near the top of the document, expressed relative to
   the repository root (not as an absolute path).
-- Report the resolved scope and detected project type before writing; write the
-  document in one pass; print a summary plus open questions afterward.
+- Report the resolved scope and detected project type before fanning out; write
+  the document in one pass; print a summary plus open questions afterward.
 - Emit only the section variants relevant to the detected project type; for
   full-stack projects, cover each side.
