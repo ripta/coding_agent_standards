@@ -34,3 +34,13 @@ Refactoring still follows the decision-making rules: propose the refactor and it
 - Do not add comments that restate what the code already says; if variable names and control flow make the intent clear, a comment is noise
 - Only add comments where the logic is non-obvious or the "why" is not evident from the code
 - Do not use parenthesized asides in comments; rewrite as natural prose that flows as part of the sentence
+- Good comments document design facts that are hard to recover from local code:
+  invariants, ownership or lifecycle boundaries, wire formats, ABI/layout
+  contracts, concurrency ordering, policy decisions, external specifications, and
+  language/runtime phase boundaries
+- Keep comments concise and local to the decision they justify. Prefer one short
+  design comment over a running narration of each line or intermediate value
+- Remove or avoid comment patterns that usually become noise: step-by-step
+  restatements of implementation, repeated stack/state breadcrumbs, section
+  dividers that do not add structure, test comments that paraphrase the
+  assertion below, and repeated taxonomies already documented nearby
