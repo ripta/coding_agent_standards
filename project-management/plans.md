@@ -9,6 +9,13 @@ A phase is a unit of implementation work. Each phase implements exactly one prop
 - Phase numbers are sequential integers (1, 2, 3...)
 - Proposal numbers are permanent and never change
 - Milestones within a phase are numbered from `.1` upward (e.g., Phase 5.1, 5.2, 5.3)
+- Milestones are units of implementation work only. Design work -- a design spike,
+  an ADR, a research write-up -- is NOT an implementation milestone. Never list a
+  design spike as a numbered row in a phase's milestone table, and never count it
+  toward the phase's milestone progress. A phase whose only completed work is design
+  is `PLANNED` with `0/N`, not `IN PROGRESS`. Record design completion in the
+  proposal/phase Design Decisions, the ADR, and any research document -- not as a
+  numbered, DONE milestone.
 
 ## Before Starting a Phase
 
