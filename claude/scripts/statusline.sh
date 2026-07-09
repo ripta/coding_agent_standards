@@ -42,6 +42,7 @@ FG_GREEN=$'\033[32m'
 FG_YELLOW=$'\033[33m'
 FG_BLUE=$'\033[34m'
 FG_CYAN=$'\033[36m'
+FG_MAGENTA=$'\033[35m'
 FG_RED=$'\033[31m'
 DIM=$'\033[2m'
 BOLD=$'\033[1m'
@@ -713,13 +714,27 @@ if [ -z "$git_segment" ]; then
 
         if [ -n "$git_status" ]; then
             branch_color=$FG_YELLOW
-            git_segment=" ${SEP} ${branch_color}${BOLD} $branch${RESET}${FG_YELLOW}${git_status}${RESET}"
+            git_segment=" ${SEP} ${branch_color}${BOLD}$branch${RESET}${FG_YELLOW}${git_status}${RESET}"
         else
-            git_segment=" ${SEP} ${branch_color}${BOLD} $branch${RESET}"
+            git_segment=" ${SEP} ${branch_color}${BOLD}$branch${RESET}"
         fi
     fi
 
     [ -n "$git_segment" ] && printf '%s' "$git_segment" > "$git_cache_file"
+fi
+
+# --- Environment Segment ---
+# AWS_PROFILE and KUBECONFIG (basename), shown after the branch.
+
+env_segment=""
+if [ -n "$AWS_PROFILE" ]; then
+    env_segment+=" ${SEP} ${FG_MAGENTA}${AWS_PROFILE}${RESET}"
+fi
+if [ -n "$KUBECONFIG" ]; then
+    # KUBECONFIG may hold a colon-separated list; use the first entry.
+    kube_file="${KUBECONFIG%%:*}"
+    kube_name=$(basename "$kube_file" 2>/dev/null)
+    [ -n "$kube_name" ] && env_segment+=" ${SEP} ${FG_CYAN}${kube_name}${RESET}"
 fi
 
 # --- Context Bar Segment ---
@@ -898,8 +913,9 @@ fi
 current_datetime=$(date +"%Y-%m-%d %H:%M")
 
 echo -n "${model_color}${BOLD}${model}${RESET}${cap_segment}"
-echo -n " ${SEP} ${FG_BLUE}${BOLD} ${dir_name}${RESET}"
+echo -n " ${SEP} ${FG_BLUE}${BOLD}${dir_name}${RESET}"
 echo -n "$git_segment"
+echo -n "$env_segment"
 echo -n "$context_segment"
 echo -n " ${SEP} ${DIM}${current_datetime}${RESET}"
 echo -n "$usage_segments"
