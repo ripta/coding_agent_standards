@@ -28,6 +28,7 @@ Refactoring still follows the decision-making rules: propose the refactor and it
 - Avoid emojis in output
 - Do not include references to phase or milestone numbers in code or comments; those are project management artifacts
 - Preserve the tone, wording, and style of existing comments that are not being changed; keep user voice exactly as written
+- Separate logical blocks of code with blank lines; let the code breathe. Do not squash statements together to save vertical space. When a run of statements shifts from one logical step to the next, put a blank line between them. Newlines cost nothing. This applies in every language, not just one construct or syntax
 
 ## Comments
 
@@ -40,6 +41,14 @@ Refactoring still follows the decision-making rules: propose the refactor and it
   language/runtime phase boundaries
 - Keep comments concise and local to the decision they justify. Prefer one short
   design comment over a running narration of each line or intermediate value
+- When a comment carries more than one idea, separate the ideas with a blank
+  comment line into short paragraphs. This applies to every comment kind, not
+  only doc comments. Do not pack multiple ideas into one dense block
+- Wrap comment lines to the same width as the surrounding code, not to a narrow
+  prose width. The target is roughly 100 characters. A bit over or under is fine;
+  wrapping around 72 or 80 is too narrow and is a recurring correction. Do not
+  default to short lines. When editing an existing comment, match the code's line
+  width; do not reflow untouched comments
 - Remove or avoid comment patterns that usually become noise: step-by-step
   restatements of implementation, repeated stack/state breadcrumbs, section
   dividers that do not add structure, test comments that paraphrase the
