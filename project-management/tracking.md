@@ -4,10 +4,10 @@
 
 Documents reference each other using these patterns:
 
-- Proposals reference dependencies: `Depends on: PROJ-001, PROJ-002`
-- Proposals reference ADRs: `Follows: ADR-01`
-- Phases reference proposals: `Implements: PROJ-003`
-- ADRs reference proposals: `Origin: PROJ-001`
+- Proposals list dependencies under `## Dependencies` as a bullet list: `- PROJ-001`
+- Proposals list ADRs and other references under `## References` as a bullet list: `- ADR-01: decision explanation`
+- Phases reference proposals inline: `Implements: PROJ-003`
+- ADRs list the originating proposal under `## References`: `- PROJ-001 (originating proposal, if any)`
 
 ## Metadata
 
