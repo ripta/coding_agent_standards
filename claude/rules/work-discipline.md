@@ -32,6 +32,7 @@ Refactoring still follows the decision-making rules: propose the refactor and it
 
 ## Comments
 
+- Never narrate the code with comments. Do not label lines or blocks with what they do next, such as `// Finished line`, `// Last line:`, `// loop over items`, or `// return the result`. This applies to every language. The reader can see what the code does; a comment that only restates the next statement is pure noise. Delete these on sight, and never add them
 - Do not add comments that restate what the code already says; if variable names and control flow make the intent clear, a comment is noise
 - Only add comments where the logic is non-obvious or the "why" is not evident from the code
 - Do not use parenthesized asides in comments; rewrite as natural prose that flows as part of the sentence
