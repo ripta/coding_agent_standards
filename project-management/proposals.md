@@ -104,9 +104,9 @@ For small projects with one proposal in flight at a time, the maintenance cost u
 
 Rot is expected. The list of impacted proposals can grow stale as work progresses. When drift is obvious while editing a proposal, fix or remove the stale references opportunistically, even if cleanup wasn't why you opened the file. If rot becomes unmanageable, this approach may be replaced with something else.
 
-## Proposal Index (Optional)
+## Proposal Index
 
-When creating the first proposal for a project, offer to create an `index.md` in the proposals directory. The index makes scanning many proposals easier at the cost of maintaining an extra file.
+When creating the first proposal for a project, create an `index.md` in the proposals directory, even if this is the only proposal that will ever exist.
 
 Contents:
 

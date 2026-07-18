@@ -38,7 +38,7 @@ When a proposal is accepted and scheduled for implementation:
    - Renumber remaining pending phases upward to accommodate both new phases
 4. Create milestones numbered from `.1` upward within each new phase.
 5. Add the phase(s) to the status summary table and the pending phases section in the implementation plan.
-6. Update the proposal's status (and any proposal index) to reflect that implementation is underway.
+6. Update the proposal's status and the proposal index to reflect that implementation is underway.
 7. Do not combine or fold phases together; each phase is separate by default.
 8. Milestone tables use three columns by default: Milestone, Description, and Status. Valid status values are `NOT STARTED`, `IN PROGRESS`, or `DONE`. Projects may override this format.
 
@@ -53,9 +53,9 @@ When a proposal is accepted and scheduled for implementation:
 
 Every implementation plan must include steps to update tracking artifacts as work progresses. These updates are part of the work, not an afterthought.
 
-- When a milestone completes: update the phase document status and the phase index (if present)
-- When a phase completes: update the phase status to COMPLETE, update the proposal status, and update both index pages (if present)
-- When a phase begins: update the phase status to IN PROGRESS and update both index pages (if present)
+- When a milestone completes: update the phase document status and the phase index
+- When a phase completes: update the phase status to COMPLETE, update the proposal status, and update both index pages
+- When a phase begins: update the phase status to IN PROGRESS and update both index pages
 - Plans must list which tracking artifacts exist and will be updated; do not assume they can be skipped
 
 ## Phase Document Format
@@ -100,9 +100,9 @@ User-facing issue this phase solves.
 - File: `phase-N-short-description.md`
 - Example: `phase-12-user-authentication.md`
 
-## Phase Index (Optional)
+## Phase Index
 
-When creating the first phase for a project, offer to create an `index.md` in the phases directory. The index makes scanning many phases easier at the cost of maintaining an extra file.
+When creating the first phase for a project, create an `index.md` in the phases directory, even if this is the only phase that will ever exist.
 
 Contents:
 
