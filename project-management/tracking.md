@@ -11,15 +11,11 @@ Documents reference each other using these patterns:
 
 ## Metadata
 
-All documents use inline markdown metadata (not YAML frontmatter):
+Each artifact type uses inline markdown metadata (not YAML frontmatter), but the fields differ by type:
 
-```markdown
-# Title
-
-**Status:** accepted
-**Created:** YYYY-MM-DD
-**Updated:** YYYY-MM-DD
-```
+- Proposals: `**Status:**`, `**Created:**`, `**Updated:**`
+- ADRs: `**Status:**`, `**Date:**`
+- Phases: `**Goal:**`, `**Status:**`, `**Complexity:**`, `**Dependencies:**` (no document-level dates; rely on git history)
 
 ## Numbering Padding
 
