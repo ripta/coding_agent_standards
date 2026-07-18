@@ -1,99 +1,60 @@
 ---
 name: phase-cleanup
 description: |
-  Move completed phases from zig_implementation.md to zig_completed_detailed.md.
-  Updates the completed phases summary, proposal statuses, and the proposal index.
+  Sync phase-tracking artifacts after milestones complete. Scans a project's phases
+  directory for phases whose milestones are all DONE, flips their status to COMPLETE,
+  and propagates that completion to the phase index and the originating proposal
+  (and its index).
 model: sonnet
 allowed-tools: Read, Edit, Glob, Grep
 ---
 
-You move fully-completed phases out of the "Pending Phases" section of `spec/zig_implementation.md` into
-`spec/zig_completed_detailed.md`, and update all related status documents.
+You keep a project's phase-tracking artifacts in sync after milestones finish, following the phase model in `project-management/plans.md` (in the coding-agent-standards repo). Always defer to a project-specific deviation when one exists.
 
 ## Workflow
 
-### Step 1: Identify Completed Phases
+### Step 1: Locate the Phases Directory and Index
 
-Read the "Pending Phases" section of `spec/zig_implementation.md`. A phase is complete when **every milestone** in its
-table has status `DONE`. Phases that are `IN PROGRESS`, `PENDING`, or `NOT STARTED` stay in the pending section.
+Find the phases directory by checking common locations (`spec/phases/`, `docs/phases/`, `phases/`). Read its `index.md` if present — the status summary table is the fastest way to see every phase and its current status. If there is no index, enumerate phase files directly (`phase-N-*.md`).
 
-Report the list of completed phases found. If none, inform the user and stop.
+### Step 2: Identify Newly-Completed Phases
 
-### Step 2: Read zig_completed_detailed.md Tail
+For each phase whose Status is not already `COMPLETE`, read its Milestones table. A phase is complete when every milestone row has Status `DONE`. Phases with any `NOT STARTED` or `IN PROGRESS` milestone stay as-is.
 
-Read the last ~50 lines of `spec/zig_completed_detailed.md` to find the last phase entry and understand the current
-format. Each entry follows this structure:
+Report the list of newly-completed phases found. If none, inform the user and stop.
 
-```markdown
-## Phase N: Title (PROJ-NNN)
+### Step 3: Update Each Phase Document
 
-| Milestone | Description | Status |
-|-----------|-------------|--------|
-| N.1 | Description | DONE |
+For each newly-completed phase, update its own file: change `**Status**:` from `PLANNED` or `IN PROGRESS` to `COMPLETE`.
 
-Summary paragraph describing what was added and why.
+### Step 4: Update the Phase Index
 
-**Key files:** `path/to/file1`, `path/to/file2`
-```
+In the phases directory's `index.md`, update the row for each completed phase: set Status to `COMPLETE` and Progress to the full milestone count (e.g. `5/5`).
 
-If a phase had a `**Depends on:**` line, preserve it between the heading and the table.
+### Step 5: Update the Originating Proposal
 
-### Step 3: Append to zig_completed_detailed.md
+For each completed phase, find the proposal it implements (the `Implements:` line in its Scope section). A proposal may be split across multiple phases, so check the phase index for every other phase that also implements the same proposal:
 
-For each completed phase, append an entry after the last existing phase. Include:
+- If every phase implementing that proposal is now `COMPLETE`, and the proposal's status is `scheduled`, change it to `implemented`.
+- If other phases implementing the same proposal are still incomplete, leave the proposal's status as-is and note this in the report.
+- If the proposal's status is already `implemented` or anything else, leave it and note why.
 
-1. `## Phase N: Title (PROJ-NNN)` heading
-2. Dependency note if present (e.g., `**Depends on:** Phases X-Y (description)`)
-3. Milestone table (copied from pending section)
-4. A 2-3 sentence summary paragraph derived from the milestone descriptions — what was added and why it matters
-5. `**Key files:**` line listing the primary files mentioned in the milestones
+### Step 6: Update the Proposal Index
 
-### Step 4: Remove from zig_implementation.md
+Update the matching rows in the proposals directory's `index.md` to reflect each changed proposal status.
 
-Delete the completed phase entries from the "Pending Phases" section. The first remaining in-progress or pending phase
-should now be the first entry under `## Pending Phases`.
+### Step 7: Report
 
-### Step 5: Update zig_completed_topics.md
+Summarize:
 
-In `spec/zig_completed_topics.md`, add brief summaries for each moved phase to the appropriate topic group:
-
-- Match the phase's domain to an existing topic heading (e.g., "Numeric Tower", "Parsing and Pragmas", "Infrastructure
-  and Tooling")
-- Update the heading's phase list to include the new phase numbers
-- Append a sentence or two to the topic's paragraph describing the new phases
-- If no existing topic fits, extend "Infrastructure and Tooling" as a catch-all
-
-### Step 6: Update zig_index.md
-
-In `spec/zig_index.md`, update the status table rows for each moved phase: change `PENDING` to `DONE` and update the
-progress column to reflect completion.
-
-### Step 7: Update Proposal Statuses
-
-For each moved phase, check the corresponding project proposal file (`spec/proposals/PROJ-NNN-*.md`):
-
-1. Read its `**Status:**` line
-2. If it says `scheduled`, change it to `implemented`
-3. If it already says `implemented`, skip it
-
-Then update the matching rows in `spec/proposals/index.md` index table to match.
-
-### Step 8: Clean Up ideas.md
-
-Read `spec/proposals/ideas.md`. For each idea section (`## Idea: ...`), check whether the idea has been captured in a numbered
-project proposal (regardless of that proposal's status). Cross-reference against the `spec/proposals/index.md` index.
-
-An idea is "captured" if there is a project whose title or summary clearly covers the same feature or concern. When in
-doubt, err on the side of keeping the idea.
-
-For each captured idea, remove its entire section (the `## Idea:` heading and all paragraphs under it) from `ideas.md`.
-Leave a trailing newline at the end of the file.
-
-### Step 9: Report
-
-Summarize what was done:
-
-- Which phases were moved
+- Which phases were moved to `COMPLETE`
 - Which proposal statuses were updated
-- Any phases that were skipped (still in progress) and why
-- Which ideas were removed from ideas.md and which project they corresponded to
+- Any phases or proposals that were left unchanged, and why
+
+## Rules
+
+- Follow the phase and milestone model in `project-management/plans.md` exactly, unless the project defines its own deviation.
+- Never mark a phase `COMPLETE` unless every milestone in its table is `DONE`.
+- Update the phase document, phase index, proposal, and proposal index together — per plans.md's Artifact Sync rules, these updates are part of the work, not an afterthought.
+- Do not advance a proposal to `implemented` while any of its other phases remain incomplete.
+- If a phase has no matching proposal file, leave the proposal step for that phase and note it in the report.
