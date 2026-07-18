@@ -116,8 +116,9 @@ Example table:
 ```markdown
 | Phase | Proposal | Description | Status | Progress |
 |-------|----------|-------------|--------|----------|
-| 1 | PROJ-001 | Short description | DONE | 4/4 |
+| 1 | PROJ-001 | Short description | COMPLETE | 4/4 |
 | 2 | PROJ-002 | Short description | IN PROGRESS | 2/5 |
+| 3 | PROJ-003 | Short description | PLANNED | 0/3 |
 ```
 
 Update the index whenever a phase is created, a milestone completes, or a phase status changes.
