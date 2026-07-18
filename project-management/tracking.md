@@ -21,6 +21,16 @@ All documents use inline markdown metadata (not YAML frontmatter):
 **Updated:** YYYY-MM-DD
 ```
 
+## Numbering Padding
+
+Padding width differs by artifact type. This is deliberate, not an oversight:
+
+- ADRs: 2-digit (`ADR-01`) — architectural decisions are comparatively rare per project.
+- Proposals: 3-digit (`PROJ-001`) — proposal volume is typically higher over a project's lifetime.
+- Phases: unpadded (`Phase 12`) — phases are referenced in prose and status tables, not sorted as filenames the same way IDs are.
+
+Keep each artifact type's padding fixed once established; do not repad existing files.
+
 ## Specs Directory
 
 Spec and design documents live in a centralized specs directory, symlinked into each project's `spec/` or `docs/` directory. This keeps individual repos uncluttered while maintaining a single source of truth.
