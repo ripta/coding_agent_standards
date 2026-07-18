@@ -82,6 +82,13 @@ User-facing issue this phase solves.
 **Decision**: What was decided
 **Rationale**: Why this approach
 
+## Milestones
+
+| Milestone | Description | Status |
+|-----------|-------------|--------|
+| N.1 | Description | NOT STARTED |
+| N.2 | Description | NOT STARTED |
+
 ## Implementation
 
 ### Files to Modify
