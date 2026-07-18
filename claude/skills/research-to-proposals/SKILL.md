@@ -60,6 +60,9 @@ Write each proposal following the format from `project-management/proposals.md`:
 ## Dependencies
 - PREFIX-NNN (if any)
 
+## Impacts
+- PREFIX-NNN — section(s) of this proposal that affect it
+
 ## Summary
 Brief description of the proposal.
 
@@ -79,7 +82,7 @@ Implementable chunks of work.
 Minor decisions with dates.
 
 ## References
-- Research document references
+- Related ADRs, proposals, or research documents
 ```
 
 Rules for drafting:
@@ -87,6 +90,7 @@ Rules for drafting:
 - Set status to `draft`
 - Add open design questions where the research leaves gaps rather than guessing
 - Cross-reference related proposals via the Dependencies section
+- Capture cross-proposal impact per `project-management/proposals.md` — note the impacted proposal and the specific section(s) it cares about, omitting the Impacts section entries when there are none
 - File naming: `PREFIX-NNN-short-description.md` (kebab-case)
 
 ### Phase 5: Review
