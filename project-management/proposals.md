@@ -10,6 +10,8 @@ draft → designing → accepted → scheduled → implemented
                deferred / rejected
 ```
 
+Any status may become **superseded**. Any status except `implemented` may become **retracted**.
+
 - **draft**: Initial concept, incomplete
 - **designing**: Under active design; open questions being resolved
 - **accepted**: Design finalized, ready for implementation
@@ -17,8 +19,8 @@ draft → designing → accepted → scheduled → implemented
 - **implemented**: Work merged
 - **deferred**: Paused indefinitely; may revisit
 - **rejected**: Will not implement
-- **superseded**: Replaced or superseded by a different proposal (with reference to other proposal)
-- **retracted**: No longer in effect (with reason)
+- **superseded**: Replaced by a different proposal, from any prior status (with reference to the other proposal)
+- **retracted**: No longer in effect, from any unimplemented status (with reason)
 
 ## Proposal Document Format
 
