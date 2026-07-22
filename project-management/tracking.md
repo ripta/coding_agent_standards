@@ -29,9 +29,9 @@ Keep each artifact type's padding fixed once established; do not repad existing 
 
 ## Specs Directory
 
-Spec and design documents live in a centralized specs directory, symlinked into each project's `spec/` or `docs/` directory. This keeps individual repos uncluttered while maintaining a single source of truth.
+Spec and design documents may live in a centralized specs directory, symlinked into each project's `spec/` or `docs/` directory. This keeps individual repos uncluttered while maintaining a single source of truth. If neither `spec/` nor `docs/` are symlinks, then it means the documents live in the project repository and are committed directly there.
 
-Proposals and phases each live in their own subdirectory under this specs directory: `spec/proposals/` and `spec/phases/` (or the `docs/` equivalent). This is why proposals.md, plans.md, and the proposal-related skills look for `spec/proposals/` and `docs/proposals/` as common locations — they're checking for this directory under either symlink target. ADRs have no fixed subdirectory name; place them alongside any existing ADRs, or ask where they should live if none exist yet.
+Proposals and phases each live in their own subdirectory under this specs directory: `spec/proposals/` and `spec/phases/` (or the `docs/` equivalent). This is why proposals.md, plans.md, and the proposal-related skills look for `spec/proposals/` and `docs/proposals/` as common locations — they're checking for this directory. ADRs are usually named `spec/adrs/`, although legacy projects have no fixed subdirectory name; place them alongside any existing ADRs, or ask where they should live if none exist yet.
 
 ## Markdown Quality
 
