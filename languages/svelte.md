@@ -35,6 +35,23 @@
 - Linting: ESLint + Prettier
 - Formatting: Prettier via `pnpm run format`
 
+## Why Not Biome
+
+Reviewed 2026-08-01 against Biome 2.5.
+
+Plain TypeScript projects use Biome for both formatting and linting. See
+[`typescript.md`](./typescript.md). Svelte projects stay on ESLint and Prettier
+for three reasons.
+
+- Biome's Svelte support is experimental. It landed in 2.3 and improved in 2.4. Full `.svelte` handling still requires opting in with `html.experimentalFullSupportEnabled`.
+- `prettier-plugin-svelte` is the only formatter that handles Svelte templates reliably today.
+- Biome has no equivalent to `eslint-plugin-svelte`, so the rune and template-a11y rules have no replacement.
+
+Splitting by extension is not worth it. Biome for `.ts` plus Prettier for
+`.svelte` buys little and costs a two-tool setup.
+
+Revisit when Biome marks Svelte support stable.
+
 ## RPC Communication
 
 - Use generated TypeScript clients from Protocol Buffer definitions

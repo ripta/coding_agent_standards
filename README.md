@@ -26,6 +26,9 @@ Standards for each language/framework covering naming, project structure, error 
 - **Rust** (`rust.md`) -- modules, workspaces, error handling with thiserror/anyhow
 - **Zig** (`zig.md`) -- allocators, error sets, build system, embedded tests
 - **Svelte** (`svelte.md`) -- SvelteKit, Svelte 5 runes, Tailwind, protobuf RPC
+- **TypeScript** (`typescript.md`) -- strict tsconfig, ESM, Biome for format and lint, pnpm
+- **Phaser** (`phaser.md`) -- scenes, pooling, atlases, isometric projection
+- **PixiJS** (`pixijs.md`) -- v8 application setup, scene graph, ticker, asset bundles
 - **Protocol Buffers** (`protobuf.md`) -- file layout, naming, buf-based code generation
 
 ### Practices
@@ -36,6 +39,7 @@ Cross-cutting concerns that apply regardless of language:
 - **Error Handling** -- wrapping, sentinel errors, structured responses, validation
 - **Code Review** -- review priorities, submission checklist
 - **Security** -- input validation, parameterized queries, secret management
+- **Game Simulation** -- fixed timestep, sim/render split, determinism, offline replay
 
 ### Project Management
 
@@ -75,6 +79,9 @@ Composable profiles that bundle the right standards for a given project type. Ea
 | `1z-interpreter` | 1z interpreter (Zig + 1z) |
 | `zig-project` | Zig projects |
 | `svelte-app` | Svelte/SvelteKit apps |
+| `ts-game` | Browser games in TypeScript, engine-agnostic base |
+| `ts-phaser-game` | `ts-game` plus Phaser |
+| `ts-pixi-game` | `ts-game` plus PixiJS |
 | `oss-contrib` | Lightweight profile for contributing to repos you don't own |
 
 ## Usage
