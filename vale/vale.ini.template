@@ -1,0 +1,64 @@
+# Vale configuration for projects following coding_agent_standards.
+#
+# Copy this file to .vale.ini at the repo root. Trim the globs to the languages
+# the project actually has. See vale/README.md for the rollout order.
+
+StylesPath = .vale/styles
+MinAlertLevel = warning
+
+# The [formats] block is REQUIRED. Do not delete it as redundant.
+#
+# Without it, `scope: sentence` and `scope: paragraph` rules match nothing
+# inside code comments. Vale still extracts the comments. The scopes just never
+# resolve. The run reports zero findings and looks like a clean repo.
+#
+# Mapping an extension to `md` makes Vale parse each extracted comment body as
+# markdown. That is what makes the scopes resolve. It also means bullet lists
+# inside a doc comment are read as lists instead of one flattened sentence.
+#
+# Only list extensions Vale supports natively. Mapping an unsupported extension
+# does NOT add support. Vale treats the file as plain markdown and lints the
+# source code itself as prose. Zig, Svelte, and 1z are unsupported. Leave them
+# out. Their comments stay reviewer-enforced.
+[formats]
+c = md
+cpp = md
+cs = md
+go = md
+h = md
+java = md
+js = md
+lua = md
+php = md
+proto = md
+py = md
+rb = md
+rs = md
+scala = md
+swift = md
+ts = md
+tsx = md
+
+[*.md]
+BasedOnStyles = Standards
+
+# Skips runs of emoji-prefixed pseudo-list lines, e.g.
+#
+#   ✅ **Compile-time type safety**: Proto changes caught in Go and TypeScript
+#   ✅ **Action-oriented API**: Natural expression of user actions
+#
+# These use trailing-double-space hard breaks instead of list markers. The
+# markdown parser reads the whole run as one paragraph with no sentence-ending
+# punctuation, so it gets reported as a single enormous sentence. In one repo
+# this was 13 of 14 findings.
+#
+# The durable fix is to write them as real list items (`- ✅ **...**: ...`).
+# This ignore keeps the pattern from blocking adoption in the meantime.
+BlockIgnores = (?m)^(?:[^\x00-\x7F]️?[ \t]+\*\*.*(?:\r?\n|$))+
+
+[*.{c,cpp,cs,go,h,java,js,lua,php,proto,py,rb,rs,scala,swift,ts,tsx}]
+BasedOnStyles = Standards
+
+# Paragraph shape in comment blocks is not yet calibrated. Enable per project
+# once you have looked at what it reports.
+Standards.ParagraphLength = NO

@@ -1,0 +1,7 @@
+---
+extends: occurrence
+message: "Paragraph is %d sentences. The limit is 6."
+level: warning
+scope: paragraph
+token: '[^.!?]+[.!?]'
+max: 6

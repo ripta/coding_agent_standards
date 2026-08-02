@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Runs Vale over markdown prose and source-code comments.
+#
+# The default mode lints only files changed against a base ref. Most repos carry
+# a backlog of pre-existing findings. Diff scoping keeps the signal on new work.
+# Use --all for a full-tree report. Do not gate CI on --all.
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: lint-prose [options]
+
+  (no options)     lint files changed against the base ref
+  --all            lint the whole tree (report only, not a gate)
+  --base <ref>     compare against an explicit ref
+  --staged         lint staged files only
+  -h, --help       show this message
+EOF
+}
+
+MODE="diff"
+BASE=""
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --all) MODE="all"; shift ;;
+    --staged) MODE="staged"; shift ;;
+    --base) BASE="${2:?--base needs a ref}"; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "lint-prose: unknown argument: $1" >&2; usage >&2; exit 2 ;;
+  esac
+done
+
+if ! command -v vale >/dev/null 2>&1; then
+  echo "lint-prose: vale not found. Install it with 'brew install vale'." >&2
+  exit 127
+fi
+
+# git reports repo-relative paths, so run everything from the repo root. This
+# also makes the tool work when invoked from a subdirectory.
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+if [ -z "$ROOT" ]; then
+  echo "lint-prose: not inside a git repository." >&2
+  exit 2
+fi
+cd "$ROOT"
+
+if [ ! -f .vale.ini ]; then
+  echo "lint-prose: no .vale.ini at $ROOT." >&2
+  echo "  Copy it from coding_agent_standards/vale/vale.ini.template." >&2
+  exit 2
+fi
+
+if [ "$MODE" = "all" ]; then
+  exec vale .
+fi
+
+# --- Resolve the base ref ---
+if [ -z "$BASE" ]; then
+  for candidate in origin/main origin/master main master; do
+    if git rev-parse --verify --quiet "$candidate" >/dev/null; then
+      BASE="$candidate"
+      break
+    fi
+  done
+fi
+
+if [ -z "$BASE" ]; then
+  echo "lint-prose: could not resolve a base ref. Pass --base <ref>." >&2
+  exit 2
+fi
+
+# --- Collect changed files ---
+if [ "$MODE" = "staged" ]; then
+  CHANGED="$(git diff --cached --name-only --diff-filter=d)"
+else
+  MERGE_BASE="$(git merge-base HEAD "$BASE" 2>/dev/null || echo "$BASE")"
+  # Compares the working tree to the merge base, so committed and uncommitted
+  # changes are both covered. Untracked files are added separately.
+  CHANGED="$(git diff --name-only --diff-filter=d "$MERGE_BASE"
+             git ls-files --others --exclude-standard)"
+fi
+
+# Drop blanks, dedupe, and keep only paths that still exist.
+FILES=()
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  [ -f "$f" ] || continue
+  FILES+=("$f")
+done < <(printf '%s\n' "$CHANGED" | sort -u)
+
+if [ ${#FILES[@]} -eq 0 ]; then
+  echo "lint-prose: no changed files against $BASE."
+  exit 0
+fi
+
+# Vale skips paths that no section glob matches, so unlisted extensions are
+# passed through harmlessly.
+exec vale "${FILES[@]}"
