@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "coding-standards",
-      "source": ".",
+      "source": "./claude",
       "description": "Personal coding standards: skills, hooks, and agents reusable across projects"
     }
   ]
