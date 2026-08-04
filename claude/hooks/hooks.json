@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "make fmt 2>/dev/null || true"
+            "command": "if make -n fmt >/dev/null 2>&1; then make fmt; fi"
           }
         ]
       }
@@ -40,7 +40,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Reminder: run make test lint before considering work complete'"
+            "command": "targets=$(for t in test lint; do make -n \"$t\" >/dev/null 2>&1 && printf \" %s\" \"$t\"; done); if [ -n \"$targets\" ]; then echo \"Reminder: run make$targets before considering work complete\"; fi"
           }
         ]
       }
