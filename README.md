@@ -91,6 +91,41 @@ For repos you don't own, use `CLAUDE.local.md` (auto-gitignored by Claude Code) 
 @~/projects/coding_agent_standards/profiles/oss-contrib.md
 ```
 
+### Installing the Claude Code Plugin
+
+The skills, hooks, and agents under `claude/` are packaged as a Claude Code plugin named `coding-standards`. The marketplace manifest lives at the repo root (`.claude-plugin/marketplace.json`) and points at `./claude` as the plugin source.
+
+Install once, inside any Claude Code session:
+
+```
+/plugin marketplace add ripta/coding_agent_standards
+/plugin install coding-standards@coding-standards
+```
+
+Choose **user** scope when prompted so the plugin is available in all your projects. A local clone works as the marketplace source too (`/plugin marketplace add ~/projects/coding_agent_standards`), in which case updates track your clone instead of GitHub.
+
+Plugin skills are namespaced: invoke them as `/coding-standards:<skill-name>`. If you keep a copy of a skill in `~/.claude/skills/`, both versions will appear -- delete the personal copy once the plugin version works for you.
+
+#### Updating
+
+Installed plugins are cached copies, not live references. After changes land in the repo:
+
+```
+/plugin marketplace update coding-standards
+```
+
+The plugin has no pinned version; Claude Code versions it by git commit SHA, so every update pulls the latest commit.
+
+#### Active Development
+
+To iterate on a skill without the cache in the way, launch Claude Code with the plugin loaded directly from source:
+
+```sh
+claude --plugin-dir ~/projects/coding_agent_standards/claude
+```
+
+Edit freely, then run `/reload-plugins` in the session to pick up changes immediately. Once satisfied, commit and push, and installed copies catch up via `/plugin marketplace update`.
+
 ### Setup Validation
 
 The `bin/check-setup` script validates that a project has standards properly configured. It can be wired up as a Claude Code `SessionStart` hook to run automatically when you open a project.
