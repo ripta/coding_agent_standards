@@ -16,17 +16,19 @@ Completed phases keep their number forever. Pending phases may be renumbered.
 start. Creating a proposal is not promotion. Promotion happens only when the
 user asks for it.
 
-**Milestone** — a named subdivision of work. Proposals and phases each number
+**Milestone** — a numbered subdivision of work. Proposals and phases each number
 their milestones separately, and the two namespaces do not overlap.
 
-**Proposal milestone** — an implementable chunk of work listed in a proposal.
-Numbered as a plain ordinal from 1. Written `PROJ-004 milestone 5`, or
-`PROJ-004 M5`. Carries no status.
+**Proposal milestone** — a chunk of work the proposal commits to, named at
+design time. A plain ordinal from 1. Written `PROJ-004 milestone 5`, or
+`PROJ-004 M5`. Carries no status of its own.
 
-**Phase milestone** — a unit of implementation work listed in a phase. Numbered
-from `.1` upward within its phase. Written `Phase 7.1`. Phase-local: it does not
-inherit the numbering of the proposal milestone it implements. Carries a status,
-and that status is the only record of execution progress.
+**Phase milestone** — a slice of a phase that is implemented and reviewed as one
+unit. Numbered from `.1` upward within its phase. Written `Phase 7.1`.
+Phase-local: it does not inherit the numbering of the proposal milestone it
+implements, and names that milestone in its Proposal column instead. Carries a
+status, and that status is the only record of execution progress. To find what a
+proposal milestone's status is, read the phase milestone rows pointing at it.
 
 **Research write-up** — a document usually imported from an external source. Its
 claims may be unproven. It can feed a design spike, a proposal, or eventually an

@@ -17,8 +17,9 @@ form and never mix them.
 - A phase milestone is `Phase 7.1`. Bare `Phase 7` means the whole phase.
 - A proposal milestone is `PROJ-004 milestone 5`, or `PROJ-004 M5` for short.
 
-`Phase` is capitalized in every position, like `PROJ-004`. It is a name, not a
-common noun, so mid-sentence prose does not lowercase it.
+In the `Phase 7` and `Phase 7.1` forms, `Phase` is capitalized in every
+position, like `PROJ-004`. It is part of an identifier there. The bare common
+noun stays lowercase, as in "each phase implements one proposal".
 
 A proposal milestone is a plain ordinal. It never repeats the proposal number as
 a prefix. `PROJ-004 milestone 4.5` is wrong, and so is `Phase 7 milestone 7.1`.
@@ -38,7 +39,8 @@ Phase numbers can be renumbered, split, and reordered; proposal numbers are
 permanent. A dependency anchored to a phase breaks when the plan changes.
 
 - In a proposal's `## Dependencies`, `## Impacts`, Design Decisions, and
-  Milestones, reference only `PROJ-NNN` and `PROJ-NNN milestone N`
+  Milestones, reference only `PROJ-NNN`, `PROJ-NNN milestone N`, and the
+  `PROJ-NNN MN` short form
 - A proposal's Decision Log may name a phase, because recording that a promotion
   happened is history rather than dependency
 - When a dependency has a scheduling consequence worth writing down, record the
@@ -48,9 +50,12 @@ permanent. A dependency anchored to a phase breaks when the plan changes.
 
 Each artifact type uses inline markdown metadata (not YAML frontmatter), but the fields differ by type:
 
-- Proposals: `**Status:**`, `**Created:**`, `**Updated:**`
-- ADRs: `**Status:**`, `**Date:**`
-- Phases: `**Goal:**`, `**Status:**`, `**Complexity:**`, `**Dependencies:**` (no document-level dates; rely on git history)
+- Proposals: `**Status:** draft`, `**Created:**`, `**Updated:**`
+- ADRs: `**Status**: accepted`, `**Date**:`
+- Phases: `**Goal**:`, `**Status**:`, `**Complexity**:`, `**Dependencies**:` (no document-level dates; rely on git history)
+
+Proposals put the colon inside the bold. ADRs and phases put it outside. Match
+the artifact you are editing, and grep for the form that artifact uses.
 
 ## Status Vocabularies
 
@@ -66,10 +71,11 @@ is deliberate, not drift.
 Proposal milestones have no status of their own. Execution status lives in the
 phase milestone table that implements them.
 
-A phase and its milestones never share a status word. `PLANNED` and `NOT
-STARTED` both mean not yet begun. `COMPLETE` and `DONE` both mean finished. The
-two vocabularies are disjoint, so a bare status value identifies the table it
-came from.
+Phases and phase milestones share `IN PROGRESS`. Every other value differs. A
+phase not yet begun is `PLANNED`; a milestone not yet begun is `NOT STARTED`. A
+finished phase is `COMPLETE`; a finished milestone is `DONE`. So a bare status
+value identifies its table in every case except `IN PROGRESS`. Name the artifact
+alongside that one.
 
 ## Numbering Padding
 

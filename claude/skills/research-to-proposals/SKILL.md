@@ -78,6 +78,11 @@ Unresolved questions with candidate options.
 ## Milestones
 Implementable chunks of work.
 
+| Milestone | Description |
+|-----------|-------------|
+| 1 | Description |
+| 2 | Description |
+
 ## Decision Log
 Minor decisions with dates.
 
@@ -90,6 +95,7 @@ Rules for drafting:
 - Set status to `draft`
 - Add open design questions where the research leaves gaps rather than guessing
 - Cross-reference related proposals via the Dependencies section
+- Number milestones as plain ordinals from 1; they carry no status column
 - Capture cross-proposal impact per `project-management/proposals.md` — note the impacted proposal and the specific section(s) it cares about, omitting the Impacts section entries when there are none
 - File naming: `PREFIX-NNN-short-description.md` (kebab-case)
 

@@ -41,7 +41,7 @@ Every handoff document uses this fixed section layout:
 
 ## Workflow
 
-### Phase 1: Survey
+### Step 1: Survey
 
 Scan the current conversation context and identify:
 
@@ -50,22 +50,22 @@ Scan the current conversation context and identify:
 - Work completed: files created / edited, commands run, things tried, things ruled out
 - Current state: where the work stopped, what's in-progress, what's saved vs. unsaved
 - Unresolved questions and any candidate options that were discussed
-- Every external reference: file paths, `path:line` citations, function names, proposal IDs (e.g., `PROJ-01`), ADR numbers, spec filenames, research documents
+- Every external reference: file paths, `path:line` citations, function names, proposal IDs (e.g., `PROJ-001`), ADR numbers, spec filenames, research documents
 
-### Phase 2: Inventory External References
+### Step 2: Inventory External References
 
 Build a deduplicated list of every external source the conversation mentions. For each, capture enough locator information that a future agent could open it without searching: full path when possible, `path:line` for code citations, function or symbol name when only the symbol was named.
 
-If the list is empty, skip Phase 3 and proceed in comprehensive mode (there is nothing external to inline anyway).
+If the list is empty, skip Step 3 and proceed in comprehensive mode (there is nothing external to inline anyway).
 
-### Phase 3: Choose Mode
+### Step 3: Choose Mode
 
 If external references exist, ask the user via `AskUserQuestion`:
 
 - **Comprehensive** — read each external source and inline the relevant excerpts into the handoff so the next agent does not need to open them.
 - **Compact** — cite each external source by filename / `path:line` / function name and trust the next agent to fetch what it needs.
 
-### Phase 4: Compose Summary
+### Step 4: Compose Summary
 
 Fill the fixed-section template:
 
@@ -73,14 +73,14 @@ Fill the fixed-section template:
 - **Work Done** — list completed steps in chronological order; include file paths for edits and commit hashes if any.
 - **Current State** — describe exactly where the work stopped: last action taken, what's loaded in memory, any uncommitted edits.
 - **Open Decisions** — for each unresolved question, list the candidate options that were discussed, including any that were ruled out and why.
-- **External References** — emit the inventory from Phase 2.
+- **External References** — emit the inventory from Step 2.
 - **Next Steps** — if skill arguments were provided, place them verbatim in this section. Otherwise, infer next steps from the conversation's trajectory.
 
 In **comprehensive** mode, `Read` each external source and inline the relevant excerpt under the appropriate section. Use `Glob` or `Grep` to locate a source if the conversation referenced it loosely (e.g., by symbol name without a file path).
 
 In **compact** mode, do not read or inline external content — every reference must be locator-only.
 
-### Phase 5: Write
+### Step 5: Write
 
 Generate a unique destination path under `$TMPDIR` and write the composed markdown there. On macOS, `mktemp` does not support `--suffix`, so allocate a temp path and add the `.md` extension:
 
@@ -96,7 +96,7 @@ echo "${TMPDIR:-/tmp}/conversation-handoff.$(date +%s).$$.md"
 
 Use the `Write` tool to write the composed markdown to the chosen path.
 
-### Phase 6: Report
+### Step 6: Report
 
 Print the absolute file path to the user along with a one-line invocation hint, for example:
 

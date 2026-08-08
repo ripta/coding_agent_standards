@@ -24,7 +24,7 @@ write.
 
 ## Workflow
 
-### Phase 1: Determine Scope
+### Step 1: Determine Scope
 
 If the skill was invoked with arguments, treat them as a scope restriction — a
 directory, crate, subproject, package, or module. Confine all exploration,
@@ -34,7 +34,7 @@ root rather than the working directory.
 If no arguments were given, the scope is the whole repository and
 `ARCHITECTURE.md` goes in the current working directory.
 
-Resolve the scope to a concrete path before continuing, and report it in Phase 4.
+Resolve the scope to a concrete path before continuing, and report it in Step 4.
 
 Then establish two paths used throughout:
 
@@ -43,9 +43,9 @@ Then establish two paths used throughout:
   document is written relative to this directory.
 - **repository root** (`git rev-parse --show-toplevel`) — used only to express
   the citation base in a relative, non-absolute form in the document's header
-  note (see Phase 6, section 1).
+  note (see Step 6, section 1).
 
-### Phase 2: Classify the Project
+### Step 2: Classify the Project
 
 Inspect manifests (e.g. `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`),
 entrypoints, and the directory layout within scope to determine the project
@@ -62,10 +62,10 @@ reading code over README/docs when they disagree. Do this yourself (don't
 delegate) — it's cheap and it gates the fan-out: the detected type(s) decide
 which section variants the discovery agents are briefed to gather.
 
-### Phase 3: Size & Plan the Fan-out
+### Step 3: Size & Plan the Fan-out
 
 Decide how many discovery agents to spawn and how to partition the work. The base
-is one agent per section (§§2–6 of Phase 6); size only changes whether a heavy
+is one agent per section (§§2–6 of Step 6); size only changes whether a heavy
 section is *sharded*, not the number of sections. Measure cheaply — these are
 read-only and piggyback on the classify pass:
 
@@ -96,9 +96,9 @@ Two guardrails override the table:
   synthesis context — the exact cost this delegation exists to avoid — and the
   dedup work grows faster than the parallelism helps.
 
-Carry the resulting agent list into Phase 4 (to report) and Phase 5 (to dispatch).
+Carry the resulting agent list into Step 4 (to report) and Step 5 (to dispatch).
 
-### Phase 4: Report
+### Step 4: Report
 
 Before fanning out, briefly tell the user the resolved scope, the citation base
 (expressed relative to the repository root, so the user sees what paths will be
@@ -106,12 +106,12 @@ anchored to), the detected project type(s), the planned fan-out (agent count and
 how sections are partitioned), and a high-level outline of what you've discovered.
 Keep this short — it confirms direction before the full pass.
 
-### Phase 5: Parallel Discovery (fan out)
+### Step 5: Parallel Discovery (fan out)
 
 Dispatch one `Explore` subagent per documentation section to gather its raw
 material concurrently. **Issue all the Task calls in a single message** so they
-run in parallel. Follow the fan-out plan from Phase 3: default to one agent per
-section in Phase 6 (§§2–6), sharding the heavy sections as that plan decided.
+run in parallel. Follow the fan-out plan from Step 3: default to one agent per
+section in Step 6 (§§2–6), sharding the heavy sections as that plan decided.
 
 Give every discovery agent the same **shared brief**, then its section-specific
 task:
@@ -130,7 +130,7 @@ task:
 > mark it as a guess. Be thorough within your section and ignore everything
 > outside it.
 
-Brief each agent against the matching Phase 6 section spec (§§2–6), and emit only
+Brief each agent against the matching Step 6 section spec (§§2–6), and emit only
 the variant relevant to the detected type(s). Suggested split:
 
 - **Orientation & layout** → §1 (languages, frameworks, build/runtime tooling,
@@ -146,7 +146,7 @@ the variant relevant to the detected type(s). Suggested split:
 You may also do a quick `Glob`/`Bash` pass yourself for the directory map and
 manifests if that's faster than briefing an agent for it.
 
-### Phase 6: Synthesize & Write ARCHITECTURE.md
+### Step 6: Synthesize & Write ARCHITECTURE.md
 
 Assemble the agents' findings into the full document in one pass — well-structured
 Markdown with a table of contents and the sections below. Ground every claim in
@@ -250,7 +250,7 @@ Cover the following where they apply; skip what's genuinely N/A:
   the files to touch.
 - The 3 files to read first, in order, and why.
 
-### Phase 7: Summarize
+### Step 7: Summarize
 
 After writing the document, print a short summary of what's in it and any open
 questions you couldn't resolve from the code alone.

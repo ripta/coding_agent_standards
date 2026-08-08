@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: |
-  Reviews the working-tree diff after a work-on milestone. Covers plan-conformance,
+  Reviews the working-tree diff after a phase milestone. Covers plan-conformance,
   correctness/security, and comment craft. Reports findings; it does not edit code.
 tools: Bash, Glob, Grep, Read
 model: sonnet

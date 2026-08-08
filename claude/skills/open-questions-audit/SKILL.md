@@ -10,16 +10,16 @@ allowed-tools: Read, Glob, Grep
 
 You audit a project's proposals for unresolved design questions and rank them so design review effort can target the proposals carrying the most open decisions.
 
-The canonical proposal format, lifecycle, and statuses live in `project-management/proposals.md` (in the coding-agent-standards repo). Always defer to a project-specific deviation when one exists.
+The canonical proposal format, lifecycle, and statuses live in `project-management/proposals.md` (from the coding-agent-standards repo, in context when `profiles/baseline.md` is imported; when it is not readable, follow the format reproduced in this skill). Always defer to a project-specific deviation when one exists.
 
 ## Workflow
 
-### Phase 1: Locate Proposals
+### Step 1: Locate Proposals
 
 1. Find the proposals directory by checking common locations: `spec/proposals/`, `docs/proposals/`, `proposals/`. Use the first that exists and contains proposal files.
 2. If an `index.md` exists in that directory, read it — its status table is the fastest way to see every proposal and its status. If there is no index, enumerate the proposal files directly (`<PREFIX>-NNN-*.md`).
 
-### Phase 2: Select In-Flight Proposals
+### Step 2: Select In-Flight Proposals
 
 Collect every proposal whose status is **not** finalized or closed. Using the standard lifecycle in `project-management/proposals.md`, the closed/finalized statuses are:
 
@@ -27,7 +27,7 @@ Collect every proposal whose status is **not** finalized or closed. Using the st
 
 This leaves in-flight statuses where open questions still matter — typically `draft`, `designing`, and `deferred`. If the project defines its own statuses, exclude the ones that mean "design is finalized" or "no longer active" and keep the rest. When in doubt, keep a proposal in scope.
 
-### Phase 3: Count Open Questions
+### Step 3: Count Open Questions
 
 For each in-flight proposal, read its file and count the **open design questions**. An open question is any of:
 
@@ -38,7 +38,7 @@ Handle both formats the proposal skills use: sub-heading questions (`### Questio
 
 Ignore items explicitly marked "(Settled)", "(none remaining)", struck through, or recorded as a "decision to defer" (these have moved to Settled per the proposals standard).
 
-### Phase 4: Rank & Report
+### Step 4: Rank & Report
 
 1. Rank proposals by open-question count, descending. Break ties arbitrarily.
 2. Report the **top 5** (or all in-flight proposals if there are fewer than five) in a markdown table:

@@ -42,7 +42,7 @@ When a proposal is accepted and scheduled for implementation:
 5. Add the phase(s) to the status summary table and the Pending Phases section of the phase index.
 6. Update the proposal's status and the proposal index to reflect that implementation is underway.
 7. Do not combine or fold phases together; each phase is separate by default.
-8. Milestone tables use three columns by default: Milestone, Description, and Status. Valid status values are `NOT STARTED`, `IN PROGRESS`, or `DONE`. Projects may override this format. A common override adds a Proposal column naming the proposal milestone each row implements, written in `PROJ-004 M1` form.
+8. Milestone tables use four columns: Milestone, Proposal, Description, and Status. Valid status values are `NOT STARTED`, `IN PROGRESS`, or `DONE`. The Proposal column names the proposal milestone each row implements, written in `PROJ-004 M1` form. It is what makes a proposal milestone's status answerable, so a project that overrides this format must keep it.
 
 ## Milestone Workflow
 
@@ -55,9 +55,9 @@ When a proposal is accepted and scheduled for implementation:
 
 Every phase document must include steps to update tracking artifacts as work progresses. These updates are part of the work, not an afterthought.
 
-- When a milestone completes: update the phase document status and the phase index
+- When a milestone completes: tick its acceptance criteria, then update the phase document status and the phase index
 - When a phase completes: update the phase status to COMPLETE, update the proposal status, and update both index pages
-- When a phase begins: update the phase status to IN PROGRESS and update both index pages
+- When a phase begins: update the phase status to IN PROGRESS, remove it from Pending Phases, and update both index pages
 - Plans must list which tracking artifacts exist and will be updated; do not assume they can be skipped
 
 ## Phase Document Format
@@ -86,10 +86,10 @@ User-facing issue this phase solves.
 
 ## Milestones
 
-| Milestone | Description | Status |
-|-----------|-------------|--------|
-| N.1 | Description | NOT STARTED |
-| N.2 | Description | NOT STARTED |
+| Milestone | Proposal | Description | Status |
+|-----------|----------|-------------|--------|
+| N.1 | PROJ-NNN M1 | Description | NOT STARTED |
+| N.2 | PROJ-NNN M2 | Description | NOT STARTED |
 
 ## Implementation
 
@@ -101,11 +101,11 @@ User-facing issue this phase solves.
 
 ## Acceptance Criteria
 
-### N.1
+### Phase N.1
 - [ ] Criterion 1
 - [ ] Criterion 2
 
-### N.2
+### Phase N.2
 - [ ] Criterion 1
 ```
 
@@ -123,7 +123,8 @@ Contents:
 - A brief explanation that each phase implements one proposal (or a portion of one), and each phase contains one or more milestones
 - A status summary table with columns: Phase, Proposal, Description, Status, Progress
 - One row per phase; progress shown as completed/total milestones (e.g., `3/5`)
-- A Pending Phases section listing the phases that are `PLANNED` but not yet started
+- A Pending Phases section listing the phases that are `PLANNED` but not yet started. A phase is added on promotion
+  and removed the moment it begins, so the section holds exactly the `PLANNED` rows of the table above it
 - A note to update the file as phases progress
 
 Example table:

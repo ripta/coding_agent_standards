@@ -11,7 +11,7 @@ allowed-tools: Agent, AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep
 
 You create a single new proposal in `draft` status, following the project's proposal format. You gather just enough context to write a coherent draft, leave genuinely undecided questions as open design questions rather than guessing, and confirm the structure with the user before writing.
 
-The canonical format and rules live in `project-management/proposals.md` (in the coding-agent-standards repo). Always defer to a project-specific deviation when one exists (see Step 1).
+The canonical format and rules live in `project-management/proposals.md` (from the coding-agent-standards repo, in context when `profiles/baseline.md` is imported; when it is not readable, follow the format reproduced in this skill). Always defer to a project-specific deviation when one exists (see Step 1).
 
 ## Workflow
 
@@ -88,6 +88,11 @@ Unresolved questions with candidate options.
 
 Implementable chunks of work.
 
+| Milestone | Description |
+|-----------|-------------|
+| 1 | Description |
+| 2 | Description |
+
 ## Decision Log
 
 Minor decisions with dates.
@@ -102,6 +107,7 @@ Rules for drafting:
 - Use today's date for Created and Updated; set status to `draft`.
 - Record settled decisions with rationale; leave gaps as open questions with candidate options rather than guessing.
 - Omit Dependencies/Impacts entries when there are none (keep the headings only if the project does).
+- Number milestones as plain ordinals from 1. They carry no status column; execution status lives in the phase that implements them.
 - Capture dependencies and cross-proposal impact per `project-management/proposals.md` — note the impacted proposal and the specific section(s) it cares about, and update the impacted proposals when warranted (prioritize this on large projects or proposal waves).
 
 ### Step 7: Index

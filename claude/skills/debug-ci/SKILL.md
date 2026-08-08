@@ -13,7 +13,7 @@ The CI definition lives in `cloudbuild.yaml` at the project root.
 
 ## Workflow
 
-### Phase 1: Resolve PR
+### Step 1: Resolve PR
 
 If `$ARGUMENTS` is a number, that is the PR number. Otherwise:
 
@@ -21,7 +21,7 @@ If `$ARGUMENTS` is a number, that is the PR number. Otherwise:
 2. Run `gh pr list --head <branch> --state open --limit 1 --json number,title,headRefName`
 3. If no PR is found, inform the user and stop
 
-### Phase 2: Confirm PR
+### Step 2: Confirm PR
 
 1. Fetch PR details: `gh pr view <number> --json title,headRefName,number`
 2. Extract the title and branch name from the PR metadata (not from local git)
@@ -29,13 +29,13 @@ If `$ARGUMENTS` is a number, that is the PR number. Otherwise:
    "Debugging CI for PR #N: `<title>` (branch: `<branch>`). Is this correct?"
 4. If the user says no, stop
 
-### Phase 3: Check Status
+### Step 3: Check Status
 
 1. Run `gh pr checks <number>` to list status checks
 2. Look for failed checks -- this project uses Google Cloud Build, not GitHub Actions
 3. If all checks pass, inform the user that CI is green and stop
 
-### Phase 4: Download Build Logs
+### Step 4: Download Build Logs
 
 1. Get the head commit SHA of the PR:
    `gh pr view <number> --json headRefOid --jq .headRefOid`
@@ -49,7 +49,7 @@ If `$ARGUMENTS` is a number, that is the PR number. Otherwise:
    `gcloud builds log <build-id> > $TMPDIR/ci-log-<pr-number>.txt`
 4. If the log download fails, inform the user and stop
 
-### Phase 5: Analyze Logs
+### Step 5: Analyze Logs
 
 Use the downloaded log file (not API calls) for all analysis.
 
@@ -72,7 +72,7 @@ Use the downloaded log file (not API calls) for all analysis.
    **Infrastructure**: Docker build failures, permission errors, missing
    dependencies, network issues.
 
-### Phase 6: Act on Findings
+### Step 6: Act on Findings
 
 #### Timeout
 

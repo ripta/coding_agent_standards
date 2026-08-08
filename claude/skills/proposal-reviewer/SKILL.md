@@ -119,7 +119,7 @@ If yes, create an ADR following the format from `project-management/design.md`:
 ```markdown
 # ADR-NN: Short Descriptive Title
 
-**Status**: Accepted
+**Status**: accepted
 **Date**: YYYY-MM-DD
 
 ## Context
