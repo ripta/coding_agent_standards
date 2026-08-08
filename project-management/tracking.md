@@ -9,6 +9,38 @@ Documents reference each other using these patterns:
 - Phases reference proposals inline: `Implements: PROJ-003`
 - ADRs list the originating proposal under `## References`: `- PROJ-001 (originating proposal, if any)`
 
+## Referring to Milestones
+
+Phases and proposals number their milestones separately. Write each in its own
+form and never mix them.
+
+- A phase milestone is `phase 7.1`. Bare `phase 7` means the whole phase.
+- A proposal milestone is `PROJ-004 milestone 5`, or `PROJ-004 M5` for short.
+
+A proposal milestone is a plain ordinal. It never repeats the proposal number as
+a prefix. `PROJ-004 milestone 4.5` is wrong, and so is `Phase 7 milestone 7.1`.
+
+Both wrong forms restate a number the reader already has. They also make the two
+namespaces look alike, which then needs a warning somewhere to tell them apart.
+The forms above cannot be read as each other, so no warning is needed.
+
+## Dependency Direction
+
+Dependencies are expressed between proposals. A proposal never depends on a
+phase or a phase milestone.
+
+Phases are derived from proposal dependencies. A proposal that names a phase as
+a dependency inverts that, and makes the schedule load-bearing for the design.
+Phase numbers can be renumbered, split, and reordered; proposal numbers are
+permanent. A dependency anchored to a phase breaks when the plan changes.
+
+- In a proposal's `## Dependencies`, `## Impacts`, Design Decisions, and
+  Milestones, reference only `PROJ-NNN` and `PROJ-NNN milestone N`
+- A proposal's Decision Log may name a phase, because recording that a promotion
+  happened is history rather than dependency
+- When a dependency has a scheduling consequence worth writing down, record the
+  consequence in the phase index, not in the proposal
+
 ## Metadata
 
 Each artifact type uses inline markdown metadata (not YAML frontmatter), but the fields differ by type:

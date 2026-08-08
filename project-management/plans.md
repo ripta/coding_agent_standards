@@ -8,7 +8,7 @@ A phase is a unit of implementation work. Each phase implements exactly one prop
 - A proposal may be split across multiple phases
 - Phase numbers are sequential integers (1, 2, 3...)
 - Proposal numbers are permanent and never change
-- Milestones within a phase are numbered from `.1` upward (e.g., Phase 5.1, 5.2, 5.3)
+- Milestones within a phase are numbered from `.1` upward, and are referred to as `phase 5.1`, `phase 5.2`, `phase 5.3`. Bare `phase 5` means the whole phase. Proposal milestones use a different form; see `tracking.md` "Referring to Milestones"
 - Milestones are units of implementation work only. Design work -- a design spike,
   an ADR, a research write-up -- is NOT an implementation milestone. Never list a
   design spike as a numbered row in a phase's milestone table, and never count it
@@ -36,11 +36,11 @@ When a proposal is accepted and scheduled for implementation:
    - Keep the completed milestones in the original phase and mark it COMPLETE
    - Create a follow-up phase after the new phase containing the rework milestones plus any remaining incomplete milestones from the original
    - Renumber remaining pending phases upward to accommodate both new phases
-4. Create milestones numbered from `.1` upward within each new phase.
+4. Create milestones numbered from `.1` upward within each new phase. These are phase-local and do not inherit the proposal's milestone numbers.
 5. Add the phase(s) to the status summary table and the pending phases section in the implementation plan.
 6. Update the proposal's status and the proposal index to reflect that implementation is underway.
 7. Do not combine or fold phases together; each phase is separate by default.
-8. Milestone tables use three columns by default: Milestone, Description, and Status. Valid status values are `NOT STARTED`, `IN PROGRESS`, or `DONE`. Projects may override this format.
+8. Milestone tables use three columns by default: Milestone, Description, and Status. Valid status values are `NOT STARTED`, `IN PROGRESS`, or `DONE`. Projects may override this format. A common override adds a Proposal column naming the proposal milestone each row implements, written in `PROJ-004 M1` form.
 
 ## Milestone Workflow
 

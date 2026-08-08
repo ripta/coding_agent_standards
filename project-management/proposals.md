@@ -59,6 +59,11 @@ Unresolved questions with candidate options.
 
 Implementable chunks of work.
 
+| Milestone | Description | Status |
+|-----------|-------------|--------|
+| 1 | Description | NOT STARTED |
+| 2 | Description | NOT STARTED |
+
 ## Decision Log
 
 Minor decisions with dates. Significant architectural decisions
@@ -78,6 +83,9 @@ should be extracted to an ADR and referenced here.
 - Numbers are permanent and never reused
 - One proposal per file
 - File naming: `<PREFIX>-NNN-short-description.md` (kebab-case), where `<PREFIX>` is the project-specific token
+- Milestones are plain ordinals counting from 1, and never carry the proposal number as a prefix. Refer to one as
+  `PROJ-004 milestone 5`, or `PROJ-004 M5` for short. See `tracking.md` "Referring to Milestones"
+- A proposal never depends on a phase. See `tracking.md` "Dependency Direction"
 
 ## Deferring Decisions
 
