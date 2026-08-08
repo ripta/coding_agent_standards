@@ -9,6 +9,8 @@ A phase is a unit of implementation work. Each phase implements exactly one prop
 - Phase numbers are sequential integers (1, 2, 3...)
 - Proposal numbers are permanent and never change
 - Milestones within a phase are numbered from `.1` upward, and are referred to as `Phase 5.1`, `Phase 5.2`, `Phase 5.3`. Bare `Phase 5` means the whole phase. Proposal milestones use a different form; see `tracking.md` "Referring to Milestones"
+- Acceptance criteria are written per milestone, not per phase. Each criterion belongs to exactly one milestone. A
+  milestone is then reviewable against its own floor while the rest of the phase is still in progress
 - Milestones are units of implementation work only. Design work -- a design spike,
   an ADR, a research write-up -- is NOT an implementation milestone. Never list a
   design spike as a numbered row in a phase's milestone table, and never count it
@@ -98,8 +100,13 @@ User-facing issue this phase solves.
 1. Description of change
 
 ## Acceptance Criteria
+
+### N.1
 - [ ] Criterion 1
 - [ ] Criterion 2
+
+### N.2
+- [ ] Criterion 1
 ```
 
 ## Naming

@@ -17,8 +17,8 @@ change in context.
 ## What the caller tells you
 
 The caller names the phase milestone (e.g. `Phase 365.2`) and the proposal
-milestone it implements (e.g. `PROJ-326 M2`). Read the acceptance criteria
-in the phase document under `spec/phases/`, and the proposal in
+milestone it implements (e.g. `PROJ-326 M2`). Read the milestone's acceptance
+criteria in the phase document under `spec/phases/`, and the proposal in
 `spec/proposals/`. Those define what the change is supposed to do.
 
 ## Review axes
