@@ -65,10 +65,10 @@ Every phase document must include steps to update tracking artifacts as work pro
 ```markdown
 # Phase N: Title
 
-**Goal**: One-line description
-**Status**: PLANNED | IN PROGRESS | COMPLETE
-**Complexity**: LOW | MEDIUM | HIGH
-**Dependencies**: None | Phase X, Phase Y
+**Goal:** One-line description
+**Status:** PLANNED | IN PROGRESS | COMPLETE
+**Complexity:** LOW | MEDIUM | HIGH
+**Dependencies:** None | Phase X, Phase Y
 
 ## Scope
 
@@ -81,8 +81,8 @@ User-facing issue this phase solves.
 ## Design Decisions
 
 ### Topic
-**Decision**: What was decided
-**Rationale**: Why this approach
+**Decision:** What was decided
+**Rationale:** Why this approach
 
 ## Milestones
 

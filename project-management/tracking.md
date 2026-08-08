@@ -50,12 +50,11 @@ permanent. A dependency anchored to a phase breaks when the plan changes.
 
 Each artifact type uses inline markdown metadata (not YAML frontmatter), but the fields differ by type:
 
-- Proposals: `**Status:** draft`, `**Created:**`, `**Updated:**`
-- ADRs: `**Status**: accepted`, `**Date**:`
-- Phases: `**Goal**:`, `**Status**:`, `**Complexity**:`, `**Dependencies**:` (no document-level dates; rely on git history)
+- Proposals: `**Status:**`, `**Created:**`, `**Updated:**`
+- ADRs: `**Status:**`, `**Date:**`
+- Phases: `**Goal:**`, `**Status:**`, `**Complexity:**`, `**Dependencies:**` (no document-level dates; rely on git history)
 
-Proposals put the colon inside the bold. ADRs and phases put it outside. Match
-the artifact you are editing, and grep for the form that artifact uses.
+The colon goes inside the bold, in every artifact type and every field.
 
 ## Status Vocabularies
 

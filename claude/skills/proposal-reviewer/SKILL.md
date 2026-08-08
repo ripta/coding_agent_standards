@@ -119,8 +119,8 @@ If yes, create an ADR following the format from `project-management/design.md`:
 ```markdown
 # ADR-NN: Short Descriptive Title
 
-**Status**: accepted
-**Date**: YYYY-MM-DD
+**Status:** accepted
+**Date:** YYYY-MM-DD
 
 ## Context
 What problem are we solving? What constraints exist?

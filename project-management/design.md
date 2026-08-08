@@ -18,8 +18,8 @@ proposed → accepted → superseded / deprecated
 ```markdown
 # ADR-NN: Short Descriptive Title
 
-**Status**: accepted
-**Date**: YYYY-MM-DD
+**Status:** accepted
+**Date:** YYYY-MM-DD
 
 ## Context
 What problem are we solving? What constraints exist?

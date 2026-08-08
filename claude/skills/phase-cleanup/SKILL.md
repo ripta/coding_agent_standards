@@ -27,7 +27,7 @@ Report the list of newly-completed phases found. If none, inform the user and st
 
 ### Step 3: Update Each Phase Document
 
-For each newly-completed phase, update its own file: change `**Status**:` from `PLANNED` or `IN PROGRESS` to `COMPLETE`.
+For each newly-completed phase, update its own file: change `**Status:**` from `PLANNED` or `IN PROGRESS` to `COMPLETE`.
 
 ### Step 4: Update the Phase Index
 
