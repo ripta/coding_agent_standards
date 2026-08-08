@@ -59,10 +59,10 @@ Unresolved questions with candidate options.
 
 Implementable chunks of work.
 
-| Milestone | Description | Status |
-|-----------|-------------|--------|
-| 1 | Description | NOT STARTED |
-| 2 | Description | NOT STARTED |
+| Milestone | Description |
+|-----------|-------------|
+| 1 | Description |
+| 2 | Description |
 
 ## Decision Log
 
@@ -85,6 +85,8 @@ should be extracted to an ADR and referenced here.
 - File naming: `<PREFIX>-NNN-short-description.md` (kebab-case), where `<PREFIX>` is the project-specific token
 - Milestones are plain ordinals counting from 1, and never carry the proposal number as a prefix. Refer to one as
   `PROJ-004 milestone 5`, or `PROJ-004 M5` for short. See `tracking.md` "Referring to Milestones"
+- Milestones carry no status. Execution status lives in the phase milestone table that implements them. See
+  `plans.md` "Artifact Sync"
 - A proposal never depends on a phase. See `tracking.md` "Dependency Direction"
 
 ## Deferring Decisions
