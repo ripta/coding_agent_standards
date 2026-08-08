@@ -8,9 +8,9 @@ Personal coding standards, best practices, and Claude Code configuration for use
 coding_agent_standards/
 ├── languages/          Language-specific standards
 ├── practices/          Cross-cutting practices
-├── project-management/ Plans, proposals, design, and tracking standards
 ├── .claude/            Project-local Claude Code config (skills, settings) for this repo
 ├── claude/             Claude Code skills, hooks, rules, and settings (exported to other projects)
+│   └── project-management/  Plans, proposals, design, and tracking standards
 ├── profiles/           Composable project profiles
 └── bin/                Utility scripts
 ```
@@ -102,6 +102,8 @@ For repos you don't own, use `CLAUDE.local.md` (auto-gitignored by Claude Code) 
 ### Installing the Claude Code Plugin
 
 The skills, hooks, and agents under `claude/` are packaged as a Claude Code plugin named `coding-standards`. The marketplace manifest lives at the repo root (`.claude-plugin/marketplace.json`) and points at `./claude` as the plugin source.
+
+Only `claude/` is copied into the plugin cache. An installed plugin cannot read files outside its own directory, so anything a skill needs at runtime has to live inside it. That is why `project-management/` sits under `claude/` rather than at the repo root, and why `profiles/baseline.md` imports it from there.
 
 Install once, inside any Claude Code session:
 

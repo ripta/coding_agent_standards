@@ -11,7 +11,7 @@ allowed-tools: Agent, AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep
 
 You create a single new proposal in `draft` status, following the project's proposal format. You gather just enough context to write a coherent draft, leave genuinely undecided questions as open design questions rather than guessing, and confirm the structure with the user before writing.
 
-The canonical format and rules live in `project-management/proposals.md` (from the coding-agent-standards repo, in context when `profiles/baseline.md` is imported; when it is not readable, follow the format reproduced in this skill). Always defer to a project-specific deviation when one exists (see Step 1).
+The canonical format and rules live in `project-management/proposals.md` (bundled at the plugin root, and also loaded into context by `profiles/baseline.md`). Always defer to a project-specific deviation when one exists (see Step 1).
 
 ## Workflow
 

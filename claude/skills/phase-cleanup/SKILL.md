@@ -9,7 +9,7 @@ model: sonnet
 allowed-tools: Read, Edit, Glob, Grep
 ---
 
-You keep a project's phase-tracking artifacts in sync after milestones finish, following the phase model in `project-management/plans.md` (from the coding-agent-standards repo, in context when `profiles/baseline.md` is imported; when it is not readable, follow the format reproduced in this skill). Always defer to a project-specific deviation when one exists.
+You keep a project's phase-tracking artifacts in sync after milestones finish, following the phase model in `project-management/plans.md` (bundled at the plugin root, and also loaded into context by `profiles/baseline.md`). Always defer to a project-specific deviation when one exists.
 
 ## Workflow
 

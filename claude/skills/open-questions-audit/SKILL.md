@@ -10,7 +10,7 @@ allowed-tools: Read, Glob, Grep
 
 You audit a project's proposals for unresolved design questions and rank them so design review effort can target the proposals carrying the most open decisions.
 
-The canonical proposal format, lifecycle, and statuses live in `project-management/proposals.md` (from the coding-agent-standards repo, in context when `profiles/baseline.md` is imported; when it is not readable, follow the format reproduced in this skill). Always defer to a project-specific deviation when one exists.
+The canonical proposal format, lifecycle, and statuses live in `project-management/proposals.md` (bundled at the plugin root, and also loaded into context by `profiles/baseline.md`). Always defer to a project-specific deviation when one exists.
 
 ## Workflow
 

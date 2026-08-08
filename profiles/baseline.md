@@ -12,8 +12,8 @@ Minimal standards applied to all projects.
 @../claude/rules/writing-voice.md
 @../claude/rules/shell-discipline.md
 @../practices/code-review.md
-@../project-management/glossary.md
-@../project-management/design.md
-@../project-management/plans.md
-@../project-management/proposals.md
-@../project-management/tracking.md
+@../claude/project-management/glossary.md
+@../claude/project-management/design.md
+@../claude/project-management/plans.md
+@../claude/project-management/proposals.md
+@../claude/project-management/tracking.md
