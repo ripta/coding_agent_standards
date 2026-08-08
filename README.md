@@ -45,6 +45,7 @@ Cross-cutting concerns that apply regardless of language:
 
 Standards for planning and tracking work:
 
+- **Glossary** -- what each term means: proposal, phase, milestone, spike, ADR
 - **Plans** -- phase and milestone definitions, promotion rules, document format
 - **Proposals** -- feature proposal lifecycle (draft through implemented), numbering
 - **Design** -- Architecture Decision Records (ADRs), lifecycle, immutability rules
