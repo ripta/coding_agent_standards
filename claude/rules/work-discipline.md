@@ -10,7 +10,7 @@
 
 - Do not ignore compilation or build failures
 - Confirm with the user before moving on to a new milestone or task
-- Read and maintain implementation plans before and after every milestone
+- Read and maintain the phase document and the phase index before and after every milestone
 
 ## Refactoring
 

@@ -14,8 +14,11 @@ Documents reference each other using these patterns:
 Phases and proposals number their milestones separately. Write each in its own
 form and never mix them.
 
-- A phase milestone is `phase 7.1`. Bare `phase 7` means the whole phase.
+- A phase milestone is `Phase 7.1`. Bare `Phase 7` means the whole phase.
 - A proposal milestone is `PROJ-004 milestone 5`, or `PROJ-004 M5` for short.
+
+`Phase` is capitalized in every position, like `PROJ-004`. It is a name, not a
+common noun, so mid-sentence prose does not lowercase it.
 
 A proposal milestone is a plain ordinal. It never repeats the proposal number as
 a prefix. `PROJ-004 milestone 4.5` is wrong, and so is `Phase 7 milestone 7.1`.
@@ -48,6 +51,25 @@ Each artifact type uses inline markdown metadata (not YAML frontmatter), but the
 - Proposals: `**Status:**`, `**Created:**`, `**Updated:**`
 - ADRs: `**Status:**`, `**Date:**`
 - Phases: `**Goal:**`, `**Status:**`, `**Complexity:**`, `**Dependencies:**` (no document-level dates; rely on git history)
+
+## Status Vocabularies
+
+Each artifact type has its own status values. The casing differs by type. This
+is deliberate, not drift.
+
+- Proposals: lowercase words — `draft`, `designing`, `accepted`, `scheduled`,
+  `implemented`, `deferred`, `rejected`, `superseded`, `retracted`
+- ADRs: lowercase words — `proposed`, `accepted`, `superseded`, `deprecated`
+- Phases: uppercase — `PLANNED`, `IN PROGRESS`, `COMPLETE`
+- Phase milestones: uppercase — `NOT STARTED`, `IN PROGRESS`, `DONE`
+
+Proposal milestones have no status of their own. Execution status lives in the
+phase milestone table that implements them.
+
+A phase and its milestones never share a status word. `PLANNED` and `NOT
+STARTED` both mean not yet begun. `COMPLETE` and `DONE` both mean finished. The
+two vocabularies are disjoint, so a bare status value identifies the table it
+came from.
 
 ## Numbering Padding
 

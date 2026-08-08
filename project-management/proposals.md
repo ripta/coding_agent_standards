@@ -95,7 +95,7 @@ When a design question cannot be resolved at proposal time and is intentionally 
 
 Acceptable revisit hooks include:
 
-- A specific milestone in the proposal that revisits the question (e.g., "validated under the empirical-review milestone")
+- A specific milestone in the proposal that revisits the question (e.g., "validated under PROJ-004 M5")
 - A named follow-up proposal that will be filed to capture the resolution (e.g., "if X is observed, file PROJ-NNN with the chosen mitigation")
 - A condition tied to a specific artifact, such as golden output review or a performance benchmark, that determines when the question is reopened
 

@@ -11,26 +11,26 @@ allowed-tools: Agent, AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep
 
 You create a single new proposal in `draft` status, following the project's proposal format. You gather just enough context to write a coherent draft, leave genuinely undecided questions as open design questions rather than guessing, and confirm the structure with the user before writing.
 
-The canonical format and rules live in `project-management/proposals.md` (in the coding-agent-standards repo). Always defer to a project-specific deviation when one exists (see Phase 1).
+The canonical format and rules live in `project-management/proposals.md` (in the coding-agent-standards repo). Always defer to a project-specific deviation when one exists (see Step 1).
 
 ## Workflow
 
-### Phase 1: Establish Conventions
+### Step 1: Establish Conventions
 
 1. Read `project-management/proposals.md` for the canonical format, lifecycle, and rules.
 2. Check the current project for deviations from the standard. Look in the project's `CLAUDE.md`, `AGENTS.md`, `README`, and any local proposals doc, and inspect an existing proposal in the proposals directory if one exists. A real example beats the template — match the headings, numbering, and prose style the project actually uses. If a project convention conflicts with the canonical format, follow the project.
 
-### Phase 2: Get the Description
+### Step 2: Get the Description
 
 The description is passed as the skill's arguments. If arguments were provided, use them as the proposal's starting description. If no arguments were provided, ask the user for a one-or-two sentence description of the proposal using AskUserQuestion before continuing.
 
-### Phase 3: Locate Directory, Prefix, and Number
+### Step 3: Locate Directory, Prefix, and Number
 
 1. **Directory** — find the proposals directory by checking common locations (`spec/proposals/`, `docs/proposals/`, `proposals/`). If none exists, ask the user where proposals should live using AskUserQuestion, offering the common locations as options.
 2. **Prefix** — derive the project-specific token from existing proposal filenames (e.g. `HP-001-*.md` → `HP`). If there are no existing proposals, propose a short, distinguishable prefix based on the project name and confirm it with the user via AskUserQuestion (`PROJ` is permitted but discouraged when a more specific prefix fits). The prefix is fixed once chosen.
 3. **Number** — scan existing proposal filenames for the highest number and use the next sequential value. Numbers are permanent and never reused. Match the zero-padding of existing files (e.g. `001` vs `01`).
 
-### Phase 4: Gather Context
+### Step 4: Gather Context
 
 Build enough understanding to write a coherent draft:
 
@@ -38,7 +38,7 @@ Build enough understanding to write a coherent draft:
 2. If the description references or depends on other proposals, read them to capture dependencies and cross-proposal impact.
 3. Ask the user targeted follow-up questions via AskUserQuestion to fill real gaps — motivation, scope, constraints, known design decisions, and dependencies. Ask only what you cannot reasonably infer; do not interrogate. Anything that remains genuinely undecided becomes an open design question rather than a guess.
 
-### Phase 5: Outline & Confirm
+### Step 5: Outline & Confirm
 
 Before writing the file, present a brief outline and confirm with AskUserQuestion:
 
@@ -49,7 +49,7 @@ Before writing the file, present a brief outline and confirm with AskUserQuestio
 
 Do not write until the user approves. Adjust per their feedback.
 
-### Phase 6: Write the Proposal
+### Step 6: Write the Proposal
 
 Write the file to `<dir>/<PREFIX>-NNN-short-description.md` (kebab-case description), following the format from `project-management/proposals.md` (or the project's deviation):
 
@@ -104,11 +104,11 @@ Rules for drafting:
 - Omit Dependencies/Impacts entries when there are none (keep the headings only if the project does).
 - Capture dependencies and cross-proposal impact per `project-management/proposals.md` — note the impacted proposal and the specific section(s) it cares about, and update the impacted proposals when warranted (prioritize this on large projects or proposal waves).
 
-### Phase 7: Index
+### Step 7: Index
 
 If this is the **first** proposal for the project (no `index.md` in the proposals directory), offer to create one per the "Proposal Index" section of `project-management/proposals.md` — a table with Proposal/Description/Status columns. If an `index.md` already exists, add a row for the new proposal and keep it consistent.
 
-### Phase 8: Report
+### Step 8: Report
 
 Summarize:
 

@@ -11,7 +11,7 @@ You are a proposal design reviewer. You help resolve open design questions in pr
 
 ## Workflow
 
-### Phase 1: Locate & Confirm Proposal
+### Step 1: Locate & Confirm Proposal
 
 The user provides a proposal number (required). Search common locations (`spec/proposals/`, `docs/proposals/`, `proposals/`) for a file matching that number.
 
@@ -21,15 +21,15 @@ Read the proposal and validate it contains the expected sections (Summary, Desig
 
 After reading, confirm the proposal title with the user via AskUserQuestion: "Is this the proposal you want to review: `PROJ-NNN: Title`?" If the user says no, stop.
 
-### Phase 2: Status Check
+### Step 2: Status Check
 
 Check the proposal's `**Status:**` field and branch accordingly:
 
 - **If status is `implemented`**: Inform the user there is nothing to review since the proposal has already been implemented. Offer to discuss the proposal, which could result in a new follow-up proposal. Stop the normal review flow.
 - **If status is not `draft`** (e.g., `designing`, `accepted`, `scheduled`, `deferred`, `rejected`): Clarify with the user whether they want to redesign parts of the proposal using AskUserQuestion. If they do not, stop.
-- **If status is `draft`**: Continue to the next phase.
+- **If status is `draft`**: Continue to the next step.
 
-### Phase 3: Assess Context
+### Step 3: Assess Context
 
 Before engaging the user on any questions:
 
@@ -38,7 +38,7 @@ Before engaging the user on any questions:
 3. Use Agent sub-tasks to scan the codebase for code relevant to the proposal's domain — look for existing patterns, types, interfaces, and conventions that will inform design choices
 4. Build a mental model of the design space so you can offer informed analysis
 
-### Phase 4: Triage Open Questions
+### Step 4: Triage Open Questions
 
 1. Parse the "Design Decisions (Open)" section — handle both sub-heading format (`### Question`) and bullet-list format (`- **Question**: ...`)
 2. If there are no open design questions (the section is empty or absent), ask the user if there are new items they want to discuss relating to the proposal using AskUserQuestion. If no new items, offer to accept the proposal and stop.
@@ -46,7 +46,7 @@ Before engaging the user on any questions:
 4. Flag questions that are related or dependent on each other
 5. Recommend a starting order that prioritizes the most foundational questions first — questions that other questions depend on, that affect the most components or interfaces, or that constrain the solution space for later decisions. Present this recommended order and ask the user which question to tackle first using AskUserQuestion
 
-### Phase 5: Resolve Questions
+### Step 5: Resolve Questions
 
 Loop through each question the user wants to address. For each:
 
@@ -149,17 +149,17 @@ Add a reference to the new ADR in the proposal's References section.
 
 Show the count of remaining open questions, ordered by foundational impact (widest-effect and most-depended-on first). Ask the user to pick the next question or stop the session.
 
-### Phase 6: Coherence Review
+### Step 6: Coherence Review
 
 When all open questions have been resolved, review the settled decisions as a whole before wrapping up:
 
 1. **Consistency check**: Read through all settled decisions together and verify they are internally consistent — no contradictions, no decisions that undermine each other's rationale, and no implicit assumptions that conflict. If inconsistencies are found, present them to the user via AskUserQuestion and resolve before continuing.
 
 2. **Gap analysis**: Consider whether the combined decisions reveal new design questions that weren't visible when questions were addressed individually — e.g., integration concerns, missing error handling paths, or undecided behavioral edge cases. If gaps are found, present them to the user via AskUserQuestion and ask whether to:
-   - Add them as new open questions in the proposal (and loop back to Phase 5 to resolve them)
+   - Add them as new open questions in the proposal (and loop back to Step 5 to resolve them)
    - Note them in the proposal as known future work without resolving now
 
-### Phase 7: Wrap-Up
+### Step 7: Wrap-Up
 
 When the user stops or all questions are resolved (and the coherence review is complete):
 

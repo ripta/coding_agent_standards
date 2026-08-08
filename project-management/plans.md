@@ -8,7 +8,7 @@ A phase is a unit of implementation work. Each phase implements exactly one prop
 - A proposal may be split across multiple phases
 - Phase numbers are sequential integers (1, 2, 3...)
 - Proposal numbers are permanent and never change
-- Milestones within a phase are numbered from `.1` upward, and are referred to as `phase 5.1`, `phase 5.2`, `phase 5.3`. Bare `phase 5` means the whole phase. Proposal milestones use a different form; see `tracking.md` "Referring to Milestones"
+- Milestones within a phase are numbered from `.1` upward, and are referred to as `Phase 5.1`, `Phase 5.2`, `Phase 5.3`. Bare `Phase 5` means the whole phase. Proposal milestones use a different form; see `tracking.md` "Referring to Milestones"
 - Milestones are units of implementation work only. Design work -- a design spike,
   an ADR, a research write-up -- is NOT an implementation milestone. Never list a
   design spike as a numbered row in a phase's milestone table, and never count it
@@ -22,7 +22,7 @@ A phase is a unit of implementation work. Each phase implements exactly one prop
 - Before beginning implementation work on a proposal, check its status field.
 - Only `accepted` or `scheduled` proposals may be implemented.
 - If the status is `draft`, `deferred`, or `rejected`, stop and tell the user. This applies even if the user asks you to implement it -- flag the status conflict and ask for confirmation to change the status first.
-- A detailed implementation plan does NOT imply the proposal has been accepted. The status field is the sole source of truth.
+- A detailed plan does NOT imply the proposal has been accepted. The status field is the sole source of truth.
 - Creating a proposal is NOT the same as promoting it. Do not promote a proposal to a phase unless the user explicitly asks. A plan document that contains phase numbers or milestones does not authorize promotion; it is a design sketch until the user says to schedule it.
 - Evaluate whether the planned work requires refactoring existing code. If a feature would be substantially cleaner after restructuring nearby code, include that work in the phase scope rather than deferring it or working around it.
 
@@ -37,21 +37,21 @@ When a proposal is accepted and scheduled for implementation:
    - Create a follow-up phase after the new phase containing the rework milestones plus any remaining incomplete milestones from the original
    - Renumber remaining pending phases upward to accommodate both new phases
 4. Create milestones numbered from `.1` upward within each new phase. These are phase-local and do not inherit the proposal's milestone numbers.
-5. Add the phase(s) to the status summary table and the pending phases section in the implementation plan.
+5. Add the phase(s) to the status summary table and the Pending Phases section of the phase index.
 6. Update the proposal's status and the proposal index to reflect that implementation is underway.
 7. Do not combine or fold phases together; each phase is separate by default.
 8. Milestone tables use three columns by default: Milestone, Description, and Status. Valid status values are `NOT STARTED`, `IN PROGRESS`, or `DONE`. Projects may override this format. A common override adds a Proposal column naming the proposal milestone each row implements, written in `PROJ-004 M1` form.
 
 ## Milestone Workflow
 
-- Read and maintain the implementation plan before and after every milestone
+- Read and maintain the phase document and the phase index before and after every milestone
 - Confirm with the user before moving on to a new milestone
 - Phases and milestones are project management artifacts; do not reference phase or milestone numbers in code or comments
-- If the originating proposal defers a decision to an empirical-review or follow-up milestone, that milestone must explicitly name the deferred questions it is responsible for revisiting (see `proposals.md` "Deferring Decisions")
+- If the originating proposal defers a decision to one of its milestones, the phase milestone that implements it must explicitly name the deferred questions it is responsible for revisiting (see `proposals.md` "Deferring Decisions")
 
 ## Artifact Sync
 
-Every implementation plan must include steps to update tracking artifacts as work progresses. These updates are part of the work, not an afterthought.
+Every phase document must include steps to update tracking artifacts as work progresses. These updates are part of the work, not an afterthought.
 
 - When a milestone completes: update the phase document status and the phase index
 - When a phase completes: update the phase status to COMPLETE, update the proposal status, and update both index pages
@@ -116,6 +116,7 @@ Contents:
 - A brief explanation that each phase implements one proposal (or a portion of one), and each phase contains one or more milestones
 - A status summary table with columns: Phase, Proposal, Description, Status, Progress
 - One row per phase; progress shown as completed/total milestones (e.g., `3/5`)
+- A Pending Phases section listing the phases that are `PLANNED` but not yet started
 - A note to update the file as phases progress
 
 Example table:

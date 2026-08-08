@@ -18,7 +18,7 @@ proposed → accepted → superseded / deprecated
 ```markdown
 # ADR-NN: Short Descriptive Title
 
-**Status**: Accepted
+**Status**: accepted
 **Date**: YYYY-MM-DD
 
 ## Context
