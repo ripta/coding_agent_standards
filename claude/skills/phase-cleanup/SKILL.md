@@ -9,7 +9,7 @@ model: sonnet
 allowed-tools: Read, Edit, Glob, Grep
 ---
 
-You keep a project's phase-tracking artifacts in sync after milestones finish, following the phase model in `project-management/plans.md` (bundled at the plugin root, and also loaded into context by `profiles/baseline.md`). Always defer to a project-specific deviation when one exists.
+You keep a project's phase-tracking artifacts in sync after milestones finish, following the phase model in `${CLAUDE_SKILL_DIR}/../../project-management/plans.md`, bundled alongside this skill. Always defer to a project-specific deviation when one exists.
 
 ## Workflow
 
@@ -57,7 +57,7 @@ Summarize:
 
 ## Rules
 
-- Follow the phase and milestone model in `project-management/plans.md` exactly, unless the project defines its own deviation.
+- Follow the phase and milestone model in `${CLAUDE_SKILL_DIR}/../../project-management/plans.md` exactly, unless the project defines its own deviation.
 - Never mark a phase `COMPLETE` unless every milestone in its table is `DONE`.
 - Never tick an acceptance criterion. That is the implementer's record, and a `DONE` milestone with unchecked criteria is a disagreement to report, not to paper over.
 - Update the phase document, phase index, proposal, and proposal index together — per plans.md's Artifact Sync rules, these updates are part of the work, not an afterthought.

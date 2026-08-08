@@ -48,47 +48,7 @@ Determine the project prefix:
 
 Determine the next sequential number by scanning existing proposal filenames.
 
-Write each proposal following the format from `project-management/proposals.md`:
-
-```markdown
-# PREFIX-NNN: Title
-
-**Status:** draft
-**Created:** YYYY-MM-DD
-**Updated:** YYYY-MM-DD
-
-## Dependencies
-- PREFIX-NNN (if any)
-
-## Impacts
-- PREFIX-NNN — section(s) of this proposal that affect it
-
-## Summary
-Brief description of the proposal.
-
-## Motivation
-Why this change is needed.
-
-## Design Decisions (Settled)
-Decisions made with rationale.
-
-## Design Decisions (Open)
-Unresolved questions with candidate options.
-
-## Milestones
-Implementable chunks of work.
-
-| Milestone | Description |
-|-----------|-------------|
-| 1 | Description |
-| 2 | Description |
-
-## Decision Log
-Minor decisions with dates.
-
-## References
-- Related ADRs, proposals, or research documents
-```
+Read `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` and write each proposal following its "Proposal Document Format" section. That file is the only source for the format; this skill does not carry its own copy. If it cannot be read, stop and tell the user this skill is installed without its standards.
 
 Rules for drafting:
 - Use today's date for Created and Updated
@@ -96,7 +56,7 @@ Rules for drafting:
 - Add open design questions where the research leaves gaps rather than guessing
 - Cross-reference related proposals via the Dependencies section
 - Number milestones as plain ordinals from 1; they carry no status column
-- Capture cross-proposal impact per `project-management/proposals.md` — note the impacted proposal and the specific section(s) it cares about, omitting the Impacts section entries when there are none
+- Capture cross-proposal impact per `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` — note the impacted proposal and the specific section(s) it cares about, omitting the Impacts section entries when there are none
 - File naming: `PREFIX-NNN-short-description.md` (kebab-case)
 
 ### Step 5: Review

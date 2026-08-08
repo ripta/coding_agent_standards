@@ -10,7 +10,7 @@ allowed-tools: Read, Glob, Grep
 
 You audit a project's proposals for unresolved design questions and rank them so design review effort can target the proposals carrying the most open decisions.
 
-The canonical proposal format, lifecycle, and statuses live in `project-management/proposals.md` (bundled at the plugin root, and also loaded into context by `profiles/baseline.md`). Always defer to a project-specific deviation when one exists.
+The canonical proposal format, lifecycle, and statuses live in `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`, bundled alongside this skill. Always defer to a project-specific deviation when one exists.
 
 ## Workflow
 
@@ -21,7 +21,7 @@ The canonical proposal format, lifecycle, and statuses live in `project-manageme
 
 ### Step 2: Select In-Flight Proposals
 
-Collect every proposal whose status is **not** finalized or closed. Using the standard lifecycle in `project-management/proposals.md`, the closed/finalized statuses are:
+Collect every proposal whose status is **not** finalized or closed. Using the standard lifecycle in `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`, the closed/finalized statuses are:
 
 `accepted`, `scheduled`, `implemented`, `rejected`, `superseded`, `retracted`
 
@@ -55,6 +55,6 @@ Ignore items explicitly marked "(Settled)", "(none remaining)", struck through, 
 ## Rules
 
 - Read-only audit: never modify proposals.
-- Defer to `project-management/proposals.md` for the lifecycle and format, and to any project-specific deviation over the standard.
+- Defer to `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` for the lifecycle and format, and to any project-specific deviation over the standard.
 - Count only genuinely open questions; exclude settled, struck-through, and deferred-to-settled items.
 - When a proposal's status is ambiguous, keep it in scope rather than dropping it silently.

@@ -114,32 +114,7 @@ Update the file after each decision, not batched, so progress survives interrupt
 
 If the decision is architecturally significant (cross-component, hard to reverse, sets a precedent), ask the user if an ADR should be created using AskUserQuestion.
 
-If yes, create an ADR following the format from `project-management/design.md`:
-
-```markdown
-# ADR-NN: Short Descriptive Title
-
-**Status:** accepted
-**Date:** YYYY-MM-DD
-
-## Context
-What problem are we solving? What constraints exist?
-
-## Decision
-What did we decide to do?
-
-## Rationale
-Why this decision over alternatives?
-
-## Consequences
-What are the tradeoffs? Positive and negative.
-
-## Alternatives Considered
-What other options did we evaluate?
-
-## References
-- PROJ-NNN (originating proposal)
-```
+If yes, read `${CLAUDE_SKILL_DIR}/../../project-management/design.md` and create an ADR following its "ADR Document Format" section. That file is the only source for the format; this skill does not carry its own copy. If it cannot be read, stop and tell the user this skill is installed without its standards.
 
 Determine the ADR number by scanning existing ADR files for the next sequential number. Use 2-digit zero-padding (`ADR-01`). Place the ADR alongside existing ADRs, or ask the user for the directory if none exist.
 
@@ -175,8 +150,8 @@ List any ADRs created with their file paths.
 - Never make a decision without explicit user confirmation via AskUserQuestion
 - Present options neutrally before offering a recommendation
 - Update the proposal file after each decision (not batched) so progress survives interruption
-- Follow the proposal format from `project-management/proposals.md` exactly
-- Follow the ADR format from `project-management/design.md` exactly
+- Follow the proposal format from `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` exactly
+- Follow the ADR format from `${CLAUDE_SKILL_DIR}/../../project-management/design.md` exactly
 - Handle both sub-heading and bullet-list formats for open questions
 - Keep code sketches minimal and focused on the decision point
 - Use today's date for Decision Log entries and ADR dates
