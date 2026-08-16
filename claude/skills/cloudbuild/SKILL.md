@@ -13,15 +13,17 @@ You author and audit Google Cloud Build configs. A good config is short,
 delegates its real work to a `Makefile` or `Dockerfile`, and drives every ref
 type from one file.
 
-Templates live in `templates/` next to this file. Read the one you need instead
-of retyping it from memory.
+Templates live in `${CLAUDE_SKILL_DIR}/templates/`, bundled alongside this
+skill. Read the one you need instead of retyping it from memory. If a template
+cannot be read, stop and tell the user this skill is installed without its
+templates; do not write a config from memory.
 
 | File | Use it for |
 | --- | --- |
-| `templates/ci-make.yaml` | The default. A test/lint gate driven through `make`, covering PR, default branch, and tags. |
-| `templates/image-build.yaml` | Building and pushing a container image. |
-| `templates/fragments.yaml` | Optional blocks: dependency cache, release-on-tag, multi-arch, tag retag. |
-| `templates/triggers.md` | Trigger naming convention and the commands to create them. |
+| `ci-make.yaml` | The default. A test/lint gate driven through `make`, covering PR, default branch, and tags. |
+| `image-build.yaml` | Building and pushing a container image. |
+| `fragments.yaml` | Optional blocks: dependency cache, release-on-tag, multi-arch, tag retag. |
+| `triggers.md` | Trigger naming convention and the commands to create them. |
 
 ## Preference file
 
@@ -192,8 +194,8 @@ hung build sit there burning quota instead of failing it.
 
 ## Step 5: Triggers
 
-Read `templates/triggers.md`. It holds the naming convention, the trigger YAML,
-and the exact commands.
+Read `${CLAUDE_SKILL_DIR}/templates/triggers.md`. It holds the naming
+convention, the trigger YAML, and the exact commands.
 
 Emit the commands and show what they would create. Then ask before running them.
 Nothing reaches GCP without confirmation.
@@ -239,8 +241,9 @@ estimate the saving before suggesting it. A three-minute build does not need a
 cache.
 
 When it does clear the bar, use the restore and save pair in
-`templates/fragments.yaml`. It keys on a hash of the lockfile and toolchain pin,
-restores on every build, and writes only from the default branch.
+`${CLAUDE_SKILL_DIR}/templates/fragments.yaml`. It keys on a hash of the
+lockfile and toolchain pin, restores on every build, and writes only from the
+default branch.
 
 ## Hard rules
 
