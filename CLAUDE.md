@@ -9,6 +9,7 @@ This repository contains personal coding standards, best practices, and Claude C
 - `.claude/` - Project-local Claude Code config for this repo (skills, settings)
 - `claude/` - Claude Code skills, hooks, rules, and project management standards exported for use by other projects (via `--add-dir` or `@import`), and packaged as the `coding-standards` plugin
 - `claude/project-management/` - Plans, proposals, design, and tracking standards. Lives under `claude/` so it ships with the plugin
+- `codex/` - Codex skills that have no Claude Code equivalent, packaged as a separate Codex plugin. A skill belongs here only when it depends on something Codex has and Claude Code does not
 - `profiles/` - Composable project profiles that import from the above
 
 ## Usage

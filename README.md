@@ -1,6 +1,6 @@
 # Coding Agent Standards
 
-Personal coding standards, best practices, and Claude Code configuration for use across projects. This repo acts as a single source of truth for language conventions, development practices, project management SOPs, and AI agent behavior rules.
+Personal coding standards, best practices, and coding agent configuration for use across projects. This repo acts as a single source of truth for language conventions, development practices, project management SOPs, and AI agent behavior rules.
 
 ## Structure
 
@@ -11,6 +11,7 @@ coding_agent_standards/
 ├── .claude/            Project-local Claude Code config (skills, settings) for this repo
 ├── claude/             Claude Code skills, hooks, rules, and settings (exported to other projects)
 │   └── project-management/  Plans, proposals, design, and tracking standards
+├── codex/              Codex skills with no Claude Code equivalent (exported as a Codex plugin)
 ├── profiles/           Composable project profiles
 └── bin/                Utility scripts
 ```
@@ -63,6 +64,12 @@ Rules, hooks, settings, and skills for Claude Code agents:
 Note the distinction between `.claude/` and `claude/`:
 - **`.claude/`** is the standard Claude Code project config directory. Skills and settings here apply when working **in this repo** (e.g., `standards-synthesizer` for onboarding new languages).
 - **`claude/`** contains skills, hooks, rules, and settings **exported to other projects** that reference this repo via `--add-dir` or `@import`.
+
+### Codex Configuration
+
+`codex/` holds skills that only run under Codex, packaged as a Codex plugin. A skill lands here when it depends on something Codex has and Claude Code does not. `expand-lore-wiki` is the current example. It calls Codex's built-in `imagegen` skill, and Claude Code has no image generation to port it to.
+
+Codex skills carry an `agents/openai.yaml` next to `SKILL.md`. That file holds the display name and short description Codex shows in its own UI, and Claude Code ignores it.
 
 ### Profiles
 
@@ -135,6 +142,30 @@ claude --plugin-dir ~/projects/coding_agent_standards/claude
 ```
 
 Edit freely, then run `/reload-plugins` in the session to pick up changes immediately. Once satisfied, commit and push, and installed copies catch up via `/plugin marketplace update`.
+
+### Installing the Codex Plugin
+
+The skills under `codex/` are packaged as a Codex plugin, also named `coding-standards`. Its manifest is `codex/.codex-plugin/plugin.json`. The marketplace manifest is `.agents/plugins/marketplace.json` at the repo root, pointing at `./codex`.
+
+Codex discovers `~/.agents/plugins/marketplace.json` implicitly, but not a repo-local one. Register this repo once:
+
+```sh
+codex plugin marketplace add ~/projects/coding_agent_standards
+codex plugin add coding-standards@coding-standards
+```
+
+Start a new thread afterward. That is the boundary where Codex picks up new skills.
+
+Validate against Codex's ingestion contract before pushing a manifest change:
+
+```sh
+python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py codex
+```
+
+Two differences from the Claude Code plugin are worth knowing:
+
+- Codex requires strict semver in `version` and caches by it. There is no commit-SHA equivalent. Iterating locally means rewriting the version to `0.1.0+codex.<token>` and re-running `codex plugin add`.
+- Codex rejects a `hooks` field in `plugin.json`, so `claude/hooks/` has no counterpart on this side.
 
 ### Setup Validation
 

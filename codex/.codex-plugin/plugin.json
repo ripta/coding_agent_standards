@@ -1,0 +1,32 @@
+{
+  "name": "coding-standards",
+  "version": "0.1.0",
+  "description": "Personal coding standards: Codex skills reusable across projects",
+  "author": {
+    "name": "Ripta Pasay"
+  },
+  "homepage": "https://github.com/ripta/coding_agent_standards",
+  "repository": "https://github.com/ripta/coding_agent_standards",
+  "license": "MIT",
+  "keywords": [
+    "standards",
+    "skills",
+    "lore",
+    "worldbuilding"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Coding Standards",
+    "shortDescription": "Personal coding standards and skills",
+    "longDescription": "Skills that are specific to Codex, and have no Claude Code equivalent. The Claude Code half of this repository ships separately from ./claude.",
+    "developerName": "Ripta Pasay",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Expand these documents into a cross-linked lore wiki"
+    ]
+  }
+}
