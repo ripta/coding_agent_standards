@@ -2,3 +2,4 @@ version: 1
 allow:
   - prefix: [ls]
   - prefix: [pnpm]
+  - prefix: [rumdl]
