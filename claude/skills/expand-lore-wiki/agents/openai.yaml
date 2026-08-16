@@ -1,0 +1,4 @@
+interface:
+  display_name: "Expand Lore Wiki"
+  short_description: "Expand in-world lore into a cohesive linked wiki"
+  default_prompt: "Use $expand-lore-wiki to expand these source documents into a cohesive cross-linked lore wiki, generating no more than 5 new images."
