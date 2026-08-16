@@ -195,7 +195,11 @@ Read the completed set as one work, not as independent pages. Check:
 - duplicate explanations and accidental escalation of inference into fact;
 - image captions, paths, and budget usage.
 
-Run the bundled validator:
+Run the bundled validator. `<skill-dir>` is this skill's own directory, resolved
+at runtime. It cannot be written literally. A plugin install places the skill
+under `~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/skills/`, and
+that path changes with the plugin version. Do not invoke the script by a
+project-relative path.
 
 ```bash
 python3 <skill-dir>/scripts/validate_lore_wiki.py <lore-directory>
