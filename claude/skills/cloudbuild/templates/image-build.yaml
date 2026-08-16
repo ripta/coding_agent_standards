@@ -1,0 +1,89 @@
+# =========================================================================
+# NOTES. Not part of the config. Everything above the cut line gets deleted.
+# =========================================================================
+#
+# Use this when the build produces a container image.
+#
+# Replace: IMAGE, OWNER, the trigger names, and the timeout rung.
+#
+# Two variants below the cut line. Ship one, delete the other, and delete this
+# whole block with them. The header comment that survives should be about four
+# lines. See SKILL.md, "Write a short header comment".
+#
+# Variant A, plain build. The default. No entrypoint override, so args go
+# straight to the docker builder. Easiest shape to read. Use it unless the
+# image needs multiple architectures or a registry cache.
+#
+# Variant B, buildx. Multi-arch, inline cache, and push in one step. The
+# builder name in the `||` fallback must match the name just created. A
+# mismatch silently selects the wrong builder, and it is the single most
+# common bug in these files.
+#
+# Things worth knowing:
+#
+#   - Registry is gcr.io, always via $PROJECT_ID. Never hardcode a project.
+#   - The `images` block makes Cloud Build push after all steps succeed, and
+#     records the digest in the build result. Prefer it over a push step.
+#   - Delete `images` when using variant B. buildx --push already pushed, and
+#     listing the image there pushes it a second time.
+#   - The OCI labels trace an image back to the commit that built it. Keep
+#     them, and do not comment them. The label names say what they are.
+#   - options.pool and options.machineType must stay unset, and their absence
+#     must stay uncommented.
+#
+# --------------------------- cut here ------------------------------------
+
+# GCB image build for IMAGE. Triggers IMAGE-pr, IMAGE-main and IMAGE-tag, REGION.
+#
+# - Tag builds retag the existing commit-$SHORT_SHA image when one exists, so a
+#   release ships the exact bytes CI tested. They build from scratch otherwise.
+
+images:
+  - 'gcr.io/$PROJECT_ID/IMAGE:commit-$SHORT_SHA'
+
+steps:
+  # --- Variant A: plain build -----------------------------------------------
+  - id: Build
+    name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/IMAGE:commit-$SHORT_SHA'
+      - '--label'
+      - 'org.opencontainers.image.source=https://github.com/OWNER/IMAGE'
+      - '--label'
+      - 'org.opencontainers.image.revision=$COMMIT_SHA'
+      - '--label'
+      - 'net.r8y.build.id=$BUILD_ID'
+      - '--label'
+      - 'net.r8y.build.trigger=$TRIGGER_NAME'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+
+  # --- Variant B: buildx ----------------------------------------------------
+  - id: Build
+    name: 'gcr.io/cloud-builders/docker'
+    env:
+      - 'DOCKER_BUILDKIT=1'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        docker buildx create --use --driver docker-container --name IMAGE-builder \
+          || docker buildx use IMAGE-builder
+
+        docker buildx build \
+          --build-arg BUILDKIT_INLINE_CACHE=1 \
+          --cache-from gcr.io/$PROJECT_ID/IMAGE:latest \
+          --label org.opencontainers.image.source=https://github.com/OWNER/IMAGE \
+          --label org.opencontainers.image.revision=$COMMIT_SHA \
+          --platform linux/amd64,linux/arm64 \
+          --push \
+          -t gcr.io/$PROJECT_ID/IMAGE:commit-$SHORT_SHA \
+          -t gcr.io/$PROJECT_ID/IMAGE:latest \
+          -f Dockerfile \
+          .
+
+timeout: 900s

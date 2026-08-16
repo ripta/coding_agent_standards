@@ -1,0 +1,66 @@
+# =========================================================================
+# NOTES. Not part of the config. Everything above the cut line gets deleted.
+# =========================================================================
+#
+# The default archetype. Use it when the build's job is to run a gate.
+#
+# Replace: PROJECT, the base image, the make targets, the trigger names, and
+# the timeout rung. Delete what the repo does not need.
+#
+# The config below the cut line is deliberately short. That length is the
+# target, not a starting point to expand from. If your header comment ends up
+# longer than the steps it heads, you are writing prose the YAML already says.
+# See SKILL.md, "Write a short header comment".
+#
+# Things worth knowing, which is why they are up here and not down there:
+#
+#   - $TAG_NAME is a Cloud Build substitution, so it takes a single $. It
+#     expands to the empty string on branch builds. That is what makes
+#     `if [[ -n "$TAG_NAME" ]]` work as the build-type guard.
+#   - A shell variable set inside a step needs $$VAR. A single $ there makes
+#     Cloud Build try to substitute it, and the build fails.
+#   - Only /workspace survives between steps. Anything written elsewhere is
+#     gone when the step ends. That is why DIST_DIR points into it.
+#   - Drop the tag guard entirely when the repo has no tag trigger. A guard
+#     with nothing to skip past is dead code, and it silently disables the
+#     gate if someone adds a tag trigger later.
+#   - Add `options.dynamicSubstitutions: true` only when one substitution
+#     references another, such as _CACHE_BUCKET: 'gs://${PROJECT_ID}_x'.
+#   - options.pool must stay unset. The smallest private pool is already ~20x
+#     the default pool's capacity, and is billed for it.
+#   - options.machineType must stay unset. The default pool is covered by
+#     free-tier quota.
+#   - Do not comment either of those absences in the shipped file.
+#
+# --------------------------- cut here ------------------------------------
+
+# GCB CI for PROJECT. Triggers PROJECT-pr, PROJECT-main and PROJECT-tag, REGION.
+#
+# - Tag builds skip the gate. That commit already passed it on the default branch.
+
+steps:
+  - id: CI
+    name: 'golang:1.26-trixie'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        if [[ -n "$TAG_NAME" ]]; then
+          exit 0
+        fi
+        make ci
+
+  - id: Dist
+    name: 'golang:1.26-trixie'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        if [[ -z "$TAG_NAME" ]]; then
+          exit 0
+        fi
+        make dist DIST_DIR=/workspace/dist
+
+timeout: 600s

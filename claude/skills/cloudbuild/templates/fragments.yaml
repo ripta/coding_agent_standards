@@ -1,0 +1,243 @@
+# Optional blocks. Copy only the ones the repo has earned.
+#
+# None of these belong in a first config. Each adds real complexity. Add one
+# when there is a measured reason, and record that reason in the header.
+#
+# The prose under each banner is a note to you. It does not ship. Copy the YAML
+# and the inline comments that explain a non-obvious line, such as why a step
+# runs `set +e`. Leave the rest here. Adding a fragment buys the header one
+# line, not a paragraph.
+#
+# 1. Dependency cache      restore and save a keyed tarball
+# 2. Tag retag             reuse the tested image instead of rebuilding
+# 3. GitHub release        publish artifacts on a tag push
+# 4. Non-gating pipeline   a second config that must never block a merge
+
+
+# ===========================================================================
+# 1. Dependency cache
+# ===========================================================================
+#
+# Bar for adding this: builds are measurably slow, and the slow part is
+# fetching or compiling dependencies rather than the project's own code. Quote
+# the measured duration before proposing it. A three-minute build does not need
+# a cache.
+#
+# The object is keyed on a hash of the lockfile and the toolchain pin, so it is
+# rewritten only when those change. Every build restores it. Only the default
+# branch writes it, and even then it skips the upload when the keyed object
+# already exists. PR and tag builds never pay a save cost.
+#
+# It lives in the default cloudbuild staging bucket, which every project
+# already has. No extra setup.
+#
+# Only /workspace survives between steps. Anything cacheable has to be
+# relocated under /workspace, which is what the env block on the build step is
+# for. Adjust the paths and the hashed files to the toolchain.
+
+  - id: Restore-Cache
+    name: 'gcr.io/cloud-builders/gsutil'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # A missing cache is normal on the first build. Never fail on it.
+        set +e
+        KEY=$(sha256sum Cargo.lock rust-toolchain.toml | sha256sum | cut -c1-16)
+        OBJ="${_CACHE_BUCKET}/cache-$$KEY.tar.gz"
+        echo "Cache key: $$KEY"
+        gsutil cp "$$OBJ" /workspace/cache.tar.gz
+        if [[ -f /workspace/cache.tar.gz ]]; then
+          tar -xzf /workspace/cache.tar.gz -C /workspace
+          echo "Restored cache from $$OBJ"
+        else
+          echo "No cache for key $$KEY; building cold"
+        fi
+
+  # On the build step that consumes the cache:
+  #
+  #   env:
+  #     - 'CARGO_HOME=/workspace/.cargo-home'
+  #     - 'RUSTUP_HOME=/workspace/.rustup'
+  #   ...
+  #     export PATH="$$CARGO_HOME/bin:$$PATH"
+
+  - id: Save-Cache
+    name: 'gcr.io/cloud-builders/gsutil'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        set -e
+        # $BRANCH_NAME is the pushed branch on the default branch, the head
+        # branch on PRs, and empty on tag builds.
+        if [[ "$BRANCH_NAME" != "main" ]]; then
+          echo "Not on main (BRANCH_NAME='$BRANCH_NAME'); skipping cache save"
+          exit 0
+        fi
+        KEY=$(sha256sum Cargo.lock rust-toolchain.toml | sha256sum | cut -c1-16)
+        OBJ="${_CACHE_BUCKET}/cache-$$KEY.tar.gz"
+        # The object is immutable per key. If it exists, nothing has changed.
+        if gsutil -q stat "$$OBJ"; then
+          echo "Cache $$OBJ already current; skipping compress and upload"
+          exit 0
+        fi
+        # Archive only the dirs that exist. Do not cache the build output
+        # directory: it dwarfs the cache, and its round trip usually costs more
+        # than recompiling from a warm dependency cache.
+        dirs=()
+        for d in .cargo-home .rustup .cache; do
+          [[ -d "/workspace/$$d" ]] && dirs+=("$$d")
+        done
+        if [[ "$${#dirs[@]}" -eq 0 ]]; then
+          echo "Nothing to cache"
+          exit 0
+        fi
+        tar -czf /workspace/cache.tar.gz -C /workspace "$${dirs[@]}"
+        gsutil cp /workspace/cache.tar.gz "$$OBJ"
+        echo "Saved cache to $$OBJ"
+
+# Requires, at the bottom of the config:
+#
+#   substitutions:
+#     _CACHE_BUCKET: 'gs://${PROJECT_ID}_cloudbuild/PROJECT-cache'
+#
+#   options:
+#     dynamicSubstitutions: true
+
+
+# ===========================================================================
+# 2. Tag retag
+# ===========================================================================
+#
+# On a tag build, the commit was almost always already built and tested on the
+# default branch. Retagging that image is faster than rebuilding, and it
+# guarantees the release ships the exact bytes CI tested.
+#
+# Writes its decision to /workspace so the next step can read it. That file is
+# the only way to pass state between steps.
+
+  - id: Check-Prebuilt-Image
+    name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # A missing image is an expected outcome here, not an error.
+        set +e
+        if [[ -n "$TAG_NAME" && "$TAG_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+          echo "Build type: TAG $TAG_NAME"
+          echo "Checking image: gcr.io/$PROJECT_ID/IMAGE:commit-$SHORT_SHA"
+
+          if gcloud container images describe "gcr.io/$PROJECT_ID/IMAGE:commit-$SHORT_SHA"; then
+            echo "Found existing image; will not build from scratch"
+            gcloud container images add-tag "gcr.io/$PROJECT_ID/IMAGE:commit-$SHORT_SHA" \
+              "gcr.io/$PROJECT_ID/IMAGE:$TAG_NAME" \
+              "gcr.io/$PROJECT_ID/IMAGE:stable"
+            echo "NEEDS_NEW_BUILD=false" > /workspace/build_status
+            exit 0
+          fi
+
+          echo "Image not found; will build from scratch"
+          echo "NEEDS_NEW_BUILD=true" > /workspace/build_status
+          exit 0
+        fi
+
+        echo "Build type: COMMIT $SHORT_SHA"
+        echo "NEEDS_NEW_BUILD=true" > /workspace/build_status
+
+  # Then open the build step with:
+  #
+  #   source /workspace/build_status
+  #   if [ "$$NEEDS_NEW_BUILD" != "true" ]; then
+  #     exit 0
+  #   fi
+
+
+# ===========================================================================
+# 3. GitHub release on tag
+# ===========================================================================
+#
+# Mints a GitHub App installation token, then publishes the staged artifacts.
+# A GitHub App is used rather than a PAT because the token is short-lived and
+# scoped to one installation.
+#
+# APP_ID and the secret name are per-user. Read them from
+# ~/.config/coding_agent_standards/cloudbuild.json. Never commit them into a
+# skill or a template.
+#
+# Setup: grant the Cloud Build service account
+# roles/secretmanager.secretAccessor on the secret.
+#
+# The image needs curl, jq, openssl, and gh. Any Debian image with those
+# installed works.
+
+  - id: Release
+    name: 'DEBIAN_IMAGE_WITH_GH_AND_JQ'
+    entrypoint: 'bash'
+    secretEnv: ['APP_PRIVATE_KEY']
+    env:
+      - 'APP_ID=FROM_PREFERENCE_FILE'
+    args:
+      - '-c'
+      - |
+        set -e
+        if [[ -z "$TAG_NAME" ]]; then
+          echo "Not a tag build; skipping release"
+          exit 0
+        fi
+
+        api=https://api.github.com
+        repo=OWNER/REPO
+
+        b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+        now=$(date +%s)
+        header=$(printf '{"alg":"RS256","typ":"JWT"}' | b64url)
+        payload=$(printf '{"iat":%d,"exp":%d,"iss":"%s"}' "$$((now-60))" "$$((now+540))" "$$APP_ID" | b64url)
+        sig=$(printf '%s.%s' "$$header" "$$payload" \
+          | openssl dgst -sha256 -sign <(printf '%s' "$$APP_PRIVATE_KEY") | b64url)
+        jwt="$$header.$$payload.$$sig"
+
+        inst_id=$(curl -sf -H "Authorization: Bearer $$jwt" \
+          -H "Accept: application/vnd.github+json" "$$api/repos/$$repo/installation" | jq -r '.id')
+        export GH_TOKEN=$(curl -sf -X POST -H "Authorization: Bearer $$jwt" \
+          -H "Accept: application/vnd.github+json" \
+          "$$api/app/installations/$$inst_id/access_tokens" | jq -r '.token')
+
+        # gh rejects --notes-from-tag with --repo, so fetch the tag annotation
+        # through the API instead.
+        tag_sha=$(curl -sf -H "Authorization: token $$GH_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          "$$api/repos/$$repo/git/ref/tags/$TAG_NAME" | jq -r '.object.sha')
+        notes=$(curl -sf -H "Authorization: token $$GH_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          "$$api/repos/$$repo/git/tags/$$tag_sha" | jq -r '.message')
+
+        gh release create "$TAG_NAME" --repo "$$repo" --verify-tag --notes "$$notes" /workspace/dist/*
+
+# Requires, at the bottom of the config:
+#
+#   availableSecrets:
+#     secretManager:
+#       - versionName: projects/${PROJECT_ID}/secrets/SECRET_NAME/versions/latest
+#         env: 'APP_PRIVATE_KEY'
+
+
+# ===========================================================================
+# 4. Non-gating pipeline
+# ===========================================================================
+#
+# The one case that justifies a second config file. A benchmark or a nightly
+# job must never block a PR, so it gets its own file and its own trigger that
+# fires on push to the default branch.
+#
+# Name it cloudbuild.<purpose>.yaml. Wire it to a <repo>-<purpose> trigger.
+# Keep its work out of the `make ci` chain, so it cannot block a merge from
+# there either.
+#
+# State the non-gating policy in the file header, and say why. Shared CI
+# runners have wide run-to-run variance, which is usually the reason a
+# benchmark cannot gate.
+#
+# Such a pipeline should read a shared cache and never write it. The gating
+# pipeline owns the cache.
