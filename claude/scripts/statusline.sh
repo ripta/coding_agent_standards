@@ -63,6 +63,8 @@ git_cache_max_age=5
 bedrock_cache_max_age=300
 
 # Bedrock pricing: $/1M tokens (input output cache_read cache_write_5m)
+# The two cache fields are optional. Omit them for models without prompt
+# caching, and the cost calculation drops the cache terms.
 # Source: AWS Bedrock pricing, global endpoint.
 # Regional inference profiles (us./eu./jp./apac.) add a 10% premium that this
 # table does not model. Costs shown for those profiles read about 10% low.
@@ -107,6 +109,22 @@ declare -A BEDROCK_PRICES=(
     ["anthropic.claude-3-haiku-20240307-v1:0"]="0.25 1.25 0.03 0.30"
     # Sonnet 3 (legacy)
     ["anthropic.claude-3-sonnet-20240229-v1:0"]="3.00 15.00 0.30 3.75"
+
+    # --- OpenAI open-weight models ---
+    #
+    # Bedrock lists no prompt caching for these, so the cache fields are omitted.
+    # Each model has two IDs. The dated "-1:0" form is the bedrock-runtime ID.
+    # The bare form is the bedrock-mantle ID. Both are listed.
+    # GovCloud CRIS IDs are deliberately absent, since GovCloud prices differ.
+    # AWS does not publish these rates as plain text, so they come from the
+    # pricing page and model directories rather than the CLI. Treat as approximate.
+    # gpt-oss-120b
+    ["openai.gpt-oss-120b"]="0.15 0.60"
+    ["openai.gpt-oss-120b-1:0"]="0.15 0.60"
+    # gpt-oss-20b
+    ["openai.gpt-oss-20b"]="0.07 0.30"
+    ["openai.gpt-oss-20b-1:0"]="0.07 0.30"
+    # The gpt-oss-safeguard variants are omitted. Their rates are not published.
 )
 
 # --- Helper Functions ---
