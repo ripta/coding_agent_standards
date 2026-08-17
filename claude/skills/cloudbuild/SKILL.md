@@ -25,6 +25,36 @@ templates; do not write a config from memory.
 | `fragments.yaml` | Optional blocks: dependency cache, release-on-tag, multi-arch, tag retag. |
 | `triggers.md` | Trigger naming convention and the commands to create them. |
 
+## Validator
+
+`${CLAUDE_SKILL_DIR}/validate-cloudbuild.py` parses a config, checks it against
+the Cloud Build schema, and lints most of the rules in this file. Run it after
+every write, and at the top of every audit.
+
+```sh
+uv run --script "${CLAUDE_SKILL_DIR}/validate-cloudbuild.py" cloudbuild.yaml
+```
+
+`uv` installs PyYAML itself. Fall back to
+`python3 "${CLAUDE_SKILL_DIR}/validate-cloudbuild.py"` when `uv` is missing, or
+when a sandbox denies it `~/.cache/uv`. That path needs PyYAML already
+installed.
+
+- With no path it checks every `cloudbuild*.yaml` in the working directory.
+- `--strict` fails on warnings and notes too. `--errors-only` prints just errors.
+- `--ignore CB034,CB039` drops checks the repo has a reason to break.
+- `--list-checks` prints every code, its level, and what it means.
+- `--format json` emits findings as objects, one per finding.
+
+Exit status is 1 when a finding fails the run, and 2 on a usage or read error.
+
+It reads the config and nothing else. It never contacts GCP, and it says
+nothing about triggers. A clean run means the file is well-formed and free of
+the known traps. It does not mean the build does the right thing.
+
+Report a failure to run it, and review by hand instead. Never present a config
+as validated when the validator did not run.
+
 ## Preference file
 
 `~/.config/coding_agent_standards/cloudbuild.json` holds machine-local GCP
@@ -163,12 +193,19 @@ This is where these files break. Get it right.
   `$BUILD_ID` are Cloud Build substitutions. Single `$`. They resolve before the
   step runs.
 - A shell variable set inside the step needs `$$VAR`. A single `$` there makes
-  Cloud Build try to substitute it and fail.
+  Cloud Build substitute it instead. A manual build fails on the unknown key. A
+  trigger build silently replaces it with nothing, which is worse.
 - `${_CUSTOM}` is a user-defined substitution declared under `substitutions:`.
 - Unset built-ins expand to the empty string. That is exactly why
   `if [[ -n "$TAG_NAME" ]]` works as the build-type guard.
 - Set `options.dynamicSubstitutions: true` when a substitution references
   another one, such as `_CACHE_BUCKET: 'gs://${PROJECT_ID}_cloudbuild/x'`.
+- A `script:` block inverts all of this. Cloud Build never substitutes inside
+  one, so `$VAR` is a plain shell variable and `$$VAR` is the shell's PID. Reach
+  a substitution from a `script:` through `env:` or `automapSubstitutions: true`.
+
+The validator checks every one of these rules. Run it rather than re-reading
+the file for stray dollar signs.
 
 ## Step 4: Set the timeout
 
@@ -192,7 +229,14 @@ Never exceed `2700s`. A higher value needs an explicit request from the user
 plus a comment recording why. Higher timeouts have backfired before. They let a
 hung build sit there burning quota instead of failing it.
 
-## Step 5: Triggers
+## Step 5: Validate
+
+Run the validator on the file you just wrote.
+
+Fix every error before you show the config to the user. Weigh each warning and
+note. Say why when you leave one standing.
+
+## Step 6: Triggers
 
 Read `${CLAUDE_SKILL_DIR}/templates/triggers.md`. It holds the naming
 convention, the trigger YAML, and the exact commands.
@@ -208,25 +252,26 @@ After creating a trigger, verify it with
 When the repo already has a `cloudbuild*.yaml`, report before you edit. List
 findings worst first, then ask which to apply. Never edit as you go.
 
-Check, in this order of severity:
+Start with the validator. It covers most of the checklist mechanically, and it
+finds schema breakage a reader skims past:
 
-1. `options.pool` is set. This opts into a private pool. Always a violation.
-   The smallest private pool is already around 20x the default pool's capacity,
-   and it is billed for that capacity.
-2. `timeout` is absent, or above `2700s` with no comment justifying it.
-3. `options.machineType` is set. The default pool is covered by free-tier quota.
-4. `$` used where `$$` is needed, or the reverse.
-5. A base image outside the Debian family, with no reason given.
-6. Inline command blocks that duplicate targets the Makefile already has.
-7. Separate config files per ref type that could be one guarded file.
-8. `docker buildx create --name X` paired with a `|| docker buildx use Y` where
-   `Y` is a different name. The fallback silently targets the wrong builder.
-9. A hardcoded project ID where `$PROJECT_ID` belongs.
-10. No header comment naming the triggers.
-11. A comment block longer than the YAML it heads. Check for the tells: a
-    "what it does" summary, prose restating the steps, notes about absent
-    config, a defense of the timeout. Template scaffolding shipped verbatim is
-    the usual cause. Cut to the triggers plus the surprises.
+```sh
+uv run --script "${CLAUDE_SKILL_DIR}/validate-cloudbuild.py" cloudbuild.yaml
+```
+
+Its findings are the first draft of your report, not the report. Rank them by
+what this config actually risks. Drop a note that does not matter here, and say
+so. Then check what it cannot:
+
+1. Inline command blocks that duplicate targets the Makefile already has. The
+   validator flags long scripts by length. It cannot read the Makefile.
+2. Separate config files per ref type that could be one guarded file.
+3. A guard that is dead, or one that is missing where a tag trigger exists.
+4. A comment block that is technically short but still says nothing. Look for a
+   "what it does" summary, prose restating the steps, notes about absent
+   config, a defense of the timeout.
+5. A base image that is pinned oddly, or a version pinned against the obvious
+   choice with no reason given.
 
 Audit covers the config file. Trigger drift is out of scope.
 
@@ -256,6 +301,8 @@ default branch.
 - Ship no comment the YAML already makes obvious.
 - One config drives every ref type, guarded on `$TAG_NAME` and `$BRANCH_NAME`.
 - Never write GCP project, region, or secret names into this skill.
+- Every config you write or edit goes through the validator before the user
+  sees it.
 
 ## Verified gcloud behavior
 
