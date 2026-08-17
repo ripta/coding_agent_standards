@@ -2,4 +2,6 @@ version: 1
 allow:
   - prefix: [ls]
   - prefix: [pnpm]
+  - prefix: [python3]
   - prefix: [rumdl]
+  - prefix: [which]
