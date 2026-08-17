@@ -63,14 +63,23 @@ git_cache_max_age=5
 bedrock_cache_max_age=300
 
 # Bedrock pricing: $/1M tokens (input output cache_read cache_write_5m)
-# Source: AWS Bedrock pricing, US West (Oregon)
+# Source: AWS Bedrock pricing, global endpoint.
+# Regional inference profiles (us./eu./jp./apac.) add a 10% premium that this
+# table does not model. Costs shown for those profiles read about 10% low.
 # Override input/output with BEDROCK_INPUT_PRICE_PER_MTOK / BEDROCK_OUTPUT_PRICE_PER_MTOK env vars
 #
 # Keys are the exact modelId values returned by `aws bedrock
 # list-foundation-models`. AWS is inconsistent about whether the ID ends in
 # "-v1" or a dated "-YYYYMMDD-v1:0" — we key on whatever is real, not on
-# normalized forms. Verified against us-west-2 on 2026-06-02.
+# normalized forms. Models served by the newer Messages-API endpoint
+# (bedrock-mantle) use a bare "anthropic.claude-<name>" ID with no suffix.
+# Haiku 4.5 is reachable under both forms, so both are listed.
+# Verified against us-west-2 on 2026-08-17.
 declare -A BEDROCK_PRICES=(
+    # Fable 5
+    ["anthropic.claude-fable-5"]="10.00 50.00 1.00 12.50"
+    # Opus 5
+    ["anthropic.claude-opus-5"]="5.00 25.00 0.50 6.25"
     # Opus 4.x
     ["anthropic.claude-opus-4-8"]="5.00 25.00 0.50 6.25"
     ["anthropic.claude-opus-4-7"]="5.00 25.00 0.50 6.25"
@@ -78,11 +87,17 @@ declare -A BEDROCK_PRICES=(
     ["anthropic.claude-opus-4-5-20251101-v1:0"]="5.00 25.00 0.50 6.25"
     ["anthropic.claude-opus-4-1-20250805-v1:0"]="15.00 75.00 1.50 18.75"
     ["anthropic.claude-opus-4-20250514-v1:0"]="15.00 75.00 1.50 18.75"
+    # Sonnet 5
+    # Sources disagree on what happens after 2026-08-31. AWS lists $2/$10 as
+    # launch pricing that expires then. Anthropic says $2/$10 is now the
+    # standard rate and the rise to $3/$15 is cancelled. Re-check after that date.
+    ["anthropic.claude-sonnet-5"]="2.00 10.00 0.20 2.50"
     # Sonnet 4.x
     ["anthropic.claude-sonnet-4-6"]="3.00 15.00 0.30 3.75"
     ["anthropic.claude-sonnet-4-5-20250929-v1:0"]="3.00 15.00 0.30 3.75"
     ["anthropic.claude-sonnet-4-20250514-v1:0"]="3.00 15.00 0.30 3.75"
     # Haiku 4.5
+    ["anthropic.claude-haiku-4-5"]="1.00 5.00 0.10 1.25"
     ["anthropic.claude-haiku-4-5-20251001-v1:0"]="1.00 5.00 0.10 1.25"
     # Sonnet 3.7
     ["anthropic.claude-3-7-sonnet-20250219-v1:0"]="3.00 15.00 0.30 3.75"
