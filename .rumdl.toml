@@ -1,0 +1,21 @@
+# rumdl configuration.
+#
+# Only deviations from the defaults belong here. Run `rumdl config --defaults`
+# to see the baseline, and `rumdl config --no-defaults` to see what this file
+# actually changes.
+
+[per-file-ignores]
+# Skill and agent definitions carry their title in YAML frontmatter as `name:`,
+# and their body starts at `##` by convention. They have no h1 and should not
+# grow one — the frontmatter is the contract the harness reads.
+#
+# MD041 has no setting that models this. `front-matter-title` is accepted but
+# does not treat `name:` as satisfying the rule, and `allow-preamble = true`
+# only relocates the complaint to the first `##`. So the rule is ignored for
+# these paths rather than weakened everywhere.
+#
+# MD041 stays on for ordinary prose docs (README, languages/, practices/,
+# profiles/, claude/rules/, claude/project-management/), all of which do open
+# with an h1 today.
+"**/SKILL.md" = ["MD041"]
+"claude/agents/*.md" = ["MD041"]
