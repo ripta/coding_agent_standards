@@ -110,21 +110,39 @@ declare -A BEDROCK_PRICES=(
     # Sonnet 3 (legacy)
     ["anthropic.claude-3-sonnet-20240229-v1:0"]="3.00 15.00 0.30 3.75"
 
-    # --- OpenAI open-weight models ---
+    # --- OpenAI GPT-5.x ---
+    #
+    # These rates come from each model's AWS model card, which publishes a real
+    # price table. GPT-5.6 quotes Global CRIS, Geo CRIS, and In-Region rows.
+    # The Global CRIS row is used here, matching the Claude entries above.
+    #
+    # A caveat this table cannot express: GPT-5.6 bills any request over 272K
+    # input tokens at 2x every input rate and 1.5x the output rate, applied to
+    # the whole request. Long sessions on its 1M window therefore read low here.
+    ["openai.gpt-5.6-sol"]="5.00 30.00 0.50 6.25"
+    ["openai.gpt-5.6-terra"]="2.00 12.00 0.20 2.50"
+    ["openai.gpt-5.6-luna"]="0.20 1.20 0.02 0.25"
+    # GPT-5.5 and GPT-5.4 are In-Region only, so there is no global rate to use.
+    # Their cache writes are free, so cache_write is 0.00 rather than omitted.
+    # Both cap at 272K context, so no long-context surcharge applies.
+    ["openai.gpt-5.5"]="5.50 33.00 0.55 0.00"
+    ["openai.gpt-5.4"]="2.75 16.50 0.275 0.00"
+
+    # --- OpenAI open-weight ---
     #
     # Bedrock lists no prompt caching for these, so the cache fields are omitted.
-    # Each model has two IDs. The dated "-1:0" form is the bedrock-runtime ID.
-    # The bare form is the bedrock-mantle ID. Both are listed.
+    # Each has two IDs. The dated "-1:0" form is the bedrock-runtime ID and the
+    # bare form is the bedrock-mantle ID. Both are listed.
     # GovCloud CRIS IDs are deliberately absent, since GovCloud prices differ.
-    # AWS does not publish these rates as plain text, so they come from the
-    # pricing page and model directories rather than the CLI. Treat as approximate.
-    # gpt-oss-120b
+    # These model cards carry no price table. The rates below come from the
+    # pricing page and model directories instead. Treat them as approximate.
     ["openai.gpt-oss-120b"]="0.15 0.60"
     ["openai.gpt-oss-120b-1:0"]="0.15 0.60"
-    # gpt-oss-20b
     ["openai.gpt-oss-20b"]="0.07 0.30"
     ["openai.gpt-oss-20b-1:0"]="0.07 0.30"
-    # The gpt-oss-safeguard variants are omitted. Their rates are not published.
+    # gpt-oss-safeguard-120b and -20b are omitted. Their model cards carry no
+    # price table either, and no reliable rate was found elsewhere.
+    # The Daybreak cyber models are omitted too. They need Trusted Access enrollment.
 )
 
 # --- Helper Functions ---
