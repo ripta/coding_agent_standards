@@ -28,9 +28,16 @@ Discovery runs in one of three modes, sized in Step 3:
 - **fan-out** — the default; parallel `Explore` subagents, and you spot-verify a
   sample of the citations they return.
 - **workflow** — large scope; hand the plan to `workflow.js`, which fans out the
-  same sections and then verifies **every** citation before synthesis. Spot-
-  checking is a cost concession, not a design goal. Once the surface is large
-  enough that a bad sample is likely, the workflow buys back the guarantee.
+  same sections, verifies **every** citation, then shards the writing itself.
+  Spot-checking is a cost concession, not a design goal. Once the surface is
+  large enough that a bad sample is likely, the workflow buys back the guarantee.
+
+Workflow mode never puts the whole document through one generation. Each part is
+written to its own file and the results are concatenated mechanically, so an
+agent that dies costs one subsection rather than the document. Above ~60 KB of
+predicted output it also splits the reference-heavy sections into sibling files
+(`ARCHITECTURE-key-flows.md` and so on), leaving `ARCHITECTURE.md` as the
+narrative entry point with a summary and a link for each.
 
 ## Workflow
 
@@ -106,12 +113,28 @@ Two guardrails override the table:
 - **Shard along structural boundaries that tile cleanly** — per router file, per
   command group, per top-level package — so the shards partition the surface
   exhaustively with no gaps or overlap. Never shard by an arbitrary file range.
-- **Cap the fan-out at ~10–12 agents.** Beyond that, findings reflood the
-  synthesis context — the exact cost this delegation exists to avoid — and the
-  dedup work grows faster than the parallelism helps. This caps *discovery*
-  agents, because they are what feeds synthesis. Workflow mode's verifiers do
-  not count against it: their output is verdicts, not findings, and none of it
-  reaches synthesis.
+- **Cap the fan-out at ~10–12 agents in fan-out mode.** Beyond that, findings
+  reflood the synthesis context — the exact cost this delegation exists to avoid
+  — and the dedup work grows faster than the parallelism helps. This caps
+  *discovery* agents, because they are what feeds synthesis. Verifiers do not
+  count against it: their output is verdicts, not findings.
+
+**Workflow mode relaxes that cap to ~16.** Nothing there reads all the findings
+at once — each part writer sees only its own section's evidence, and the one
+agent that sees everything gets claim sentences with the snippets stripped. Use
+the headroom: a section that returns more than ~110 claims produces roughly 25 KB
+in one generation, which is the top of the range that has been observed to
+complete. The script warns when a section lands over that, so treat the warning
+from one run as the sharding plan for the next.
+
+In workflow mode also tag each section for the document layout:
+
+- `mode: 'narrative'` — read start to finish, stays in `ARCHITECTURE.md`. Use it
+  for §1 Orientation, §5 Mental Model, and §6 Onboarding.
+- `mode: 'reference'` — looked up, not read, and eligible to move to its own
+  file. Use it for §2 Public Surface Area, §3 Key Flows, and §4 Cross-cutting.
+- `group` — shards of one document section share a `group` title and each keep a
+  distinct `key`. They render as one `##` heading with a `###` per shard.
 
 Carry the resulting agent list into Step 4 (to report) and Step 5a or 5b (to
 dispatch).
@@ -172,12 +195,15 @@ manifests if that's faster than briefing an agent for it.
 ### Step 5b: Delegated Discovery (workflow mode)
 
 Hand the Step 3 plan to the bundled script instead of dispatching the agents
-yourself. It runs the same per-section fan-out, then verifies every returned
-citation against the source before synthesis, then writes the document.
+yourself. It runs the same per-section fan-out, verifies every returned citation
+against the source, fixes the shared vocabulary, then writes the document one
+part at a time.
 
-Budget: one agent per section (the Step 3 cap, so ≤12), plus up to 8 verifiers,
-plus one synthesis agent — roughly 12–21 total. Quote that range to the user
-when you ask for the go-ahead in Step 4.
+Budget, for `S` sections and `C` verified claims: `S` discovery agents, about
+`C/80` verifiers, one spine agent, `S` part writers, and one assembler — so
+roughly `2S + C/80 + 2`. A 12-section plan over 1,250 claims comes to about 42
+agents. Most of that is verifiers running at low effort. Quote the number to the
+user when you ask for the go-ahead in Step 4.
 
 ```js
 Workflow({
@@ -189,8 +215,12 @@ Workflow({
     skillDir:         "${CLAUDE_SKILL_DIR}",
     types:            ["backend"],
     sections: [
-      { key: "orientation", title: "Orientation & layout", brief: "<§1 spec>" },
-      { key: "surface",     title: "Public Surface Area",  brief: "<§2 spec>" }
+      { key: "orientation", title: "Orientation & layout", brief: "<§1 spec>",
+        mode: "narrative" },
+      { key: "surface-http", title: "HTTP endpoints", brief: "<§2 spec>",
+        mode: "reference", group: "Public Surface Area" },
+      { key: "surface-rpc",  title: "RPC methods",    brief: "<§2 spec>",
+        mode: "reference", group: "Public Surface Area" }
       // ...one entry per section in the Step 3 plan
     ]
   }
@@ -206,30 +236,47 @@ Contract notes, all of which the script enforces or depends on:
   Keep these two in sync; they describe one directory in two notations.
 - `archPath` is not an argument. The script derives it as
   `<citationBase>/ARCHITECTURE.md` so the two cannot drift apart.
-- Sharded sections are separate `sections` entries with distinct `key`s. The
-  script groups verified claims by `key`, so a duplicate key silently merges two
-  shards into one section.
+- Sharded sections are separate `sections` entries with distinct `key`s, sharing
+  one `group`. The script rejects duplicate keys rather than silently merging
+  two shards into one part.
+- `mode` defaults to `narrative`, which keeps a section in the main file. A
+  section only ever moves to a sibling file if you tag it `reference` **and** the
+  document is large enough to warrant splitting.
 - Include §1 here. The "do the directory map yourself" shortcut in Step 5a has
   no equivalent mid-workflow.
 
-The script owns Step 6 in this mode — its synthesis agent reads this file for
-the format spec and writes `ARCHITECTURE.md` itself. Do not write the document
-yourself as well. It returns:
+The script owns Step 6 in this mode — its part writers read this file for the
+format spec and write the document themselves. Do not write it yourself as well.
+It returns:
 
 ```text
-{ wrote, path, citations: { confirmed, corrected, discarded }, droppedSample,
-  outline, openQuestions }
+{ wrote, path, files: [{ path, bytes }], partsDir, failedParts,
+  citations: { confirmed, corrected, refuted, unchecked },
+  refutedSample, uncheckedSample, outline, openQuestions }
 ```
+
+`refuted` means a verifier read the file and the snippet was not there.
+`unchecked` means no verifier ever returned a verdict, after retries. Both are
+excluded from the document, but they mean different things and Step 7 reports
+them separately.
 
 On `wrote: false`, report the `reason` and stop. Do not fall back to Step 5a
 silently — a failed run usually means the plan or the scope was wrong, and
-re-running the same plan by hand will fail the same way.
+re-running the same plan by hand will fail the same way. If `partsDir` comes
+back non-null, the individual parts survived on disk; say so, because that is
+recoverable work.
 
 ### Step 6: Synthesize & Write ARCHITECTURE.md
 
-**Fan-out mode only** — in workflow mode the script's synthesis agent does this,
-reading the section specs below for the format. The rules in this step bind both
-paths; only the executor differs.
+**Fan-out mode only** — in workflow mode the script's part writers do this, each
+reading the section specs below for the format of its own part. The rules in this
+step bind both paths; only the executor differs.
+
+In workflow mode the script owns the document skeleton, not the writers: it
+assigns every `##`/`###` heading, builds the table of contents, writes the
+citation-base note, and decides which sections land in sibling files. Writers
+receive their heading verbatim and the resolved link target for every other part,
+so they can cross-link to sections that have not been written yet.
 
 Assemble the agents' findings into the full document in one pass — well-structured
 Markdown with a table of contents and the sections below. Ground every claim in
@@ -346,16 +393,28 @@ After writing the document, print a short summary of what's in it and any open
 questions you couldn't resolve from the code alone.
 
 In workflow mode, build that summary from the returned `outline` and
-`openQuestions` rather than re-reading the document. Also report the citation
-tally — how many were confirmed, how many had their line numbers corrected, and
-how many were discarded as ungroundable. A high discard rate means the document
-is thinner than its length suggests, and the user should know that. Surface the
-`droppedSample` when the discard count is non-trivial.
+`openQuestions` rather than re-reading the document. Also report:
+
+- **The citation tally** — confirmed, line-corrected, refuted, and unchecked.
+  Keep the last two apart. A refuted citation was checked and found wrong; an
+  unchecked one means a verifier died and nobody ever looked. Reporting the
+  second as the first tells the user the document is thinner than it is *for the
+  wrong reason*. Surface `refutedSample` and `uncheckedSample` when either count
+  is non-trivial.
+- **`failedParts`**, if non-empty. Those subsections are placeholders in the
+  document, and re-running fills them in.
+- **Every file written**, not just `ARCHITECTURE.md`, when the run split the
+  output across siblings.
+- **`partsDir`**, if non-null. Assembly did not finish and the parts are still
+  on disk.
 
 ## Rules
 
 - Read-only except for writing/overwriting `ARCHITECTURE.md` at the scope root.
-  Discovery subagents are read-only too — brief them as such.
+  Workflow mode may also write `ARCHITECTURE-*.md` siblings beside it, and uses
+  a `.architecture-parts/` scratch directory that it removes once assembly
+  succeeds — a scratch directory left behind means the run did not finish.
+  Discovery and verifier subagents are read-only — brief them as such.
 - If arguments are given, confine exploration and output to that scope; with no
   arguments, cover the whole repository and write to the working directory. Pass
   the resolved scope to every subagent so none strays outside it.
@@ -367,7 +426,11 @@ is thinner than its length suggests, and the user should know that. Surface the
   the user's go-ahead first — it costs materially more than fan-out mode.
 - In workflow mode the script writes the document; do not also write it. Its
   citations are already fully verified; do not re-verify them. Report the
-  confirmed / corrected / discarded tally in Step 7.
+  confirmed / corrected / refuted / unchecked tally in Step 7, keeping refuted
+  and unchecked separate, and name any part that failed to generate.
+- Tag every workflow-mode section `narrative` or `reference`, and give shards of
+  one document section a shared `group`. Layout is decided before any writing
+  starts, because writers emit links whose targets depend on it.
 - `citationBase` passed to the script is absolute, `citationBaseLabel` is the
   same directory relative to the repository root, and only the label may appear
   in the document.
