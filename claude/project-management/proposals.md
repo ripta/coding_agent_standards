@@ -55,6 +55,11 @@ Decisions made with rationale.
 
 Unresolved questions with candidate options.
 
+## Risks
+
+- **Risk description** — likelihood: medium, impact: high.
+  Mitigation: how it is reduced or detected early. (Or — Accepted: why it is tolerable.)
+
 ## Milestones
 
 Implementable chunks of work.
@@ -100,6 +105,16 @@ Acceptable revisit hooks include:
 - A condition tied to a specific artifact, such as golden output review or a performance benchmark, that determines when the question is reopened
 
 Every deferred question must move from the Open section to the Settled section as a "decision to defer" with the revisit hook captured both in the settled entry and in the Decision Log.
+
+## Risks
+
+Every proposal carries a Risks section describing what could go wrong with the design — not implementation bugs, but design-level exposure: wrong assumptions, one-way doors, blast radius, failure modes nobody would notice.
+
+- Each risk states a **likelihood** and an **impact** (low/medium/high) and carries either a **mitigation** (how the risk is reduced or detected early) or an explicit **acceptance** with rationale. A risk with neither is an open design question and belongs in Design Decisions (Open) instead.
+- One-way-door decisions — hard or impossible to reverse after shipping, such as schema or data migrations, published API contracts, wire formats, or data backfills — must appear as risks unless the design itself removes the irreversibility (e.g., a down-migration, versioned contract, or feature flag), in which case the settled decision notes that.
+- "None identified" is acceptable only with a one-sentence reason (e.g., purely additive tooling with no consumers).
+- A risk rated high likelihood and high impact blocks advancing the proposal to `accepted` until it is mitigated or explicitly accepted, with the acceptance recorded in the Decision Log.
+- Deferring a risk's mitigation follows the same rules as deferring a decision: it needs a concrete revisit hook (see "Deferring Decisions").
 
 ## Cross-Proposal Impact
 

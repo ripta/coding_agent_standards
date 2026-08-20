@@ -33,7 +33,7 @@ Check the proposal's `**Status:**` field and branch accordingly:
 
 Before engaging the user on any questions:
 
-1. Read the full proposal: motivation, settled decisions, dependencies, milestones
+1. Read the full proposal: motivation, settled decisions, risks, dependencies, milestones
 2. If the proposal references other proposals (in Dependencies or References), read those for context
 3. Use Agent sub-tasks to scan the codebase for code relevant to the proposal's domain — look for existing patterns, types, interfaces, and conventions that will inform design choices
 4. Build a mental model of the design space so you can offer informed analysis
@@ -134,11 +134,22 @@ When all open questions have been resolved, review the settled decisions as a wh
    - Add them as new open questions in the proposal (and loop back to Step 5 to resolve them)
    - Note them in the proposal as known future work without resolving now
 
-### Step 7: Wrap-Up
+### Step 7: Risk Review
 
-When the user stops or all questions are resolved (and the coherence review is complete):
+Before wrap-up, interrogate the proposal's Risks section against the "Risks" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`:
 
-- **All resolved**: Ask if the proposal should advance to `accepted`. If yes, update the status.
+1. **Compliance**: The section exists, each risk carries a likelihood, an impact, and a mitigation or explicit acceptance. "None identified" carries a stated reason. A risk with neither mitigation nor acceptance is really an open question — offer to move it to Design Decisions (Open) and resolve it via Step 5.
+2. **One-way doors**: Scan the settled decisions for irreversible choices — schema or data migrations, published API contracts, wire formats, data backfills — that are not listed as risks and not defused by the design itself. Present any you find.
+3. **Unstated exposure**: Check for risks implied but not recorded: dependencies on other in-flight proposals whose design could still shift (cross-reference the Dependencies and Impacts sections), and open questions whose eventual resolution could invalidate a recorded mitigation.
+4. **Blockers**: A risk rated high likelihood and high impact blocks `accepted` until mitigated or explicitly accepted with a Decision Log entry.
+
+Present gaps via AskUserQuestion. Record agreed changes in the Risks section immediately, with a Decision Log entry per the standard.
+
+### Step 8: Wrap-Up
+
+When the user stops or all questions are resolved (and the coherence and risk reviews are complete):
+
+- **All resolved**: Ask if the proposal should advance to `accepted`. If yes, update the status. Do not offer `accepted` while the Risks section is missing or non-compliant, or while a high-likelihood/high-impact risk is neither mitigated nor explicitly accepted.
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
 
 Present a one-line summary of each decision made this session.
@@ -148,6 +159,7 @@ List any ADRs created with their file paths.
 ## Rules
 
 - Never make a decision without explicit user confirmation via AskUserQuestion
+- Never advance a proposal to `accepted` without the risk review: Risks section compliant, and no high-likelihood/high-impact risk left unmitigated and unaccepted
 - Present options neutrally before offering a recommendation
 - Update the proposal file after each decision (not batched) so progress survives interruption
 - Follow the proposal format from `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` exactly
