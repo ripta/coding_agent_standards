@@ -21,6 +21,19 @@
 - No silent failures; always surface errors to the user
 - Use `anyerror!void` for functions that may return various error sets
 
+## Invariant Assertions
+
+- Guard cross-boundary invariants with Debug-only assertions at their choke point, not only with
+  tests. A test pins the breaches someone foresaw. A choke-point assertion catches the next one.
+- The choke point is the single site every violation must pass through, such as where an id is
+  minted or where an entry is installed.
+- A bare `std.debug.assert` already compiles out of release builds. When the check itself walks a
+  table or allocates, gate the whole helper on `builtin.mode == .Debug`.
+- Name the invariant and its reconciliation sites in the assertion helper's doc comment. A firing
+  assert should point at the rule, not just the state.
+- Propose the assertion when implementing or fixing an invariant-bearing mechanism; do not sweep
+  existing code for assertion sites unprompted.
+
 ## Memory Management
 
 - Use `ArenaAllocator` for short-lived allocations (per-expression, per-statement)
