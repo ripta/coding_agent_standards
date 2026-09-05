@@ -112,12 +112,21 @@ The skills, hooks, and agents under `claude/` are packaged as a Claude Code plug
 
 Only `claude/` is copied into the plugin cache. An installed plugin cannot read files outside its own directory, so anything a skill needs at runtime has to live inside it. That is why `project-management/` sits under `claude/` rather than at the repo root, and why `profiles/baseline.md` imports it from there.
 
-Install once, inside any Claude Code session:
+Install once, inside any Claude Code session. Run the two commands as separate prompts. A slash command takes the whole rest of the input as its argument. Pasting both lines at once makes `/plugin marketplace add` read the second line as part of the repo name, and it fails with `is not a valid GitHub owner/repo shorthand`.
+
+First register the marketplace:
 
 ```
 /plugin marketplace add ripta/coding_agent_standards
+```
+
+Then install the plugin from it:
+
+```
 /plugin install coding-standards@coding-standards
 ```
+
+The `coding-standards@coding-standards` spelling is not a typo. The plugin and the marketplace share a name. The part before `@` is the plugin from `claude/.claude-plugin/plugin.json`. The part after is the marketplace from `.claude-plugin/marketplace.json`.
 
 Choose **user** scope when prompted so the plugin is available in all your projects. A local clone works as the marketplace source too (`/plugin marketplace add ~/projects/coding_agent_standards`), in which case updates track your clone instead of GitHub.
 
