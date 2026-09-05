@@ -76,8 +76,15 @@ bedrock_cache_max_age=300
 # normalized forms. Models served by the newer Messages-API endpoint
 # (bedrock-mantle) use a bare "anthropic.claude-<name>" ID with no suffix.
 # Haiku 4.5 is reachable under both forms, so both are listed.
-# Verified against us-west-2 on 2026-08-17.
+# Verified against us-west-2 on 2026-08-17. Entries added on 2026-09-05 were
+# verified against the AWS model-card docs, not a live list-foundation-models
+# call, so their IDs are documented rather than observed.
 declare -A BEDROCK_PRICES=(
+    # Fable 5.1
+    # Input and output match Fable 5. The one price change is cache reads, cut
+    # 75% from $1.00 to $0.25 — a 0.025x multiplier on input, against the 0.1x
+    # every other Claude model uses. Cache writes stay at $12.50 for 5m.
+    ["anthropic.claude-fable-5-1"]="10.00 50.00 0.25 12.50"
     # Fable 5
     ["anthropic.claude-fable-5"]="10.00 50.00 1.00 12.50"
     # Opus 5
@@ -109,16 +116,27 @@ declare -A BEDROCK_PRICES=(
     ["anthropic.claude-3-haiku-20240307-v1:0"]="0.25 1.25 0.03 0.30"
     # Sonnet 3 (legacy)
     ["anthropic.claude-3-sonnet-20240229-v1:0"]="3.00 15.00 0.30 3.75"
+    # Claude Mythos 5.1 and Mythos 5 are on Bedrock but omitted here. Both are
+    # gated behind a dedicated access program, same reasoning as Daybreak below.
 
-    # --- OpenAI GPT-5.x ---
+    # --- OpenAI GPT-6 / GPT-5.x ---
     #
-    # These rates come from each model's AWS model card, which publishes a real
-    # price table. GPT-5.6 quotes Global CRIS, Geo CRIS, and In-Region rows.
+    # The GPT-5.x rates come from each model's AWS model card, which publishes a
+    # real price table. GPT-5.6 quotes Global CRIS, Geo CRIS, and In-Region rows.
     # The Global CRIS row is used here, matching the Claude entries above.
     #
     # A caveat this table cannot express: GPT-5.6 bills any request over 272K
     # input tokens at 2x every input rate and 1.5x the output rate, applied to
     # the whole request. Long sessions on its 1M window therefore read low here.
+    #
+    # GPT-6 Astra is the exception to the model-card sourcing above. It launched
+    # 2026-09-03 and has no AWS model card and no Bedrock rate card yet, so the
+    # rates below are OpenAI's own list prices standing in for Bedrock's. Treat
+    # them as provisional and re-check once AWS publishes. The ID is real: the
+    # openai/codex Bedrock catalog carries "openai.gpt-6-astra" for Mantle, plus
+    # global. and us. Runtime variants. Astra applies the same 272K
+    # long-context surcharge as GPT-5.6, so the caveat above holds here too.
+    ["openai.gpt-6-astra"]="10.00 50.00 1.00 12.50"
     ["openai.gpt-5.6-sol"]="5.00 30.00 0.50 6.25"
     ["openai.gpt-5.6-terra"]="2.00 12.00 0.20 2.50"
     ["openai.gpt-5.6-luna"]="0.20 1.20 0.02 0.25"
@@ -143,6 +161,28 @@ declare -A BEDROCK_PRICES=(
     # gpt-oss-safeguard-120b and -20b are omitted. Their model cards carry no
     # price table either, and no reliable rate was found elsewhere.
     # The Daybreak cyber models are omitted too. They need Trusted Access enrollment.
+
+    # --- Moonshot AI (Kimi) ---
+    #
+    # Bedrock carries exactly two Kimi models. Their model cards list no prompt
+    # caching, so the cache fields are omitted.
+    #
+    # Both are In-Region only — neither offers a Geo or Global CRIS profile.
+    # There is therefore no single global rate to key on, and the published
+    # per-region rates genuinely differ. us-east-1 is used below. Higher-cost
+    # regions run about 20% above it, so costs there read low.
+    #
+    # Kimi K2 Thinking uses a different vendor prefix per endpoint:
+    # "moonshot." on bedrock-runtime and "moonshotai." on bedrock-mantle.
+    # That is not a typo. Both are listed, same as the gpt-oss pairs above.
+    # K2.5 uses "moonshotai." on both endpoints.
+    ["moonshotai.kimi-k2.5"]="0.60 3.00"
+    ["moonshot.kimi-k2-thinking"]="0.60 2.50"
+    ["moonshotai.kimi-k2-thinking"]="0.60 2.50"
+    # Kimi K3 is deliberately absent — it is not on Bedrock. Moonshot released
+    # it 2026-07-27, but AWS has listed no preview and announced no timeline.
+    # Add it here once it lands. There is no "K2.8" model to add: the 2.8
+    # figure is K3's parameter count in trillions, not a version number.
 )
 
 # --- Helper Functions ---
