@@ -44,11 +44,21 @@ Before engaging the user on any questions:
 2. If there are no open design questions (the section is empty or absent), ask the user if there are new items they want to discuss relating to the proposal using AskUserQuestion. If no new items, offer to accept the proposal and stop.
 3. Present a numbered summary of all open questions, showing any candidate options already listed
 4. Flag questions that are related or dependent on each other
-5. Recommend a starting order that prioritizes the most foundational questions first — questions that other questions depend on, that affect the most components or interfaces, or that constrain the solution space for later decisions. Present this recommended order and ask the user which question to tackle first using AskUserQuestion
+5. Order the questions with the most foundational first — questions that other questions depend on, that affect the most components or interfaces, or that constrain the solution space for later decisions. Present this order.
+6. Ask the user how to proceed using AskUserQuestion, with these options in this order:
+   - **Work through all questions (Recommended)** — resolve every open question in the foundational order just presented, without pausing between questions to ask what comes next. This is the default.
+   - **Pick a starting question** — the user chooses each question, one at a time. If they pick this mode, immediately ask which question to start with using AskUserQuestion, listing the open questions in the order from #5.
+   - **Stop** — end the session without resolving anything.
+
+Remember which mode the user chose. It governs both the order Step 5 works through and whether Step 5 #8 asks what comes next.
 
 ### Step 5: Resolve Questions
 
-Loop through each question the user wants to address. For each:
+Loop through the open questions in the order set by Step 4. In "work through all" mode that is every question, most foundational first. In "pick a starting question" mode it is whichever question the user names next.
+
+Questions added later — by the gap analysis in Step 6 or the risk review in Step 7 — join this loop. Place them in the existing order using the criteria in Step 4 #5. The chosen mode still applies to them.
+
+For each question:
 
 #### 1. Present
 
@@ -122,7 +132,13 @@ Add a reference to the new ADR in the proposal's References section.
 
 #### 8. Next
 
-Show the count of remaining open questions, ordered by foundational impact (widest-effect and most-depended-on first). Ask the user to pick the next question or stop the session.
+Show the count of remaining open questions.
+
+In "work through all" mode, move straight to the next question in the order. Do not ask which question comes next. Do not ask whether to continue. Name the question you are moving to, then start it. The user can still redirect or stop at any point by saying so.
+
+Re-order the remaining questions first if a decision just made changes what is foundational — for example, if it settled a dependency or opened a new constraint. Say so in one line when the order changes.
+
+In "pick a starting question" mode, list the remaining questions ordered by foundational impact. Ask the user to pick the next one or stop the session.
 
 ### Step 6: Coherence Review
 
@@ -158,9 +174,10 @@ List any ADRs created with their file paths.
 
 ## Rules
 
-- Never make a decision without explicit user confirmation via AskUserQuestion
+- Never make a decision without explicit user confirmation via AskUserQuestion. This covers the choice of option for a question. It does not cover which question to take up next
+- Default to working through all open questions in foundational order. Ask which question comes next only when the user explicitly chose to pick them one at a time. If the chosen mode is ever unclear, fall back to working through all
 - Never advance a proposal to `accepted` without the risk review: Risks section compliant, and no high-likelihood/high-impact risk left unmitigated and unaccepted
-- Present options neutrally before offering a recommendation
+- Present design options neutrally before offering a recommendation. This governs the options for a design question. It does not govern workflow prompts like the mode choice in Step 4
 - Update the proposal file after each decision (not batched) so progress survives interruption
 - Follow the proposal format from `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` exactly
 - Follow the ADR format from `${CLAUDE_SKILL_DIR}/../../project-management/design.md` exactly
