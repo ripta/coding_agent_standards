@@ -9,9 +9,16 @@ coding_agent_standards/
 ├── languages/          Language-specific standards
 ├── practices/          Cross-cutting practices
 ├── .claude/            Project-local Claude Code config (skills, settings) for this repo
-├── claude/             Claude Code skills, commands, hooks, rules, and settings (exported to other projects)
+├── claude/             Claude Code plugin source (exported to other projects)
+│   ├── .claude-plugin/      Plugin manifest
+│   ├── agents/              Subagent definitions
 │   ├── commands/            Slash commands
-│   └── project-management/  Plans, proposals, design, tracking, and commit chunking standards
+│   ├── hooks/               hooks.json plus the guard scripts it wires up
+│   ├── project-management/  Plans, proposals, design, tracking, and commit chunking standards
+│   ├── rules/               Agent behavior rules
+│   ├── scripts/             Standalone scripts (statusline)
+│   ├── settings/            Permission whitelist templates per ecosystem
+│   └── skills/              Skill definitions
 ├── codex/              Codex skills with no Claude Code equivalent (exported as a Codex plugin)
 ├── profiles/           Composable project profiles
 └── bin/                Utility scripts
@@ -56,13 +63,15 @@ Standards for planning and tracking work:
 
 ### Claude Code Configuration
 
-Rules, hooks, settings, commands, and skills for Claude Code agents:
+Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
 
-- **Rules** -- decision-making boundaries, work discipline, git workflow, commit/PR style
-- **Hooks** -- templates for auto-formatting on edit, pre-commit linting, test reminders
-- **Settings** -- tool permission whitelists per language ecosystem
-- **Skills** -- specialized agents for code review, testing, linting, Makefile maintenance, etc. These live in `claude/skills/` and are exported to other projects that import this repo.
-- **Commands** -- slash commands in `claude/commands/`, for driving a phase milestone (`work-on`), summarizing a session as a commit message (`summary`), and chunking an integration branch into PRs (`next-pr`).
+- **Rules** (`rules/`) -- decision-making boundaries, work discipline, git workflow, commit/PR style, writing voice
+- **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. The `block-broad-find`, `block-redirection`, and `cg-check` guard scripts ship alongside it; see `claude/hooks/README.md` for which are wired by default
+- **Settings** (`settings/`) -- permission whitelist templates to copy into a project's `.claude/settings.local.json`, one per language ecosystem
+- **Scripts** (`scripts/`) -- standalone scripts not tied to a hook, currently the statusline
+- **Skills** (`skills/`) -- specialized agents for code review, testing, linting, Makefile maintenance, releases, proposals, etc.
+- **Agents** (`agents/`) -- subagent definitions invoked by name, currently `reviewer` for post-milestone diff review
+- **Commands** (`commands/`) -- slash commands for driving a phase milestone (`work-on`), summarizing a session as a commit message (`summary`), and chunking an integration branch into PRs (`next-pr`)
 
 Commands stay thin. The rules they enforce live in `claude/rules/` and `claude/project-management/`, and a command reads them at `${CLAUDE_PLUGIN_ROOT}/...` rather than restating them. Keeping one copy is what stops `/summary` and `/work-on` from drifting apart on the same commit-message rules.
 
