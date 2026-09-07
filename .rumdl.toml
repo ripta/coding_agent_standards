@@ -9,6 +9,10 @@
 # and their body starts at `##` by convention. They have no h1 and should not
 # grow one — the frontmatter is the contract the harness reads.
 #
+# Commands are the same shape for a different reason. Their frontmatter carries
+# `description:`, and their body is the prompt text sent to the model. An h1
+# added to satisfy the rule would become part of that prompt.
+#
 # MD041 has no setting that models this. `front-matter-title` is accepted but
 # does not treat `name:` as satisfying the rule, and `allow-preamble = true`
 # only relocates the complaint to the first `##`. So the rule is ignored for
@@ -19,3 +23,4 @@
 # with an h1 today.
 "**/SKILL.md" = ["MD041"]
 "claude/agents/*.md" = ["MD041"]
+"claude/commands/*.md" = ["MD041"]

@@ -9,8 +9,9 @@ coding_agent_standards/
 ├── languages/          Language-specific standards
 ├── practices/          Cross-cutting practices
 ├── .claude/            Project-local Claude Code config (skills, settings) for this repo
-├── claude/             Claude Code skills, hooks, rules, and settings (exported to other projects)
-│   └── project-management/  Plans, proposals, design, and tracking standards
+├── claude/             Claude Code skills, commands, hooks, rules, and settings (exported to other projects)
+│   ├── commands/            Slash commands
+│   └── project-management/  Plans, proposals, design, tracking, and commit chunking standards
 ├── codex/              Codex skills with no Claude Code equivalent (exported as a Codex plugin)
 ├── profiles/           Composable project profiles
 └── bin/                Utility scripts
@@ -51,19 +52,23 @@ Standards for planning and tracking work:
 - **Proposals** -- feature proposal lifecycle (draft through implemented), numbering
 - **Design** -- Architecture Decision Records (ADRs), lifecycle, immutability rules
 - **Tracking** -- cross-reference conventions, metadata standards, markdown guidelines
+- **Commit Chunking** -- splitting a long-running integration branch into PR-sized chunks
 
 ### Claude Code Configuration
 
-Rules, hooks, settings, and skills for Claude Code agents:
+Rules, hooks, settings, commands, and skills for Claude Code agents:
 
 - **Rules** -- decision-making boundaries, work discipline, git workflow, commit/PR style
 - **Hooks** -- templates for auto-formatting on edit, pre-commit linting, test reminders
 - **Settings** -- tool permission whitelists per language ecosystem
 - **Skills** -- specialized agents for code review, testing, linting, Makefile maintenance, etc. These live in `claude/skills/` and are exported to other projects that import this repo.
+- **Commands** -- slash commands in `claude/commands/`, for driving a phase milestone (`work-on`), summarizing a session as a commit message (`summary`), and chunking an integration branch into PRs (`next-pr`).
+
+Commands stay thin. The rules they enforce live in `claude/rules/` and `claude/project-management/`, and a command reads them at `${CLAUDE_PLUGIN_ROOT}/...` rather than restating them. Keeping one copy is what stops `/summary` and `/work-on` from drifting apart on the same commit-message rules.
 
 Note the distinction between `.claude/` and `claude/`:
 - **`.claude/`** is the standard Claude Code project config directory. Skills and settings here apply when working **in this repo** (e.g., `standards-synthesizer` for onboarding new languages).
-- **`claude/`** contains skills, hooks, rules, and settings **exported to other projects** that reference this repo via `--add-dir` or `@import`.
+- **`claude/`** contains skills, commands, hooks, rules, and settings **exported to other projects** that reference this repo via `--add-dir` or `@import`.
 
 ### Codex Configuration
 
@@ -130,7 +135,7 @@ The `coding-standards@coding-standards` spelling is not a typo. The plugin and t
 
 Choose **user** scope when prompted so the plugin is available in all your projects. A local clone works as the marketplace source too (`/plugin marketplace add ~/projects/coding_agent_standards`), in which case updates track your clone instead of GitHub.
 
-Plugin skills are namespaced: invoke them as `/coding-standards:<skill-name>`. If you keep a copy of a skill in `~/.claude/skills/`, both versions will appear -- delete the personal copy once the plugin version works for you.
+Plugin skills and commands are namespaced: invoke them as `/coding-standards:<name>`. If you keep a copy of a skill in `~/.claude/skills/`, or a command in `~/.claude/commands/`, both versions will appear -- delete the personal copy once the plugin version works for you.
 
 #### Updating
 
