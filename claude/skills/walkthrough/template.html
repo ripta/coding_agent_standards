@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<!--
+  walkthrough page template.
+
+  One self-contained file. No build step, no local assets. Everything below is
+  yours to extend, but keep these intact or the page breaks:
+
+    * the theme bootstrap in <head>        (no flash of the wrong theme)
+    * data-theme on <html>                 (every color token hangs off it)
+    * the `themechange` CustomEvent        (mermaid + charts re-theme on it)
+    * registerChart() for every Chart.js instance
+    * the .tab / .panel wiring             (hash deep-links, lazy mermaid)
+
+  Replace everything marked REPLACE. Delete the CDN <script> tags for libraries
+  the page does not use, and delete their helpers at the bottom.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REPLACE — walkthrough</title>
+<script>
+  // Runs before first paint. Stored choice wins; otherwise follow the system.
+  (function () {
+    var t;
+    try { t = localStorage.getItem('wt-theme'); } catch (e) { t = null; }
+    if (t !== 'light' && t !== 'dark') {
+      t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+
+  // Defined here, not in the app script at the end of <body>, so that a widget
+  // script sitting inline beside its own <canvas> can call it while it builds.
+  window.__wtCharts = [];
+  window.registerChart = function (c) { window.__wtCharts.push(c); return c; };
+</script>
+
+<!-- Libraries load in <head> so inline widget scripts in the body can use them.
+     Delete any this page does not need, along with its helper at the bottom. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"></script>
+<style>
+/* ---------- tokens ---------------------------------------------------- */
+:root {
+  --font-ui: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --measure: 68ch;
+  --wide: 1100px;
+  --radius: 8px;
+  --radius-sm: 5px;
+}
+
+html[data-theme="light"] {
+  --bg: #fbfbfa;          --surface: #ffffff;     --surface-2: #f3f3f1;
+  --surface-3: #e9e9e6;   --border: #dededa;      --border-strong: #c3c3bc;
+  --text: #1c1c1a;        --text-dim: #5f5f59;    --text-faint: #8a8a83;
+  --accent: #2f6feb;      --accent-soft: #eaf0fe; --accent-text: #1b4fb8;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 12px rgba(0,0,0,.05);
+
+  --c-def: #2f6feb;   --c-def-bg: #eef3fe;
+  --c-key: #6d47d9;   --c-key-bg: #f2eefd;
+  --c-int: #0f8a7e;   --c-int-bg: #e7f6f3;
+  --c-edge: #a76a00;  --c-edge-bg: #fdf3e2;
+  --c-warn: #c0392b;  --c-warn-bg: #fdeceb;
+  --c-read: #5f6b7a;  --c-read-bg: #eff1f4;
+
+  --code-k: #cf222e;  --code-s: #0a3069;  --code-n: #0550ae;  --code-c: #6e7781;
+  --code-f: #8250df;  --code-t: #953800;  --code-o: #24292f;  --code-a: #953800;
+  --diff-add: rgba(31,136,61,.12);  --diff-add-bar: #1f883d;
+  --diff-del: rgba(207,34,46,.10);  --diff-del-bar: #cf222e;
+}
+
+html[data-theme="dark"] {
+  --bg: #131316;          --surface: #1a1a1f;     --surface-2: #212127;
+  --surface-3: #2b2b33;   --border: #32323b;      --border-strong: #45454f;
+  --text: #e8e8ea;        --text-dim: #a0a0a9;    --text-faint: #75757e;
+  --accent: #7fa7f9;      --accent-soft: #1b2740; --accent-text: #a9c4fd;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+
+  --c-def: #7fa7f9;   --c-def-bg: #172239;
+  --c-key: #b69cf5;   --c-key-bg: #231d3a;
+  --c-int: #4fc4b2;   --c-int-bg: #123030;
+  --c-edge: #e0a44a;  --c-edge-bg: #332713;
+  --c-warn: #f08a7e;  --c-warn-bg: #351d1c;
+  --c-read: #9aa7b6;  --c-read-bg: #21262d;
+
+  --code-k: #ff7b72;  --code-s: #a5d6ff;  --code-n: #79c0ff;  --code-c: #8b949e;
+  --code-f: #d2a8ff;  --code-t: #ffa657;  --code-o: #c9d1d9;  --code-a: #ffa657;
+  --diff-add: rgba(63,185,80,.15);  --diff-add-bar: #3fb950;
+  --diff-del: rgba(248,81,73,.13);  --diff-del-bar: #f85149;
+}
+
+/* ---------- base ------------------------------------------------------ */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 16px/1.65 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent-text); text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+a:hover { text-decoration-thickness: 2px; }
+h1, h2, h3, h4 { line-height: 1.25; font-weight: 650; letter-spacing: -.01em; margin: 2.2rem 0 .6rem; }
+h1 { font-size: 1.9rem; margin-top: 0; }
+h2 { font-size: 1.4rem; padding-top: .6rem; border-top: 1px solid var(--border); }
+h3 { font-size: 1.12rem; }
+h4 { font-size: 1rem; color: var(--text-dim); }
+p, ul, ol { margin: 0 0 1rem; }
+p, li { max-width: var(--measure); }
+hr { border: 0; border-top: 1px solid var(--border); margin: 2rem 0; }
+small, .small { font-size: .86rem; color: var(--text-dim); }
+
+/* ---------- chrome ---------------------------------------------------- */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.bar-inner {
+  max-width: var(--wide); margin: 0 auto; padding: .7rem 1.25rem;
+  display: flex; align-items: center; gap: 1rem;
+}
+.brand { font-weight: 650; font-size: .95rem; }
+.brand span { display: block; font-weight: 400; font-size: .8rem; color: var(--text-dim); }
+.bar-spacer { flex: 1; }
+
+.icon-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  background: var(--surface); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: .35rem .6rem; font: 500 .82rem var(--font-ui); cursor: pointer;
+}
+.icon-btn:hover { border-color: var(--border-strong); color: var(--text); }
+html[data-theme="light"] .only-dark,
+html[data-theme="dark"] .only-light { display: none; }
+
+.tabs {
+  max-width: var(--wide); margin: 0 auto; padding: 0 1.25rem;
+  display: flex; gap: .25rem; overflow-x: auto;
+}
+.tab {
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  padding: .55rem .8rem; margin-bottom: -1px;
+  font: 500 .92rem var(--font-ui); color: var(--text-dim);
+  cursor: pointer; white-space: nowrap;
+}
+.tab:hover { color: var(--text); }
+.tab[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 3px; }
+
+main { max-width: var(--wide); margin: 0 auto; padding: 2rem 1.25rem 5rem; }
+.panel[hidden] { display: none; }
+footer {
+  max-width: var(--wide); margin: 0 auto; padding: 1.5rem 1.25rem 3rem;
+  border-top: 1px solid var(--border); color: var(--text-dim); font-size: .86rem;
+}
+
+/* ---------- spine ----------------------------------------------------- */
+/* The one essential idea. Exactly one per page, at the top of Essentials. */
+.spine {
+  border-left: 3px solid var(--accent); background: var(--accent-soft);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 1.1rem 1.3rem; margin: 0 0 2rem;
+}
+.spine .label {
+  font: 600 .72rem/1 var(--font-ui); letter-spacing: .08em; text-transform: uppercase;
+  color: var(--accent-text); display: block; margin-bottom: .5rem;
+}
+.spine p { font-size: 1.12rem; margin: 0; max-width: var(--measure); }
+
+/* ---------- callouts -------------------------------------------------- */
+.callout {
+  --co: var(--c-def); --co-bg: var(--c-def-bg);
+  background: var(--co-bg); border: 1px solid color-mix(in srgb, var(--co) 28%, transparent);
+  border-left: 3px solid var(--co);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: .85rem 1.1rem; margin: 1.4rem 0;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .co-title {
+  font: 600 .74rem/1.3 var(--font-ui); letter-spacing: .07em; text-transform: uppercase;
+  color: var(--co); margin: 0 0 .4rem; display: flex; align-items: center; gap: .45rem;
+}
+.callout.definition { --co: var(--c-def);  --co-bg: var(--c-def-bg); }
+.callout.concept    { --co: var(--c-key);  --co-bg: var(--c-key-bg); }
+.callout.intuition  { --co: var(--c-int);  --co-bg: var(--c-int-bg); }
+.callout.edge       { --co: var(--c-edge); --co-bg: var(--c-edge-bg); }
+.callout.warning    { --co: var(--c-warn); --co-bg: var(--c-warn-bg); }
+.callout.reading    { --co: var(--c-read); --co-bg: var(--c-read-bg); }
+
+/* Collapsed beginner aside. Use inside the main track; the Background tab
+   carries the long-form version. */
+details.callout > summary {
+  cursor: pointer; list-style: none;
+  font: 600 .74rem/1.3 var(--font-ui); letter-spacing: .07em; text-transform: uppercase; color: var(--co);
+}
+details.callout > summary::-webkit-details-marker { display: none; }
+details.callout > summary::before { content: "▸ "; display: inline-block; transition: transform .15s; }
+details.callout[open] > summary::before { transform: rotate(90deg); }
+details.callout > summary + * { margin-top: .6rem; }
+
+/* ---------- figures --------------------------------------------------- */
+figure {
+  margin: 1.8rem 0; padding: 1rem; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+}
+figcaption {
+  margin-top: .8rem; padding-top: .7rem; border-top: 1px solid var(--border);
+  font-size: .85rem; color: var(--text-dim); max-width: none;
+}
+figcaption b { color: var(--text); font-weight: 600; }
+.mermaid { text-align: center; overflow-x: auto; }
+.mermaid[data-failed] {
+  text-align: left; white-space: pre; font: .82rem/1.5 var(--font-mono);
+  color: var(--text-dim); background: var(--surface-2); padding: .8rem; border-radius: var(--radius-sm);
+}
+.chart-box { position: relative; height: 300px; }
+svg .stroke-accent { stroke: var(--accent); }
+svg .fill-accent   { fill: var(--accent); }
+svg .fill-surface  { fill: var(--surface-2); }
+svg .stroke-border { stroke: var(--border-strong); }
+svg text { fill: var(--text); font-family: var(--font-ui); }
+svg text.dim { fill: var(--text-dim); }
+
+/* ---------- code ------------------------------------------------------ */
+pre {
+  margin: 1.2rem 0; padding: .9rem 1rem; overflow-x: auto;
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius); font: .845rem/1.6 var(--font-mono);
+  tab-size: 2;
+}
+pre code { font: inherit; }
+code:not(pre code) {
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 4px; padding: .08em .34em; font: .88em var(--font-mono);
+}
+.k { color: var(--code-k); }  .s { color: var(--code-s); }
+.n { color: var(--code-n); }  .c { color: var(--code-c); font-style: italic; }
+.f { color: var(--code-f); }  .t { color: var(--code-t); }
+.o { color: var(--code-o); }  .a { color: var(--code-a); }
+pre .add, pre .del { display: block; margin: 0 -1rem; padding: 0 1rem; border-left: 3px solid transparent; }
+pre .add { background: var(--diff-add); border-left-color: var(--diff-add-bar); }
+pre .del { background: var(--diff-del); border-left-color: var(--diff-del-bar); }
+
+/* Numbered markers. Easier to find in a long block than a line number.
+   Every line in a marked <pre> gets an .ln gutter so the columns stay aligned. */
+.ln { display: inline-block; width: 2.1em; user-select: none; }
+.mk, .marker-notes > li::before {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.45em; height: 1.45em; border-radius: 50%; flex: none;
+  background: var(--accent); color: #fff;
+  font: 600 .72rem/1 var(--font-ui); vertical-align: .05em;
+}
+.mk { cursor: pointer; }
+.mk:hover, .mk.lit { outline: 3px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+.marker-notes { list-style: none; padding: 0; margin: 1.1rem 0; }
+.marker-notes > li {
+  display: flex; gap: .65rem; align-items: baseline;
+  padding: .5rem .6rem; border-radius: var(--radius-sm); max-width: var(--measure);
+}
+.marker-notes > li::before { content: attr(data-mk-note); }
+.marker-notes > li.lit { background: var(--accent-soft); }
+
+/* ---------- controls -------------------------------------------------- */
+.controls {
+  display: flex; flex-wrap: wrap; gap: .8rem 1.2rem; align-items: center;
+  padding: .75rem .9rem; margin-bottom: 1rem;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm);
+}
+.control { display: flex; align-items: center; gap: .5rem; font-size: .86rem; color: var(--text-dim); }
+.control output { font: 600 .86rem var(--font-mono); color: var(--text); min-width: 3.5ch; }
+input[type="range"] { accent-color: var(--accent); width: 11rem; }
+
+.seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 2px; }
+.seg button {
+  background: none; border: 0; border-radius: 4px; cursor: pointer;
+  padding: .3rem .7rem; font: 500 .82rem var(--font-ui); color: var(--text-dim);
+}
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+[data-swap-case][hidden] { display: none; }
+
+.stepper { display: flex; align-items: center; gap: .6rem; margin-bottom: 1rem; }
+.stepper .dots { display: flex; gap: .3rem; flex: 1; }
+.stepper .dots i { height: 3px; flex: 1; background: var(--surface-3); border-radius: 2px; }
+.stepper .dots i.on { background: var(--accent); }
+.step[hidden] { display: none; }
+
+/* ---------- tables ---------------------------------------------------- */
+table { border-collapse: collapse; width: 100%; margin: 1.3rem 0; font-size: .9rem; }
+th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+th { font-weight: 600; color: var(--text-dim); font-size: .8rem; text-transform: uppercase; letter-spacing: .05em; }
+tbody tr:hover { background: var(--surface-2); }
+
+/* Simplified UI mock. Explains an interface change without a screenshot. */
+.ui-mock {
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow);
+}
+.ui-mock .chrome {
+  display: flex; align-items: center; gap: .4rem;
+  padding: .45rem .7rem; background: var(--surface-2); border-bottom: 1px solid var(--border);
+  font: .78rem var(--font-ui); color: var(--text-faint);
+}
+.ui-mock .chrome i { width: 9px; height: 9px; border-radius: 50%; background: var(--surface-3); }
+.ui-mock .body { padding: 1rem; }
+.ui-row { display: flex; gap: .6rem; align-items: center; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+.ui-row:last-child { border-bottom: 0; }
+.ui-pill { background: var(--surface-2); border: 1px solid var(--border); border-radius: 99px; padding: .15rem .6rem; font-size: .78rem; }
+.ui-pill.new { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-text); }
+.side-by-side { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
+@media (max-width: 720px) { .side-by-side { grid-template-columns: 1fr; } }
+
+/* ---------- misc ------------------------------------------------------ */
+.term { border-bottom: 1px dotted var(--text-faint); cursor: help; }
+.src-link { font: .8rem var(--font-mono); }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
+@media print {
+  .topbar, .controls, .stepper { display: none; }
+  .panel[hidden] { display: block !important; }
+  .step[hidden] { display: block !important; }
+  [data-swap-case][hidden] { display: block !important; }
+  figure, .callout, pre { break-inside: avoid; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="bar-inner">
+    <div class="brand">REPLACE — subject<span>REPLACE — commit / PR / concept, and date</span></div>
+    <div class="bar-spacer"></div>
+    <button class="icon-btn" id="theme-toggle" type="button" aria-label="Toggle color theme">
+      <span class="only-light">◐ Dark</span><span class="only-dark">◑ Light</span>
+    </button>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" id="tab-essentials" aria-controls="panel-essentials" aria-selected="true">Essentials</button>
+    <button class="tab" role="tab" id="tab-background" aria-controls="panel-background" aria-selected="false" tabindex="-1">Background</button>
+    <button class="tab" role="tab" id="tab-code"       aria-controls="panel-code"       aria-selected="false" tabindex="-1">Code tour</button>
+    <button class="tab" role="tab" id="tab-deep"       aria-controls="panel-deep"       aria-selected="false" tabindex="-1">Deep dive</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ===================== ESSENTIALS ===================== -->
+  <section class="panel" id="panel-essentials" role="tabpanel" aria-labelledby="tab-essentials">
+    <h1>REPLACE — the subject, stated as a claim</h1>
+
+    <div class="spine">
+      <span class="label">The idea</span>
+      <p>REPLACE — one sentence. The essential idea the whole page serves.</p>
+    </div>
+
+    <p>REPLACE — the problem, in two or three short sentences. What went wrong before,
+      in terms a reader can picture.</p>
+
+    <div class="callout intuition">
+      <p class="co-title">Intuition</p>
+      <p>REPLACE — the analogy or mental model. This is your framing, not a fact.</p>
+    </div>
+
+    <figure>
+      <div class="mermaid">
+flowchart LR
+  A["Client"] -- "REPLACE: {id: 42}" --> B["Service"]
+  B --> C[("Store")]
+      </div>
+      <figcaption><b>Figure 1.</b> REPLACE — say what the reader should notice, not what the boxes are named.</figcaption>
+    </figure>
+
+    <details class="callout definition">
+      <summary>New to this? Start here</summary>
+      <p>REPLACE — two sentences of orientation, then a link to the Background tab.</p>
+    </details>
+  </section>
+
+  <!-- ===================== BACKGROUND ===================== -->
+  <!-- The beginner track. Sequestered so an expert can skip the whole tab and a
+       beginner can find it. Assume nothing. -->
+  <section class="panel" id="panel-background" role="tabpanel" aria-labelledby="tab-background" hidden>
+    <h1>Background</h1>
+    <p class="small">Skip this tab if you already know REPLACE.</p>
+
+    <h2>REPLACE — the vocabulary</h2>
+    <div class="callout definition">
+      <p class="co-title">Definition</p>
+      <p><b>REPLACE — term.</b> REPLACE — plain-language definition, no jargon.</p>
+    </div>
+  </section>
+
+  <!-- ===================== CODE TOUR ====================== -->
+  <!-- Group by the idea each change serves, not by file order in the diff. -->
+  <section class="panel" id="panel-code" role="tabpanel" aria-labelledby="tab-code" hidden>
+    <h1>Code tour</h1>
+
+    <h2>1. REPLACE — what this group accomplishes</h2>
+    <p class="small">Touches <a class="src-link" href="#">path/to/file.ext</a>, <a class="src-link" href="#">path/to/other.ext</a></p>
+
+<pre><code><span class="ln"><span class="mk" data-mk="1">1</span></span><span class="k">func</span> <span class="f">Example</span>(ctx <span class="t">Context</span>) <span class="k">error</span> {
+<span class="ln"></span>    <span class="c">// REPLACE</span>
+<span class="ln"><span class="mk" data-mk="2">2</span></span>    <span class="k">return</span> <span class="n">nil</span>
+<span class="ln"></span>}</code></pre>
+
+    <ol class="marker-notes">
+      <li data-mk-note="1">REPLACE — what this line establishes, and why it matters.</li>
+      <li data-mk-note="2">REPLACE — the second point of interest.</li>
+    </ol>
+  </section>
+
+  <!-- ===================== DEEP DIVE ====================== -->
+  <section class="panel" id="panel-deep" role="tabpanel" aria-labelledby="tab-deep" hidden>
+    <h1>Deep dive</h1>
+
+    <div class="callout edge">
+      <p class="co-title">Edge case</p>
+      <p>REPLACE — the case that breaks the simple story.</p>
+    </div>
+
+    <h2>Read further</h2>
+    <div class="callout reading">
+      <p class="co-title">Sources</p>
+      <ul>
+        <li><a href="#" target="_blank" rel="noopener noreferrer">REPLACE — the diff or PR</a></li>
+        <li><a href="#" target="_blank" rel="noopener noreferrer">REPLACE — the design doc or ADR</a></li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>REPLACE — generated from <code>REPLACE — sha or PR</code>. Figures with invented data are labelled illustrative.</p>
+</footer>
+
+<!-- The app script runs last, after every inline widget script in the body has
+     registered its charts. -->
+<script>
+(function () {
+  'use strict';
+  var root = document.documentElement;
+  var css = function (name) { return getComputedStyle(root).getPropertyValue(name).trim(); };
+  var theme = function () { return root.getAttribute('data-theme'); };
+
+  /* ---- theme ---------------------------------------------------------- */
+  var stored = null;
+  try { stored = localStorage.getItem('wt-theme'); } catch (e) {}
+
+  function setTheme(t, remember) {
+    root.setAttribute('data-theme', t);
+    if (remember) { try { localStorage.setItem('wt-theme', t); } catch (e) {} stored = t; }
+    document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: t } }));
+  }
+  document.getElementById('theme-toggle').addEventListener('click', function () {
+    setTheme(theme() === 'dark' ? 'light' : 'dark', true);
+  });
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+      if (!stored) setTheme(e.matches ? 'dark' : 'light', false);   // no explicit choice yet
+    });
+  }
+
+  /* ---- tabs ----------------------------------------------------------- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var active = null;
+
+  function show(tab, push) {
+    tabs.forEach(function (t) {
+      var on = t === tab;
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+      t.tabIndex = on ? 0 : -1;
+      document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+    });
+    active = tab;
+    var panel = document.getElementById(tab.getAttribute('aria-controls'));
+    renderMermaid();
+    resizeCharts(panel);
+    // replaceState throws on some file:// origins; a deep link is not worth a crash.
+    if (push) { try { history.replaceState(null, '', '#' + tab.id.replace(/^tab-/, '')); } catch (e) {} }
+  }
+  tabs.forEach(function (tab, i) {
+    tab.addEventListener('click', function () { show(tab, true); });
+    tab.addEventListener('keydown', function (e) {
+      var d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!d) return;
+      e.preventDefault();
+      var next = tabs[(i + d + tabs.length) % tabs.length];
+      next.focus(); show(next, true);
+    });
+  });
+
+  /* ---- code markers --------------------------------------------------- */
+  function lite(id, on) {
+    document.querySelectorAll('[data-mk="' + id + '"], [data-mk-note="' + id + '"]')
+      .forEach(function (el) { el.classList.toggle('lit', on); });
+  }
+  document.querySelectorAll('[data-mk], [data-mk-note]').forEach(function (el) {
+    var id = el.dataset.mk || el.dataset.mkNote;
+    el.addEventListener('mouseenter', function () { lite(id, true); });
+    el.addEventListener('mouseleave', function () { lite(id, false); });
+    if (el.dataset.mk) {
+      el.addEventListener('click', function () {
+        var note = document.querySelector('[data-mk-note="' + id + '"]');
+        if (note) note.scrollIntoView({ block: 'center' });
+      });
+    }
+  });
+
+  /* ---- mermaid -------------------------------------------------------- */
+  // Mermaid bakes colors in at render time, so a theme switch means restoring
+  // each diagram's source and running it again. Diagrams in a hidden panel
+  // measure as zero-width, so they render on first reveal instead of at load.
+  function mermaidTheme() { return theme() === 'dark' ? 'dark' : 'default'; }
+
+  // Renders every visible, unrendered diagram. Safe to call repeatedly.
+  function renderMermaid() {
+    if (typeof mermaid === 'undefined') return;
+    var nodes = Array.prototype.slice.call(document.querySelectorAll('.mermaid'));
+    nodes.forEach(function (n) { if (!n.dataset.src) n.dataset.src = n.textContent.trim(); });
+    var pending = nodes.filter(function (n) {
+      if (n.dataset.processed) return false;
+      var panel = n.closest('.panel');
+      return !panel || !panel.hidden;
+    });
+    if (!pending.length) return;
+    mermaid.initialize({ startOnLoad: false, theme: mermaidTheme(), securityLevel: 'strict' });
+    mermaid.run({ nodes: pending }).catch(function () {
+      pending.forEach(function (n) { n.textContent = n.dataset.src; n.setAttribute('data-failed', ''); });
+    });
+  }
+
+  function reRenderMermaid() {
+    if (typeof mermaid === 'undefined') return;
+    document.querySelectorAll('.mermaid[data-processed]').forEach(function (n) {
+      n.textContent = n.dataset.src;
+      n.removeAttribute('data-processed');
+    });
+    renderMermaid();
+  }
+
+  if (typeof mermaid === 'undefined') {
+    document.querySelectorAll('.mermaid').forEach(function (n) { n.setAttribute('data-failed', ''); });
+  }
+
+  /* ---- charts --------------------------------------------------------- */
+  // Chart.js reads its colors once. registerChart() lives in <head>; this only
+  // consumes the registry, so the toggle can re-apply colors and a chart built
+  // inside a hidden panel gets resized when its tab is first opened.
+  var charts = window.__wtCharts || [];
+
+  function themeCharts() {
+    if (typeof Chart === 'undefined') return;
+    var text = css('--text-dim'), grid = css('--border');
+    Chart.defaults.color = text;
+    Chart.defaults.borderColor = grid;
+    charts.forEach(function (c) {
+      Object.keys(c.options.scales || {}).forEach(function (k) {
+        var s = c.options.scales[k];
+        if (s.ticks) s.ticks.color = text;
+        if (s.grid) s.grid.color = grid;
+        if (s.title) s.title.color = text;
+      });
+      c.update('none');
+    });
+  }
+  function resizeCharts(panel) {
+    charts.forEach(function (c) { if (panel.contains(c.canvas)) c.resize(); });
+  }
+
+  /* ---- swaps (before / after, variant A / B) --------------------------- */
+  document.querySelectorAll('[data-swap]').forEach(function (group) {
+    var name = group.dataset.swap;
+    group.querySelectorAll('button[data-swap-to]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var to = btn.dataset.swapTo;
+        group.querySelectorAll('button[data-swap-to]').forEach(function (b) {
+          b.setAttribute('aria-pressed', String(b === btn));
+        });
+        document.querySelectorAll('[data-swap-case][data-swap-group="' + name + '"]')
+          .forEach(function (el) { el.hidden = el.dataset.swapCase !== to; });
+      });
+    });
+  });
+
+  /* ---- steppers -------------------------------------------------------- */
+  document.querySelectorAll('[data-stepper]').forEach(function (host) {
+    var steps = Array.prototype.slice.call(host.querySelectorAll('.step'));
+    var dots = host.querySelector('.dots');
+    var at = 0;
+    steps.forEach(function () { if (dots) dots.appendChild(document.createElement('i')); });
+    function go(i) {
+      at = Math.max(0, Math.min(steps.length - 1, i));
+      steps.forEach(function (s, j) { s.hidden = j !== at; });
+      if (dots) Array.prototype.forEach.call(dots.children, function (d, j) { d.classList.toggle('on', j <= at); });
+      host.querySelectorAll('[data-step-label]').forEach(function (l) {
+        l.textContent = (at + 1) + ' / ' + steps.length;
+      });
+    }
+    host.querySelectorAll('[data-step="prev"]').forEach(function (b) { b.addEventListener('click', function () { go(at - 1); }); });
+    host.querySelectorAll('[data-step="next"]').forEach(function (b) { b.addEventListener('click', function () { go(at + 1); }); });
+    go(0);
+  });
+
+  /* ---- printing -------------------------------------------------------- */
+  // Reveal every tab and open every aside, so a print carries the whole page.
+  // A diagram in a tab that was never opened may not finish rendering before
+  // the dialog captures — Mermaid is async and beforeprint does not wait.
+  window.addEventListener('beforeprint', function () {
+    document.querySelectorAll('.panel').forEach(function (p) { p.hidden = false; });
+    document.querySelectorAll('details').forEach(function (d) {
+      if (!d.open) { d.dataset.wasShut = '1'; d.open = true; }
+    });
+    renderMermaid();
+  });
+  window.addEventListener('afterprint', function () {
+    document.querySelectorAll('details[data-was-shut]').forEach(function (d) {
+      d.open = false; delete d.dataset.wasShut;
+    });
+    if (active) show(active, false);
+  });
+
+  /* ---- start ----------------------------------------------------------- */
+  document.addEventListener('themechange', function () { reRenderMermaid(); themeCharts(); });
+  themeCharts();
+
+  // Last, so every function and the chart registry above are ready: opening the
+  // first tab renders its diagrams and sizes its charts.
+  var hash = location.hash.slice(1);
+  show((hash && document.getElementById('tab-' + hash)) || tabs[0], false);
+})();
+</script>
+</body>
+</html>
