@@ -1,6 +1,7 @@
 ---
 description: Plan and implement a phase milestone
 argument-hint: <phase>[.<milestone>]
+model: opusplan
 ---
 
 Your first action MUST be to call the EnterPlanMode tool. Do not do anything
