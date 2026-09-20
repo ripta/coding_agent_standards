@@ -26,10 +26,11 @@ approval. You never push the tag or run any publishing tooling.
 
 3. Determine the scheme and next tag:
 
-   - **`@@NO_TAGS true`** — no tags exist. Ask the user which scheme to start:
-     month-based (first tag `v{YEAR}.{MONTH}.1`) or semver (first tag `v0.1.0`,
-     or `v1.0.0` if they consider it production-ready). Use `@@YEAR`/`@@MONTH`
-     for the month-based default.
+   - **`@@NO_TAGS true`** — no tags exist, so there is nothing to detect. Pick a
+     starting scheme and carry it forward: month-based (first tag
+     `v{YEAR}.{MONTH}.1`, using `@@YEAR`/`@@MONTH`) or semver (first tag
+     `v0.1.0`, or `v1.0.0` for production-ready). Do not stop to ask. The choice
+     goes to the user in step 6 alongside the notes, with the alternative named.
 
    - **`@@SCHEME month`** — `@@NEXT_TAG` is already computed (next serial for the
      current month, padding matched to existing tags). Use it as-is.
@@ -46,9 +47,9 @@ approval. You never push the tag or run any publishing tooling.
      State your recommendation with a one-line justification, and list the other
      candidates so the user can override.
 
-4. **Confirm the scheme.** Since the scheme is auto-detected, tell the user which
-   scheme was detected (and, for semver, your recommended bump) before drafting
-   notes. Let them correct it.
+4. Do not stop here to confirm the scheme. Nothing about drafting the notes
+   depends on the tag name, so a separate confirmation buys nothing and costs
+   the user a round trip. Carry the scheme into step 6 instead.
 
 5. Draft release notes from `@@GIT_LOG`:
    - First line: `YYYY-MM-DD:` (from `@@TODAY`).
@@ -61,9 +62,14 @@ approval. You never push the tag or run any publishing tooling.
      voice. To check tone, inspect a recent tag's message with
      `git tag -l -n99 <latest_tag>` (latest tag is in `@@LATEST_TAG`).
 
-6. **Checkpoint — approval required.** Present the proposed tag name and the
-   release notes. Wait for approval or edits. Do not create the tag until the
-   user confirms.
+6. **Checkpoint — approval required.** This is the skill's only interruption.
+   Present all of it together:
+   - The scheme, and how it was determined: detected from existing tags, or
+     chosen because no tags exist.
+   - The proposed tag name, plus the other candidates for semver.
+   - The drafted release notes.
+
+   Wait for approval or edits. Do not create the tag until the user confirms.
 
 7. After approval, create the annotated tag:
    ```
@@ -80,6 +86,8 @@ approval. You never push the tag or run any publishing tooling.
 
 - Never push tags or run release/publish tooling — tag creation is the last step.
 - Never create a tag before the user approves the name and notes.
+- Step 6 is the only checkpoint. Scheme, tag, and notes are approved together in
+  one pass, not in separate rounds.
 - If the script reports a dirty tree or no commits since the last tag, relay that
   and stop; do not work around it.
 - The user's bump choice always overrides your semver recommendation.

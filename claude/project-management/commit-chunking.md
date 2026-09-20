@@ -46,12 +46,23 @@ Stop if there are no unmerged commits.
 3. **Ambiguous commits** that could belong to either of two adjacent chunks:
    - Prerequisite work goes with the chunk that needs it.
    - Cleanup goes with the chunk it cleans up.
-   - If genuinely unclear, ask the user with surrounding context.
+   - If genuinely unclear, make the call and flag it. See "Flagging Judgment
+     Calls" below.
 
 ## Constraints
 
 - Chronological order only. Never reorder, combine, or split commits.
-- If a chunk seems unusually large or small, ask the user.
+
+## Flagging Judgment Calls
+
+Never stop mid-analysis to ask. This process produces output, not changes, so a
+wrong call costs the user one line of correction. Interrupting them five times
+costs far more.
+
+Work through all 50 commits, then surface every judgment call at once, after the
+chunks. Keep it to one line each, naming the commit and the two chunks it sat
+between, or the chunk whose size looks off. The user corrects what they care
+about in a single reply.
 
 ## Output Format
 

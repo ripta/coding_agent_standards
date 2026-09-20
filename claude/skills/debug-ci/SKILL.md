@@ -25,9 +25,11 @@ If `$ARGUMENTS` is a number, that is the PR number. Otherwise:
 
 1. Fetch PR details: `gh pr view <number> --json title,headRefName,number`
 2. Extract the title and branch name from the PR metadata (not from local git)
-3. Use AskUserQuestion to confirm with the user:
+3. If `$ARGUMENTS` named the PR number, the user already told you which PR they
+   meant. State it in one line and keep going. Do not ask.
+4. Only when the PR was inferred from the current branch, use AskUserQuestion:
    "Debugging CI for PR #N: `<title>` (branch: `<branch>`). Is this correct?"
-4. If the user says no, stop
+5. If the user says no, stop
 
 ### Step 3: Check Status
 

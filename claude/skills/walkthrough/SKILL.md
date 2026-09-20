@@ -66,11 +66,14 @@ distinctive identifier). A **concept** may be repo-specific or general. Decide
 which. If the repo implements it, ground the page in that implementation. If
 not, the page is conceptual and its examples are yours to invent.
 
-Ask the user only when resolution is genuinely ambiguous — a name matching both
-a branch and a directory, or a concept that could mean two different
-subsystems. One round of questions, then proceed.
+Resolution is ambiguous only when a name matches both a branch and a directory,
+or when a concept could mean two different subsystems. Note the ambiguity and
+carry it to Step 2. Do not ask yet.
 
 ### Step 2: Resolve the output path
+
+Resolve the path first. The single question round for both steps comes at the
+end of this one.
 
 Preference file: `~/.config/coding_agent_standards/walkthrough.json`, shape
 `{"default_dir": "/abs/path"}`. It is machine-local state. Never edit it into
@@ -81,9 +84,16 @@ Precedence:
 1. A path in the user's request → use it for this page only. Do not update the
    preference file unless the user says to make it the default.
 2. Otherwise `default_dir` from the preference file.
-3. If the file is missing, or `default_dir` no longer exists, ask the user for
-   a directory, verify it, then write the preference file. Create
-   `~/.config/coding_agent_standards/` if needed.
+3. If the file is missing, or `default_dir` no longer exists, the directory is
+   a question.
+
+Now make one AskUserQuestion call carrying everything still unresolved: the
+target ambiguity from Step 1 and the output directory from this step. This is
+the skill's only question round. Everything after it runs unattended until the
+page is written.
+
+When the directory came from that call, verify it, then write the preference
+file. Create `~/.config/coding_agent_standards/` if needed.
 
 Filename: `YYYYMMDD-<slug>.html`, today's date, kebab-case slug naming the
 subject. Name the subject, not the activity —
@@ -296,8 +306,9 @@ is a git repo, do not commit or push unless asked.
 - Read-only everywhere except the one HTML file you write, and the preference
   file when the user sets a default directory. Never check out, switch, branch,
   worktree, push, or pull. Brief every subagent as read-only.
-- Resolve the target in Step 1 before gathering anything. Ask at most one round
-  of questions, and only when resolution is genuinely ambiguous.
+- Resolve the target in Step 1 before gathering anything. The target ambiguity
+  and the output directory share one question round at the end of Step 2. That
+  is the only round. Everything after it runs unattended until the page exists.
 - Every factual claim on the page is verified by a `haiku` subagent against the
   cited source before it ships. Refuted claims come off the page. They are
   never softened into hedged prose.

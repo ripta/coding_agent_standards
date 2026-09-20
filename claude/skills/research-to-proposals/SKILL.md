@@ -12,11 +12,32 @@ You are a research analyst and proposal writer. You read research documents, ide
 
 ## Workflow
 
-### Step 1: Locate Research
+### Step 1: Detect, without asking
 
-If the user did not provide a research directory path, ask them for it using AskUserQuestion. Then read all documents in that directory.
+Do all of this before any question. Most answers are already on disk.
 
-### Step 2: Analysis
+1. **Research directory** — take it from the user's request if given. Otherwise look for likely candidates (`research/`, `docs/research/`, `spec/research/`).
+2. **Proposals directory** — look for an existing one (`spec/proposals/`, `docs/proposals/`, `proposals/`).
+3. **Prefix** — derive it from existing proposal filenames (e.g. `PROJ-001-*.md` → `PROJ`).
+4. **Number** — scan existing proposal filenames for the next sequential value.
+
+Items 2 through 4 do not depend on the research documents. Detect them before you read a single one.
+
+Report what you found in a few lines before asking anything.
+
+### Step 2: Ask once, up front
+
+Make a single AskUserQuestion call covering everything Step 1 left unresolved:
+
+- **Research directory** — only when the request gave none and detection found none.
+- **Proposals directory** — only when none exists. Offer the common locations as options.
+- **Prefix** — only when there are no existing proposals to derive it from. Propose one based on the project name (e.g. `PROJ`, `SVC`, `API`).
+
+Skip any question detection already answered. If detection answered everything, ask nothing.
+
+Then read all documents in the research directory.
+
+### Step 3: Analysis
 
 Read and synthesize the research documents. For each document, extract:
 - Key findings and conclusions
@@ -26,9 +47,9 @@ Read and synthesize the research documents. For each document, extract:
 
 Group related items that belong in a single proposal. Separate items that are distinct enough to warrant their own proposal.
 
-### Step 3: Outline
+### Step 4: Outline
 
-Present the user with a summary before writing anything:
+This is the one approval gate. Present the user with a summary before writing anything:
 - Number of proposals you plan to create
 - Proposed title for each
 - One-line description of each
@@ -36,17 +57,9 @@ Present the user with a summary before writing anything:
 
 Ask the user to confirm or adjust the split using AskUserQuestion. Do not proceed until the user approves.
 
-### Step 4: Draft
+### Step 5: Draft
 
-Determine where to write proposals:
-1. Look for an existing proposals directory (e.g., `spec/proposals/`, `docs/proposals/`, `proposals/`)
-2. If none found, ask the user where proposals should be written
-
-Determine the project prefix:
-1. Look at existing proposal files for a prefix pattern (e.g., `PROJ-001-*.md`)
-2. If no existing proposals, ask the user for the prefix (e.g., `PROJ`, `SVC`, `API`)
-
-Determine the next sequential number by scanning existing proposal filenames.
+Write to the directory, prefix, and starting number settled in Steps 1 and 2. Do not re-ask for any of them here.
 
 Read `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` and write each proposal following its "Proposal Document Format" section. That file is the only source for the format; this skill does not carry its own copy. If it cannot be read, stop and tell the user this skill is installed without its standards.
 
@@ -59,10 +72,11 @@ Rules for drafting:
 - Capture cross-proposal impact per `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` — note the impacted proposal and the specific section(s) it cares about, omitting the Impacts section entries when there are none
 - File naming: `PREFIX-NNN-short-description.md` (kebab-case)
 
-### Step 5: Review
+### Step 6: Review
 
 After writing all proposals, present a summary to the user:
 - List each proposal with its file path and title
 - Note which proposals are ready for design review vs. which have significant open questions
 - Highlight any cross-dependencies between proposals
-- Ask if the user wants to walk through any specific proposal in detail
+
+Close with a one-line offer to walk through any proposal in detail. Say it in prose and stop. Do not turn it into an AskUserQuestion call; the work is already done and the user can answer or ignore it.

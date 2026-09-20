@@ -22,25 +22,41 @@ The canonical format and rules live in `${CLAUDE_SKILL_DIR}/../../project-manage
 
 ### Step 2: Get the Description
 
-The description is passed as the skill's arguments. If arguments were provided, use them as the proposal's starting description. If no arguments were provided, ask the user for a one-or-two sentence description of the proposal using AskUserQuestion before continuing.
+The description is passed as the skill's arguments. If arguments were provided, use them as the proposal's starting description and move on.
 
-### Step 3: Locate Directory, Prefix, and Number
+If no arguments were provided, ask for a one-or-two sentence description using AskUserQuestion, on its own, before anything else. The description is a prerequisite, not a question: nothing below can be detected without knowing the subject. Every other question waits for the single call in Step 4.
 
-1. **Directory** — find the proposals directory by checking common locations (`spec/proposals/`, `docs/proposals/`, `proposals/`). If none exists, ask the user where proposals should live using AskUserQuestion, offering the common locations as options.
-2. **Prefix** — derive the project-specific token from existing proposal filenames (e.g. `HP-001-*.md` → `HP`). If there are no existing proposals, propose a short, distinguishable prefix based on the project name and confirm it with the user via AskUserQuestion (`PROJ` is permitted but discouraged when a more specific prefix fits). The prefix is fixed once chosen.
+### Step 3: Detect, without asking
+
+Do all of this before any question. Most answers are already on disk.
+
+1. **Directory** — find the proposals directory by checking common locations (`spec/proposals/`, `docs/proposals/`, `proposals/`).
+2. **Prefix** — derive the project-specific token from existing proposal filenames (e.g. `HP-001-*.md` → `HP`). The prefix is fixed once chosen.
 3. **Number** — scan existing proposal filenames for the highest number and use the next sequential value. Numbers are permanent and never reused. Match the zero-padding of existing files (e.g. `001` vs `01`).
+4. **Index** — note whether the proposals directory already has an `index.md`.
+5. **Codebase** — use Agent sub-tasks to scan for code, patterns, types, and conventions relevant to the proposal's domain, so the motivation and design are grounded in what exists.
+6. **Related proposals** — if the description references or depends on other proposals, read them to capture dependencies and cross-proposal impact.
 
-### Step 4: Gather Context
+Report what you found in a few lines before asking anything.
 
-Build enough understanding to write a coherent draft:
+### Step 4: Ask once, up front
 
-1. Use Agent sub-tasks to scan the codebase for code, patterns, types, and conventions relevant to the proposal's domain, so the motivation and design are grounded in what exists.
-2. If the description references or depends on other proposals, read them to capture dependencies and cross-proposal impact.
-3. Ask the user targeted follow-up questions via AskUserQuestion to fill real gaps — motivation, scope, constraints, known design decisions, and dependencies. Ask only what you cannot reasonably infer; do not interrogate. Anything that remains genuinely undecided becomes an open design question rather than a guess.
+Make a single AskUserQuestion call. Every question the proposal needs goes in that one call, before you draft anything. Do not ask, draft, then ask again.
+
+Skip any question the request or Step 3 already answered. If detection answered everything, ask nothing and go straight to the outline.
+
+Ask only from this set:
+
+- **Directory.** Only when no proposals directory exists. Offer the common locations as options.
+- **Prefix.** Only when there are no existing proposals to derive it from. Propose a short, distinguishable prefix based on the project name (`PROJ` is permitted but discouraged when a more specific prefix fits).
+- **Index.** Only when this is the first proposal and no `index.md` exists. Ask whether to create one.
+- **Gaps.** The targeted follow-ups that fill real holes — motivation, scope, constraints, known design decisions, dependencies. Ask only what you cannot reasonably infer; do not interrogate.
+
+Anything still undecided after this call becomes an open design question, not a guess. Four questions is the cap. When the gaps exceed what fits, ask the ones that most shape the design and record the rest as open questions.
 
 ### Step 5: Outline & Confirm
 
-Before writing the file, present a brief outline and confirm with AskUserQuestion:
+This is the one approval gate. Before writing the file, present a brief outline and confirm with AskUserQuestion:
 
 - The proposed ID (`PREFIX-NNN`) and title
 - One-line summary
@@ -64,7 +80,9 @@ Rules for drafting:
 
 ### Step 7: Index
 
-If this is the **first** proposal for the project (no `index.md` in the proposals directory), offer to create one per the "Proposal Index" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` — a table with Proposal/Description/Status columns. If an `index.md` already exists, add a row for the new proposal and keep it consistent.
+If an `index.md` already exists, add a row for the new proposal and keep it consistent.
+
+If this is the **first** proposal for the project, act on the index answer from Step 4. Create the index per the "Proposal Index" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` — a table with Proposal/Description/Status columns. Do not ask again here.
 
 ### Step 8: Report
 
@@ -80,6 +98,6 @@ Summarize:
 - Create exactly one proposal per invocation, in `draft` status.
 - Follow the format and rules in `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` exactly, unless the project defines its own deviation — then follow the project.
 - Never invent decisions to fill gaps; unresolved questions go in Design Decisions (Open) with candidate options.
-- Confirm the directory, prefix, and outline with the user before writing.
+- Detect before asking, then ask once. Directory, prefix, index, and design gaps share a single AskUserQuestion call in Step 4. The outline in Step 5 is the only later checkpoint.
 - Numbers are permanent and never reused; the prefix is fixed once chosen.
 - Use today's date for Created, Updated, and any Decision Log entries.
