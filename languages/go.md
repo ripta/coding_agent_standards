@@ -11,7 +11,8 @@
 ## Project Structure
 
 - Entry point in `cmd/<name>/main.go`, minimal wiring only
-- Application logic in `internal/` by default; use `pkg/` only when the package is explicitly intended for import by other Go modules
+- Application logic in `internal/` by default; use `pkg/` only when the package is explicitly intended for import by
+  other Go modules
 - Configuration parsed at command level, passed as structs via dependency injection
 - Libraries never call `os.Getenv()`; config flows top-down from the command layer
 

@@ -11,7 +11,7 @@
 
 ## Project Structure
 
-```
+```text
 src/
   main.ts               entry point and wiring only
   <domain>/             pure logic, no I/O
@@ -88,7 +88,8 @@ Start from this and change it only with a reason:
 - Use Biome for both formatting and linting. No ESLint, no Prettier.
 - Biome does not replace the type checker. `tsc --noEmit` stays in the gate.
 - Biome has no type-aware rules, so anything requiring types is `tsc`'s job.
-- Do not use Biome on `.svelte`, `.vue`, or `.astro` files. That support is still experimental. Those projects keep ESLint and Prettier.
+- Do not use Biome on `.svelte`, `.vue`, or `.astro` files. That support is still experimental. Those projects keep
+  ESLint and Prettier.
 
 Baseline `biome.json`:
 

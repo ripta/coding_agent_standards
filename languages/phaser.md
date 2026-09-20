@@ -15,7 +15,8 @@ major upgrade.
 - One class per Scene, one file per Scene, in `src/render/scenes/`
 - Give every Scene an explicit string `key`; never rely on the class name
 - Keep keys in one exported const object so transitions cannot typo a target
-- Lifecycle: `init(data)` for parameters, `preload()` for loading, `create()` for building, `update(time, delta)` for per-frame work
+- Lifecycle: `init(data)` for parameters, `preload()` for loading, `create()` for building, `update(time, delta)` for
+  per-frame work
 - `update()` renders from state. It does not advance simulation time.
 - Register teardown on `Phaser.Scenes.Events.SHUTDOWN`; remove every listener and timer you added
 - Pass data between scenes through `scene.start(key, data)`, not through module-level variables
@@ -24,7 +25,8 @@ major upgrade.
 
 - Build display objects once in `create()`; mutate them in `update()`
 - Never create or destroy game objects per frame
-- Set `depth` explicitly on anything that can overlap. For isometric projection, derive depth from the projected y coordinate.
+- Set `depth` explicitly on anything that can overlap. For isometric projection, derive depth from the projected y
+  coordinate.
 - Group related objects in a `Container` so they transform together
 - Destroy with `destroy(true)` to take children with it
 - Prefer `setVisible(false)` over destroy for anything that will come back

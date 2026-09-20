@@ -3,7 +3,8 @@
 ## Before Implementing
 
 - Validate that the solution actually solves the stated problem, not just that it's technically possible
-- Verify existing code is actually wrong before "fixing" it; trace through the logic to confirm the bug rather than shuffling code around
+- Verify existing code is actually wrong before "fixing" it; trace through the logic to confirm the bug rather than
+  shuffling code around
 
 ## During Implementation
 
@@ -13,26 +14,37 @@
 
 ## Refactoring
 
-Refactoring existing code is in scope by default, not a separate concern requiring special permission. Adding new code on top of a structure that should change is itself a design decision.
+Refactoring existing code is in scope by default, not a separate concern requiring special permission. Adding new code
+on top of a structure that should change is itself a design decision.
 
-- Evaluate whether existing code needs restructuring to support the change cleanly; do not pile new features onto code that has outgrown its shape
-- When a feature would be substantially cleaner after refactoring nearby code first, surface that in the plan rather than working around it
+- Evaluate whether existing code needs restructuring to support the change cleanly; do not pile new features onto code
+  that has outgrown its shape
+- When a feature would be substantially cleaner after refactoring nearby code first, surface that in the plan rather
+  than working around it
 - Treat structural improvements with the same weight as feature additions when scoping work
 - Do not defer refactoring to a hypothetical "future cleanup" pass when it is the right tool for the current task
 
-Refactoring still follows the decision-making rules: propose the refactor and its scope before doing it, and do not silently expand a feature task into a sweeping rewrite.
+Refactoring still follows the decision-making rules: propose the refactor and its scope before doing it, and do not
+silently expand a feature task into a sweeping rewrite.
 
 ## Output Style
 
 - Avoid emojis in output
 - Do not include references to phase or milestone numbers in code or comments; those are project management artifacts
-- Preserve the tone, wording, and style of existing comments that are not being changed; keep user voice exactly as written
-- Separate logical blocks of code with blank lines; let the code breathe. Do not squash statements together to save vertical space. When a run of statements shifts from one logical step to the next, put a blank line between them. Newlines cost nothing. This applies in every language, not just one construct or syntax
+- Preserve the tone, wording, and style of existing comments that are not being changed; keep user voice exactly as
+  written
+- Separate logical blocks of code with blank lines; let the code breathe. Do not squash statements together to save
+  vertical space. When a run of statements shifts from one logical step to the next, put a blank line between them.
+  Newlines cost nothing. This applies in every language, not just one construct or syntax
 
 ## Comments
 
-- Never narrate the code with comments. Do not label lines or blocks with what they do next, such as `// Finished line`, `// Last line:`, `// loop over items`, or `// return the result`. This applies to every language. The reader can see what the code does; a comment that only restates the next statement is pure noise. Never add them, and remove them from code you are changing
-- Do not add comments that restate what the code already says; if variable names and control flow make the intent clear, a comment is noise
+- Never narrate the code with comments. Do not label lines or blocks with what they do next, such as `// Finished line`,
+  `// Last line:`, `// loop over items`, or `// return the result`. This applies to every language. The reader can see
+  what the code does; a comment that only restates the next statement is pure noise. Never add them, and remove them
+  from code you are changing
+- Do not add comments that restate what the code already says; if variable names and control flow make the intent clear,
+  a comment is noise
 - Only add comments where the logic is non-obvious or the "why" is not evident from the code
 - Do not use parenthesized asides in comments; rewrite as natural prose that flows as part of the sentence
 - Good comments document design facts that are hard to recover from local code:

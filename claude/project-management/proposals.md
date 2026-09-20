@@ -4,7 +4,7 @@ A proposal describes a feature or change at the design level before implementati
 
 ## Lifecycle
 
-```
+```text
 draft → designing → accepted → scheduled → implemented
                        ↓
                deferred / rejected
@@ -99,31 +99,48 @@ should be extracted to an ADR and referenced here.
 
 ## Deferring Decisions
 
-When a design question cannot be resolved at proposal time and is intentionally deferred, the deferral must point at a concrete revisit mechanism. Vague deferrals like "revisit if needed" or "we'll see in implementation" are not acceptable, because the question gets forgotten.
+When a design question cannot be resolved at proposal time and is intentionally deferred, the deferral must point at a
+concrete revisit mechanism. Vague deferrals like "revisit if needed" or "we'll see in implementation" are not
+acceptable, because the question gets forgotten.
 
 Acceptable revisit hooks include:
 
 - A specific milestone in the proposal that revisits the question (e.g., "validated under PROJ-004 M5")
-- A named follow-up proposal that will be filed to capture the resolution (e.g., "if X is observed, file PROJ-NNN with the chosen mitigation")
-- A condition tied to a specific artifact, such as golden output review or a performance benchmark, that determines when the question is reopened
+- A named follow-up proposal that will be filed to capture the resolution (e.g., "if X is observed, file PROJ-NNN with
+  the chosen mitigation")
+- A condition tied to a specific artifact, such as golden output review or a performance benchmark, that determines when
+  the question is reopened
 
-Every deferred question must move from the Open section to the Settled section as a "decision to defer" with the revisit hook captured both in the settled entry and in the Decision Log.
+Every deferred question must move from the Open section to the Settled section as a "decision to defer" with the revisit
+hook captured both in the settled entry and in the Decision Log.
 
 ## Risks
 
-Every proposal carries a Risks section describing what could go wrong with the design — not implementation bugs, but design-level exposure: wrong assumptions, one-way doors, blast radius, failure modes nobody would notice.
+Every proposal carries a Risks section describing what could go wrong with the design — not implementation bugs, but
+design-level exposure: wrong assumptions, one-way doors, blast radius, failure modes nobody would notice.
 
-- Each risk states a **likelihood** and an **impact** (low/medium/high) and carries either a **mitigation** (how the risk is reduced or detected early) or an explicit **acceptance** with rationale. A risk with neither is an open design question and belongs in Design Decisions (Open) instead.
-- One-way-door decisions — hard or impossible to reverse after shipping, such as schema or data migrations, published API contracts, wire formats, or data backfills — must appear as risks unless the design itself removes the irreversibility (e.g., a down-migration, versioned contract, or feature flag), in which case the settled decision notes that.
+- Each risk states a **likelihood** and an **impact** (low/medium/high) and carries either a **mitigation** (how the
+  risk is reduced or detected early) or an explicit **acceptance** with rationale. A risk with neither is an open design
+  question and belongs in Design Decisions (Open) instead.
+- One-way-door decisions — hard or impossible to reverse after shipping, such as schema or data migrations, published
+  API contracts, wire formats, or data backfills — must appear as risks unless the design itself removes the
+  irreversibility (e.g., a down-migration, versioned contract, or feature flag), in which case the settled decision
+  notes that.
 - "None identified" is acceptable only with a one-sentence reason (e.g., purely additive tooling with no consumers).
-- A risk rated high likelihood and high impact blocks advancing the proposal to `accepted` until it is mitigated or explicitly accepted, with the acceptance recorded in the Decision Log.
-- Deferring a risk's mitigation follows the same rules as deferring a decision: it needs a concrete revisit hook (see "Deferring Decisions").
+- A risk rated high likelihood and high impact blocks advancing the proposal to `accepted` until it is mitigated or
+  explicitly accepted, with the acceptance recorded in the Decision Log.
+- Deferring a risk's mitigation follows the same rules as deferring a decision: it needs a concrete revisit hook (see
+  "Deferring Decisions").
 
 ## Cross-Proposal Impact
 
-When a design decision in one proposal would change later proposals, the first proposal must note this. If proposal A has a decision that affects proposals B and C, A's text says so, and B and C are updated at the time A is decided, reviewed, or designed.
+When a design decision in one proposal would change later proposals, the first proposal must note this. If proposal A
+has a decision that affects proposals B and C, A's text says so, and B and C are updated at the time A is decided,
+reviewed, or designed.
 
-The Dependencies section already captures one direction (Y depends on X). The reverse — that X knows Y cares about a specific part of X — is worth capturing too. Note the impacted proposal *and* the specific section(s) of this proposal it cares about, not the entirety (unless that's accurate).
+The Dependencies section already captures one direction (Y depends on X). The reverse — that X knows Y cares about a
+specific part of X — is worth capturing too. Note the impacted proposal *and* the specific section(s) of this proposal
+it cares about, not the entirety (unless that's accurate).
 
 This is a recommended practice, not a strict requirement. Prioritize it on:
 
@@ -132,18 +149,22 @@ This is a recommended practice, not a strict requirement. Prioritize it on:
 
 For small projects with one proposal in flight at a time, the maintenance cost usually isn't worth it.
 
-Rot is expected. The list of impacted proposals can grow stale as work progresses. When drift is obvious while editing a proposal, fix or remove the stale references opportunistically, even if cleanup wasn't why you opened the file. If rot becomes unmanageable, this approach may be replaced with something else.
+Rot is expected. The list of impacted proposals can grow stale as work progresses. When drift is obvious while editing a
+proposal, fix or remove the stale references opportunistically, even if cleanup wasn't why you opened the file. If rot
+becomes unmanageable, this approach may be replaced with something else.
 
 ## Proposal Index
 
-When creating the first proposal for a project, create an `index.md` in the proposals directory, even if this is the only proposal that will ever exist.
+When creating the first proposal for a project, create an `index.md` in the proposals directory, even if this is the
+only proposal that will ever exist.
 
 Contents:
 
 - Optional link to a glossary or other shared references at the top
 - A table with columns: Proposal, Description, Status
 - One row per proposal, with the proposal ID linking to its file
-- An optional dependency graph section for active proposals, topologically ordered with arrows (`←`) pointing to dependencies; omit implemented proposals
+- An optional dependency graph section for active proposals, topologically ordered with arrows (`←`) pointing to
+  dependencies; omit implemented proposals
 
 Example table:
 

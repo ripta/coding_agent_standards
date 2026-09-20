@@ -11,7 +11,7 @@
 
 ## Project Structure
 
-```
+```text
 src/<package_name>/
   __init__.py
   py.typed              # PEP 561 marker
@@ -68,6 +68,7 @@ Makefile
 
 - Use `ruff` for both formatting and linting; no black, flake8, or isort
 - Configure in `pyproject.toml`:
+
   ```toml
   [tool.ruff]
   target-version = "py313"
@@ -76,7 +77,9 @@ Makefile
   [tool.ruff.lint]
   select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
   ```
-- Makefile targets: `make fmt` (`uv run ruff format .`), `make lint` (`uv run ruff check .`), `make fix` (`uv run ruff check --fix .`)
+
+- Makefile targets: `make fmt` (`uv run ruff format .`), `make lint` (`uv run ruff check .`), `make fix`
+  (`uv run ruff check --fix .`)
 
 ## Build & Distribution
 

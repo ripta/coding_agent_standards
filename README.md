@@ -6,7 +6,7 @@ rules.
 
 ## Structure
 
-```
+```text
 coding_agent_standards/
 ├── languages/          Language-specific standards
 ├── practices/          Cross-cutting practices
@@ -88,6 +88,7 @@ them at `${CLAUDE_PLUGIN_ROOT}/...` rather than restating them. Keeping one copy
 from drifting apart on the same commit-message rules.
 
 Note the distinction between `.claude/` and `claude/`:
+
 - **`.claude/`** is the standard Claude Code project config directory. Skills and settings here apply when working
   **in this repo** (e.g., `standards-synthesizer` for onboarding new languages).
 - **`claude/`** contains skills, commands, hooks, rules, and settings **exported to other projects** that reference this
@@ -154,13 +155,13 @@ part of the repo name, and it fails with `is not a valid GitHub owner/repo short
 
 First register the marketplace:
 
-```
+```text
 /plugin marketplace add ripta/coding_agent_standards
 ```
 
 Then install the plugin from it:
 
-```
+```text
 /plugin install coding-standards@coding-standards
 ```
 
@@ -180,7 +181,7 @@ the plugin version works for you.
 
 Installed plugins are cached copies, not live references. After changes land in the repo:
 
-```
+```text
 /plugin marketplace update coding-standards
 ```
 

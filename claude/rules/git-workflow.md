@@ -8,5 +8,6 @@
 
 ## Destructive Operations
 
-- Do not run `git reset --hard`, `git checkout .`, `git clean -f`, `git push --force`, or `git branch -D` unless the user explicitly requests it
+- Do not run `git reset --hard`, `git checkout .`, `git clean -f`, `git push --force`, or `git branch -D` unless the
+  user explicitly requests it
 - Warn the user before any operation that discards uncommitted changes

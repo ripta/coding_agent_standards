@@ -63,7 +63,8 @@ Determinism is a checklist, not an aspiration. Write the list down and test it.
 - Split them into content-time checks and runtime checks
 - Content-time checks run at load and refuse to start on failure
 - Runtime checks assert every tick in development builds and compile out of release builds
-- Add each invariant alongside the build step that makes it checkable. Retrofitting a full suite finds violations that already look like features.
+- Add each invariant alongside the build step that makes it checkable. Retrofitting a full suite finds violations that
+  already look like features.
 
 ## Testing
 

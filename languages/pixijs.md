@@ -12,7 +12,8 @@ pipeline.
 - Pixi is a renderer. It owns the display list and nothing else.
 - Game logic lives in the simulation layer and knows nothing about Pixi
 - See [`game-simulation.md`](../practices/game-simulation.md) for the split and its enforcement
-- Pixi supplies no scene lifecycle, input abstraction, or game loop discipline. Build those explicitly rather than letting them accrete in the ticker callback.
+- Pixi supplies no scene lifecycle, input abstraction, or game loop discipline. Build those explicitly rather than
+  letting them accrete in the ticker callback.
 
 ## Application
 
@@ -25,7 +26,8 @@ pipeline.
 ## Scene Graph
 
 - Group by logical layer: one `Container` per layer, added to `app.stage` in draw order
-- Set `sortableChildren = true` only on containers that need it, then set `zIndex` on children. Sorting every container is wasted work.
+- Set `sortableChildren = true` only on containers that need it, then set `zIndex` on children. Sorting every container
+  is wasted work.
 - For isometric projection, derive `zIndex` from the projected y coordinate
 - Build the graph once; mutate transforms per frame
 - Never add or remove display objects per frame. Toggle `visible` instead.
@@ -55,7 +57,8 @@ pipeline.
 
 ## Input
 
-- Set `eventMode` explicitly (`"static"` for clickable, `"none"` for the rest). The default costs hit-testing on every object.
+- Set `eventMode` explicitly (`"static"` for clickable, `"none"` for the rest). The default costs hit-testing on every
+  object.
 - Set `eventMode: "none"` on decorative layers
 - Input produces intents. The simulation consumes intents on the next tick.
 - Never mutate simulation state from an event handler.

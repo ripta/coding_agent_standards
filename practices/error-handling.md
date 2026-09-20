@@ -9,7 +9,8 @@
 ## When to Fail Fast vs. Collect All
 
 - **Fail fast** for runtime errors (I/O, network, database): return on first error with context
-- **Collect all** for validation errors (config parsing, user input, schema checks): gather every error before returning so the user can fix them in one pass
+- **Collect all** for validation errors (config parsing, user input, schema checks): gather every error before returning
+  so the user can fix them in one pass
 
 ## Error Wrapping
 

@@ -1,10 +1,11 @@
 # cgo / gomobile Standards
 
-Standards for Go projects that expose functionality through C ABI interfaces, including c-archive builds and gomobile bindings.
+Standards for Go projects that expose functionality through C ABI interfaces, including c-archive builds and gomobile
+bindings.
 
 ## Project Structure
 
-```
+```text
 cmd/<name>/main.go           # Optional: standalone Go binary for testing
 internal/                    # Pure Go implementation (no cgo here)
 bridge/                      # cgo export layer: thin wrappers with //export

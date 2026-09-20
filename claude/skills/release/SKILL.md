@@ -53,7 +53,7 @@ approval. You never push the tag or run any publishing tooling.
 
 5. Draft release notes from `@@GIT_LOG`:
    - First line: `YYYY-MM-DD:` (from `@@TODAY`).
-   - Blank line, then `- ` bullets for distinct changes.
+   - Blank line, then `-` bullets for distinct changes.
    - Collapse related commits into single bullets.
    - Skip merge commits (subjects starting with "Merge pull request" / "Merge branch").
    - Collapse dependency bumps into one "Regular deps upgrades" bullet, unless
@@ -72,7 +72,8 @@ approval. You never push the tag or run any publishing tooling.
    Wait for approval or edits. Do not create the tag until the user confirms.
 
 7. After approval, create the annotated tag:
-   ```
+
+   ```text
    git tag -a <tag> -m "$(cat <<'EOF'
    <release notes>
    EOF
