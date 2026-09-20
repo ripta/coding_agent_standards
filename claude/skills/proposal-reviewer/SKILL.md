@@ -176,6 +176,7 @@ List any ADRs created with their file paths.
 
 ## Rules
 
+- This skill is the deliberate exception to the frontloading rule in `rules/decision-making.md`. Resolving one design question at a time, with research and discussion between each, is the product rather than a defect. Do not batch the Step 5 loop into a single up-front call, and do not "fix" this skill to ask less
 - Never make a decision without explicit user confirmation via AskUserQuestion. This covers the choice of option for a question. It does not cover which question to take up next
 - Default to working through all open questions in foundational order. Ask which question comes next only when the user explicitly chose to pick them one at a time. If the chosen mode is ever unclear, fall back to working through all
 - Never advance a proposal to `accepted` without the risk review: Risks section compliant, and no high-likelihood/high-impact risk left unmitigated and unaccepted

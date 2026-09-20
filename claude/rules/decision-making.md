@@ -27,7 +27,7 @@ Use the AskUserQuestion tool for structured questions when encountering:
 
 - Present 2-4 concrete options with trade-offs described
 - Recommend an option when you have a clear preference (mark it)
-- Group related questions into a single AskUserQuestion call (up to 4 questions)
+- Put every question the task needs into a single AskUserQuestion call (up to 4 questions), not just the related ones
 - Never ask open-ended questions when structured options work
 - When the user asks to chat after a question, do not immediately ask another question; do not assume the user is done discussing
 
@@ -69,6 +69,19 @@ Only the user can lower the bar. Never infer that the user wants the expedient o
 - **For a document:** a proposal or phase document carries a `**Tradeoffs:** expedient` field with a stated reason. The override applies to work driven by that document
 
 Under an override, rank implementation cost second, above robustness and maintainability. Correctness stays first: an expedient option may be less reliable or less polished, but it must not put data at risk. Still include the complete option, labeled as such, so the user sees what they are giving up.
+
+## Frontload Questions
+
+Gather first, then ask once. Detection is cheaper than the user's attention.
+
+- Do everything you can without asking. Read the repo, run the detection commands, check preference files, scan for existing conventions. Most answers are already on disk
+- Collect every question the task needs. Ask them in one AskUserQuestion call, before you produce any work
+- Do not ask, work, then ask again. A second round of questions means the first round was incomplete
+- Skip any question the request or your own detection already answered. Report what you found in a line or two instead
+- When a task needs more than four questions, ask the four that unblock the most work. Derive the rest, or state them as explicit assumptions the user can correct
+- One approval checkpoint after the work is drafted is fine. That is a review gate, not a second question round
+
+The exception is work whose whole purpose is back-and-forth. A design review that resolves one question at a time is doing its job, not scattering attention. Frontload its entry gates anyway -- which document, which mode, where to start -- then run the interactive loop.
 
 ## When Corrected
 
