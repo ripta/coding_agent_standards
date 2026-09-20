@@ -98,7 +98,8 @@ them as real list items.
 
 `rumdl` checks markdown structure: heading style, list markers, line length,
 proper-noun casing. Vale checks prose shape in markdown and in code comments.
-They do not overlap. Run both.
+They do not overlap. Run both. See `rumdl/README.md` for its config and runner,
+which mirror this directory.
 
 `claude/agents/reviewer.md` keeps the comment checks that need judgment. Whether
 a comment restates the code. Whether it sits on the right function. Whether the

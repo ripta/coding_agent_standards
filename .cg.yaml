@@ -1,5 +1,6 @@
 version: 1
 allow:
+  - prefix: [./rumdl/lint-markdown]
   - prefix: [ls]
   - prefix: [pnpm]
   - prefix: [python3]

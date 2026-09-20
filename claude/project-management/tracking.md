@@ -52,7 +52,8 @@ Each artifact type uses inline markdown metadata (not YAML frontmatter), but the
 
 - Proposals: `**Status:**`, `**Created:**`, `**Updated:**`
 - ADRs: `**Status:**`, `**Date:**`
-- Phases: `**Goal:**`, `**Status:**`, `**Complexity:**`, `**Dependencies:**` (no document-level dates; rely on git history)
+- Phases: `**Goal:**`, `**Status:**`, `**Complexity:**`, `**Dependencies:**` (no document-level dates; rely on git
+  history)
 
 The colon goes inside the bold, in every artifact type and every field.
 
@@ -82,20 +83,35 @@ Padding width differs by artifact type. This is deliberate, not an oversight:
 
 - ADRs: 2-digit (`ADR-01`) — architectural decisions are comparatively rare per project.
 - Proposals: 3-digit (`PROJ-001`) — proposal volume is typically higher over a project's lifetime.
-- Phases: unpadded (`Phase 12`) — phases are referenced in prose and status tables, not sorted as filenames the same way IDs are.
+- Phases: unpadded (`Phase 12`) — phases are referenced in prose and status tables, not sorted as filenames the same way
+  IDs are.
 
 Keep each artifact type's padding fixed once established; do not repad existing files.
 
 ## Specs Directory
 
-Spec and design documents may live in a centralized specs directory, symlinked into each project's `spec/` or `docs/` directory. This keeps individual repos uncluttered while maintaining a single source of truth. If neither `spec/` nor `docs/` are symlinks, then it means the documents live in the project repository and are committed directly there.
+Spec and design documents may live in a centralized specs directory, symlinked into each project's `spec/` or `docs/`
+directory. This keeps individual repos uncluttered while maintaining a single source of truth. If neither `spec/` nor
+`docs/` are symlinks, then it means the documents live in the project repository and are committed directly there.
 
-Proposals and phases each live in their own subdirectory under this specs directory: `spec/proposals/` and `spec/phases/` (or the `docs/` equivalent). This is why the proposal-related skills and commands look for `spec/proposals/` and `docs/proposals/` as common locations — they're checking for this directory. ADRs are usually named `spec/adrs/`, although legacy projects have no fixed subdirectory name; place them alongside any existing ADRs, or ask where they should live if none exist yet.
+Proposals and phases each live in their own subdirectory under this specs directory: `spec/proposals/` and
+`spec/phases/` (or the `docs/` equivalent). This is why the proposal-related skills and commands look for
+`spec/proposals/` and `docs/proposals/` as common locations — they're checking for this directory. ADRs are usually
+named `spec/adrs/`, although legacy projects have no fixed subdirectory name; place them alongside any existing ADRs, or
+ask where they should live if none exist yet.
 
 ## Markdown Quality
 
-- Use a markdown linter (e.g., rumdl) with a shared config
+- Use a markdown linter with a shared config. The config is `rumdl/rumdl.toml.template` in the coding standards repo;
+  copy it to `.rumdl.toml` at the project root. See `rumdl/README.md` for setup and for why it is copied rather than
+  symlinked
 - ATX-style headings (`#`)
 - Dash-style unordered lists (`-`)
 - Line length: 120 characters (excluding code blocks)
 - GitHub Flavored Markdown
+
+The 120 here governs markdown prose only. Code and code comments wrap at 100, which `claude/rules/work-discipline.md`
+sets and each language's formatter enforces. The two numbers are independent.
+
+Configure the linter rather than trusting its defaults. rumdl's built-in MD013 width is 80, so a project that ships no
+`.rumdl.toml` enforces 80 while documenting 120, and the run still looks clean.

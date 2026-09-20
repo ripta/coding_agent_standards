@@ -1,8 +1,14 @@
-# rumdl configuration.
+# rumdl configuration for projects following coding_agent_standards.
 #
-# Kept in sync with rumdl/rumdl.toml.template, which is the copy other projects
-# take. rumdl has no config inheritance, so this is a real copy rather than a
-# symlink. Change the template and this file together.
+# Copy this file to .rumdl.toml at the repo root. rumdl discovers that name on
+# its own, so no flag is needed:
+#
+#   cp ~/projects/coding_agent_standards/rumdl/rumdl.toml.template .rumdl.toml
+#
+# rumdl has no config inheritance. Passing `--config <path>` REPLACES the
+# discovered .rumdl.toml rather than merging with it, so a symlink back to this
+# template would silently drop a project's own per-file-ignores. Each project
+# keeps a real copy and re-syncs by hand when this template changes.
 #
 # Only deviations from the defaults belong here. Run `rumdl config --defaults`
 # to see the baseline, and `rumdl config --no-defaults` to see what this file
@@ -25,6 +31,13 @@ code-blocks = false
 
 # Reflow lets `rumdl fmt` rewrap over-long paragraphs, which turns adoption into
 # one command instead of a manual pass over every finding.
+#
+# It only rewraps paragraphs that contain a violation. Paragraphs already under
+# the limit are left byte-for-byte alone, so a file hand-wrapped at 80 stays
+# hand-wrapped at 80.
+#
+# Turn this off in a project that uses semantic line breaks, where one sentence
+# per line is deliberate and joining them up to 120 would destroy the intent.
 reflow = true
 
 [per-file-ignores]
@@ -41,9 +54,8 @@ reflow = true
 # only relocates the complaint to the first `##`. So the rule is ignored for
 # these paths rather than weakened everywhere.
 #
-# MD041 stays on for ordinary prose docs (README, languages/, practices/,
-# profiles/, claude/rules/, claude/project-management/), all of which do open
-# with an h1 today.
+# Drop the entries a project does not have. MD041 should stay on for ordinary
+# prose docs, which do open with an h1.
 "**/SKILL.md" = ["MD041"]
-"claude/agents/*.md" = ["MD041"]
-"claude/commands/*.md" = ["MD041"]
+".claude/agents/*.md" = ["MD041"]
+".claude/commands/*.md" = ["MD041"]

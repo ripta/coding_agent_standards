@@ -1,6 +1,8 @@
 # Coding Agent Standards
 
-Personal coding standards, best practices, and coding agent configuration for use across projects. This repo acts as a single source of truth for language conventions, development practices, project management SOPs, and AI agent behavior rules.
+Personal coding standards, best practices, and coding agent configuration for use across projects. This repo acts as a
+single source of truth for language conventions, development practices, project management SOPs, and AI agent behavior
+rules.
 
 ## Structure
 
@@ -21,6 +23,8 @@ coding_agent_standards/
 │   └── skills/              Skill definitions
 ├── codex/              Codex skills with no Claude Code equivalent (exported as a Codex plugin)
 ├── profiles/           Composable project profiles
+├── rumdl/              Shared markdown lint config and runner
+├── vale/               Shared prose lint styles and runner
 └── bin/                Utility scripts
 ```
 
@@ -66,28 +70,42 @@ Standards for planning and tracking work:
 Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
 
 - **Rules** (`rules/`) -- decision-making boundaries, work discipline, git workflow, commit/PR style, writing voice
-- **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. The `block-broad-find`, `block-redirection`, and `cg-check` guard scripts ship alongside it; see `claude/hooks/README.md` for which are wired by default
-- **Settings** (`settings/`) -- permission whitelist templates to copy into a project's `.claude/settings.local.json`, one per language ecosystem
+- **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. The
+  `block-broad-find`, `block-redirection`, and `cg-check` guard scripts ship alongside it; see `claude/hooks/README.md`
+  for which are wired by default
+- **Settings** (`settings/`) -- permission whitelist templates to copy into a project's `.claude/settings.local.json`,
+  one per language ecosystem
 - **Scripts** (`scripts/`) -- standalone scripts not tied to a hook, currently the statusline
-- **Skills** (`skills/`) -- specialized agents for code review, testing, linting, Makefile maintenance, releases, proposals, etc.
+- **Skills** (`skills/`) -- specialized agents for code review, testing, linting, Makefile maintenance, releases,
+  proposals, etc.
 - **Agents** (`agents/`) -- subagent definitions invoked by name, currently `reviewer` for post-milestone diff review
-- **Commands** (`commands/`) -- slash commands for driving a phase milestone (`work-on`), working through a queue of milestones planned up front (`work-queue`), summarizing a session as a commit message (`summary`), and chunking an integration branch into PRs (`next-pr`)
+- **Commands** (`commands/`) -- slash commands for driving a phase milestone (`work-on`), working through a queue of
+  milestones planned up front (`work-queue`), summarizing a session as a commit message (`summary`), and chunking an
+  integration branch into PRs (`next-pr`)
 
-Commands stay thin. The rules they enforce live in `claude/rules/` and `claude/project-management/`, and a command reads them at `${CLAUDE_PLUGIN_ROOT}/...` rather than restating them. Keeping one copy is what stops `/summary` and `/work-on` from drifting apart on the same commit-message rules.
+Commands stay thin. The rules they enforce live in `claude/rules/` and `claude/project-management/`, and a command reads
+them at `${CLAUDE_PLUGIN_ROOT}/...` rather than restating them. Keeping one copy is what stops `/summary` and `/work-on`
+from drifting apart on the same commit-message rules.
 
 Note the distinction between `.claude/` and `claude/`:
-- **`.claude/`** is the standard Claude Code project config directory. Skills and settings here apply when working **in this repo** (e.g., `standards-synthesizer` for onboarding new languages).
-- **`claude/`** contains skills, commands, hooks, rules, and settings **exported to other projects** that reference this repo via `--add-dir` or `@import`.
+- **`.claude/`** is the standard Claude Code project config directory. Skills and settings here apply when working
+  **in this repo** (e.g., `standards-synthesizer` for onboarding new languages).
+- **`claude/`** contains skills, commands, hooks, rules, and settings **exported to other projects** that reference this
+  repo via `--add-dir` or `@import`.
 
 ### Codex Configuration
 
-`codex/` holds skills that only run under Codex, packaged as a Codex plugin. A skill lands here when it depends on something Codex has and Claude Code does not. `expand-lore-wiki` is the current example. It calls Codex's built-in `imagegen` skill, and Claude Code has no image generation to port it to.
+`codex/` holds skills that only run under Codex, packaged as a Codex plugin. A skill lands here when it depends on
+something Codex has and Claude Code does not. `expand-lore-wiki` is the current example. It calls Codex's built-in
+`imagegen` skill, and Claude Code has no image generation to port it to.
 
-Codex skills carry an `agents/openai.yaml` next to `SKILL.md`. That file holds the display name and short description Codex shows in its own UI, and Claude Code ignores it.
+Codex skills carry an `agents/openai.yaml` next to `SKILL.md`. That file holds the display name and short description
+Codex shows in its own UI, and Claude Code ignores it.
 
 ### Profiles
 
-Composable profiles that bundle the right standards for a given project type. Each profile imports a baseline plus relevant language and practice standards:
+Composable profiles that bundle the right standards for a given project type. Each profile imports a baseline plus
+relevant language and practice standards:
 
 | Profile | Stack |
 |---|---|
@@ -122,11 +140,17 @@ For repos you don't own, use `CLAUDE.local.md` (auto-gitignored by Claude Code) 
 
 ### Installing the Claude Code Plugin
 
-The skills, hooks, and agents under `claude/` are packaged as a Claude Code plugin named `coding-standards`. The marketplace manifest lives at the repo root (`.claude-plugin/marketplace.json`) and points at `./claude` as the plugin source.
+The skills, hooks, and agents under `claude/` are packaged as a Claude Code plugin named `coding-standards`. The
+marketplace manifest lives at the repo root (`.claude-plugin/marketplace.json`) and points at `./claude` as the plugin
+source.
 
-Only `claude/` is copied into the plugin cache. An installed plugin cannot read files outside its own directory, so anything a skill needs at runtime has to live inside it. That is why `project-management/` sits under `claude/` rather than at the repo root, and why `profiles/baseline.md` imports it from there.
+Only `claude/` is copied into the plugin cache. An installed plugin cannot read files outside its own directory, so
+anything a skill needs at runtime has to live inside it. That is why `project-management/` sits under `claude/` rather
+than at the repo root, and why `profiles/baseline.md` imports it from there.
 
-Install once, inside any Claude Code session. Run the two commands as separate prompts. A slash command takes the whole rest of the input as its argument. Pasting both lines at once makes `/plugin marketplace add` read the second line as part of the repo name, and it fails with `is not a valid GitHub owner/repo shorthand`.
+Install once, inside any Claude Code session. Run the two commands as separate prompts. A slash command takes the whole
+rest of the input as its argument. Pasting both lines at once makes `/plugin marketplace add` read the second line as
+part of the repo name, and it fails with `is not a valid GitHub owner/repo shorthand`.
 
 First register the marketplace:
 
@@ -140,11 +164,17 @@ Then install the plugin from it:
 /plugin install coding-standards@coding-standards
 ```
 
-The `coding-standards@coding-standards` spelling is not a typo. The plugin and the marketplace share a name. The part before `@` is the plugin from `claude/.claude-plugin/plugin.json`. The part after is the marketplace from `.claude-plugin/marketplace.json`.
+The `coding-standards@coding-standards` spelling is not a typo. The plugin and the marketplace share a name. The part
+before `@` is the plugin from `claude/.claude-plugin/plugin.json`. The part after is the marketplace from
+`.claude-plugin/marketplace.json`.
 
-Choose **user** scope when prompted so the plugin is available in all your projects. A local clone works as the marketplace source too (`/plugin marketplace add ~/projects/coding_agent_standards`), in which case updates track your clone instead of GitHub.
+Choose **user** scope when prompted so the plugin is available in all your projects. A local clone works as the
+marketplace source too (`/plugin marketplace add ~/projects/coding_agent_standards`), in which case updates track your
+clone instead of GitHub.
 
-Plugin skills and commands are namespaced: invoke them as `/coding-standards:<name>`. If you keep a copy of a skill in `~/.claude/skills/`, or a command in `~/.claude/commands/`, both versions will appear -- delete the personal copy once the plugin version works for you.
+Plugin skills and commands are namespaced: invoke them as `/coding-standards:<name>`. If you keep a copy of a skill in
+`~/.claude/skills/`, or a command in `~/.claude/commands/`, both versions will appear -- delete the personal copy once
+the plugin version works for you.
 
 #### Updating
 
@@ -164,11 +194,14 @@ To iterate on a skill without the cache in the way, launch Claude Code with the 
 claude --plugin-dir ~/projects/coding_agent_standards/claude
 ```
 
-Edit freely, then run `/reload-plugins` in the session to pick up changes immediately. Once satisfied, commit and push, and installed copies catch up via `/plugin marketplace update`.
+Edit freely, then run `/reload-plugins` in the session to pick up changes immediately. Once satisfied, commit and push,
+and installed copies catch up via `/plugin marketplace update`.
 
 ### Installing the Codex Plugin
 
-The skills under `codex/` are packaged as a Codex plugin, also named `coding-standards`. Its manifest is `codex/.codex-plugin/plugin.json`. The marketplace manifest is `.agents/plugins/marketplace.json` at the repo root, pointing at `./codex`.
+The skills under `codex/` are packaged as a Codex plugin, also named `coding-standards`. Its manifest is
+`codex/.codex-plugin/plugin.json`. The marketplace manifest is `.agents/plugins/marketplace.json` at the repo root,
+pointing at `./codex`.
 
 Codex discovers `~/.agents/plugins/marketplace.json` implicitly, but not a repo-local one. Register this repo once:
 
@@ -187,12 +220,31 @@ python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py codex
 
 Two differences from the Claude Code plugin are worth knowing:
 
-- Codex requires strict semver in `version` and caches by it. There is no commit-SHA equivalent. Iterating locally means rewriting the version to `0.1.0+codex.<token>` and re-running `codex plugin add`.
+- Codex requires strict semver in `version` and caches by it. There is no commit-SHA equivalent. Iterating locally means
+  rewriting the version to `0.1.0+codex.<token>` and re-running `codex plugin add`.
 - Codex rejects a `hooks` field in `plugin.json`, so `claude/hooks/` has no counterpart on this side.
+
+### Linting
+
+Two linters ship as shared config plus a runner, one directory each. Both are copy-in rather than import, since neither
+tool supports config inheritance.
+
+```sh
+cp ~/projects/coding_agent_standards/rumdl/rumdl.toml.template .rumdl.toml
+~/projects/coding_agent_standards/rumdl/lint-markdown
+
+cp ~/projects/coding_agent_standards/vale/vale.ini.template .vale.ini
+~/projects/coding_agent_standards/vale/lint-prose
+```
+
+`rumdl/` checks markdown structure, including the 120-column prose width. `vale/` checks prose shape in markdown and in
+code comments. They do not overlap. Each runner defaults to diff scoping against the base ref, so a repo with a backlog
+can adopt them without a burn-down first. See `rumdl/README.md` and `vale/README.md`.
 
 ### Setup Validation
 
-The `bin/check-setup` script validates that a project has standards properly configured. It can be wired up as a Claude Code `SessionStart` hook to run automatically when you open a project.
+The `bin/check-setup` script validates that a project has standards properly configured. It can be wired up as a Claude
+Code `SessionStart` hook to run automatically when you open a project.
 
 ### Non-standard Paths
 
