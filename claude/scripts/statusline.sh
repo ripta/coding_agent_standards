@@ -78,7 +78,8 @@ bedrock_cache_max_age=300
 # Haiku 4.5 is reachable under both forms, so both are listed.
 # Verified against us-west-2 on 2026-08-17. Entries added on 2026-09-05 were
 # verified against the AWS model-card docs, not a live list-foundation-models
-# call, so their IDs are documented rather than observed.
+# call, so their IDs are documented rather than observed. The same goes for the
+# Opus 5.5 and Sonnet 5.5 entries added on 2026-10-03.
 declare -A BEDROCK_PRICES=(
     # Fable 5.1
     # Input and output match Fable 5. The one price change is cache reads, cut
@@ -87,6 +88,9 @@ declare -A BEDROCK_PRICES=(
     ["anthropic.claude-fable-5-1"]="10.00 50.00 0.25 12.50"
     # Fable 5
     ["anthropic.claude-fable-5"]="10.00 50.00 1.00 12.50"
+    # Opus 5.5
+    # Cache reads are 0.05x input ($0.20), half the usual 0.1x multiplier.
+    ["anthropic.claude-opus-5-5"]="4.00 20.00 0.20 5.00"
     # Opus 5
     ["anthropic.claude-opus-5"]="5.00 25.00 0.50 6.25"
     # Opus 4.x
@@ -96,10 +100,12 @@ declare -A BEDROCK_PRICES=(
     ["anthropic.claude-opus-4-5-20251101-v1:0"]="5.00 25.00 0.50 6.25"
     ["anthropic.claude-opus-4-1-20250805-v1:0"]="15.00 75.00 1.50 18.75"
     ["anthropic.claude-opus-4-20250514-v1:0"]="15.00 75.00 1.50 18.75"
+    # Sonnet 5.5
+    ["anthropic.claude-sonnet-5-5"]="2.00 10.00 0.20 2.50"
     # Sonnet 5
-    # Sources disagree on what happens after 2026-08-31. AWS lists $2/$10 as
-    # launch pricing that expires then. Anthropic says $2/$10 is now the
-    # standard rate and the rise to $3/$15 is cancelled. Re-check after that date.
+    # AWS listed $2/$10 as launch pricing through 2026-08-31. Anthropic has
+    # since made $2/$10 the standard rate and cancelled the rise to $3/$15.
+    # Checked 2026-10-03: AWS has not published a post-launch Bedrock rate.
     ["anthropic.claude-sonnet-5"]="2.00 10.00 0.20 2.50"
     # Sonnet 4.x
     ["anthropic.claude-sonnet-4-6"]="3.00 15.00 0.30 3.75"
