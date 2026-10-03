@@ -13,6 +13,12 @@ The phase model lives in `${CLAUDE_PLUGIN_ROOT}/project-management/plans.md`.
 Read it for the milestone conventions, status values, and artifact sync rules.
 Always defer to a project-specific deviation when one exists.
 
+Whenever a choice comes up, in the plan or during implementation, build the
+options by the "Choosing Options" section of
+`${CLAUDE_PLUGIN_ROOT}/rules/decision-making.md`. Apply an override only when
+the user stated one this session, or the proposal or phase document carries a
+`**Tradeoffs:**` field.
+
 1. Locate the phases directory. Check the common locations: `spec/phases/`,
    `docs/phases/`, `phases/`. Read its `index.md`.
 

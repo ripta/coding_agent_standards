@@ -107,6 +107,8 @@ User-facing issue this phase solves.
 - [ ] Criterion 1
 ```
 
+A phase document may carry an optional `**Tradeoffs:** expedient — <reason>` line after `**Dependencies:**`. It lowers the bar for design options in that phase only, and a phase inherits the field from the proposal it implements. Add it only when the user asks for it. See the "Choosing Options" section of `rules/decision-making.md`.
+
 ## Naming
 
 - File: `phase-N-short-description.md`

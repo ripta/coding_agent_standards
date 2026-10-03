@@ -74,6 +74,8 @@ If the existing candidates seem incomplete or under-specified:
 
 #### 3. Analyze
 
+Build the option list by the "Choosing Options" section of `${CLAUDE_SKILL_DIR}/../../rules/decision-making.md`. If it cannot be read, stop and tell the user this skill is installed without its standards. The complete option must be among the candidates; add it if the proposal does not list it. Apply an override only when the user stated one this session or the proposal carries a `**Tradeoffs:**` field.
+
 Present a structured comparison of all options:
 
 ```

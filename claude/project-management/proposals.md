@@ -93,6 +93,9 @@ should be extracted to an ADR and referenced here.
 - Milestones carry no status. To find one's status, read the phase milestone rows whose Proposal column names it. See
   `tracking.md` "Status Vocabularies"
 - A proposal never depends on a phase. See `tracking.md` "Dependency Direction"
+- A proposal may carry an optional `**Tradeoffs:** expedient — <reason>` line after `**Updated:**`. It lowers the bar
+  for design options in the proposal and in the phases that implement it. Add it only when the user asks for it. See
+  the "Choosing Options" section of `rules/decision-making.md`
 
 ## Deferring Decisions
 
