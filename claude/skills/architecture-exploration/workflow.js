@@ -202,8 +202,7 @@ become citations the caller cannot re-derive, so paraphrase is useless. Express
 every path **relative to \`${citationBase}\`**; never return an absolute path or
 one starting with \`/\` or \`~\`. Prefer reading code over README/docs when they
 disagree. If something is ambiguous or you are inferring, say so explicitly and
-mark it as a guess. Be thorough within your section and ignore everything
-outside it.
+mark it as a guess. Cover your section and ignore everything outside it.
 
 Your search proves presence, never absence. You searched part of the tree, so
 "there is no X here" is a claim you cannot support — another agent searching a

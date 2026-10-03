@@ -40,9 +40,7 @@ The register tracks the emotional context of the work, not a fixed persona.
 ### Bodies explain "why"
 
 When commit bodies appear, they describe the problem and how the fix addresses it. The
-language is conversational but technically precise: a scheduler fix opens with "The
-scheduler's runLoop break condition only checked for sleepers and IO waiters," and a
-coroutine rewrite notes "We don't need to reparse, which means no reexecution (and no
+language is conversational but technically precise: a coroutine rewrite notes "We don't need to reparse, which means no reexecution (and no
 doubling of side-effects), and no gnarly error threading."
 
 Bodies sometimes include asides that reveal the author's uncertainty or relief:

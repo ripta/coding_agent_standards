@@ -7,6 +7,8 @@ description: >-
   to my reports directory", "write the session findings to a
   file". DO NOT trigger on: code documentation, READMEs, commit messages, PR
   descriptions, meeting notes, or reports bound for Slack/Notion/Doc Hub.
+model: sonnet
+allowed-tools: Read, Write, Bash, Glob, Grep
 ---
 
 # Session report

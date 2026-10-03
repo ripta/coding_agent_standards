@@ -205,8 +205,8 @@ project-relative path.
 python3 <skill-dir>/scripts/validate_lore_wiki.py <lore-directory>
 ```
 
-When images were generated, list every newly generated project-relative path and
-the maximum:
+When images were generated, list every newly generated image path, relative to
+`<lore-directory>`, and the maximum:
 
 ```bash
 python3 <skill-dir>/scripts/validate_lore_wiki.py <lore-directory> \

@@ -292,12 +292,13 @@ default branch.
 
 ## Hard rules
 
-- Never set `options.pool`. No exceptions.
-- Never set `options.machineType`.
+- Never set `options.pool` (or `workerPool`) or `options.machineType`: the
+  smallest private pool costs about 20x the default pool, and a non-default
+  machine type leaves the free-tier quota.
 - Always set `timeout`, never above `2700s`.
 - Prefer Debian base images.
 - Steps call `make` targets or `docker build`, not long inline scripts.
-- The header comment stays under six lines, and shorter than the YAML below it.
+- The header comment is four to six lines, and shorter than the YAML below it.
 - Ship no comment the YAML already makes obvious.
 - One config drives every ref type, guarded on `$TAG_NAME` and `$BRANCH_NAME`.
 - Never write GCP project, region, or secret names into this skill.

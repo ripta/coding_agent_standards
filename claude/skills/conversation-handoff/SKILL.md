@@ -82,13 +82,7 @@ In **compact** mode, do not read or inline external content — every reference 
 
 ### Step 5: Write
 
-Generate a unique destination path under `$TMPDIR` and write the composed markdown there. On macOS, `mktemp` does not support `--suffix`, so allocate a temp path and add the `.md` extension:
-
-```bash
-tmpfile="$(mktemp -t conversation-handoff).md" && mv "$(echo "$tmpfile" | sed 's/\.md$//')" "$tmpfile" 2>/dev/null; echo "$tmpfile"
-```
-
-Or, more portably, generate the path with the extension directly:
+Generate a unique destination path under `$TMPDIR` and write the composed markdown there:
 
 ```bash
 echo "${TMPDIR:-/tmp}/conversation-handoff.$(date +%s).$$.md"

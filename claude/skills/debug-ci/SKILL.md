@@ -55,16 +55,15 @@ Use the downloaded log file (not API calls) for all analysis.
 
 1. Read the log file
 2. Grep for error patterns: `FAIL`, `error:`, `TIMEOUT`, `timed out`,
-   `panic`, `SIGTERM`, `killed`, `Step #2 - "build-and-test"` failures
+   `panic`, `SIGTERM`, `killed`, and the failing step's id as named in
+   `cloudbuild.yaml`
 3. Categorize the failure:
 
-   **Timeout**: Look for `TIMEOUT`, `timed out`, `SIGTERM`, `killed`, or
-   the build step exceeding its time limit. The CI runs
-   `make TIMEOUT=<N> test` -- check if individual test commands hit the
-   per-test timeout.
+   **Timeout**: Look for `TIMEOUT`, `timed out`, `SIGTERM`, `killed`, or a
+   step exceeding the build-level `timeout:` or a per-step timeout in
+   `cloudbuild.yaml`.
 
-   **Build failure**: Compilation errors from `zig build` or `make build`.
-   Look for `error:` lines from the Zig compiler.
+   **Build failure**: Compilation errors from the build step's toolchain.
 
    **Test failure**: Specific test assertions failing. Look for `FAIL:`,
    test name patterns, assertion mismatches, or golden file diffs.
@@ -76,11 +75,12 @@ Use the downloaded log file (not API calls) for all analysis.
 
 #### Timeout
 
-1. Read `cloudbuild.yaml` to find the current `TIMEOUT=` value
+1. Read `cloudbuild.yaml` to find the current `timeout:` value (or the
+   `TIMEOUT=` make variable, if the config passes one)
 2. Check if the same tests pass locally (suggest the user run `make test`
    to confirm)
-3. If it is purely a CI slowness issue, suggest bumping the `TIMEOUT=`
-   value in `cloudbuild.yaml` and present the specific edit to make
+3. If it is purely a CI slowness issue, suggest bumping that value in
+   `cloudbuild.yaml` and present the specific edit to make
 4. Present the fix to the user
 
 #### Real Failure (build, test, or infrastructure)
@@ -99,8 +99,8 @@ Use the downloaded log file (not API calls) for all analysis.
 - Always download logs to `$TMPDIR` and work from the file -- do not make
   repeated API calls to GCP
 - Do not chain shell commands with `&&`, `||`, or `;` -- run each separately
-- Use `cg` wrapper for commands when annotated output would help debugging
+- Run other commands through `cg_run`, per the shell-discipline rule
 - Do not modify any files without presenting the plan to the user first
 - The CI system is Google Cloud Build, not GitHub Actions
-- The `cloudbuild.yaml` runs: `make build`, then `make TIMEOUT=<N> test`,
-  then a showcase example
+- Read `cloudbuild.yaml` for the step ids and commands this project runs; do
+  not assume them

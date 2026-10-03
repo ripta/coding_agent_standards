@@ -6,6 +6,7 @@ description: |
   (vX.Y.Z) — proposes the next tag (recommending a patch/minor/major bump for
   semver), drafts release notes from the commit delta, and creates an annotated
   tag after you approve. It stops after creating the tag locally; it does not push.
+model: sonnet
 allowed-tools: Bash, Read, Glob, Grep
 ---
 

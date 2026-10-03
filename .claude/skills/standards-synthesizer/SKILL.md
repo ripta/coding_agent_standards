@@ -38,7 +38,7 @@ For each target language, check if `languages/<lang>.md` already exists in this 
   - **Amend**: keep existing standards and only add new rules observed in this project
   - **Profile only**: the language standards are fine; the user actually wants a new profile for a specific project archetype
 
-- **If "Profile only"**, skip to Phase 5.
+- **If "Profile only"**, skip to Phase 8.
 
 ### Phase 3: Synthesis
 
@@ -109,7 +109,7 @@ After language and practice files are written, ask if the user wants a new profi
 
 ## Rules
 
-- Be thorough in reading code but efficient in interviewing. Group related observations.
+- Group related observations so the interview stays short.
 - When in doubt about whether something is a standard vs. a one-off, ask.
 - Never invent standards the code doesn't demonstrate. You synthesize, not prescribe.
 - If the user mentions a standard that isn't visible in code, include it but note it's user-stated.

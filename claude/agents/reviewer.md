@@ -18,8 +18,9 @@ change in context.
 
 The caller names the phase milestone (e.g. `Phase 365.2`) and the proposal
 milestone it implements (e.g. `PROJ-326 M2`). Read the milestone's acceptance
-criteria in the phase document under `spec/phases/`, and the proposal in
-`spec/proposals/`. Those define what the change is supposed to do.
+criteria in the phase document in the phases directory (`spec/phases/`,
+`docs/phases/`, or `phases/`), and the proposal in the matching proposals
+directory. Those define what the change is supposed to do.
 
 ## Review axes
 
@@ -55,7 +56,7 @@ finding applied blindly is a regression.
 
 The authoritative comment rules live in the project standards: no comments that
 restate the code, terse, "why" not "what". Enforce those. Beyond what the
-linter catches, hold the change to these two sharper points, which are not
+linter catches, hold the change to these three sharper points, which are not
 lintable:
 
 - **Format multi-idea comment blocks as paragraphs.** Lead with a one-line
@@ -70,7 +71,7 @@ lintable:
 - **Comment on the function you are annotating, not its callers or neighbors,
   and do not over-reference sibling function names the code already shows.**
 
-Calibration (one minimal example per point; the real before/after these come
+Calibration (minimal examples for points 1 and 3; the real before/after these come
 from is the standard):
 
 ```
@@ -83,7 +84,7 @@ from is the standard):
 ///
 /// This runs on the owning worker, the same thread that appends, so it needs no lock.
 
-// point 2 -- off-topic / over-referenced vs on-topic
+// point 3 -- off-topic / over-referenced vs on-topic
 // bad (comment sits on the reaper but describes deinit, and lists the exact calls):
 /// A local child is reaped inline: `removeFinished`, `untrackTask`, then `reapTask`.
 /// The `scope.children` list is not cleared; `scope.deinit` frees its backing.

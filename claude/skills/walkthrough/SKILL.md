@@ -104,8 +104,8 @@ own beat:
 > deliverable is evidence, not prose. For every claim, return the exact
 > `file:line` plus a verbatim snippet of a few lines proving it. Paths must be
 > relative to the repository root. Prefer reading code over docs when they
-> disagree. Mark anything you are inferring as a guess. Be thorough within your
-> beat and ignore the rest.
+> disagree. Mark anything you are inferring as a guess. Cover your beat and
+> ignore the rest.
 
 The beats, adapted to the target:
 

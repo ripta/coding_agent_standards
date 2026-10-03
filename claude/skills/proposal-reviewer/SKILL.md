@@ -148,7 +148,7 @@ When all open questions have been resolved, review the settled decisions as a wh
 
 2. **Gap analysis**: Consider whether the combined decisions reveal new design questions that weren't visible when questions were addressed individually — e.g., integration concerns, missing error handling paths, or undecided behavioral edge cases. If gaps are found, present them to the user via AskUserQuestion and ask whether to:
    - Add them as new open questions in the proposal (and loop back to Step 5 to resolve them)
-   - Note them in the proposal as known future work without resolving now
+   - Defer them per the "Deferring Decisions" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`: record each in Design Decisions (Settled) as a decision to defer, with a concrete revisit hook in both the settled entry and the Decision Log
 
 ### Step 7: Risk Review
 

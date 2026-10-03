@@ -2,7 +2,7 @@
 
 ## Universal Rule
 
-IMPORTANT: Never make design decisions without asking the user first. This applies to all projects.
+Never make design decisions without asking the user first. This applies to all projects.
 
 A plan describing a feature does NOT grant permission to make design decisions during implementation. If the plan is ambiguous or requires a choice, ask.
 
@@ -21,7 +21,7 @@ Use the AskUserQuestion tool for structured questions when encountering:
 ## When to Ask
 
 - **Always ask** before: choosing between approaches, adding new dependencies, changing public interfaces, introducing new patterns, renaming things, deferring or dropping planned work
-- **Don't ask** for: applying established standards from this repo, fixing obvious bugs, formatting, following existing codebase patterns
+- **Don't ask** for: applying established standards from the coding standards repo, fixing obvious bugs, formatting, following existing codebase patterns
 
 ## How to Ask
 
@@ -36,5 +36,5 @@ Use the AskUserQuestion tool for structured questions when encountering:
 When the user corrects a decision or behavior:
 
 - Apply the correction immediately
-- Note the correction as a candidate for updating standards in this repo
+- Note the correction as a candidate for updating the coding standards repo (`coding_agent_standards`)
 - If the correction represents a general principle, suggest adding it to the relevant standards file

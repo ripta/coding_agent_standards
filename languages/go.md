@@ -18,7 +18,7 @@
 ## Error Handling
 
 - Wrap errors with context: `fmt.Errorf("operation context: %w", err)`
-- Early returns on error; never accumulate error variables
+- Early returns on runtime errors; for validation, collect errors per `practices/error-handling.md`
 - Define sentinel errors at package level: `var ErrName = fmt.Errorf("description")`
 - For RPC services: `connect.NewError(connect.CodeInternal, fmt.Errorf(...))`
 - For HTTP handlers: structured JSON with `error` and `code` fields

@@ -173,8 +173,7 @@ task:
 > every path **relative to `<citation base>`**; never return an absolute path or
 > one starting with `/` or `~`. Prefer reading code over README/docs when they
 > disagree. If something is ambiguous or you are inferring, say so explicitly and
-> mark it as a guess. Be thorough within your section and ignore everything
-> outside it.
+> mark it as a guess. Cover your section and ignore everything outside it.
 
 Brief each agent against the matching Step 6 section spec (§§2–6), and emit only
 the variant relevant to the detected type(s). Suggested split:
@@ -418,10 +417,11 @@ In workflow mode, build that summary from the returned `outline` and
 - If arguments are given, confine exploration and output to that scope; with no
   arguments, cover the whole repository and write to the working directory. Pass
   the resolved scope to every subagent so none strays outside it.
-- Classify the project yourself; fan out the per-section discovery to parallel
-  `Explore` subagents (all Task calls in one message); then synthesize. Require
-  each subagent to return `file:line` plus a verbatim snippet for every claim,
-  and spot-verify a sample of those citations yourself before writing.
+- Classify the project yourself, then discover in the mode sized in Step 3:
+  inline, fan-out (parallel `Explore` subagents, all calls in one message,
+  citations spot-verified before writing), or workflow (the script verifies every
+  citation). Every discovery agent returns `file:line` plus a verbatim snippet
+  for each claim.
 - Size the mode in Step 3 and name it in the Step 4 report. Workflow mode needs
   the user's go-ahead first — it costs materially more than fan-out mode.
 - In workflow mode the script writes the document; do not also write it. Its
@@ -441,7 +441,7 @@ In workflow mode, build that summary from the returned `outline` and
   over README/docs when they disagree.
 - Declare the citation base near the top of the document, expressed relative to
   the repository root (not as an absolute path).
-- Report the resolved scope and detected project type before fanning out; write
-  the document in one pass; print a summary plus open questions afterward.
+- Report the resolved scope and detected project type before fanning out; print
+  a summary plus open questions afterward.
 - Emit only the section variants relevant to the detected project type; for
   full-stack projects, cover each side.

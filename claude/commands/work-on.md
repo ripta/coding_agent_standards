@@ -4,9 +4,8 @@ argument-hint: <phase>[.<milestone>]
 model: opusplan
 ---
 
-Your first action MUST be to call the EnterPlanMode tool. Do not do anything
-else until you have entered plan mode. Skip this step if the session is already
-in plan mode.
+Start by calling the EnterPlanMode tool, before any other action. Skip this
+step if the session is already in plan mode.
 
 Once in plan mode, work on phase milestone $ARGUMENTS by following these steps.
 

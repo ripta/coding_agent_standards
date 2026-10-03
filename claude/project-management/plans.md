@@ -11,21 +11,19 @@ A phase is a unit of implementation work. Each phase implements exactly one prop
 - Milestones within a phase are numbered from `.1` upward, and are referred to as `Phase 5.1`, `Phase 5.2`, `Phase 5.3`. Bare `Phase 5` means the whole phase. Proposal milestones use a different form; see `tracking.md` "Referring to Milestones"
 - Acceptance criteria are written per milestone, not per phase. Each criterion belongs to exactly one milestone. A
   milestone is then reviewable against its own floor while the rest of the phase is still in progress
-- Milestones are units of implementation work only. Design work -- a design spike,
-  an ADR, a research write-up -- is NOT an implementation milestone. Never list a
-  design spike as a numbered row in a phase's milestone table, and never count it
-  toward the phase's milestone progress. A phase whose only completed work is design
-  is `PLANNED` with `0/N`, not `IN PROGRESS`. Record design completion in the
-  proposal/phase Design Decisions, the ADR, and any research document -- not as a
-  numbered, DONE milestone.
+- Milestones are units of implementation work only. Design work (a design spike,
+  an ADR, a research write-up) is not a milestone: it gets no row in the milestone
+  table and does not count toward progress, so a phase whose only completed work is
+  design stays `PLANNED` at `0/N`. Record design completion in the proposal or phase
+  Design Decisions, the ADR, or the research document.
 
 ## Before Starting a Phase
 
 - Before beginning implementation work on a proposal, check its status field.
 - Only `accepted` or `scheduled` proposals may be implemented.
 - If the status is `draft`, `deferred`, or `rejected`, stop and tell the user. This applies even if the user asks you to implement it -- flag the status conflict and ask for confirmation to change the status first.
-- A detailed plan does NOT imply the proposal has been accepted. The status field is the sole source of truth.
-- Creating a proposal is NOT the same as promoting it. Do not promote a proposal to a phase unless the user explicitly asks. A plan document that contains phase numbers or milestones does not authorize promotion; it is a design sketch until the user says to schedule it.
+- A detailed plan does not imply the proposal has been accepted. The status field is the sole source of truth.
+- Creating a proposal is not the same as promoting it. Do not promote a proposal to a phase unless the user explicitly asks. A plan document that contains phase numbers or milestones does not authorize promotion; it is a design sketch until the user says to schedule it.
 - Evaluate whether the planned work requires refactoring existing code. If a feature would be substantially cleaner after restructuring nearby code, include that work in the phase scope rather than deferring it or working around it.
 
 ## Promoting a Proposal to a Phase

@@ -2,13 +2,15 @@
 name: init-zaz
 description: |
   Scan the current project and generate a zaz.toml config file. Use when
-  bootstrapping a new project to run under zaz. Automatically loads the zaz
-  configuration reference and all worked examples as context.
+  bootstrapping a new project to run under zaz. Reads the zaz configuration
+  reference and the worked examples bundled with this skill.
 model: sonnet
 allowed-tools: Bash, Read, Write, Glob, Grep
 ---
 
-@./configuration.md
+Before scanning, read `${CLAUDE_SKILL_DIR}/configuration.md`, the zaz configuration
+reference. Before writing, read every file in `${CLAUDE_SKILL_DIR}/examples/`; they
+are the style reference for the generated file.
 
 You generate a `zaz.toml` for the current project by scanning its files and
 applying the schema documented above.
@@ -67,7 +69,7 @@ For monorepo groups, scope patterns to the service subdirectory:
 ### 5. Write the file
 
 Emit the config as TOML. Add a one-line comment at the top describing the
-project in the same style as the examples above. Write each group as an
+project in the same style as the files in `examples/`. Write each group as an
 `[[group]]` block with nested `[[group.task]]` and `[[group.daemon]]`
 blocks indented with two spaces.
 
