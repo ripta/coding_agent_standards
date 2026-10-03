@@ -71,7 +71,7 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
 - **Scripts** (`scripts/`) -- standalone scripts not tied to a hook, currently the statusline
 - **Skills** (`skills/`) -- specialized agents for code review, testing, linting, Makefile maintenance, releases, proposals, etc.
 - **Agents** (`agents/`) -- subagent definitions invoked by name, currently `reviewer` for post-milestone diff review
-- **Commands** (`commands/`) -- slash commands for driving a phase milestone (`work-on`), summarizing a session as a commit message (`summary`), and chunking an integration branch into PRs (`next-pr`)
+- **Commands** (`commands/`) -- slash commands for driving a phase milestone (`work-on`), working through a queue of milestones planned up front (`work-queue`), summarizing a session as a commit message (`summary`), and chunking an integration branch into PRs (`next-pr`)
 
 Commands stay thin. The rules they enforce live in `claude/rules/` and `claude/project-management/`, and a command reads them at `${CLAUDE_PLUGIN_ROOT}/...` rather than restating them. Keeping one copy is what stops `/summary` and `/work-on` from drifting apart on the same commit-message rules.
 
