@@ -131,6 +131,12 @@ BLOCKED. A phase is ready when it is not held or blocked and every dependency
 is met. An in-run dependency becomes met when the run marks that phase
 COMPLETE.
 
+When a tool whose name ends in `work_queue_status` is available, it shows the
+run's progress to the user. Call it with the whole queue right after
+ExitPlanMode. Call it again whenever a milestone's run status or the current
+step changes, and with step `finished` when the run is done. Skip it when the
+tool is absent.
+
 Pick the next milestone this way:
 
 - While the current phase has a QUEUED milestone, take the next one. Phases run

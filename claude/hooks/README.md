@@ -6,6 +6,14 @@
 - `PostToolUse` on `Edit|Write` runs `make fmt` when the target exists.
 - `Stop` reminds you to run `make test` and `make lint` when those targets exist.
 
+It also loads one hooks module, `work-queue-progress.tsx`, under `modules`. It
+draws a `/work-queue` run's progress in a band above the prompt. `/queue` opens
+the full queue in a pane, and `/queue clear` hides the band. The coordinator
+reports each change through the `work_queue_status` tool it registers. The
+mod also counts each subagent's tool calls on its own. It stays out of sight
+until a run reports. Check it with `claude plugin validate claude` and
+`claude plugin test claude`.
+
 `block-redirection.sh` and `cg-check.sh` ship here too. They are not wired into
 `hooks.json`. Reference them from a project's own settings when you want them.
 

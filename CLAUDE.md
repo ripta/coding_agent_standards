@@ -18,7 +18,9 @@ projects.
 - `codex/` - Codex skills that have no Claude Code equivalent, packaged as a separate Codex plugin. A skill belongs here
   only when it depends on something Codex has and Claude Code does not
 - `mods/` - Claude Code mods (function-hook plugins that can draw UI). Each is its own opt-in plugin listed in
-  `.claude-plugin/marketplace.json`, never folded into `claude/`, so projects using `coding-standards` do not get them
+  `.claude-plugin/marketplace.json`, so projects using `coding-standards` do not get them. A mod that serves a
+  `claude/` command ships inside `claude/` instead, so everyone who gets the command gets the mod. Its hooks module is
+  `claude/hooks/<name>.tsx`, its state contract is `claude/types/index.d.ts`, and its tests are in `claude/tests/`
 - `profiles/` - Composable project profiles that import from the above
 
 ## Usage

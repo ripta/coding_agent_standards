@@ -15,12 +15,14 @@ coding_agent_standards/
 │   ├── .claude-plugin/      Plugin manifest
 │   ├── agents/              Subagent definitions
 │   ├── commands/            Slash commands
-│   ├── hooks/               hooks.json plus the guard scripts it wires up
+│   ├── hooks/               hooks.json, the guard scripts it wires up, and the work-queue progress mod
 │   ├── project-management/  Plans, proposals, design, tracking, and commit chunking standards
 │   ├── rules/               Agent behavior rules
 │   ├── scripts/             Standalone scripts (statusline)
 │   ├── settings/            Permission whitelist templates per ecosystem
-│   └── skills/              Skill definitions
+│   ├── skills/              Skill definitions
+│   ├── tests/               Tests for the plugin's hooks module
+│   └── types/               State contract for the plugin's hooks module
 ├── codex/              Codex skills with no Claude Code equivalent (exported as a Codex plugin)
 ├── mods/               Claude Code mods, each its own opt-in plugin in the same marketplace
 ├── profiles/           Composable project profiles
@@ -76,7 +78,8 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
 - **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. The
   `block-broad-find`, `block-redirection`, and `cg-check` guard scripts ship alongside it, plus opt-in hooks for
   project-management references, golden files, and the Zig cache; see `claude/hooks/README.md` for which are wired by
-  default
+  default. `hooks.json` also loads `work-queue-progress.tsx`, a mod that shows a `work-queue` run's progress above the
+  prompt and in a `/queue` pane
 - **Settings** (`settings/`) -- permission whitelist templates to copy into a project's `.claude/settings.local.json`,
   one per language ecosystem
 - **Scripts** (`scripts/`) -- standalone scripts not tied to a hook, currently the statusline
@@ -206,7 +209,8 @@ and installed copies catch up via `/plugin marketplace update`.
 ### Installing Mods
 
 `mods/` holds mods: plugins built from TypeScript function hooks that can draw UI inside Claude Code. Each is its own
-plugin in the same marketplace, so none of them ride along with `coding-standards`. Install one by name:
+plugin in the same marketplace, so none of them ride along with `coding-standards`. The exception is the work-queue
+progress mod, which serves `/work-queue` and so ships inside `coding-standards`. Install a `mods/` plugin by name:
 
 ```text
 /plugin install gopher-spinner@coding-standards

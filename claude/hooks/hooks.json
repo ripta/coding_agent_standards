@@ -33,5 +33,6 @@
         ]
       }
     ]
-  }
+  },
+  "modules": ["./work-queue-progress.tsx"]
 }
