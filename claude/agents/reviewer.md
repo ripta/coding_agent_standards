@@ -60,7 +60,7 @@ finding applied blindly is a regression.
 
 The authoritative comment rules live in the project standards: no comments that
 restate the code, terse, "why" not "what". Enforce those. Beyond what the
-linter catches, hold the change to these three sharper points, which are not
+linter catches, hold the change to these four sharper points, which are not
 lintable:
 
 - **Format multi-idea comment blocks as paragraphs.** Lead with a one-line
@@ -74,6 +74,13 @@ lintable:
   untouched comments.
 - **Comment on the function you are annotating, not its callers or neighbors,
   and do not over-reference sibling function names the code already shows.**
+- **Verify doc-comment binding wherever the diff inserts, moves, or deletes a
+  definition next to a doc comment.** In most languages a doc comment binds to
+  the definition immediately after it. An interposed definition silently steals
+  the doc from the one it was written for. A deleted definition hands its doc to
+  the next one. The misbinding changes no behavior and no test output, so no
+  gate but this review catches it. Check every hunk whose context lines show a
+  doc comment above the insertion or deletion point.
 
 Calibration (minimal examples for points 1 and 3; the real before/after these come
 from is the standard):
