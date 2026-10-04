@@ -86,7 +86,9 @@ Padding width differs by artifact type. This is deliberate, not an oversight:
 - Phases: unpadded (`Phase 12`) — phases are referenced in prose and status tables, not sorted as filenames the same way
   IDs are.
 
-Keep each artifact type's padding fixed once established; do not repad existing files.
+Keep each artifact type's padding fixed once established; do not repad existing files. These widths are defaults for a
+new project. A project that started with another width, such as `ADR-0001`, keeps it, and tools match the existing
+files.
 
 ## Specs Directory
 

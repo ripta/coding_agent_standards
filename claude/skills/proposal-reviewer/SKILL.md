@@ -15,7 +15,7 @@ analyzing tradeoffs, and recording decisions incrementally.
 ### Step 1: Locate & Confirm Proposal
 
 The user provides a proposal number (required). Search common locations (`spec/proposals/`, `docs/proposals/`,
-`proposals/`) for a file matching that number.
+`proposals/`) for a file matching that number. The locations may be symlinked, so make sure to follow symlinks.
 
 If no matching proposal is found, inform the user and stop.
 
@@ -155,8 +155,9 @@ If yes, read `${CLAUDE_SKILL_DIR}/../../project-management/design.md` and create
 Format" section. That file is the only source for the format; this skill does not carry its own copy. If it cannot be
 read, stop and tell the user this skill is installed without its standards.
 
-Determine the ADR number by scanning existing ADR files for the next sequential number. Use 2-digit zero-padding
-(`ADR-01`). Place the ADR alongside existing ADRs, or ask the user for the directory if none exist.
+Determine the ADR number by scanning existing ADR files for the next sequential number. Match the zero-padding of the
+existing files (e.g. `ADR-01` vs `ADR-0001`). Use 2-digit padding only when no ADR exists yet. Place the ADR alongside
+existing ADRs, or ask the user for the directory if none exist.
 
 Add a reference to the new ADR in the proposal's References section.
 

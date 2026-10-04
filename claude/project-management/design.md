@@ -44,7 +44,8 @@ What other options did we evaluate?
 ## Rules
 
 - ADRs are immutable once accepted; to change, create a new superseding ADR
-- Sequential numbering with 2-digit zero-padding: `ADR-01`, `ADR-02`, etc.
+- Sequential numbering with 2-digit zero-padding: `ADR-01`, `ADR-02`, etc. A project that already uses another width,
+  such as `ADR-0001`, keeps it. Match the padding of existing ADR files
 - File naming: `ADR-NN-short-description.md` (kebab-case)
 - Numbers are permanent and never reused
 - Old ADRs stay in the repo marked as superseded, not deleted
