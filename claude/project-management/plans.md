@@ -82,7 +82,7 @@ work, not an afterthought.
 **Goal:** One-line description
 **Status:** PLANNED | IN PROGRESS | COMPLETE
 **Complexity:** LOW | MEDIUM | HIGH
-**Dependencies:** None | Phase X, Phase Y
+**Dependencies:** None | Phase X, Phase Y (deployed)
 
 ## Scope
 
@@ -122,6 +122,10 @@ User-facing issue this phase solves.
 ### Phase N.2
 - [ ] Criterion 1
 ```
+
+A plain `Phase X` dependency is a code dependency. It is met once Phase X is COMPLETE. Write `Phase X (deployed)` when
+the phase also needs Phase X running in production first. Only the user can confirm a deployment, so tooling asks rather
+than infers it.
 
 A phase document may carry an optional `**Tradeoffs:** expedient — <reason>` line after `**Dependencies:**`. It lowers
 the bar for design options in that phase only, and a phase inherits the field from the proposal it implements. Add it

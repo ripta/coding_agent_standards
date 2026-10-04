@@ -39,6 +39,9 @@ run. It overrides these rules for this run only:
 - The rule to ask before deciding an ambiguity. Make the best guess the phase
   documents, proposals, and design documents support, and record it in the
   session report.
+- The rule to leave unfinished work in the tree. Stash a blocked milestone's
+  unfinished work by path, as section 5 describes, and list every stash in
+  the final report.
 
 Nothing else is relaxed. Never push, never open a PR, and never run a
 destructive git operation. Commit on the branch that is checked out. Never
@@ -46,12 +49,13 @@ create or switch branches.
 
 ## 1. Plan mode: build the queue
 
-1. Parse the arguments into an ordered queue. A bare `PHASE` (e.g., `59`) means
-   every milestone in that phase that is not DONE. `PHASE.MILESTONE` (e.g.,
-   `59.3`) names one milestone. A range (e.g., `59.2-59.4`) names every
-   milestone between its ends. Lists may use commas or "and". Queue order is
-   argument order, then milestone order within a phase. Treat any trailing
-   prose as notes for the run.
+1. Parse the arguments into a queue. A bare `PHASE` (e.g., `59`) means every
+   milestone in that phase that is not DONE. `PHASE.MILESTONE` (e.g., `59.3`)
+   names one milestone. A range (e.g., `59.2-59.4`) names every milestone
+   between its ends. Lists may use commas or "and". Milestones within a phase
+   run in milestone order. Across phases, dependencies set the order, and
+   argument order only breaks ties. Treat any trailing prose as notes for the
+   run. A note like "hold 61" or "skip 61" holds that phase.
 
 2. For every phase in the queue, run the checks `/work-on` makes before it
    explores the codebase: locate the phases directory, read the index, the
@@ -59,9 +63,19 @@ create or switch branches.
    `/work-on` says to stop on a COMPLETE phase or a DONE milestone, drop it
    from the queue and note that instead.
 
-3. Check each phase's `**Dependencies:**`. A queued phase that depends on a
-   phase that is neither COMPLETE nor earlier in the queue is a blocker. So is
-   a queue order that puts a phase before its dependency.
+3. Classify each queued phase's `**Dependencies:**`, using the format in
+   `plans.md`. Each dependency is one of:
+   - Met: the dependency is COMPLETE. A `(deployed)` dependency also needs
+     the user to confirm the deployment in item 7.
+   - In-run: the dependency is queued, and every milestone it has left is
+     queued too. The phase waits for the run to complete it. A `(deployed)`
+     dependency is never in-run, since the run cannot deploy.
+   - Unmet: anything else.
+
+   A phase is held when the notes hold it, when it has an unmet dependency, or
+   when it depends on a held phase. A held phase stays in the plan, but no
+   milestone of it runs. Holding a phase never blocks the other phases. A
+   dependency cycle among queued phases is a blocker.
 
 4. Read the design documents and ADRs the phases and proposals cite. Explore
    the codebase enough to plan every milestone. Use Explore agents for this,
@@ -82,7 +96,9 @@ create or switch branches.
    ExitPlanMode. These always count as questions:
    - A proposal whose status is not `accepted` or `scheduled`. This blocks the
      run, as it does in `/work-on`.
-   - A dependency blocker from item 3.
+   - A dependency cycle from item 3.
+   - Whether each COMPLETE `(deployed)` dependency from item 3 is deployed.
+     A "no" holds the phase that depends on it.
    - The session report directory, when item 6 could not resolve it.
    - An ambiguity that only the user can settle: a contradiction between the
      phase document and the proposal, or a choice the documents do not
@@ -91,8 +107,10 @@ create or switch branches.
    Everything else becomes a best guess in the plan.
 
 8. Write the plan:
-   - The queue: every milestone in order, with its phase, the proposal
-     milestone it implements, and a one-line description
+   - The queue: every milestone in its expected run order, with its phase,
+     the proposal milestone it implements, and a one-line description
+   - Each phase's dependencies, and how each is met
+   - Each held phase, with the reason it is held
    - A short implementation approach for each milestone, and the files it
      touches
    - The local checks every milestone runs
@@ -108,7 +126,19 @@ first milestone of each phase. These are the base commits for the phase and
 final reviews. Write them into the session report so they survive context
 compaction.
 
-For each milestone in the queue, in order:
+Track every queued milestone's run status: QUEUED, IN PROGRESS, DONE, HELD, or
+BLOCKED. A phase is ready when it is not held or blocked and every dependency
+is met. An in-run dependency becomes met when the run marks that phase
+COMPLETE.
+
+Pick the next milestone this way:
+
+- While the current phase has a QUEUED milestone, take the next one. Phases run
+  whole, so each phase's commits form one contiguous range for its review.
+- Otherwise, start the first ready phase in argument order.
+- When no phase is ready, the run is done.
+
+For each milestone picked:
 
 1. When this is the first milestone of a phase, sync the phase-begin artifacts
    from `plans.md` "Artifact Sync". Set the milestone's status to IN PROGRESS.
@@ -164,9 +194,9 @@ When the last queued milestone of a phase is committed:
    milestone. Commit the fixes, and any artifact sync, as their own commit.
    Amend the session report.
 
-4. Continue with the next phase in the queue.
+4. Continue with the next ready phase.
 
-When the whole queue is done, run one more review the same way, over the range
+When the run is done, run one more review the same way, over the range
 from the run's base commit to `HEAD`. Commit its fixes, and amend the last
 session report.
 
@@ -189,25 +219,40 @@ The report records, per milestone:
   or deferred
 - Any deviation from the phase document, and anything left open
 
-Keep the base commits, and the queue with each milestone's status, near the
-top. After a context compaction, re-read the session reports and the phase
-documents to find where the run stands, then continue.
+The first phase report of the run also carries the run state, near the top:
+the base commits, every queued milestone with its run status, and each held or
+blocked phase with its reason. Update it whenever a status changes. Later
+phase reports link to it. After a context compaction, re-read it, the session
+reports, and the phase documents to find where the run stands, then continue.
 
-## 5. When to stop
+## 5. When to block a phase
 
-Stop the run, and say why, only when:
+Block a phase, and say why, only when:
 
 - A build or test failure cannot be fixed within the milestone's scope
 - A review finding needs a design decision the documents do not cover, and
   any guess would be costly to reverse
 - The work turns out to contradict the proposal or an ADR
 
-Before stopping, commit any finished work that passes the checks. Leave
-unfinished work uncommitted, never discarded, and record it and the blocker in
-the session report. Everything short of this is a best guess, not
-a stop.
+Before blocking, commit any finished work that passes the checks. Unfinished
+work must not leak into the next phase's commits, and it must never be
+discarded. Stash it by path with a message that names the milestone, e.g.
+`git stash push --include-untracked -m "work-queue: blocked 61.2" -- <paths>`.
+The paths include the phase document and index edits made for the milestone.
+Record the stash, the unfinished work, and the blocker in the session report.
+
+Mark the phase's remaining milestones BLOCKED. Mark every milestone of a phase
+that depends on it, directly or not, HELD. Then continue with the next ready
+phase. Everything short of these conditions is a best
+guess, not a block.
 
 ## 6. Finish
 
-Report to the user: the commits made, in order; the session report paths; the
-best guesses that most deserve their review; and anything left open.
+Report to the user:
+
+- The commits made, in order
+- The session report paths
+- The best guesses that most deserve their review
+- Each held or blocked phase, what it waits on, and any stash holding its
+  unfinished work
+- Anything else left open
