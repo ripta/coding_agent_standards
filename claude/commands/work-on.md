@@ -1,6 +1,6 @@
 ---
 description: Plan and implement a phase milestone
-argument-hint: <phase>[.<milestone>]
+argument-hint: <phase>[.<milestone>] [--review-loop]
 model: opusplan
 ---
 
@@ -24,6 +24,7 @@ the user stated one this session, or the proposal or phase document carries a
 
 2. Parse the argument. `PHASE.MILESTONE` (e.g., `207.3`) names one milestone. A
    bare `PHASE` (e.g., `207`) means the next incomplete milestone in that phase.
+   A `--review-loop` flag changes only step 12.
 
 3. Check the phase status in the index. Stop and tell the user if the phase is
    already COMPLETE.
@@ -66,8 +67,21 @@ the user stated one this session, or the proposal or phase document carries a
 
 12. Review the change with the `reviewer` agent, named
     `coding-standards:reviewer` when installed as a plugin. Tell it the phase
-    milestone and the proposal milestone it implements. Apply the fixes it
-    reports; the agent reviews the working-tree diff and does not edit code.
+    milestone and the proposal milestone it implements. The agent reviews the
+    working-tree diff and does not edit code. Address what it reports:
+    - Fix comment-craft, style, and plan-conformance findings directly.
+    - Apply `CONFIRMED` correctness and security findings.
+    - Verify a `PLAUSIBLE` finding before acting on it. Trace the failure it
+      describes. Fix it only if the trace confirms it.
+    - Push back in your response on any finding you disagree with, and say
+      why. Do not apply a finding blindly.
+
+    Re-run the project's checks only when the fixes changed code. A
+    comment-only change may skip the tests, but still run the formatter.
+
+    Review is a single pass by default. If `$ARGUMENTS` includes
+    `--review-loop`, send the same reviewer a follow-up after applying fixes.
+    Repeat until it reports no actionable findings.
 
 13. Summarize the work as a commit message, following
     `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Emit raw markdown. Use only
