@@ -40,8 +40,8 @@ Do all of this before any question.
 
 1. **Directories.** Find the proposals and phases directories (`spec/proposals/` and `spec/phases/`, or the `docs/`
    equivalents). Either may be a symlink into a separate specs repo. Follow it.
-2. **Indexes.** Each directory's index is `index.md` or `README.md`. Use whichever exists. If both exist, use the one
-   whose table lists the proposals or phases. Never hard-code either name.
+2. **Indexes.** Each directory's index is `index.md` or `README.md`, per `tracking.md` "Index File Name". Use whichever
+   exists. Never hard-code either name. If a directory holds both, stop and tell the user to consolidate them first.
 3. **Proposal.** Find `<ID>-*.md` in the proposals directory. If none exists, tell the user and stop. Read it and
    capture the title from the `# PROJ-NNN: Title` heading, `**Status:**`, `**Tradeoffs:**` if present, Dependencies,
    Summary, Motivation, Design Decisions (Settled), Design Decisions (Open), Milestones, any acceptance criteria, and

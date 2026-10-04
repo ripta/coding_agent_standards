@@ -20,7 +20,7 @@ the user stated one this session, or the proposal or phase document carries a
 `**Tradeoffs:**` field.
 
 1. Locate the phases directory. Check the common locations: `spec/phases/`,
-   `docs/phases/`, `phases/`. Read its `index.md`.
+   `docs/phases/`, `phases/`. Read its index, `index.md` or `README.md`.
 
 2. Parse the argument. `PHASE.MILESTONE` (e.g., `207.3`) names one milestone. A
    bare `PHASE` (e.g., `207`) means the next incomplete milestone in that phase.

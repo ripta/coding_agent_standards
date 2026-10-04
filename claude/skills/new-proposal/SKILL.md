@@ -48,7 +48,9 @@ Do all of this before any question. Most answers are already on disk.
    prefix is fixed once chosen.
 3. **Number** — scan existing proposal filenames for the highest number and use the next sequential value. Numbers are
    permanent and never reused. Match the zero-padding of existing files (e.g. `001` vs `01`).
-4. **Index** — note whether the proposals directory already has an `index.md`.
+4. **Index** — note whether the proposals directory already has an index, `index.md` or `README.md`. If it has both,
+   stop and tell the user to consolidate them first, per the "Index File Name" section of
+   `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`.
 5. **Codebase** — use Agent sub-tasks to scan for code, patterns, types, and conventions relevant to the proposal's
    domain, so the motivation and design are grounded in what exists.
 6. **Related proposals** — if the description references or depends on other proposals, read them to capture
@@ -69,7 +71,7 @@ Ask only from this set:
 - **Directory.** Only when no proposals directory exists. Offer the common locations as options.
 - **Prefix.** Only when there are no existing proposals to derive it from. Propose a short, distinguishable prefix based
   on the project name (`PROJ` is permitted but discouraged when a more specific prefix fits).
-- **Index.** Only when this is the first proposal and no `index.md` exists. Ask whether to create one.
+- **Index.** Only when this is the first proposal and no index exists. Ask whether to create one.
 - **Gaps.** The targeted follow-ups that fill real holes — motivation, scope, constraints, known design decisions,
   dependencies. Ask only what you cannot reasonably infer; do not interrogate.
 
@@ -108,7 +110,7 @@ Rules for drafting:
 
 ### Step 7: Index
 
-If an `index.md` already exists, add a row for the new proposal and keep it consistent.
+If an index already exists, add a row for the new proposal and keep it consistent.
 
 If this is the **first** proposal for the project, act on the index answer from Step 4. Create the index per the
 "Proposal Index" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` — a table with

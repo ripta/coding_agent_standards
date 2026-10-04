@@ -17,9 +17,13 @@ project-specific deviation when one exists.
 
 ### Step 1: Locate the Phases Directory and Index
 
-Find the phases directory by checking common locations (`spec/phases/`, `docs/phases/`, `phases/`). Read its `index.md`
-if present — the status summary table is the fastest way to see every phase and its current status. If there is no
-index, enumerate phase files directly (`phase-N-*.md`).
+Find the phases directory by checking common locations (`spec/phases/`, `docs/phases/`, `phases/`). Find the proposals
+directory the same way. Each directory's index is `index.md` or `README.md`, per the "Index File Name" section of
+`${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. Note which name each directory uses. If a directory holds
+both, stop before editing anything. Tell the user to consolidate the two into one file first.
+
+Read the phase index if present — the status summary table is the fastest way to see every phase and its current
+status. If there is no index, enumerate phase files directly (`phase-N-*.md`).
 
 ### Step 2: Identify Newly-Completed Phases
 
@@ -38,7 +42,7 @@ For each newly-completed phase, update its own file: change `**Status:**` from `
 
 ### Step 4: Update the Phase Index
 
-In the phases directory's `index.md`, update the row for each completed phase: set Status to `COMPLETE` and Progress to
+In the phase index, update the row for each completed phase: set Status to `COMPLETE` and Progress to
 the full milestone count (e.g. `5/5`).
 
 If the index has a Pending Phases section, remove any completed phase still listed there. That section holds only
@@ -57,7 +61,7 @@ be split across multiple phases, so check the phase index for every other phase 
 
 ### Step 6: Update the Proposal Index
 
-Update the matching rows in the proposals directory's `index.md` to reflect each changed proposal status.
+Update the matching rows in the proposal index to reflect each changed proposal status.
 
 ### Step 7: Report
 

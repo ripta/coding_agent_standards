@@ -21,8 +21,8 @@ project-specific deviation when one exists.
 
 1. Find the proposals directory by checking common locations: `spec/proposals/`, `docs/proposals/`, `proposals/`. Use
    the first that exists and contains proposal files.
-2. If an `index.md` exists in that directory, read it — its status table is the fastest way to see every proposal and
-   its status. If there is no index, enumerate the proposal files directly (`<PREFIX>-NNN-*.md`).
+2. If an index (`index.md` or `README.md`) exists in that directory, read it — its status table is the fastest way to
+   see every proposal and its status. If there is no index, enumerate the proposal files directly (`<PREFIX>-NNN-*.md`).
 
 ### Step 2: Select In-Flight Proposals
 
