@@ -4,9 +4,10 @@ description: |
   Sync phase-tracking artifacts after milestones complete. Scans a project's phases
   directory for phases whose milestones are all DONE, flips their status to COMPLETE,
   and propagates that completion to the phase index and the originating proposal
-  (and its index).
+  (and its index). Also trims the proposal dependency graph and prunes captured
+  ideas, when the project has them.
 model: sonnet
-allowed-tools: Read, Edit, Glob, Grep
+allowed-tools: AskUserQuestion, Read, Edit, Glob, Grep
 ---
 
 You keep a project's phase-tracking artifacts in sync after milestones finish, following the phase model in
@@ -57,19 +58,39 @@ be split across multiple phases, so check the phase index for every other phase 
   `implemented`.
 - If other phases implementing the same proposal are still incomplete, leave the proposal's status as-is and note this
   in the report.
+- If the proposal's status is `draft`, `designing`, `deferred`, or `rejected`, stop and ask the user with
+  AskUserQuestion. Finished work on such a proposal means a lifecycle step was skipped. Do not change its status until
+  the user decides.
 - If the proposal's status is already `implemented` or anything else, leave it and note why.
 
 ### Step 6: Update the Proposal Index
 
 Update the matching rows in the proposal index to reflect each changed proposal status.
 
-### Step 7: Report
+### Step 7 (optional): Trim the Dependency Graph
+
+Skip this step if the proposal index has no dependency graph. The graph lists active proposals only, per `proposals.md`
+"Proposal Index". Remove each proposal that this run moved to `implemented`. Drop any edge that only connected
+implemented proposals. Keep the edges among proposals that are still active.
+
+### Step 8 (optional): Prune Captured Ideas
+
+Skip this step if the specs directory has no ideas file, such as `spec/ideas.md`. Each idea there is a `##` section. An
+idea is captured when a numbered proposal, in any status, has a title or summary that clearly covers the same feature
+or concern. Check each idea against the proposal index. When in doubt, keep the idea.
+
+Remove each captured idea's whole section, from its `##` heading to the next heading. Keep the file's intro paragraphs.
+Leave a trailing newline at the end of the file.
+
+### Step 9: Report
 
 Summarize:
 
 - Which phases were moved to `COMPLETE`
 - Which proposal statuses were updated
 - Any phases or proposals that were left unchanged, and why
+- Which proposals and edges were removed from the dependency graph, if Step 7 ran
+- Which ideas were removed, and the proposal that captured each, if Step 8 ran
 
 ## Rules
 
