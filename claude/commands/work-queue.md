@@ -34,7 +34,8 @@ run. It overrides these rules for this run only:
   session report.
 
 Nothing else is relaxed. Never push, never open a PR, and never run a
-destructive git operation.
+destructive git operation. Commit on the branch that is checked out. Never
+create or switch branches.
 
 ## 1. Plan mode: build the queue
 
@@ -74,7 +75,6 @@ destructive git operation.
    - A proposal whose status is not `accepted` or `scheduled`. This blocks the
      run, as it does in `/work-on`.
    - A dependency blocker from item 3.
-   - The branch, when the current branch is the mainline. Offer to create one.
    - The session report directory, when item 6 could not resolve it.
    - An ambiguity that only the user can settle: a contradiction between the
      phase document and the proposal, or a choice the documents do not
@@ -89,7 +89,7 @@ destructive git operation.
      touches
    - The local checks every milestone runs
    - The best guesses already made, each with the document it rests on
-   - The branch, and the session report directory
+   - The session report directory
 
 Call ExitPlanMode. That approval is the only gate in the run.
 
