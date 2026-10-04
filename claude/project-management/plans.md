@@ -105,14 +105,6 @@ User-facing issue this phase solves.
 | N.1 | PROJ-NNN M1 | Description | NOT STARTED |
 | N.2 | PROJ-NNN M2 | Description | NOT STARTED |
 
-## Implementation
-
-### Files to Modify
-1. `path/to/file.ext` - Purpose
-
-### Changes Required
-1. Description of change
-
 ## Acceptance Criteria
 
 ### Phase N.1
