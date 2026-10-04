@@ -51,9 +51,10 @@ proven and recommended, so it is the heaviest. Weight is not permanence. A later
 spike, research write-up, or proposal can show an ADR to be wrong, and the ADR
 is then superseded.
 
-**Index** — an `index.md` at the root of a proposals or phases directory,
-holding a status table with one row per artifact. Created with the first
-artifact of its kind, even when only one will ever exist.
+**Index** — an `index.md` or `README.md` at the root of a proposals or
+phases directory, holding a status table with one row per artifact.
+Created with the first artifact of its kind, even when only one will ever
+exist.
 
 **Specs directory** — where proposals, phases, and ADRs live. Often a
 centralized directory symlinked into a project as `spec/` or `docs/`. When

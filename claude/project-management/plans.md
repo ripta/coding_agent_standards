@@ -131,7 +131,7 @@ only when the user asks for it. See the "Choosing Options" section of `rules/dec
 ## Phase Index
 
 When creating the first phase for a project, create an `index.md` in the phases directory, even if this is the only
-phase that will ever exist.
+phase that will ever exist. An existing `README.md` index is also accepted. See `tracking.md` "Index File Name".
 
 Contents:
 

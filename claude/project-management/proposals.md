@@ -156,7 +156,7 @@ becomes unmanageable, this approach may be replaced with something else.
 ## Proposal Index
 
 When creating the first proposal for a project, create an `index.md` in the proposals directory, even if this is the
-only proposal that will ever exist.
+only proposal that will ever exist. An existing `README.md` index is also accepted. See `tracking.md` "Index File Name".
 
 Contents:
 

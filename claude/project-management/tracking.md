@@ -100,6 +100,14 @@ Proposals and phases each live in their own subdirectory under this specs direct
 named `spec/adrs/`, although legacy projects have no fixed subdirectory name; place them alongside any existing ADRs, or
 ask where they should live if none exist yet.
 
+### Index File Name
+
+A proposals or phases directory has exactly one index. It is named `index.md` or `README.md`. A new index is
+`index.md`. Skills and commands accept either name.
+
+A directory holding both is out of standard. Consolidate it before any tool updates its index. Merge the rows and any
+prose into one file, then delete the other. A tool that finds both stops before editing either one and tells the user.
+
 ## Markdown Quality
 
 - Use a markdown linter with a shared config. The config is `rumdl/rumdl.toml.template` in the coding standards repo;
