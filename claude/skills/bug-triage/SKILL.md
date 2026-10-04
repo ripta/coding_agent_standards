@@ -129,6 +129,8 @@ Summarize concisely:
 ## Rules
 
 - One bug per run. After acting on the selected bug, stop.
+- Step 4 asks after verification on purpose, because what to offer depends on the outcome. This is an exception to
+  the ask-once flow in `skills/README.md`. Step 1 asks only for a build command it cannot find.
 - Never commit, stage, or push. Stop and let the user commit.
 - Do not make a design decision on a fix alone. Ask whenever the approach is ambiguous.
 - A fix always lands with a regression test that failed before it.
