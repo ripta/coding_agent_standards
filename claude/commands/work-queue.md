@@ -1,7 +1,7 @@
 ---
 description: Plan a queue of phase milestones up front, then implement and commit them one at a time
 argument-hint: <phase>[.<milestone>] [<phase>[.<milestone>] ...] [notes]
-model: opusplan
+model: opus
 ---
 
 Start by calling the EnterPlanMode tool, before any other action. Skip this
@@ -10,6 +10,13 @@ step if the session is already in plan mode.
 Work through the queue of phase milestones named in $ARGUMENTS. Planning
 happens once, up front. Implementation then takes one milestone at a time off
 the queue, and lands each one as its own commit before starting the next.
+
+This session is the coordinator. It plans, delegates, triages, commits, and
+keeps the session reports. It does not write code. Each milestone goes to a
+fresh `implementer` agent, and each review to a fresh `reviewer` agent. Under a
+plugin they are named `coding-standards:implementer` and
+`coding-standards:reviewer`. Keeping the code out of this session's context is
+what lets it hold the whole run without drifting.
 
 This command wraps `${CLAUDE_PLUGIN_ROOT}/commands/work-on.md`. Read it now.
 Its checks, artifact sync, and review still apply to every milestone. Its plan
@@ -57,8 +64,9 @@ create or switch branches.
    a queue order that puts a phase before its dependency.
 
 4. Read the design documents and ADRs the phases and proposals cite. Explore
-   the codebase enough to plan every milestone. Detailed exploration for a
-   later milestone can wait until that milestone starts, since earlier
+   the codebase enough to plan every milestone. Use Explore agents for this,
+   so the coordinator keeps their conclusions and not the file dumps. Detailed
+   exploration for a later milestone is the implementer's job, since earlier
    milestones change the code it will see.
 
 5. Find the project's local checks: formatters, linters, type checkers, and
@@ -102,35 +110,39 @@ compaction.
 
 For each milestone in the queue, in order:
 
-1. Re-read its acceptance criteria and explore the code as it stands now.
-   Plan the milestone yourself. Do not re-enter plan mode, and do not present
-   the plan for approval.
-
-2. When this is the first milestone of a phase, sync the phase-begin artifacts
+1. When this is the first milestone of a phase, sync the phase-begin artifacts
    from `plans.md` "Artifact Sync". Set the milestone's status to IN PROGRESS.
 
-3. Implement it. Then tick its acceptance criteria and set its status to DONE,
-   in the phase document and the phase index.
+2. Spawn a fresh `implementer` agent. Brief it with the phase milestone, the
+   proposal milestone, the plan's section for this milestone, the local
+   checks, the session report path, and the run's notes. Do not re-enter plan
+   mode, and do not present a plan for approval.
 
-4. Run the local checks. Fix every failure and warning, including lint
-   warnings in code the milestone touched.
+3. Read its report. If it reports a blocker, follow section 5.
 
-5. Review it with the `reviewer` agent, named `coding-standards:reviewer` when
-   installed as a plugin. Spawn a fresh agent for every review. Tell it the
-   phase milestone and the proposal milestone. Triage what it reports:
-   - Fix comment, style, and plan-gap findings directly.
-   - Fix a `CONFIRMED` finding.
-   - Trace a `PLAUSIBLE` finding before acting. Fix it only if the trace
-     confirms it.
-   - Dismiss a finding that is wrong, and record why.
+4. Spawn a fresh `reviewer` agent. Tell it the phase milestone and the
+   proposal milestone. Triage what it reports:
+   - Mark comment, style, and plan-gap findings as fix.
+   - Mark a `CONFIRMED` finding as fix.
+   - Mark a `PLAUSIBLE` finding as trace. The implementer fixes it only if the
+     trace confirms it.
+   - Dismiss a finding that is wrong, and record why. Read the cited code to
+     decide this, but no further.
 
-   Re-run the local checks after the fixes.
+   Send the fix and trace findings to the same implementer with SendMessage,
+   so it keeps its context. It re-runs the local checks and reports again.
+
+5. Check the implementer's last report. Every check must have run and passed.
+   Its file list must match `git status`. Ask the implementer about any
+   mismatch before committing.
 
 6. Commit the milestone. The review fixes land in the same commit. Stage the
    files by path; never `git add -A` or `git add .`. Write the message by
    `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`.
 
-7. Amend the phase's session report (see section 4).
+7. Amend the phase's session report (see section 4). Copy in the
+   implementer's best guesses and deviations, so the next implementer sees
+   them.
 
 8. Move on to the next milestone without waiting for the user.
 
@@ -147,8 +159,10 @@ When the last queued milestone of a phase is committed:
    milestone the range covers. Ask it to weigh how the milestones fit
    together, on top of its usual axes.
 
-3. Triage the findings as in section 2. Commit the fixes, and any artifact
-   sync, as their own commit. Amend the session report.
+3. Triage the findings as in section 2. Send them to a fresh `implementer`,
+   with the commit range and the milestones it covers in place of a single
+   milestone. Commit the fixes, and any artifact sync, as their own commit.
+   Amend the session report.
 
 4. Continue with the next phase in the queue.
 
