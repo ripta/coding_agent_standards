@@ -22,6 +22,7 @@ coding_agent_standards/
 │   ├── settings/            Permission whitelist templates per ecosystem
 │   └── skills/              Skill definitions
 ├── codex/              Codex skills with no Claude Code equivalent (exported as a Codex plugin)
+├── mods/               Claude Code mods, each its own opt-in plugin in the same marketplace
 ├── profiles/           Composable project profiles
 ├── rumdl/              Shared markdown lint config and runner
 ├── vale/               Shared prose lint styles and runner
@@ -198,6 +199,23 @@ claude --plugin-dir ~/projects/coding_agent_standards/claude
 
 Edit freely, then run `/reload-plugins` in the session to pick up changes immediately. Once satisfied, commit and push,
 and installed copies catch up via `/plugin marketplace update`.
+
+### Installing Mods
+
+`mods/` holds mods: plugins built from TypeScript function hooks that can draw UI inside Claude Code. Each is its own
+plugin in the same marketplace, so none of them ride along with `coding-standards`. Install one by name:
+
+```text
+/plugin install gopher-spinner@coding-standards
+```
+
+`gopher-spinner` draws a pixel-art gopher in place of the spinner line while a turn runs. It hops during tool calls,
+looks around while thinking, and blinks while replying. It replaces the whole line, so the elapsed time and token count
+are not shown. It draws in the terminal only. `/gopher` opens a pane that plays every frame. Redraw the
+gopher by editing the pixel rows in `hooks/frames.ts`.
+
+Check a mod with `claude plugin validate mods/<name>` and `claude plugin test mods/<name>`. To iterate with hot reload,
+launch with `claude --plugin-dir ~/projects/coding_agent_standards/mods/<name>`.
 
 ### Installing the Codex Plugin
 

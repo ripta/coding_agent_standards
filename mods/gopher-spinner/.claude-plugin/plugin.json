@@ -1,0 +1,10 @@
+{
+  "name": "gopher-spinner",
+  "version": "0.1.0",
+  "description": "A pixel-art gopher that animates beside the spinner while a turn runs",
+  "author": {
+    "name": "Ripta Pasay"
+  },
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}

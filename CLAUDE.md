@@ -17,6 +17,8 @@ projects.
   `claude/` so it ships with the plugin
 - `codex/` - Codex skills that have no Claude Code equivalent, packaged as a separate Codex plugin. A skill belongs here
   only when it depends on something Codex has and Claude Code does not
+- `mods/` - Claude Code mods (function-hook plugins that can draw UI). Each is its own opt-in plugin listed in
+  `.claude-plugin/marketplace.json`, never folded into `claude/`, so projects using `coding-standards` do not get them
 - `profiles/` - Composable project profiles that import from the above
 
 ## Usage

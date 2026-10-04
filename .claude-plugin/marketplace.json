@@ -8,6 +8,11 @@
       "name": "coding-standards",
       "source": "./claude",
       "description": "Personal coding standards: skills, hooks, and agents reusable across projects"
+    },
+    {
+      "name": "gopher-spinner",
+      "source": "./mods/gopher-spinner",
+      "description": "A pixel-art gopher that animates beside the spinner while a turn runs"
     }
   ]
 }
