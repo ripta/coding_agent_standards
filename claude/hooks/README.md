@@ -9,6 +9,63 @@
 `block-redirection.sh` and `cg-check.sh` ship here too. They are not wired into
 `hooks.json`. Reference them from a project's own settings when you want them.
 
+## Opt-In Hooks
+
+These are not wired into `hooks.json` either. Each one suits only some
+projects. Wire one from the project's `.claude/settings.json` by absolute path,
+since `${CLAUDE_PLUGIN_ROOT}` is not set there. The examples assume the repo
+lives at `~/projects/coding_agent_standards`.
+
+- `block-pm-references.sh` denies an Edit or Write to a source file whose new
+  text names a proposal, ADR, or bug ID, or a phase or milestone number. It
+  enforces the rule in `rules/work-discipline.md`. Markdown, `spec/`, and
+  `.claude/` are exempt. Pass the project's proposal prefixes as arguments.
+- `audit-pm-refs.sh` is the same check on Stop, over every tracked file. It
+  also catches text that arrived through Bash. It greps the whole tree, so clean
+  up existing references before wiring it, or every stop fails. Both hooks take
+  their pattern from `lib-pm-refs.sh`.
+- `protect-golden-files.sh` denies hand-writing a `.golden` file, through Edit,
+  Write, or Bash. Goldens must come from the project's update target.
+- `block-zig-cache.sh` denies running a binary from `.zig-cache/` and deleting
+  the cache. `settings/zig-dev.json` already wires it.
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/projects/coding_agent_standards/claude/hooks/block-pm-references.sh MOSK"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/projects/coding_agent_standards/claude/hooks/protect-golden-files.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/projects/coding_agent_standards/claude/hooks/audit-pm-refs.sh MOSK"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
 ## Parked Configs Do Not Belong in hooks.json
 
 Claude Code refuses to load a plugin whose `hooks.json` has a matcher-shaped

@@ -72,8 +72,9 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
 
 - **Rules** (`rules/`) -- decision-making boundaries, work discipline, git workflow, commit/PR style, writing voice
 - **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. The
-  `block-broad-find`, `block-redirection`, and `cg-check` guard scripts ship alongside it; see `claude/hooks/README.md`
-  for which are wired by default
+  `block-broad-find`, `block-redirection`, and `cg-check` guard scripts ship alongside it, plus opt-in hooks for
+  project-management references, golden files, and the Zig cache; see `claude/hooks/README.md` for which are wired by
+  default
 - **Settings** (`settings/`) -- permission whitelist templates to copy into a project's `.claude/settings.local.json`,
   one per language ecosystem
 - **Scripts** (`scripts/`) -- standalone scripts not tied to a hook, currently the statusline
