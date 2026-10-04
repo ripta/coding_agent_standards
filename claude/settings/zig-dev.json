@@ -7,5 +7,18 @@
       "Bash(zig fmt *)",
       "Bash(git *)"
     ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/projects/coding_agent_standards/claude/hooks/block-zig-cache.sh"
+          }
+        ]
+      }
+    ]
   }
 }
