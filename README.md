@@ -43,7 +43,9 @@ Standards for each language/framework covering naming, project structure, error 
 - **TypeScript** (`typescript.md`) -- strict tsconfig, ESM, Biome for format and lint, pnpm
 - **Phaser** (`phaser.md`) -- scenes, pooling, atlases, isometric projection
 - **PixiJS** (`pixijs.md`) -- v8 application setup, scene graph, ticker, asset bundles
-- **Protocol Buffers** (`protobuf.md`) -- file layout, naming, buf-based code generation
+- **Protocol Buffers** (`protobuf.md`) -- file layout, naming, schema evolution, field numbering, buf-based code
+  generation
+- **PostgreSQL** (`postgres.md`) -- data types, database-enforced constraints, relationships, indexes, denormalization
 
 ### Practices
 
