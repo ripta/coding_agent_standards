@@ -54,26 +54,24 @@ Before engaging the user on any questions:
 3. Present a numbered summary of all open questions, showing any candidate options already listed
 4. Flag questions that are related or dependent on each other
 5. Order the questions with the most foundational first — questions that other questions depend on, that affect the most
-   components or interfaces, or that constrain the solution space for later decisions. Present this order.
-6. Ask the user how to proceed using AskUserQuestion, with these options in this order:
-   - **Work through all questions (Recommended)** — resolve every open question in the foundational order just
-     presented, without pausing between questions to ask what comes next. This is the default.
-   - **Pick a starting question** — the user chooses each question, one at a time. If they pick this mode, immediately
-     ask which question to start with using AskUserQuestion, listing the open questions in the order from #5.
-   - **Stop** — end the session without resolving anything.
+   components or interfaces, or that constrain the solution space for later decisions.
+6. Group the ordered questions into rounds. A question is eligible once every question it depends on is settled. A round
+   is the first eligible questions in foundational order, up to four. Questions in the same round must not depend on
+   each other. When only one question is eligible, the round holds just that one.
+7. Present the order and the rounds. Then start Step 5 with the first round. Do not ask how to proceed.
 
-Remember which mode the user chose. It governs both the order Step 5 works through and whether Step 5 #8 asks what comes
-next.
+The review always covers every open question. If the user named a starting question when invoking the skill, put it in
+the first round and keep the rest in foundational order. The user can redirect or stop at any point by saying so.
 
 ### Step 5: Resolve Questions
 
-Loop through the open questions in the order set by Step 4. In "work through all" mode that is every question, most
-foundational first. In "pick a starting question" mode it is whichever question the user names next.
+Work through the rounds from Step 4 until no open question remains.
 
 Questions added later — by the gap analysis in Step 6 or the risk review in Step 7 — join this loop. Place them in the
-existing order using the criteria in Step 4 #5. The chosen mode still applies to them.
+existing order using the criteria in Step 4 #5, and group them into rounds by Step 4 #6.
 
-For each question:
+For each round, run #1 through #4 for every question in the round before asking anything. Then ask once (#5) and record
+every answer (#6).
 
 #### 1. Present
 
@@ -83,6 +81,7 @@ Show the question text and any candidate options already listed in the proposal.
 
 If the existing candidates seem incomplete or under-specified:
 
+- Research the round's questions in parallel when each needs its own Agent sub-task
 - Search the codebase for relevant patterns using Agent sub-tasks
 - Check project dependencies for relevant APIs or conventions
 - Use WebSearch/WebFetch if the question involves external libraries, protocols, or ecosystem conventions
@@ -127,69 +126,59 @@ Keep sketches minimal and focused on the decision point. Do not write to tempora
 
 #### 5. Discuss
 
-Present options neutrally first. Then offer a recommendation with rationale only after showing all options. Ask the user
-for their preference using AskUserQuestion. If they are unsure, explain your recommendation in more detail.
+Present options neutrally first. Then offer a recommendation with rationale only after showing all options.
+
+Ask for the whole round in one AskUserQuestion call, with one question per round question. Mark the recommended option
+in each.
+
+If the user is unsure about a question, explain your recommendation in more detail. If they answer with "Other" or a
+follow-up, record the questions they did answer first. Then take up the unanswered one.
 
 When the user asks follow-up questions, do not continue pushing them toward a decision. Instead, dive deep into the
 topic — address their concerns thoroughly, provide full information, and clearly communicate any assumptions. Only
 re-present the decision prompt after the user's concerns are fully addressed and the conversation naturally returns to
-the decision point.
+the decision point. Then re-ask only the questions still unanswered, in one AskUserQuestion call.
 
 #### 6. Record
 
-Immediately after the user decides, update the proposal file:
+As soon as the call returns, update the proposal file for each decision. Do this before researching the next round:
 
 - Move the question from "Design Decisions (Open)" to "Design Decisions (Settled)" with the chosen option and rationale
 - Add a Decision Log entry with today's date: `- YYYY-MM-DD: <one-line summary of decision>`
 - Update the `**Updated:**` date to today's date
 - If the proposal status is `draft`, change it to `designing`
 
-Update the file after each decision, not batched, so progress survives interruption.
+Write the answers to the file before doing anything else, so progress survives interruption.
 
-#### 7. ADR Check
+Note each decision that is architecturally significant (cross-component, hard to reverse, sets a precedent). Step 8
+asks about ADRs for all of them at once. Do not ask about an ADR inside the loop.
 
-If the decision is architecturally significant (cross-component, hard to reverse, sets a precedent), ask the user if an
-ADR should be created using AskUserQuestion.
-
-If yes, read `${CLAUDE_SKILL_DIR}/../../project-management/design.md` and create an ADR following its "ADR Document
-Format" section. That file is the only source for the format; this skill does not carry its own copy. If it cannot be
-read, stop and tell the user this skill is installed without its standards.
-
-Determine the ADR number by scanning existing ADR files for the next sequential number. Match the zero-padding of the
-existing files (e.g. `ADR-01` vs `ADR-0001`). Use 2-digit padding only when no ADR exists yet. Place the ADR alongside
-existing ADRs, or ask the user for the directory if none exist.
-
-Add a reference to the new ADR in the proposal's References section.
-
-#### 8. Next
+#### 7. Next
 
 Show the count of remaining open questions.
 
-In "work through all" mode, move straight to the next question in the order. Do not ask which question comes next. Do
-not ask whether to continue. Name the question you are moving to, then start it. The user can still redirect or stop at
-any point by saying so.
+Move straight to the next round. Do not ask which question comes next. Do not ask whether to continue. Name the
+questions in the next round, then start it.
 
-Re-order the remaining questions first if a decision just made changes what is foundational — for example, if it settled
-a dependency or opened a new constraint. Say so in one line when the order changes.
-
-In "pick a starting question" mode, list the remaining questions ordered by foundational impact. Ask the user to pick
-the next one or stop the session.
+Recompute the remaining rounds first if a decision just made changes what is foundational or what depends on what. For
+example, it may have settled a dependency or opened a new constraint. Say so in one line when the rounds change.
 
 ### Step 6: Coherence Review
 
 When all open questions have been resolved, review the settled decisions as a whole before wrapping up:
 
 1. **Consistency check**: Read through all settled decisions together and verify they are internally consistent — no
-   contradictions, no decisions that undermine each other's rationale, and no implicit assumptions that conflict. If
-   inconsistencies are found, present them to the user via AskUserQuestion and resolve before continuing.
-
+   contradictions, no decisions that undermine each other's rationale, and no implicit assumptions that conflict.
 2. **Gap analysis**: Consider whether the combined decisions reveal new design questions that weren't visible when
    questions were addressed individually — e.g., integration concerns, missing error handling paths, or undecided
-   behavioral edge cases. If gaps are found, present them to the user via AskUserQuestion and ask whether to:
-   - Add them as new open questions in the proposal (and loop back to Step 5 to resolve them)
-   - Defer them per the "Deferring Decisions" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`:
-     record each in Design Decisions (Settled) as a decision to defer, with a concrete revisit hook in both the settled
+   behavioral edge cases. For each gap, the user chooses whether to:
+   - Add it as a new open question in the proposal (and loop back to Step 5 to resolve it)
+   - Defer it per the "Deferring Decisions" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`:
+     record it in Design Decisions (Settled) as a decision to defer, with a concrete revisit hook in both the settled
      entry and the Decision Log
+
+Do both checks before asking. Then present every inconsistency and gap in one AskUserQuestion call. When there are more
+than four, ask in successive calls of up to four. Resolve inconsistencies before continuing.
 
 ### Step 7: Risk Review
 
@@ -198,27 +187,43 @@ Before wrap-up, interrogate the proposal's Risks section against the "Risks" sec
 
 1. **Compliance**: The section exists, each risk carries a likelihood, an impact, and a mitigation or explicit
    acceptance. "None identified" carries a stated reason. A risk with neither mitigation nor acceptance is really an
-   open question — offer to move it to Design Decisions (Open) and resolve it via Step 5.
+   open question — move it to Design Decisions (Open) and resolve it via Step 5.
 2. **One-way doors**: Scan the settled decisions for irreversible choices — schema or data migrations, published API
-   contracts, wire formats, data backfills — that are not listed as risks and not defused by the design itself. Present
-   any you find.
+   contracts, wire formats, data backfills — that are not listed as risks and not defused by the design itself.
 3. **Unstated exposure**: Check for risks implied but not recorded: dependencies on other in-flight proposals whose
    design could still shift (cross-reference the Dependencies and Impacts sections), and open questions whose eventual
    resolution could invalidate a recorded mitigation.
 4. **Blockers**: A risk rated high likelihood and high impact blocks `accepted` until mitigated or explicitly accepted
    with a Decision Log entry.
 
-Present gaps via AskUserQuestion. Record agreed changes in the Risks section immediately, with a Decision Log entry per
-the standard.
+Record each missing risk in the Risks section immediately. Do not ask whether to add it. A risk is a fact about the
+design, not a choice. If you are unsure a risk is real, check the design and code until you know. Ask via
+AskUserQuestion only about what is the user's to decide: a likelihood or impact rating the evidence does not settle, and
+whether to mitigate or accept. Batch these into one call, or successive calls of up to four. Record each answer with a
+Decision Log entry per the standard.
 
 ### Step 8: Wrap-Up
 
 When the user stops or all questions are resolved (and the coherence and risk reviews are complete):
 
-- **All resolved**: Ask if the proposal should advance to `accepted`. If yes, update the status. Do not offer `accepted`
-  while the Risks section is missing or non-compliant, or while a high-likelihood/high-impact risk is neither mitigated
-  nor explicitly accepted.
+- **All resolved**: Ask via AskUserQuestion if the proposal should advance to `accepted`. If yes, update the status. Do
+  not offer `accepted` while the Risks section is missing or non-compliant, or while a high-likelihood/high-impact risk
+  is neither mitigated nor explicitly accepted.
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
+
+If any decisions were noted as architecturally significant, ask via AskUserQuestion which should get an ADR. Use one
+multiSelect question that lists them. Put it in the same AskUserQuestion call as the `accepted` question when there is
+one.
+
+For each decision the user picks, read `${CLAUDE_SKILL_DIR}/../../project-management/design.md` and create an ADR
+following its "ADR Document Format" section. That file is the only source for the format; this skill does not carry its
+own copy. If it cannot be read, stop and tell the user this skill is installed without its standards.
+
+Determine the ADR number by scanning existing ADR files for the next sequential number. Match the zero-padding of the
+existing files (e.g. `ADR-01` vs `ADR-0001`). Use 2-digit padding only when no ADR exists yet. Place the ADR alongside
+existing ADRs, or ask the user for the directory via AskUserQuestion if none exist.
+
+Add a reference to the new ADR in the proposal's References section.
 
 Present a one-line summary of each decision made this session.
 
@@ -226,18 +231,21 @@ List any ADRs created with their file paths.
 
 ## Rules
 
-- This skill is the deliberate exception to the frontloading rule in `rules/decision-making.md`. Resolving one design
-  question at a time, with research and discussion between each, is the product rather than a defect. Do not batch the
-  Step 5 loop into a single up-front call, and do not "fix" this skill to ask less
+- This skill is a partial exception to the frontloading rule in `rules/decision-making.md`. It cannot ask every question
+  up front. Later questions depend on earlier answers, and each question needs its research shown before the user
+  decides. So it asks in rounds: one AskUserQuestion call per round of up to four independent questions. Never split a
+  round into one call per question. Never merge dependent questions into one round
+- Ask every question through the AskUserQuestion tool. Never ask a question as plain prose and wait for a typed reply.
+  Batching changes how many questions go in one call. It never replaces the tool
 - Never make a decision without explicit user confirmation via AskUserQuestion. This covers the choice of option for a
   question. It does not cover which question to take up next
-- Default to working through all open questions in foundational order. Ask which question comes next only when the user
-  explicitly chose to pick them one at a time. If the chosen mode is ever unclear, fall back to working through all
+- Always work through every open question in foundational order. Never ask which question comes next or whether to
+  continue. The user stops the review by saying so
 - Never advance a proposal to `accepted` without the risk review: Risks section compliant, and no
   high-likelihood/high-impact risk left unmitigated and unaccepted
 - Present design options neutrally before offering a recommendation. This governs the options for a design question. It
-  does not govern workflow prompts like the mode choice in Step 4
-- Update the proposal file after each decision (not batched) so progress survives interruption
+  does not govern workflow prompts like the `accepted` question in Step 8
+- Write each round's decisions to the proposal file as soon as the call returns, so progress survives interruption
 - Follow the proposal format from `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` exactly
 - Follow the ADR format from `${CLAUDE_SKILL_DIR}/../../project-management/design.md` exactly
 - Handle both sub-heading and bullet-list formats for open questions

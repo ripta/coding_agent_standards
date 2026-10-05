@@ -112,9 +112,10 @@ Gather first, then ask once. Detection is cheaper than the user's attention.
   explicit assumptions the user can correct
 - One approval checkpoint after the work is drafted is fine. That is a review gate, not a second question round
 
-The exception is work whose whole purpose is back-and-forth. A design review that resolves one question at a time is
-doing its job, not scattering attention. Frontload its entry gates anyway -- which document, which mode, where to
-start -- then run the interactive loop.
+The exception is a design review whose later questions depend on earlier answers. It cannot ask everything up front.
+It asks in rounds instead: each round batches up to four questions that do not depend on each other into one call. A
+round holds a single question only when no other question is independent of it. Frontload its entry gates anyway --
+which document -- then run every round without pausing between them.
 
 ## When Corrected
 
