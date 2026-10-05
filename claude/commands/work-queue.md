@@ -168,6 +168,19 @@ For each milestone picked:
    Send the fix and trace findings to the same implementer with SendMessage,
    so it keeps its context. It re-runs the local checks and reports again.
 
+   While waiting on any agent, keep a fallback timer armed, such as a
+   background `sleep 1200`. A lost report or notification otherwise stalls the
+   run with nothing to wake it. When the timer fires and the agent has not
+   reported, check its progress before re-sending anything. Use
+   `git diff --stat`, not `git status`. New edits to files that were already
+   modified do not show in `git status`.
+
+   <!-- Workaround for bugs/20261005-subagent-second-report-dropped.md. Remove once that bug is fixed. -->
+   A "finished" notification may say the agent's report was delivered
+   earlier while a follow-up is still unanswered. That report is the old one.
+   Read the end of the agent's transcript, the notification's `<output-file>`,
+   for its answer to the follow-up.
+
 5. Check the implementer's last report. Every check must have run and passed.
    Its file list must match `git status`. Ask the implementer about any
    mismatch before committing.

@@ -65,6 +65,12 @@ Stop and report a blocker, leaving your work in place, when:
 
 ## Output
 
+Before you report, wait for every background command and Monitor you started to finish, or stop it. Work still running
+after your report can change files after the coordinator has checked them.
+
+<!-- Workaround for bugs/20261005-subagent-second-report-dropped.md. Remove once that bug is fixed. -->
+If the report is refused because one was already delivered, send the full report with SendMessage to `main` instead.
+
 Report to the coordinator:
 
 - **Files**: every path you created, modified, or deleted

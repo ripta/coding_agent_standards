@@ -22,6 +22,8 @@ projects.
   `claude/` command ships inside `claude/` instead, so everyone who gets the command gets the mod. Its hooks module is
   `claude/hooks/<name>.tsx`, its state contract is `claude/types/index.d.ts`, and its tests are in `claude/tests/`
 - `profiles/` - Composable project profiles that import from the above
+- `bugs/` - Bugs this repo works around, mostly in Claude Code. Each lists its repro and which workarounds to remove
+  once it is fixed
 
 ## Usage
 
