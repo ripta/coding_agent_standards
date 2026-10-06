@@ -86,116 +86,122 @@ bedrock_cache_max_age=300
 # verified against the AWS model-card docs, not a live list-foundation-models
 # call, so their IDs are documented rather than observed. The same goes for the
 # Opus 5.5 and Sonnet 5.5 entries added on 2026-10-03.
-declare -A BEDROCK_PRICES=(
-    # Fable 5.1
-    # Input and output match Fable 5. The one price change is cache reads, cut
-    # 75% from $1.00 to $0.25 — a 0.025x multiplier on input, against the 0.1x
-    # every other Claude model uses. Cache writes stay at $12.50 for 5m.
-    ["anthropic.claude-fable-5-1"]="10.00 50.00 0.25 12.50"
-    # Fable 5
-    ["anthropic.claude-fable-5"]="10.00 50.00 1.00 12.50"
-    # Opus 5.5
-    # Cache reads are 0.05x input ($0.20), half the usual 0.1x multiplier.
-    ["anthropic.claude-opus-5-5"]="4.00 20.00 0.20 5.00"
-    # Opus 5
-    ["anthropic.claude-opus-5"]="5.00 25.00 0.50 6.25"
-    # Opus 4.x
-    ["anthropic.claude-opus-4-8"]="5.00 25.00 0.50 6.25"
-    ["anthropic.claude-opus-4-7"]="5.00 25.00 0.50 6.25"
-    ["anthropic.claude-opus-4-6-v1"]="5.00 25.00 0.50 6.25"
-    ["anthropic.claude-opus-4-5-20251101-v1:0"]="5.00 25.00 0.50 6.25"
-    ["anthropic.claude-opus-4-1-20250805-v1:0"]="15.00 75.00 1.50 18.75"
-    ["anthropic.claude-opus-4-20250514-v1:0"]="15.00 75.00 1.50 18.75"
-    # Sonnet 5.5
-    ["anthropic.claude-sonnet-5-5"]="2.00 10.00 0.20 2.50"
-    # Sonnet 5
-    # AWS listed $2/$10 as launch pricing through 2026-08-31. Anthropic has
-    # since made $2/$10 the standard rate and cancelled the rise to $3/$15.
-    # Checked 2026-10-03: AWS has not published a post-launch Bedrock rate.
-    ["anthropic.claude-sonnet-5"]="2.00 10.00 0.20 2.50"
-    # Sonnet 4.x
-    ["anthropic.claude-sonnet-4-6"]="3.00 15.00 0.30 3.75"
-    ["anthropic.claude-sonnet-4-5-20250929-v1:0"]="3.00 15.00 0.30 3.75"
-    ["anthropic.claude-sonnet-4-20250514-v1:0"]="3.00 15.00 0.30 3.75"
-    # Haiku 4.5
-    ["anthropic.claude-haiku-4-5"]="1.00 5.00 0.10 1.25"
-    ["anthropic.claude-haiku-4-5-20251001-v1:0"]="1.00 5.00 0.10 1.25"
-    # Sonnet 3.7
-    ["anthropic.claude-3-7-sonnet-20250219-v1:0"]="3.00 15.00 0.30 3.75"
-    # Haiku 3.5
-    ["anthropic.claude-3-5-haiku-20241022-v1:0"]="0.80 4.00 0.08 1.00"
-    # Haiku 3
-    ["anthropic.claude-3-haiku-20240307-v1:0"]="0.25 1.25 0.03 0.30"
-    # Sonnet 3 (legacy)
-    ["anthropic.claude-3-sonnet-20240229-v1:0"]="3.00 15.00 0.30 3.75"
-    # Claude Mythos 5.1 and Mythos 5 are on Bedrock but omitted here. Both are
-    # gated behind a dedicated access program, same reasoning as Daybreak below.
+#
+# This is a case function, not an associative array. macOS ships bash 3.2 as
+# /bin/bash, and bash 3.2 has no `declare -A`.
+bedrock_price_table() {
+    case "$1" in
+        # Fable 5.1
+        # Input and output match Fable 5. The one price change is cache reads, cut
+        # 75% from $1.00 to $0.25 — a 0.025x multiplier on input, against the 0.1x
+        # every other Claude model uses. Cache writes stay at $12.50 for 5m.
+        anthropic.claude-fable-5-1) echo "10.00 50.00 0.25 12.50" ;;
+        # Fable 5
+        anthropic.claude-fable-5) echo "10.00 50.00 1.00 12.50" ;;
+        # Opus 5.5
+        # Cache reads are 0.05x input ($0.20), half the usual 0.1x multiplier.
+        anthropic.claude-opus-5-5) echo "4.00 20.00 0.20 5.00" ;;
+        # Opus 5
+        anthropic.claude-opus-5) echo "5.00 25.00 0.50 6.25" ;;
+        # Opus 4.x
+        anthropic.claude-opus-4-8) echo "5.00 25.00 0.50 6.25" ;;
+        anthropic.claude-opus-4-7) echo "5.00 25.00 0.50 6.25" ;;
+        anthropic.claude-opus-4-6-v1) echo "5.00 25.00 0.50 6.25" ;;
+        anthropic.claude-opus-4-5-20251101-v1:0) echo "5.00 25.00 0.50 6.25" ;;
+        anthropic.claude-opus-4-1-20250805-v1:0) echo "15.00 75.00 1.50 18.75" ;;
+        anthropic.claude-opus-4-20250514-v1:0) echo "15.00 75.00 1.50 18.75" ;;
+        # Sonnet 5.5
+        anthropic.claude-sonnet-5-5) echo "2.00 10.00 0.20 2.50" ;;
+        # Sonnet 5
+        # AWS listed $2/$10 as launch pricing through 2026-08-31. Anthropic has
+        # since made $2/$10 the standard rate and cancelled the rise to $3/$15.
+        # Checked 2026-10-03: AWS has not published a post-launch Bedrock rate.
+        anthropic.claude-sonnet-5) echo "2.00 10.00 0.20 2.50" ;;
+        # Sonnet 4.x
+        anthropic.claude-sonnet-4-6) echo "3.00 15.00 0.30 3.75" ;;
+        anthropic.claude-sonnet-4-5-20250929-v1:0) echo "3.00 15.00 0.30 3.75" ;;
+        anthropic.claude-sonnet-4-20250514-v1:0) echo "3.00 15.00 0.30 3.75" ;;
+        # Haiku 4.5
+        anthropic.claude-haiku-4-5) echo "1.00 5.00 0.10 1.25" ;;
+        anthropic.claude-haiku-4-5-20251001-v1:0) echo "1.00 5.00 0.10 1.25" ;;
+        # Sonnet 3.7
+        anthropic.claude-3-7-sonnet-20250219-v1:0) echo "3.00 15.00 0.30 3.75" ;;
+        # Haiku 3.5
+        anthropic.claude-3-5-haiku-20241022-v1:0) echo "0.80 4.00 0.08 1.00" ;;
+        # Haiku 3
+        anthropic.claude-3-haiku-20240307-v1:0) echo "0.25 1.25 0.03 0.30" ;;
+        # Sonnet 3 (legacy)
+        anthropic.claude-3-sonnet-20240229-v1:0) echo "3.00 15.00 0.30 3.75" ;;
+        # Claude Mythos 5.1 and Mythos 5 are on Bedrock but omitted here. Both are
+        # gated behind a dedicated access program, same reasoning as Daybreak below.
 
-    # --- OpenAI GPT-6 / GPT-5.x ---
-    #
-    # The GPT-5.x rates come from each model's AWS model card, which publishes a
-    # real price table. GPT-5.6 quotes Global CRIS, Geo CRIS, and In-Region rows.
-    # The Global CRIS row is used here, matching the Claude entries above.
-    #
-    # A caveat this table cannot express: GPT-5.6 bills any request over 272K
-    # input tokens at 2x every input rate and 1.5x the output rate, applied to
-    # the whole request. Long sessions on its 1M window therefore read low here.
-    #
-    # GPT-6 Astra is the exception to the model-card sourcing above. It launched
-    # 2026-09-03 and has no AWS model card and no Bedrock rate card yet, so the
-    # rates below are OpenAI's own list prices standing in for Bedrock's. Treat
-    # them as provisional and re-check once AWS publishes. The ID is real: the
-    # openai/codex Bedrock catalog carries "openai.gpt-6-astra" for Mantle, plus
-    # global. and us. Runtime variants. Astra applies the same 272K
-    # long-context surcharge as GPT-5.6, so the caveat above holds here too.
-    ["openai.gpt-6-astra"]="10.00 50.00 1.00 12.50"
-    ["openai.gpt-5.6-sol"]="5.00 30.00 0.50 6.25"
-    ["openai.gpt-5.6-terra"]="2.00 12.00 0.20 2.50"
-    ["openai.gpt-5.6-luna"]="0.20 1.20 0.02 0.25"
-    # GPT-5.5 and GPT-5.4 are In-Region only, so there is no global rate to use.
-    # Their cache writes are free, so cache_write is 0.00 rather than omitted.
-    # Both cap at 272K context, so no long-context surcharge applies.
-    ["openai.gpt-5.5"]="5.50 33.00 0.55 0.00"
-    ["openai.gpt-5.4"]="2.75 16.50 0.275 0.00"
+        # --- OpenAI GPT-6 / GPT-5.x ---
+        #
+        # The GPT-5.x rates come from each model's AWS model card, which publishes a
+        # real price table. GPT-5.6 quotes Global CRIS, Geo CRIS, and In-Region rows.
+        # The Global CRIS row is used here, matching the Claude entries above.
+        #
+        # A caveat this table cannot express: GPT-5.6 bills any request over 272K
+        # input tokens at 2x every input rate and 1.5x the output rate, applied to
+        # the whole request. Long sessions on its 1M window therefore read low here.
+        #
+        # GPT-6 Astra is the exception to the model-card sourcing above. It launched
+        # 2026-09-03 and has no AWS model card and no Bedrock rate card yet, so the
+        # rates below are OpenAI's own list prices standing in for Bedrock's. Treat
+        # them as provisional and re-check once AWS publishes. The ID is real: the
+        # openai/codex Bedrock catalog carries "openai.gpt-6-astra" for Mantle, plus
+        # global. and us. Runtime variants. Astra applies the same 272K
+        # long-context surcharge as GPT-5.6, so the caveat above holds here too.
+        openai.gpt-6-astra) echo "10.00 50.00 1.00 12.50" ;;
+        openai.gpt-5.6-sol) echo "5.00 30.00 0.50 6.25" ;;
+        openai.gpt-5.6-terra) echo "2.00 12.00 0.20 2.50" ;;
+        openai.gpt-5.6-luna) echo "0.20 1.20 0.02 0.25" ;;
+        # GPT-5.5 and GPT-5.4 are In-Region only, so there is no global rate to use.
+        # Their cache writes are free, so cache_write is 0.00 rather than omitted.
+        # Both cap at 272K context, so no long-context surcharge applies.
+        openai.gpt-5.5) echo "5.50 33.00 0.55 0.00" ;;
+        openai.gpt-5.4) echo "2.75 16.50 0.275 0.00" ;;
 
-    # --- OpenAI open-weight ---
-    #
-    # Bedrock lists no prompt caching for these, so the cache fields are omitted.
-    # Each has two IDs. The dated "-1:0" form is the bedrock-runtime ID and the
-    # bare form is the bedrock-mantle ID. Both are listed.
-    # GovCloud CRIS IDs are deliberately absent, since GovCloud prices differ.
-    # These model cards carry no price table. The rates below come from the
-    # pricing page and model directories instead. Treat them as approximate.
-    ["openai.gpt-oss-120b"]="0.15 0.60"
-    ["openai.gpt-oss-120b-1:0"]="0.15 0.60"
-    ["openai.gpt-oss-20b"]="0.07 0.30"
-    ["openai.gpt-oss-20b-1:0"]="0.07 0.30"
-    # gpt-oss-safeguard-120b and -20b are omitted. Their model cards carry no
-    # price table either, and no reliable rate was found elsewhere.
-    # The Daybreak cyber models are omitted too. They need Trusted Access enrollment.
+        # --- OpenAI open-weight ---
+        #
+        # Bedrock lists no prompt caching for these, so the cache fields are omitted.
+        # Each has two IDs. The dated "-1:0" form is the bedrock-runtime ID and the
+        # bare form is the bedrock-mantle ID. Both are listed.
+        # GovCloud CRIS IDs are deliberately absent, since GovCloud prices differ.
+        # These model cards carry no price table. The rates below come from the
+        # pricing page and model directories instead. Treat them as approximate.
+        openai.gpt-oss-120b) echo "0.15 0.60" ;;
+        openai.gpt-oss-120b-1:0) echo "0.15 0.60" ;;
+        openai.gpt-oss-20b) echo "0.07 0.30" ;;
+        openai.gpt-oss-20b-1:0) echo "0.07 0.30" ;;
+        # gpt-oss-safeguard-120b and -20b are omitted. Their model cards carry no
+        # price table either, and no reliable rate was found elsewhere.
+        # The Daybreak cyber models are omitted too. They need Trusted Access enrollment.
 
-    # --- Moonshot AI (Kimi) ---
-    #
-    # Bedrock carries exactly two Kimi models. Their model cards list no prompt
-    # caching, so the cache fields are omitted.
-    #
-    # Both are In-Region only — neither offers a Geo or Global CRIS profile.
-    # There is therefore no single global rate to key on, and the published
-    # per-region rates genuinely differ. us-east-1 is used below. Higher-cost
-    # regions run about 20% above it, so costs there read low.
-    #
-    # Kimi K2 Thinking uses a different vendor prefix per endpoint:
-    # "moonshot." on bedrock-runtime and "moonshotai." on bedrock-mantle.
-    # That is not a typo. Both are listed, same as the gpt-oss pairs above.
-    # K2.5 uses "moonshotai." on both endpoints.
-    ["moonshotai.kimi-k2.5"]="0.60 3.00"
-    ["moonshot.kimi-k2-thinking"]="0.60 2.50"
-    ["moonshotai.kimi-k2-thinking"]="0.60 2.50"
-    # Kimi K3 is deliberately absent — it is not on Bedrock. Moonshot released
-    # it 2026-07-27, but AWS has listed no preview and announced no timeline.
-    # Add it here once it lands. There is no "K2.8" model to add: the 2.8
-    # figure is K3's parameter count in trillions, not a version number.
-)
+        # --- Moonshot AI (Kimi) ---
+        #
+        # Bedrock carries exactly two Kimi models. Their model cards list no prompt
+        # caching, so the cache fields are omitted.
+        #
+        # Both are In-Region only — neither offers a Geo or Global CRIS profile.
+        # There is therefore no single global rate to key on, and the published
+        # per-region rates genuinely differ. us-east-1 is used below. Higher-cost
+        # regions run about 20% above it, so costs there read low.
+        #
+        # Kimi K2 Thinking uses a different vendor prefix per endpoint:
+        # "moonshot." on bedrock-runtime and "moonshotai." on bedrock-mantle.
+        # That is not a typo. Both are listed, same as the gpt-oss pairs above.
+        # K2.5 uses "moonshotai." on both endpoints.
+        moonshotai.kimi-k2.5) echo "0.60 3.00" ;;
+        moonshot.kimi-k2-thinking) echo "0.60 2.50" ;;
+        moonshotai.kimi-k2-thinking) echo "0.60 2.50" ;;
+        # Kimi K3 is deliberately absent — it is not on Bedrock. Moonshot released
+        # it 2026-07-27, but AWS has listed no preview and announced no timeline.
+        # Add it here once it lands. There is no "K2.8" model to add: the 2.8
+        # figure is K3's parameter count in trillions, not a version number.
+        *) return 1 ;;
+    esac
+}
 
 # --- Helper Functions ---
 
@@ -465,8 +471,7 @@ get_bedrock_prices() {
     fi
 
     # Look up in price table
-    if [ -n "$foundation_model" ] && [ -n "${BEDROCK_PRICES[$foundation_model]+x}" ]; then
-        echo "${BEDROCK_PRICES[$foundation_model]}"
+    if [ -n "$foundation_model" ] && bedrock_price_table "$foundation_model"; then
         return 0
     fi
 
