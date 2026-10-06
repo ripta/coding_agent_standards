@@ -906,10 +906,11 @@ pc_fields=$(echo "$input" | jq -r '
     .prompt_cache as $pc
     | if $pc == null then "absent"
       else [($pc.warm // false), ($pc.expires_at // null | if . then floor else "" end),
-            ($pc.ttl // ""), ($pc.hit_ratio // ""), ($pc.recache_tokens_if_cold // "")]
+            ($pc.ttl // ""), ($pc.hit_ratio // ""), ($pc.recache_tokens_if_cold // ""),
+            (.context_window.current_usage == null)]
            | map(tostring) | join("|")
       end' 2>/dev/null)
-IFS='|' read -r pc_warm pc_expires pc_ttl pc_hit pc_recache <<< "$pc_fields"
+IFS='|' read -r pc_warm pc_expires pc_ttl pc_hit pc_recache pc_no_usage <<< "$pc_fields"
 
 pc_remaining=$(( ${pc_expires:-0} - $(date +%s) ))
 if [ "$pc_warm" = "true" ] && [ -n "$pc_expires" ] && [ "$pc_remaining" -gt 0 ]; then
@@ -931,8 +932,17 @@ if [ "$pc_warm" = "true" ] && [ -n "$pc_expires" ] && [ "$pc_remaining" -gt 0 ];
     cache_segment=" ${SEP} ${pc_color}● ${pc_left} / ${pc_ttl}${pc_hit_str}${RESET}"
 else
     # Cold, or no cache seen yet. Show what the next turn would re-cache.
+    # prompt_cache is absent until the session's first response. After a
+    # compaction, current_usage is null until the next response. The count is
+    # also null after old tool results are cleared, which gets a bare circle.
     pc_recache_str=""
-    [ -n "$pc_recache" ] && pc_recache_str=" $(( (pc_recache + 500) / 1000 ))ktok"
+    if [ "$pc_fields" = "absent" ]; then
+        pc_recache_str=" new session"
+    elif [ "$pc_no_usage" = "true" ]; then
+        pc_recache_str=" compacted"
+    elif [ -n "$pc_recache" ]; then
+        pc_recache_str=" $(( (pc_recache + 500) / 1000 ))ktok"
+    fi
     cache_segment=" ${SEP} ${DIM}○${pc_recache_str}${RESET}"
 fi
 
