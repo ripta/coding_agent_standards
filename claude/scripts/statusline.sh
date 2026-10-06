@@ -8,6 +8,11 @@
 #   statusline-usage-cache.json         Paid-account OAuth usage data (5hr/7day/extra quotas)
 #                                       TTL: 120s
 #
+#   statusline-usage-attempt            Empty stamp touched on every usage fetch
+#                                       attempt, success or not. No fetch runs
+#                                       within 120s of it, which backs off after
+#                                       failures and dedupes concurrent sessions.
+#
 #   statusline-git-<md5>.txt            Git branch/status per working directory
 #                                       TTL: 5s. Key is MD5 of the cwd path.
 #
@@ -58,6 +63,7 @@ export GIT_OPTIONAL_LOCKS=0
 # Cache settings
 cache_dir="${TMPDIR:-/tmp}/claude"
 cache_file="${cache_dir}/statusline-usage-cache.json"
+attempt_file="${cache_dir}/statusline-usage-attempt"
 cache_max_age=120
 git_cache_max_age=5
 bedrock_cache_max_age=300
@@ -956,7 +962,17 @@ else
         fi
     fi
 
+    # Skip the fetch if any session attempted one recently, even a failed one.
+    # Without this, a failing endpoint is retried on every refreshInterval tick.
+    if $needs_refresh && [ -f "$attempt_file" ]; then
+        attempt_mtime=$(stat -c %Y "$attempt_file" 2>/dev/null || stat -f %m "$attempt_file" 2>/dev/null)
+        if [ $(( $(date +%s) - attempt_mtime )) -lt "$cache_max_age" ]; then
+            needs_refresh=false
+        fi
+    fi
+
     if $needs_refresh; then
+        touch "$attempt_file"
         token=$(get_oauth_token)
         if [ -n "$token" ] && [ "$token" != "null" ]; then
             response=$(curl -s --max-time 5 \
@@ -971,9 +987,11 @@ else
                 echo "$response" > "$cache_file"
             fi
         fi
-        if [ -z "$usage_data" ] && [ -f "$cache_file" ]; then
-            usage_data=$(cat "$cache_file" 2>/dev/null)
-        fi
+    fi
+
+    # Fall back to stale data after a failed or skipped fetch
+    if [ -z "$usage_data" ] && [ -f "$cache_file" ]; then
+        usage_data=$(cat "$cache_file" 2>/dev/null)
     fi
 fi
 
