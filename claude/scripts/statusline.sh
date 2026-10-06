@@ -886,6 +886,45 @@ if [ -z "$context_segment" ]; then
     context_segment=" ${SEP} ${DIM}░░░░░░░░░░ --%${RESET}"
 fi
 
+# --- Prompt Cache Segment ---
+# Filled circle while the main conversation's cache is warm, empty once cold.
+# The countdown only ticks while idle if settings set statusLine.refreshInterval.
+
+cache_segment=""
+pc_fields=$(echo "$input" | jq -r '
+    .prompt_cache as $pc
+    | if $pc == null then "absent"
+      else [($pc.warm // false), ($pc.expires_at // null | if . then floor else "" end),
+            ($pc.ttl // ""), ($pc.hit_ratio // ""), ($pc.recache_tokens_if_cold // "")]
+           | map(tostring) | join("|")
+      end' 2>/dev/null)
+IFS='|' read -r pc_warm pc_expires pc_ttl pc_hit pc_recache <<< "$pc_fields"
+
+pc_remaining=$(( ${pc_expires:-0} - $(date +%s) ))
+if [ "$pc_warm" = "true" ] && [ -n "$pc_expires" ] && [ "$pc_remaining" -gt 0 ]; then
+    [ "$pc_ttl" = "1h" ] && pc_ttl_s=3600 || pc_ttl_s=300
+
+    # Yellow once less than 20% of the TTL is left
+    pc_color=$FG_GREEN
+    [ $(( pc_remaining * 5 )) -lt "$pc_ttl_s" ] && pc_color=$FG_YELLOW
+
+    if [ "$pc_remaining" -ge 60 ]; then
+        pc_left="$(( pc_remaining / 60 ))m"
+    else
+        pc_left="${pc_remaining}s"
+    fi
+
+    pc_hit_str=""
+    [ -n "$pc_hit" ] && pc_hit_str=" • $(awk "BEGIN {printf \"%.0f\", $pc_hit * 100}")% hit"
+
+    cache_segment=" ${SEP} ${pc_color}● ${pc_left} / ${pc_ttl}${pc_hit_str}${RESET}"
+else
+    # Cold, or no cache seen yet. Show what the next turn would re-cache.
+    pc_recache_str=""
+    [ -n "$pc_recache" ] && pc_recache_str=" $(( (pc_recache + 500) / 1000 ))ktok"
+    cache_segment=" ${SEP} ${DIM}○${pc_recache_str}${RESET}"
+fi
+
 # Model color based on context window pressure
 model_color=$FG_GREEN
 if [ -n "$pct" ] && [ "$pct" != "null" ] && [ "$pct" -ge 0 ] 2>/dev/null; then
@@ -1014,5 +1053,6 @@ echo -n " ${SEP} ${FG_BLUE}${BOLD}${dir_name}${RESET}"
 echo -n "$git_segment"
 echo -n "$env_segment"
 echo -n "$context_segment"
+echo -n "$cache_segment"
 echo -n " ${SEP} ${DIM}${current_datetime}${RESET}"
 echo -n "$usage_segments"
