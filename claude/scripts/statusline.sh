@@ -13,8 +13,13 @@
 #                                       within 120s of it, which backs off after
 #                                       failures and dedupes concurrent sessions.
 #
-#   statusline-git-<md5>.txt            Git branch/status per working directory
-#                                       TTL: 5s. Key is MD5 of the cwd path.
+#   statusline-git-<md5>.txt            Git branch/status per working directory.
+#                                       Key is MD5 of the cwd path. Reused until
+#                                       the transcript changes, but kept at least
+#                                       30s and at most 120s. Refreshed in background.
+#
+#   statusline-git-<md5>.lock           Lock directory held by a background refresh,
+#                                       like bedrock-usage-<id>.lock.
 #
 #   bedrock-profile-<id>.txt            Bedrock inference profile → display name
 #                                       TTL: 1 hour. Used by resolve_bedrock_arn().
@@ -65,7 +70,11 @@ cache_dir="${TMPDIR:-/tmp}/claude"
 cache_file="${cache_dir}/statusline-usage-cache.json"
 attempt_file="${cache_dir}/statusline-usage-attempt"
 cache_max_age=120
-git_cache_max_age=5
+# Keep the git segment at least min_age, so a busy turn does not rerun git on
+# every update. Refresh it after max_age even if the transcript is unchanged, to
+# catch edits made outside Claude.
+git_cache_min_age=30
+git_cache_max_age=120
 bedrock_cache_max_age=300
 
 # Bedrock pricing: $/1M tokens (input output cache_read cache_write_5m)
@@ -762,6 +771,7 @@ mkdir -p "$cache_dir" 2>/dev/null
 
 cwd=$(echo "$input" | jq -r '.workspace.current_dir // empty' 2>/dev/null)
 dir_name=$(basename "$cwd" 2>/dev/null || echo "?")
+transcript=$(echo "$input" | jq -r '.transcript_path // empty' 2>/dev/null)
 
 # Extract model - prefer display_name, fall back to id/name/string
 model=$(echo "$input" | jq -r '
@@ -784,27 +794,24 @@ model=$(echo "$model" | sed 's/^claude-//' | sed 's/-[0-9]\{8,\}$//' | sed 's/ *
 
 # --- Git Segment ---
 
-git_segment=""
-git_cache_key=$(printf '%s' "$cwd" | md5 -q 2>/dev/null || printf '%s' "$cwd" | md5sum 2>/dev/null | cut -d' ' -f1)
-git_cache_file="${cache_dir}/statusline-git-${git_cache_key}.txt"
+# Compute the git segment for a directory and write it to the cache file. The
+# file's mtime is set to when the run started, so a transcript written while git
+# ran still reads as newer than the cache. A directory outside git caches as
+# empty, so it is not re-checked on every run.
+refresh_git_segment() {
+    local dir="$1" out="$2"
+    local start="${out}.$$.start"
+    : > "$start"
 
-if [ -f "$git_cache_file" ]; then
-    gc_mtime=$(stat -c %Y "$git_cache_file" 2>/dev/null || stat -f %m "$git_cache_file" 2>/dev/null)
-    gc_age=$(( $(date +%s) - gc_mtime ))
-    if [ "$gc_age" -lt "$git_cache_max_age" ]; then
-        git_segment=$(cat "$git_cache_file")
-    fi
-fi
-
-if [ -z "$git_segment" ]; then
-    branch_color=$FG_CYAN
-    if git -C "$cwd" rev-parse --git-dir > /dev/null 2>&1; then
-        branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
-        [ -z "$branch" ] && branch=$(git -C "$cwd" rev-parse --short HEAD 2>/dev/null)
+    local branch_color=$FG_CYAN branch status staged modified ahead behind git_status
+    local git_segment=""
+    if git -C "$dir" rev-parse --git-dir > /dev/null 2>&1; then
+        branch=$(git -C "$dir" branch --show-current 2>/dev/null)
+        [ -z "$branch" ] && branch=$(git -C "$dir" rev-parse --short HEAD 2>/dev/null)
 
         # Get status counts. Untracked files are never counted, so skip the
         # scan for them. It is slow in large repos.
-        status=$(git -C "$cwd" status --porcelain -uno 2>/dev/null)
+        status=$(git -C "$dir" status --porcelain -uno 2>/dev/null)
         if [ -n "$status" ]; then
             staged=$(echo "$status" | grep -c '^[MADRC]')
             modified=$(echo "$status" | grep -c '^.[MD]')
@@ -814,7 +821,7 @@ if [ -z "$git_segment" ]; then
         fi
 
         # Ahead/behind, as "<ahead> <behind>". Both are empty without an upstream.
-        read -r ahead behind <<< "$(git -C "$cwd" rev-list --left-right --count HEAD...@{u} 2>/dev/null)"
+        read -r ahead behind <<< "$(git -C "$dir" rev-list --left-right --count HEAD...@{u} 2>/dev/null)"
         ahead=${ahead:-0}
         behind=${behind:-0}
 
@@ -833,7 +840,32 @@ if [ -z "$git_segment" ]; then
         fi
     fi
 
-    [ -n "$git_segment" ] && printf '%s' "$git_segment" > "$git_cache_file"
+    printf '%s' "$git_segment" > "${out}.$$"
+    touch -r "$start" "${out}.$$"
+    mv -f "${out}.$$" "$out"
+    rm -f "$start"
+}
+
+git_segment=""
+git_cache_key=$(printf '%s' "$cwd" | md5 -q 2>/dev/null || printf '%s' "$cwd" | md5sum 2>/dev/null | cut -d' ' -f1)
+git_cache_file="${cache_dir}/statusline-git-${git_cache_key}.txt"
+git_lock="${cache_dir}/statusline-git-${git_cache_key}.lock"
+
+# Reuse the cache while nothing in the conversation has changed. A stale cache
+# is still shown, and the refresh runs in the background for the next run.
+# [ -nt ] is a builtin, so the transcript check costs no extra process.
+if [ -f "$git_cache_file" ]; then
+    IFS= read -r git_segment < "$git_cache_file"
+    gc_mtime=$(stat -c %Y "$git_cache_file" 2>/dev/null || stat -f %m "$git_cache_file" 2>/dev/null)
+    gc_age=$(( $(date +%s) - gc_mtime ))
+    if [ "$gc_age" -ge "$git_cache_max_age" ] ||
+        { [ "$gc_age" -ge "$git_cache_min_age" ] && [ "$transcript" -nt "$git_cache_file" ]; }; then
+        run_in_background "$git_lock" refresh_git_segment "$cwd" "$git_cache_file"
+    fi
+else
+    # First run in this directory: block, since there is nothing to show yet
+    refresh_git_segment "$cwd" "$git_cache_file"
+    IFS= read -r git_segment < "$git_cache_file"
 fi
 
 # --- Environment Segment ---
