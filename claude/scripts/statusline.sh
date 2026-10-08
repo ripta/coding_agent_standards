@@ -797,8 +797,9 @@ if [ -z "$git_segment" ]; then
         branch=$(git -C "$cwd" branch --show-current 2>/dev/null)
         [ -z "$branch" ] && branch=$(git -C "$cwd" rev-parse --short HEAD 2>/dev/null)
 
-        # Get status counts
-        status=$(git -C "$cwd" status --porcelain 2>/dev/null)
+        # Get status counts. Untracked files are never counted, so skip the
+        # scan for them. It is slow in large repos.
+        status=$(git -C "$cwd" status --porcelain -uno 2>/dev/null)
         if [ -n "$status" ]; then
             staged=$(echo "$status" | grep -c '^[MADRC]')
             modified=$(echo "$status" | grep -c '^.[MD]')
