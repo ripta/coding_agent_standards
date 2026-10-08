@@ -2,5 +2,6 @@
 
 @../profiles/baseline.md
 @../languages/svelte.md
+@../languages/css.md
 @../practices/testing.md
 @../practices/security.md

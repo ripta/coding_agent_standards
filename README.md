@@ -41,6 +41,7 @@ Standards for each language/framework covering naming, project structure, error 
 - **Swift** (`swift.md`) -- SwiftUI, async/await, SPM, Go/C library integration
 - **Rust** (`rust.md`) -- modules, workspaces, error handling with thiserror/anyhow
 - **Zig** (`zig.md`) -- allocators, error sets, build system, embedded tests
+- **CSS** (`css.md`) -- cascade layers, reset, logical properties, OKLCH tokens, fluid type and space, layout patterns
 - **Svelte** (`svelte.md`) -- SvelteKit, Svelte 5 runes, Tailwind, protobuf RPC
 - **TypeScript** (`typescript.md`) -- strict tsconfig, ESM, Biome for format and lint, pnpm
 - **Phaser** (`phaser.md`) -- scenes, pooling, atlases, isometric projection

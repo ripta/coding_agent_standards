@@ -25,6 +25,8 @@
 ## Styling
 
 - Use Tailwind CSS for utility-first styling
+- Follow [`css.md`](./css.md) for the reset, tokens, and custom CSS
+- The With Tailwind section of `css.md` maps those onto Tailwind's layers
 - Use a component library (e.g., Skeleton UI) for consistent design
 - Comments before properties, same as Go/Proto standards
 
