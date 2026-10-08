@@ -26,9 +26,9 @@
 #                                       today / 2-day / 7-day windows.
 #                                       TTL: 5 min. Refreshed in background after expiry.
 #
-#   bedrock-usage-<id>.lock             Transient lock to prevent concurrent background
-#                                       refreshes. Auto-removed after fetch completes;
-#                                       stale locks (>60s) are force-removed.
+#   bedrock-usage-<id>.lock             Lock directory held by a background refresh.
+#                                       Removed when the refresh ends; one older
+#                                       than 60s is taken over.
 #
 
 # --- Input Validation ---
@@ -204,6 +204,30 @@ bedrock_price_table() {
 }
 
 # --- Helper Functions ---
+
+# Run a command in the background, unless a run holding the same lock is still
+# going. The lock is a directory because mkdir is atomic, so concurrent
+# sessions cannot both take it. A lock older than 60s belongs to a run that
+# died, and is taken over. Returns 1 when another run holds the lock.
+#
+# The job gets no stdin, stdout, or stderr. A job that inherited stdout would
+# hold it open, and a reader waits for it to close. That covers both a $(...)
+# around the caller and Claude Code reading the line, so the line would wait
+# for the job to finish.
+run_in_background() {
+    local lock="$1"
+    shift
+    if ! mkdir "$lock" 2>/dev/null; then
+        local lk_mtime
+        lk_mtime=$(stat -c %Y "$lock" 2>/dev/null || stat -f %m "$lock" 2>/dev/null)
+        [ $(( $(date +%s) - ${lk_mtime:-0} )) -le 60 ] && return 1
+        rm -rf "$lock"
+        mkdir "$lock" 2>/dev/null || return 1
+    fi
+    ( "$@"; rmdir "$lock" 2>/dev/null ) </dev/null >/dev/null 2>&1 &
+    disown 2>/dev/null
+    return 0
+}
 
 get_oauth_token() {
     if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
@@ -483,7 +507,6 @@ fetch_bedrock_usage_bg() {
     local region="$2"
     local foundation_model="$3"
     local composite_cache="${cache_dir}/bedrock-usage-${model_id}.json"
-    local lock_file="${cache_dir}/bedrock-usage-${model_id}.lock"
 
     local today tomorrow yesterday seven_days_ago
     today=$(get_date_offset 0)
@@ -673,11 +696,21 @@ fetch_bedrock_usage_bg() {
         }
     ' 2>/dev/null)
 
+    # Write to a temp file and rename, so a reader never sees a partial file
     if [ -n "$result" ] && echo "$result" | jq -e '.today' >/dev/null 2>&1; then
-        echo "$result" > "$composite_cache"
+        echo "$result" > "${composite_cache}.$$"
+        mv -f "${composite_cache}.$$" "$composite_cache"
     fi
+}
 
-    rm -f "$lock_file"
+# Resolve the foundation model for pricing, then fetch. Both call AWS, so a
+# background refresh runs the pair.
+refresh_bedrock_usage() {
+    local arn="$1"
+    local region model_id
+    region=$(echo "$arn" | cut -d: -f4)
+    model_id=$(echo "$arn" | cut -d/ -f2)
+    fetch_bedrock_usage_bg "$model_id" "$region" "$(get_bedrock_foundation_model "$arn")"
 }
 
 get_bedrock_usage() {
@@ -699,35 +732,11 @@ get_bedrock_usage() {
             return 0
         fi
 
-        # Cache is stale — return stale data and refresh in background
-        if ! command -v aws >/dev/null 2>&1; then
-            cat "$composite_cache"
-            return 0
+        # Cache is stale. Return it now and refresh in the background, so
+        # the next run shows the new data.
+        if command -v aws >/dev/null 2>&1; then
+            run_in_background "$lock_file" refresh_bedrock_usage "$arn"
         fi
-
-        # Don't launch another background refresh if one is already running
-        if [ -f "$lock_file" ]; then
-            local lk_mtime lk_age
-            lk_mtime=$(stat -c %Y "$lock_file" 2>/dev/null || stat -f %m "$lock_file" 2>/dev/null)
-            lk_age=$(( $(date +%s) - lk_mtime ))
-            # Stale lock (>60s) — remove it
-            if [ "$lk_age" -gt 60 ]; then
-                rm -f "$lock_file"
-            else
-                cat "$composite_cache"
-                return 0
-            fi
-        fi
-
-        # Resolve foundation model for pricing
-        local foundation_model
-        foundation_model=$(get_bedrock_foundation_model "$arn")
-
-        # Launch background refresh
-        touch "$lock_file"
-        fetch_bedrock_usage_bg "$model_id" "$region" "$foundation_model" &
-        disown 2>/dev/null
-
         cat "$composite_cache"
         return 0
     fi
@@ -737,11 +746,7 @@ get_bedrock_usage() {
         return 1
     fi
 
-    local foundation_model
-    foundation_model=$(get_bedrock_foundation_model "$arn")
-
-    touch "$lock_file"
-    fetch_bedrock_usage_bg "$model_id" "$region" "$foundation_model"
+    refresh_bedrock_usage "$arn"
 
     if [ -f "$composite_cache" ]; then
         cat "$composite_cache"
