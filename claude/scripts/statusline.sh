@@ -808,9 +808,8 @@ if [ -z "$git_segment" ]; then
             modified=0
         fi
 
-        # Ahead/behind
-        ahead=$(git -C "$cwd" rev-list --count @{u}..HEAD 2>/dev/null || echo 0)
-        behind=$(git -C "$cwd" rev-list --count HEAD..@{u} 2>/dev/null || echo 0)
+        # Ahead/behind, as "<ahead> <behind>". Both are empty without an upstream.
+        read -r ahead behind <<< "$(git -C "$cwd" rev-list --left-right --count HEAD...@{u} 2>/dev/null)"
         ahead=${ahead:-0}
         behind=${behind:-0}
 
