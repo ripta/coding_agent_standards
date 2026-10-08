@@ -31,7 +31,7 @@ What did we decide to do?
 Why this decision over alternatives?
 
 ## Consequences
-What are the tradeoffs? Positive and negative.
+What are the tradeoffs? Positive and negative. Name any obligation the decision creates, but do not track it here.
 
 ## Alternatives Considered
 What other options did we evaluate?
@@ -49,3 +49,17 @@ What other options did we evaluate?
 - File naming: `ADR-NN-short-description.md` (kebab-case)
 - Numbers are permanent and never reused
 - Old ADRs stay in the repo marked as superseded, not deleted
+
+## What Does Not Belong in an ADR
+
+An ADR records one decision and why it was made. It holds nothing that changes after acceptance, because it is
+immutable. Keep these out:
+
+- Future work, follow-up tasks, and TODO lists. Put them in a proposal or a phase.
+- Bugs and known issues. Put them in the project's bugs directory or issue tracker.
+- Implementation status or progress. Phase milestone rows hold that.
+- Open questions. Resolve them before the ADR is accepted.
+- Step-by-step implementation plans. Put them in a phase document.
+
+A consequence may name work the decision makes necessary, such as "every client must migrate to v2". That is a fact
+about the decision. Tracking that work belongs elsewhere. Link to the proposal or phase under References instead.
