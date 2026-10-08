@@ -8,7 +8,7 @@ description: >-
   file". DO NOT trigger on: code documentation, READMEs, commit messages, PR
   descriptions, meeting notes, or reports bound for Slack/Notion/Doc Hub.
 model: sonnet
-allowed-tools: Read, Write, Bash, Glob, Grep
+allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
 # Session report
@@ -36,19 +36,52 @@ update the preference file.
 
 ## 2. Read the target's standards
 
-`README.md` in the target directory is the authority on layout, naming, and
-any templates — read it before writing and follow it. Where it is silent or
-absent, fall back to observed convention:
+`README.md` in the target directory is the authority on layout, naming,
+report location, frontmatter, and any templates. Read it, plus `CLAUDE.md` if
+present (agent rules often live there), before writing and follow them. Use
+these fallbacks only when the README says nothing about where reports go:
 
 - Standalone session report → `YYYYMMDD-short-slug.md` at the directory root
   (today's date, kebab-case slug naming the subject, not the activity).
 - Report belonging to an existing project folder there → that folder's
   `reports/YYYY-MM-DD-short-slug.md`.
 
-Check for filename collisions; on collision, extend the slug — never
-overwrite an existing report.
+If the README gives a location, the root fallback is wrong even when older
+reports still sit there. (zip_specs files reports under
+`reports/YYYY/MM/YYYYMMDD-slug.md`, or a directory of that name whose one
+top-level `.md`, preferably `README.md`, carries the frontmatter.)
 
-## 3. What the report must contain
+Check for filename collisions; on collision, extend the slug. Never overwrite
+an existing report, and never rewrite another session's committed report: if
+the work extends or corrects one, write a new report and link back to it.
+
+## 3. Frontmatter and topics
+
+If the README specifies report frontmatter, write it exactly as specified.
+(zip_specs: `topics: [slug, ...]`, most relevant first, and `summary: "one
+sentence"` stating the conclusion; `title:` only when the report has no H1.)
+
+If the target has a topic or index layer (zip_specs: `topics/<slug>.md`):
+
+- **Tag existing topics.** List the topic pages and draw tags from their
+  slugs. Create a new topic page only if none fits, following the README's
+  template.
+- **Update a topic only when the finding changes its position.** Then edit
+  that page's hand-written position section (zip_specs: "Current position",
+  plus its `reviewed` date) and nothing else. If the report only adds
+  evidence, tagging is enough.
+- **Never hand-edit generated content**: generated blocks in topic pages or a
+  generated index (zip_specs: the "Reports" block and `index.md`).
+
+If the README names a build or lint command (zip_specs: `tools/wiki/wiki.py
+build`, then `tools/wiki/wiki.py check`), run it after writing and fix any
+errors in files you wrote or edited. Leave errors in other files alone and mention
+them. If the tool only sees git-tracked or staged files, as zip_specs' does,
+first stage your new files by explicit path (`git add -- <report> <new topic
+page>`). Otherwise the build silently leaves them out and the check passes
+without checking them. Staging is not committing.
+
+## 4. What the report must contain
 
 Non-negotiable qualities, in addition to whatever the README specifies:
 
@@ -75,7 +108,12 @@ Standard skeleton (adapt, don't force): title; date + trigger/context with
 links; TL;DR; findings with evidence; causal analysis; remediation options or
 next steps; systemic/wider implications if any; status.
 
-## 4. After writing
+## 5. After writing
 
-Report the absolute path of the file. The target directory is often a git
-repo — do not commit or push unless explicitly asked.
+Report the absolute path of the report and which topic pages were tagged
+versus updated (and any created). The target directory is often a git repo;
+do not commit or push unless explicitly asked. When asked, commit only the
+explicit paths this report touched (the report, a regenerated index, touched
+topic pages) with `git commit -- <paths>`, never `git add -A` or
+`git commit -a`: other sessions may share the checkout. Follow the target's
+commit message conventions.
