@@ -13,6 +13,9 @@
 #                                       within 120s of it, which backs off after
 #                                       failures and dedupes concurrent sessions.
 #
+#   statusline-usage.lock               Lock directory held by a background usage
+#                                       fetch, like bedrock-usage-<id>.lock.
+#
 #   statusline-git-<md5>.txt            Git branch/status per working directory.
 #                                       Key is MD5 of the cwd path. Reused until
 #                                       the transcript changes, but kept at least
@@ -69,6 +72,7 @@ export GIT_OPTIONAL_LOCKS=0
 cache_dir="${TMPDIR:-/tmp}/claude"
 cache_file="${cache_dir}/statusline-usage-cache.json"
 attempt_file="${cache_dir}/statusline-usage-attempt"
+usage_lock="${cache_dir}/statusline-usage.lock"
 cache_max_age=120
 # Keep the git segment at least min_age, so a busy turn does not rerun git on
 # every update. Refresh it after max_age even if the transcript is unchanged, to
@@ -997,6 +1001,26 @@ fi
 
 # --- Usage Data Fetch + Cache ---
 
+# Fetch the OAuth usage quota into the cache file. Reading the keychain and the
+# request can take up to 5s, so this runs in the background once a cache exists.
+fetch_usage() {
+    local token response
+    token=$(get_oauth_token)
+    [ -n "$token" ] && [ "$token" != "null" ] || return 1
+    response=$(curl -s --max-time 5 \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $token" \
+        -H "anthropic-beta: oauth-2025-04-20" \
+        -H "User-Agent: claude-code/2.1.34" \
+        "https://api.anthropic.com/api/oauth/usage" 2>/dev/null)
+    # Write to a temp file and rename, so a reader never sees a partial file
+    if [ -n "$response" ] && echo "$response" | jq -e '.five_hour' >/dev/null 2>&1; then
+        echo "$response" > "${cache_file}.$$"
+        mv -f "${cache_file}.$$" "$cache_file"
+    fi
+}
+
 bedrock_usage_data=""
 usage_data=""
 
@@ -1025,23 +1049,16 @@ else
 
     if $needs_refresh; then
         touch "$attempt_file"
-        token=$(get_oauth_token)
-        if [ -n "$token" ] && [ "$token" != "null" ]; then
-            response=$(curl -s --max-time 5 \
-                -H "Accept: application/json" \
-                -H "Content-Type: application/json" \
-                -H "Authorization: Bearer $token" \
-                -H "anthropic-beta: oauth-2025-04-20" \
-                -H "User-Agent: claude-code/2.1.34" \
-                "https://api.anthropic.com/api/oauth/usage" 2>/dev/null)
-            if [ -n "$response" ] && echo "$response" | jq -e '.five_hour' >/dev/null 2>&1; then
-                usage_data="$response"
-                echo "$response" > "$cache_file"
-            fi
+        if [ -f "$cache_file" ]; then
+            # Show the stale quota now. The next run picks up the new one.
+            run_in_background "$usage_lock" fetch_usage
+        else
+            # First fetch: block, since there is nothing to show yet
+            fetch_usage
         fi
     fi
 
-    # Fall back to stale data after a failed or skipped fetch
+    # Fall back to stale data while a fetch runs, or after one failed or was skipped
     if [ -z "$usage_data" ] && [ -f "$cache_file" ]; then
         usage_data=$(cat "$cache_file" 2>/dev/null)
     fi
