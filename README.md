@@ -58,6 +58,7 @@ Cross-cutting concerns that apply regardless of language:
 - **Error Handling** -- wrapping, sentinel errors, structured responses, validation
 - **Code Review** -- review priorities, submission checklist
 - **Security** -- input validation, parameterized queries, secret management
+- **Makefiles** -- help target, per-target `.PHONY`, common target vocabulary
 - **Game Simulation** -- fixed timestep, sim/render split, determinism, offline replay
 
 ### Project Management

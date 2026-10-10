@@ -91,6 +91,7 @@ Makefile                     # Build targets wrapping xcodebuild / swift build
 ## Build
 
 - Use Makefile targets wrapping `swift build`, `swift test`, `xcodebuild`
+- See [`makefile.md`](../practices/makefile.md) for help, `.PHONY`, and target naming conventions
 - Archive for distribution: `xcodebuild archive` with an export options plist
 - Code signing: handle via Xcode project settings, not in Makefile
 

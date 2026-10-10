@@ -162,6 +162,7 @@ Enforce architectural boundaries with `overrides`. Both rules live in the `style
 
 - Build with Vite; test with Vitest
 - A Makefile wraps the package scripts. Agents call `make`, not `pnpm run`.
+- See [`makefile.md`](../practices/makefile.md) for help, `.PHONY`, and target naming conventions
 - Targets: `install`, `dev`, `build`, `preview`, `check`, `test`, `lint`, `fmt`, `clean`
 - `make check` runs `tsc --noEmit`; `make lint` runs `biome check .`; `make fmt` runs `biome check --write .`
 - `build` runs the type check before bundling

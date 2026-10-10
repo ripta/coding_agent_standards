@@ -53,6 +53,7 @@
 ## Build
 
 - Use Makefile targets; never raw `go` commands
+- See [`makefile.md`](../practices/makefile.md) for help, `.PHONY`, and target naming conventions
 - Version injection via ldflags: `-X 'pkg/version.Version=$(VERSION)'`
 - Tool wrappers in `bin/` that auto-install versioned tools
 - Use `modd` for development watch/rebuild
