@@ -25,6 +25,7 @@ const {
   skillDir, // dir holding SKILL.md, read by the part writers for the section specs
   types, // e.g. ['backend'] or ['frontend', 'backend']
   sections, // fan-out plan from Step 3: [{ key, title, brief, mode?, group? }]
+  verifierAgent, // optional agent type for verifiers, e.g. 'coding-standards:citation-verifier'
 } = args || {}
 
 if (!scope || !citationBase || !citationBaseLabel || !skillDir || !types?.length || !sections?.length) {
@@ -74,8 +75,9 @@ const SINGLE_FILE_BYTES = 60_000
 // Verification batch sizes, one entry per round. Round 0 splits all claims into
 // ~80-claim batches; each later round re-batches only what came back
 // unanswered, smaller each time, which converges on a poisonous input instead
-// of discarding everything around it.
-const VERIFY_ROUNDS = [80, 40, 15]
+// of discarding everything around it. The citation-verifier agent runs on a
+// smaller model, so it gets smaller batches.
+const VERIFY_ROUNDS = verifierAgent ? [30, 15, 8] : [80, 40, 15]
 const MAX_VERIFY_BATCHES = 32
 
 // ---------------------------------------------------------------------------
@@ -122,10 +124,12 @@ const VERDICT_SCHEMA = {
           id: { type: 'integer', description: 'Echo the claim id you were given' },
           status: {
             type: 'string',
-            enum: ['confirmed', 'moved', 'missing'],
-            description: 'confirmed: snippet is at that line. moved: present elsewhere in the file. missing: not in the file.',
+            enum: ['CONFIRMED', 'CORRECTED', 'REFUTED'],
+            description:
+              'CONFIRMED: snippet is at that line. CORRECTED: present elsewhere in the file. REFUTED: not in the file.',
           },
-          correctedLine: { type: 'integer', description: 'Required when status is moved' },
+          correctedLine: { type: 'integer', description: 'Required when status is CORRECTED' },
+          quote: { type: 'string', description: 'The line found. Required when status is CONFIRMED or CORRECTED' },
           note: { type: 'string' },
         },
       },
@@ -274,6 +278,19 @@ function packBatches(claims, targetPerBatch) {
   return batches.filter((b) => b.files.length)
 }
 
+// The citation-verifier agent carries these rules itself. They are only spelled
+// out for the default workflow agent.
+const VERDICT_RULES = `
+- "CONFIRMED" — the snippet is at that line (allow +/- 2 lines of drift).
+- "CORRECTED" — the snippet is in the file but elsewhere. Give correctedLine.
+- "REFUTED" — the snippet is not in the file at all, or the file does not exist.
+
+Quote the line you found for every CONFIRMED and CORRECTED verdict.
+
+Judge only whether the code is where the claim says it is. You are not
+reviewing the code and not assessing whether the interpretation is fair.
+`
+
 function verifyPrompt(batch) {
   return `You are checking citations for an ARCHITECTURE.md. Read-only.
 
@@ -282,13 +299,8 @@ All paths are relative to \`${citationBase}\`. Resolve them against that directo
 For each claim below: open the file, go to the line, and decide whether the
 snippet actually appears there.
 
-- "confirmed" — the snippet is at that line (allow +/- 2 lines of drift).
-- "moved" — the snippet is in the file but elsewhere. Give correctedLine.
-- "missing" — the snippet is not in the file at all, or the file does not exist.
-
-Judge only whether the code is where the claim says it is. You are not
-reviewing the code and not assessing whether the interpretation is fair.
-
+Run the \`location\` check, with a drift tolerance of 2 lines.
+${verifierAgent ? '' : VERDICT_RULES}
 Return a verdict for every id. Do not skip any, and do not truncate the list —
 an id you omit is treated as a citation nobody ever checked, not as a pass.
 
@@ -315,14 +327,21 @@ for (let round = 0; round < VERIFY_ROUNDS.length && pending.length; round++) {
         label: `verify:r${round + 1}-batch-${i + 1}`,
         phase: 'Verify',
         schema: VERDICT_SCHEMA,
-        effort: 'low',
+        ...(verifierAgent ? { agentType: verifierAgent } : { effort: 'low' }),
       })
     )
   )
 
   let gained = 0
   for (const r of results.filter(Boolean)) {
-    for (const v of r.verdicts || []) {
+    for (const raw of r.verdicts || []) {
+      const v = { ...raw, status: String(raw.status || '').toUpperCase() }
+      // A kept citation needs the line it was found on as evidence. Without
+      // it, leave the claim pending so a smaller batch checks it again.
+      const isKept = v.status === 'CONFIRMED' || v.status === 'CORRECTED'
+      if (isKept && !v.quote) continue
+      if (v.status === 'CORRECTED' && !v.correctedLine) continue
+      if (!['CONFIRMED', 'CORRECTED', 'REFUTED'].includes(v.status)) continue
       if (!verdictById.has(v.id)) {
         verdictById.set(v.id, v)
         gained++
@@ -349,11 +368,11 @@ let corrected = 0
 for (const c of allClaims) {
   const v = verdictById.get(c.id)
   if (!v) continue // unchecked; counted separately below
-  if (v.status === 'missing') {
+  if (v.status === 'REFUTED') {
     refuted.push({ path: c.path, line: c.line, claim: c.claim, reason: v.note || 'not found in file' })
     continue
   }
-  if (v.status === 'moved' && v.correctedLine) {
+  if (v.status === 'CORRECTED') {
     kept.push({ ...c, line: v.correctedLine })
     corrected++
   } else {

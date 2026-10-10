@@ -147,21 +147,24 @@ is anything a reader could check: a line number, a function's behavior, a
 default value, an ordering, a performance characteristic, a quotation from a
 doc.
 
-Dispatch verifier subagents with `model: haiku`. This is mechanical work and
-the fast model is the right tool. Batch ten to fifteen claims per verifier and
-run them in parallel. Brief them:
+Dispatch `citation-verifier` agents, named `coding-standards:citation-verifier`
+under the plugin. The agent runs on the fast model and defines the verdicts.
+Batch ten to fifteen claims per verifier and run them in parallel. Ask for the
+`support` check.
 
-> For each claim, open the cited file and check it. Return one verdict per
-> claim: `CONFIRMED`; `CORRECTED` with the right line number when the content
-> is there but the line drifted; or `REFUTED` when the cited content is not in
-> the file. Quote the line you found. Do not fix, improve, or editorialize on
-> the claims — only check them.
+Give each claim an id, a file path, and a line. A claim about code that is not
+in the working tree also names its revision. That covers "before" code, deleted
+lines, and a PR's head when it is not checked out. Cite those by the file at the
+revision, never by a diff hunk's line numbers. Keep external claims out of the
+batch.
 
 Then:
 
 - `CONFIRMED` and `CORRECTED` claims go on the page, with the corrected line.
 - `REFUTED` claims come off the page. Do not soften them into hedged prose.
   Either re-derive the claim from source yourself and re-verify, or drop it.
+- Treat an `UNCHECKABLE` claim as refuted. Fix the citation and re-verify it,
+  or drop it.
 - A claim left unverified because a subagent died counts as refuted.
 
 Three categories bypass code verification, and each has its own bar:
@@ -309,8 +312,8 @@ is a git repo, do not commit or push unless asked.
 - Resolve the target in Step 1 before gathering anything. The target ambiguity
   and the output directory share one question round at the end of Step 2. That
   is the only round. Everything after it runs unattended until the page exists.
-- Every factual claim on the page is verified by a `haiku` subagent against the
-  cited source before it ships. Refuted claims come off the page. They are
+- Every factual claim on the page is verified by a `citation-verifier` agent
+  against the cited source before it ships. Refuted claims come off the page. They are
   never softened into hedged prose.
 - Intuition, analogy, and invented example data are allowed and valuable. Label
   them as such. Never present fabricated numbers as measurements.

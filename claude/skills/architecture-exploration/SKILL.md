@@ -199,9 +199,11 @@ against the source, fixes the shared vocabulary, then writes the document one
 part at a time.
 
 Budget, for `S` sections and `C` verified claims: `S` discovery agents, about
-`C/80` verifiers, one spine agent, `S` part writers, and one assembler — so
-roughly `2S + C/80 + 2`. A 12-section plan over 1,250 claims comes to about 42
-agents. Most of that is verifiers running at low effort. Quote the number to the
+`C/30` verifiers, one spine agent, `S` part writers, and one assembler — so
+roughly `2S + C/30 + 2`. Verifiers cap at 32 per round. A 12-section plan over
+1,250 claims comes to about 58 agents. Most of that is verifiers on the fast
+model. Without `verifierAgent`, verifiers take about `C/80` at low effort
+instead. Quote the number to the
 user when you ask for the go-ahead in Step 4.
 
 ```js
@@ -213,6 +215,7 @@ Workflow({
     citationBaseLabel: "the repository root",   // or e.g. "`packages/api/`"
     skillDir:         "${CLAUDE_SKILL_DIR}",
     types:            ["backend"],
+    verifierAgent:    "coding-standards:citation-verifier",
     sections: [
       { key: "orientation", title: "Orientation & layout", brief: "<§1 spec>",
         mode: "narrative" },
@@ -233,6 +236,10 @@ Contract notes, all of which the script enforces or depends on:
 - `citationBaseLabel` is the *same directory* written relative to the repository
   root. It is the only form that reaches the document, per Step 6 section 1.
   Keep these two in sync; they describe one directory in two notations.
+- `verifierAgent` names the agent type the verifiers run as. Pass
+  `coding-standards:citation-verifier` under the plugin, or `citation-verifier`
+  when the agent is installed without it. Omit it when neither is available.
+  The verifiers then run as default workflow agents on the same brief.
 - `archPath` is not an argument. The script derives it as
   `<citationBase>/ARCHITECTURE.md` so the two cannot drift apart.
 - Sharded sections are separate `sections` entries with distinct `key`s, sharing
