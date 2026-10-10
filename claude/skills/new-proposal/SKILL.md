@@ -55,6 +55,9 @@ Do all of this before any question. Most answers are already on disk.
    domain, so the motivation and design are grounded in what exists.
 6. **Related proposals** — if the description references or depends on other proposals, read them to capture
    dependencies and cross-proposal impact.
+7. **ADRs** — spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the description. Cite
+   the ADRs it reports under Dependencies or Impacts. In the draft, list each conflict as an open design decision,
+   unless the request already says the proposal supersedes that ADR.
 
 Report what you found in a few lines before asking anything.
 

@@ -13,9 +13,10 @@ the queue, and lands each one as its own commit before starting the next.
 
 This session is the coordinator. It plans, delegates, triages, commits, and
 keeps the session reports. It does not write code. Each milestone goes to a
-fresh `implementer` agent, and each review to a fresh `reviewer` agent. Under a
-plugin they are named `coding-standards:implementer` and
-`coding-standards:reviewer`. Keeping the code out of this session's context is
+fresh `implementer` agent, and each review to a fresh `reviewer` and
+`adr-impact` agent. Under a plugin they are named
+`coding-standards:implementer`, `coding-standards:reviewer`, and
+`coding-standards:adr-impact`. Keeping the code out of this session's context is
 what lets it hold the whole run without drifting.
 
 This command wraps `${CLAUDE_PLUGIN_ROOT}/commands/work-on.md`. Read it now.
@@ -157,11 +158,17 @@ For each milestone picked:
 3. Read its report. If it reports a blocker, follow section 5.
 
 4. Spawn a fresh `reviewer` agent. Tell it the phase milestone and the
-   proposal milestone. Triage what it reports:
+   proposal milestone, and that an `adr-impact` agent runs beside it. In the
+   same message, spawn a fresh `adr-impact` agent
+   (`coding-standards:adr-impact`) on the working-tree diff. Triage what they
+   report:
    - Mark comment, style, and plan-gap findings as fix.
    - Mark a `CONFIRMED` finding as fix.
    - Mark a `PLAUSIBLE` finding as trace. The implementer fixes it only if the
      trace confirms it.
+   - Triage an ADR conflict the same way. When honoring the ADR would change
+     the approved plan, it is a blocker. Follow section 5.
+   - Record an `ADVISORY` conflict in the session report. It never blocks.
    - Dismiss a finding that is wrong, and record why. Read the cited code to
      decide this, but no further.
 
@@ -206,7 +213,8 @@ When the last queued milestone of a phase is committed:
 2. Spawn a fresh `reviewer` agent for a holistic review of the phase. Give it
    the commit range from the phase's base commit to `HEAD`, and every
    milestone the range covers. Ask it to weigh how the milestones fit
-   together, on top of its usual axes.
+   together, on top of its usual axes. Run a fresh `adr-impact` agent on the
+   same range beside it, and tell the reviewer so.
 
 3. Triage the findings as in section 2. Send them to a fresh `implementer`,
    with the commit range and the milestones it covers in place of a single

@@ -50,6 +50,21 @@ What other options did we evaluate?
 - Numbers are permanent and never reused
 - Old ADRs stay in the repo marked as superseded, not deleted
 
+## Load-Bearing ADRs
+
+Some decisions are broken more often than others, or break silently when they are. A project may list these in a
+`## Load-Bearing ADRs` section of the ADR directory's index (`index.md` or `README.md`). This standard does not fix the
+rest of the index's layout. Give each one a line on what to watch for. The `adr-impact` agent checks every listed ADR on
+every run.
+
+```markdown
+## Load-Bearing ADRs
+
+- ADR-07: every outbound event goes through the outbox. Watch for direct publishes to the message bus.
+```
+
+Keep the list short. An ADR that every change must be checked against is rare.
+
 ## What Does Not Belong in an ADR
 
 An ADR records one decision and why it was made. It holds nothing that changes after acceptance, because it is

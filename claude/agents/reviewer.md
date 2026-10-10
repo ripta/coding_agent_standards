@@ -43,7 +43,10 @@ unbounded resource use), then correctness (logic, wrong API use, memory-model or
 concurrency-ordering violations), then consistency with codebase patterns, then
 performance. Trace the code to justify each finding.
 
-Correctness should also take into account applicable ADRs, if any.
+The `adr-impact` agent checks the change against the project's ADRs. When the
+caller says it runs one beside you, do not sweep the ADRs yourself. Still
+report an ADR violation you notice while tracing code. Otherwise, take the
+applicable ADRs into account yourself.
 
 Verify before you report. For every correctness or security finding, mark a
 verdict:
