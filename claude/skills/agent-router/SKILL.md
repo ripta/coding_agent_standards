@@ -1,7 +1,7 @@
 ---
 name: agent-router
 description: |
-  Use this agent when the user needs help choosing which agent or skill to use, or wants to understand what's available.
+  Use this skill when the user needs help choosing which agent or skill to use, or wants to understand what's available.
 model: haiku
 allowed-tools: Glob, Read
 ---

@@ -1,7 +1,7 @@
 ---
 name: lint-runner
 description: |
-  Use this agent to run linters, check code quality, or diagnose linting failures. Covers all languages and linting tools configured in the project.
+  Use this skill to run linters, check code quality, or diagnose linting failures. Covers all languages and linting tools configured in the project.
 model: haiku
 allowed-tools: Bash, Read, Glob, Grep
 ---

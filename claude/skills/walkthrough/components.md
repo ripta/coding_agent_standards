@@ -406,7 +406,7 @@ emphasis left.
 
 ## Anti-patterns
 
-- **ASCII diagrams.** Never, in any context.
+- **ASCII diagrams.** Use Mermaid, inline SVG, or styled HTML instead.
 - **A diagram of the file tree.** It reads as a list, so make it a list.
 - **Six diagram families on one page.** Pick two or three and reuse them.
 - **A slider with no question behind it.** Motion is not insight.

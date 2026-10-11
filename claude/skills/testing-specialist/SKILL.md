@@ -1,7 +1,7 @@
 ---
 name: testing-specialist
 description: |
-  Use this agent when writing tests, improving test coverage, or debugging test failures. Covers test design, table-driven tests, mocking, integration tests, and flaky test diagnosis.
+  Use this skill when writing tests, improving test coverage, or debugging test failures. Covers test design, table-driven tests, mocking, integration tests, and flaky test diagnosis.
 model: sonnet
 allowed-tools: Bash, Read, Glob, Grep, Edit, Write
 ---

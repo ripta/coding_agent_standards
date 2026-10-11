@@ -1,7 +1,7 @@
 ---
 name: makefile-helper
 description: |
-  Use this agent to find the right Makefile command, explain what a target does, list available targets, or audit a Makefile against the Makefile standards. Helps users navigate the project's build system. Audits are report-only.
+  Use this skill to find the right Makefile command, explain what a target does, list available targets, or audit a Makefile against the Makefile standards. Helps users navigate the project's build system. Audits are report-only.
 model: haiku
 allowed-tools: Bash, Read, Glob, Grep
 ---

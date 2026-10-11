@@ -1,7 +1,7 @@
 ---
 name: go-code-reviewer
 description: |
-  Use this agent after writing or modifying Go code to get a thorough review for best practices, security, stability, and consistency with the codebase.
+  Use this skill after writing or modifying Go code to get a thorough review for best practices, security, stability, and consistency with the codebase.
 allowed-tools: Glob, Grep, Read
 model: sonnet
 ---

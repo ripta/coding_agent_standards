@@ -7,7 +7,7 @@ description: |
   reference to it. If invoked with arguments, scopes the exploration to that
   directory/crate/subproject. Read-only except for writing ARCHITECTURE.md.
 model: opus
-allowed-tools: Read, Glob, Grep, Bash, Write, Task, Workflow
+allowed-tools: Read, Glob, Grep, Bash, Write, Agent, Workflow
 ---
 
 You produce a deep technical reference document for a project's architecture by
@@ -155,7 +155,7 @@ strength of the size thresholds alone.
 ### Step 5a: Parallel Discovery (fan-out mode)
 
 Dispatch one `Explore` subagent per documentation section to gather its raw
-material concurrently. **Issue all the Task calls in a single message** so they
+material concurrently. **Issue all the Agent calls in a single message** so they
 run in parallel. Follow the fan-out plan from Step 3: default to one agent per
 section in Step 6 (§§2–6), sharding the heavy sections as that plan decided.
 

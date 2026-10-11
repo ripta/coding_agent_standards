@@ -1,7 +1,7 @@
 ---
 name: tool-wrapper-maintainer
 description: |
-  Use this agent to update tool versions, add new tools, or maintain versioned wrapper scripts in the bin/ directory.
+  Use this skill to update tool versions, add new tools, or maintain versioned wrapper scripts in the bin/ directory.
 model: haiku
 allowed-tools: Bash, Read, Glob, Grep, Edit, Write
 ---
@@ -62,7 +62,8 @@ exec "${CACHE_BIN}" "$@"
 1. Read current `bin/<tool>` script
 2. Update `*_VERSION` variable
 3. For GLOOBIN: update `*_SHA256` (download new binary and compute: `shasum -a 256 <file>`)
-4. Clear cache and test: `rm .cache/<tool>-* && bin/<tool> --version`
+4. Clear the cache with `rm .cache/<tool>-*`
+5. Test with `bin/<tool> --version`
 
 ### Add new tool
 1. Create wrapper from GOBIN or GLOOBIN template

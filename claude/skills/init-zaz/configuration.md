@@ -1,8 +1,7 @@
 # Project configuration
 
 Reference for the project-level zaz config file (`zaz.toml` or `zaz.json`).
-This page documents every field, default, and validation rule. For per-user
-preferences, see [user-configuration.md](user-configuration.md).
+This page documents every field, default, and validation rule.
 
 ## Overview
 
@@ -20,7 +19,7 @@ relevant alias.
 zaz looks for `zaz.toml` first, then `zaz.json`, in the current working
 directory. Search is CWD-only — there is no walk up the directory tree.
 The first existing file wins. Override discovery with the global
-`--config` flag (see [cli.md](cli.md#global-flags)); when `--config`
+`--config` flag; when `--config`
 points at a file, the format is detected from the extension (`.toml` or
 `.json`).
 
@@ -28,10 +27,9 @@ points at a file, the format is detected from the extension (`.toml` or
 
 Project config uses `deny_unknown_fields` on every struct: unknown keys
 are rejected with a clear error. There is no `version` field; schema
-evolution is backwards-compatible by policy. See the schema-evolution
-rationale in `spec/phases/index.md`.
+evolution is backwards-compatible by policy.
 
-This is a deliberate contrast with [user config](user-configuration.md),
+This is a deliberate contrast with user config,
 which is permissive and falls back to defaults on parse failure. Project
 config is shared and machine-checked; user config is local preference.
 

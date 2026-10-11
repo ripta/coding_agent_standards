@@ -1,7 +1,7 @@
 ---
 name: format-checker
 description: |
-  Use this agent to check or fix code formatting. Includes pre-commit checks, CI formatting failures, and selective formatting of specific languages.
+  Use this skill to check or fix code formatting. Includes pre-commit checks, CI formatting failures, and selective formatting of specific languages.
 model: haiku
 allowed-tools: Bash, Read, Glob, Grep
 ---

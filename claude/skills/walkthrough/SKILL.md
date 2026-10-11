@@ -255,7 +255,7 @@ Content rules:
 - **Prose is short.** One idea per sentence. Split a sentence doing two jobs
   into two sentences. Prefer the plain concrete statement over the qualified
   one. Cut every word that earns nothing.
-- **No ASCII diagrams.** Ever. Use Mermaid, inline SVG, or styled HTML.
+- **No ASCII diagrams.** Use Mermaid, inline SVG, or styled HTML.
 
 If the page needs a plotted chart and a `dataviz` skill is available in the
 session, read it before choosing chart colors.

@@ -80,6 +80,7 @@ const DESCRIPTION = [
   'Send the whole queue every time. Each call replaces the previous snapshot.',
   'Call it after the plan is approved, and whenever a milestone status or the current step changes.',
   'Send step "finished" when the run is done.',
+  'Only the /work-queue coordinator may call it. Calls from a subagent are denied.',
 ].join(' ')
 
 export function parseRun(input: Record<string, unknown>, now: number): Run | string {

@@ -288,4 +288,5 @@ Close with one line offering to write the analysis to a file through
   did not open yourself is `[missing-source]`.
 - Never declare a single root cause while another leaf is still `[likely]` or
   `[possible]`.
-- Follow `rules/sentence-structure.md` in the report. One idea per sentence.
+- Follow `${CLAUDE_SKILL_DIR}/../../rules/sentence-structure.md` in the
+  report. One idea per sentence.

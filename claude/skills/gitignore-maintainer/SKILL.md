@@ -1,7 +1,7 @@
 ---
 name: gitignore-maintainer
 description: |
-  Use this agent to add, remove, or review .gitignore patterns.
+  Use this skill to add, remove, or review .gitignore patterns.
 model: haiku
 allowed-tools: Bash, Read, Edit
 ---

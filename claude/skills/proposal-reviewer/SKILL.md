@@ -45,7 +45,6 @@ Before engaging the user on any questions:
    types, interfaces, and conventions that will inform design choices
 4. Spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the proposal path. Each conflict it
    reports is an open question if the proposal does not already settle it. Add it to the triage in Step 4
-5. Build a mental model of the design space so you can offer informed analysis
 
 ### Step 4: Triage Open Questions
 

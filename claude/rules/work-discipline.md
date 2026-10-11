@@ -43,8 +43,6 @@ silently expand a feature task into a sweeping rewrite.
   `// Last line:`, `// loop over items`, or `// return the result`. This applies to every language. The reader can see
   what the code does; a comment that only restates the next statement is pure noise. Never add them, and remove them
   from code you are changing
-- Do not add comments that restate what the code already says; if variable names and control flow make the intent clear,
-  a comment is noise
 - Only add comments where the logic is non-obvious or the "why" is not evident from the code
 - Do not use parenthesized asides in comments; rewrite as natural prose that flows as part of the sentence
 - Good comments document design facts that are hard to recover from local code:

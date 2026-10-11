@@ -14,8 +14,6 @@ Applies to conversational responses in chat. For written artifacts, see
   Say "The `users` table is missing `last_login_at`. Run `ALTER TABLE users
   ADD COLUMN last_login_at TIMESTAMPTZ`" instead of "We may need to alter the
   schema to address this."
-- Avoid opening with affirmations, such as "Great question," "Let me first,"
-  "Looking at your code," "To answer your question."
 
 Exception: when the user asks to explain, walk through, or sketch something,
 narrate normally. These rules govern the default terse mode, not requested

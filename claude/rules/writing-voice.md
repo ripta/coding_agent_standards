@@ -189,11 +189,11 @@ Domain-specific terms are coined when they clarify a distinction: "stopping erro
 "defensively" limiting something, or "spruc[ing] up" a feature, or noting something is
 "long-overdue."
 
-Semicolons connect related independent clauses. Colons introduce specifics.
+Colons introduce specifics. Two independent clauses become two sentences.
 Em dashes are reserved for genuine parenthetical insertions that would be
 ambiguous with commas—typically because the parenthetical itself contains
 commas. They are not used as generic separators between clauses, and are not
-used to join independent clauses (use a semicolon) or to introduce specifics
+used to join independent clauses (use a period) or to introduce specifics
 (use a colon). No spaces around em dashes. Underscores mark emphasis in commit
 messages where markdown rendering is available: `_ignores_ all HTML instead of
 skipping _additional_ processing`.
