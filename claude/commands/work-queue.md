@@ -194,7 +194,9 @@ For each milestone picked:
 
 6. Commit the milestone. The review fixes land in the same commit. Stage the
    files by path; never `git add -A` or `git add .`. Write the message by
-   `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`.
+   `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Before committing, check the
+   message against it, including Forbidden Openers. Reviewers see diffs, not
+   messages, so this check is the coordinator's.
 
 7. Amend the phase's session report (see section 4). Copy in the
    implementer's best guesses and deviations, so the next implementer sees
@@ -219,13 +221,13 @@ When the last queued milestone of a phase is committed:
 3. Triage the findings as in section 2. Send them to a fresh `implementer`,
    with the commit range and the milestones it covers in place of a single
    milestone. Commit the fixes, and any artifact sync, as their own commit.
-   Amend the session report.
+   Check its message as in section 2, step 6. Amend the session report.
 
 4. Continue with the next ready phase.
 
 When the run is done, run one more review the same way, over the range
-from the run's base commit to `HEAD`. Commit its fixes, and amend the last
-session report.
+from the run's base commit to `HEAD`. Commit its fixes, check the message as
+in section 2, step 6, and amend the last session report.
 
 ## 4. Session reports
 

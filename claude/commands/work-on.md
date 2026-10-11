@@ -92,5 +92,6 @@ the user stated one this session, or the proposal or phase document carries a
 
 13. Summarize the work as a commit message, following
     `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Emit raw markdown. Use only
-    the conversation; do not run `git diff`. Do not commit on behalf of the
-    user.
+    the conversation; do not run `git diff`. Before emitting it, check the
+    message against `commit-style.md`, including Forbidden Openers. Do not
+    commit on behalf of the user.
