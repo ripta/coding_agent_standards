@@ -52,7 +52,8 @@ Before engaging the user on any questions:
 1. Parse the "Design Decisions (Open)" section — handle both sub-heading format (`### Question`) and bullet-list format
    (`- **Question**: ...`)
 2. If there are no open design questions (the section is empty or absent), ask the user if there are new items they want
-   to discuss relating to the proposal using AskUserQuestion. If no new items, offer to accept the proposal and stop.
+   to discuss relating to the proposal using AskUserQuestion. If no new items, skip to Step 6. Steps 6 through 8 still
+   run in full before `accepted` is offered.
 3. Present a numbered summary of all open questions, showing any candidate options already listed
 4. Flag questions that are related or dependent on each other
 5. Order the questions with the most foundational first — questions that other questions depend on, that affect the most
@@ -96,7 +97,7 @@ cannot be read, stop and tell the user this skill is installed without its stand
 the candidates; add it if the proposal does not list it. Apply an override only when the user stated one this session or
 the proposal carries a `**Tradeoffs:**` field.
 
-Do not pick a recommendation yet. The critique in #4 must rank the options before you do.
+Pick your recommendation now, before the critique. Keep it to yourself until #4 reconciles it with the critic's ranking.
 
 Build a structured comparison of all options:
 
@@ -116,20 +117,21 @@ Option B: <name>
 #### 4. Critique
 
 Spawn the `design-critic` agent (`coding-standards:design-critic` under the plugin) once for the round. Give it the
-proposal path, each question in the round, and each question's option list with descriptions. Do not give it your
-comparison's pros and cons. Do not say which option you lean toward. The critic ranks blind. A disagreement is only a
-signal when it does.
+proposal path, each question in the round, and each question's option list with descriptions. Pass any session override
+the user stated. Do not give it your comparison's pros and cons. Do not say which option you recommend, and strip any
+recommended marker from the descriptions. The critic ranks blind. A disagreement is only a signal when it does.
 
 When it returns:
 
 1. Check each objection against the proposal and the code. Add each objection that holds to that option's cons. When you
    reject one the critic marked `CONFIRMED`, note why in one line.
 2. Add each missing option that holds to the list, and research it like the others. A missing complete option is always
-   added.
-3. Now pick your recommendation by the rules in #3.
-4. When your recommendation differs from the critic's top option, keep the dissent visible. Put the critic's reason in
-   the description of the option you recommend. Then say in one line why you still recommend it. Do the same for any
-   `UNSOUND` verdict you do not act on.
+   added. The critic's objections to it count like any other.
+3. Compare your recommendation with the critic's ranking. Change it only when the critic's objections or missing options
+   give a reason under the rules in #3.
+4. When your recommendation still differs from the critic's top option, keep the dissent visible. Put the critic's
+   reason in the description of the option you recommend. Then say in one line why you still recommend it. Do the same
+   for any `UNSOUND` verdict you do not act on.
 
 If the agent cannot run, say so and continue without it.
 
@@ -191,10 +193,12 @@ example, it may have settled a dependency or opened a new constraint. Say so in 
 
 When all open questions have been resolved, review the settled decisions as a whole before wrapping up.
 
-First spawn the `design-critic` agent on the proposal path for a whole-proposal review. Its findings are candidates, not
-conclusions. Check each against the proposal and the code before using it. Feed its inconsistencies, gaps, and weak
-decisions into the checks below. Hold its unlisted risks for Step 7. When you drop a finding the critic marked
-`CONFIRMED`, tell the user why in one line. If the agent cannot run, say so and do the checks without it.
+First spawn the `design-critic` agent on the proposal path for a whole-proposal review. Pass any session override the
+user stated. Also list each decision the user chose against the critic's dissent in Step 5 or kept in an earlier pass of
+this step. Its findings are candidates, not conclusions. Check each against the proposal and the code before using it.
+Feed its inconsistencies, gaps, and weak decisions into the checks below. Hold its unlisted risks for Step 7. When you
+drop a finding the critic marked `CONFIRMED`, tell the user why in one line. If the agent cannot run, say so and do the
+checks without it.
 
 1. **Consistency check**: Read through all settled decisions together and verify they are internally consistent — no
    contradictions, no decisions that undermine each other's rationale, and no implicit assumptions that conflict.
@@ -207,7 +211,7 @@ decisions into the checks below. Hold its unlisted risks for Step 7. When you dr
      entry and the Decision Log
 3. **Weak decisions**: A settled decision the critic showed fails the "Choosing Options" standard, including a hack or
    over-building. A different but equally sound choice does not count. For each, the user chooses whether to reopen it
-   as an open question (and loop back to Step 5) or keep it. When they keep it, record why in the Decision Log.
+   as an open question (and loop back to Step 5) or keep it. Record either choice in the Decision Log with the reason.
 
 Do all three checks before asking. Then present every inconsistency, gap, and weak decision in one AskUserQuestion call.
 When there are more than four, ask in successive calls of up to four. Resolve inconsistencies before continuing.
