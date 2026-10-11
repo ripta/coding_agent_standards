@@ -162,7 +162,9 @@ For each milestone picked:
    same message, spawn a fresh `adr-impact` agent
    (`coding-standards:adr-impact`) on the working-tree diff. Triage what they
    report:
-   - Mark comment, style, and plan-gap findings as fix.
+   - Mark comment, style, and plan-gap findings as fix. The exception is a
+     shortcut the plan did not approve. Mark it as trace, and have it fixed the
+     way the plan specified.
    - Mark a `CONFIRMED` finding as fix.
    - Mark a `PLAUSIBLE` finding as trace. The implementer fixes it only if the
      trace confirms it.

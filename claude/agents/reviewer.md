@@ -143,4 +143,4 @@ clean -- say so plainly. For each finding:
 - **failure**: for correctness/security, the concrete inputs-or-state to
   wrong-result path.
 - **disposition**: `fix-directly` (comment, style, plan-gap) or `verify-first`
-  (PLAUSIBLE correctness/security).
+  (PLAUSIBLE correctness/security, and shortcuts the plan did not approve).
