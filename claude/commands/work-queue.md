@@ -194,8 +194,11 @@ For each milestone picked:
    Its file list must match `git status`. Ask the implementer about any
    mismatch before committing.
 
-6. Commit the milestone. The review fixes land in the same commit. Stage the
-   files by path; never `git add -A` or `git add .`. Write the message by
+6. Commit the milestone. The review fixes land in the same commit. Commit the
+   files by path with `git commit -- <paths>`. Staging by path is not enough.
+   Another session may share the checkout and have its own files staged, and a
+   bare `git commit` takes them too. Never use `git add -A`, `git add .`, or
+   `git commit -a`. Write the message by
    `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Before committing, check the
    message against it, including Forbidden Openers. Reviewers see diffs, not
    messages, so this check is the coordinator's.

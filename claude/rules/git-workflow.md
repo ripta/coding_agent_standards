@@ -7,6 +7,9 @@
   stop and yield control
 - Exception: when a commit you made breaks `commit-style.md` and has not been pushed, reword it without asking. Keep
   its tree, author, and date unchanged. This never covers pushed commits or other people's commits
+- When committing, name the paths in the commit itself: `git commit -- <paths>`. Staging by path and then running a
+  bare `git commit` also commits whatever else is staged. Another session sharing the checkout may have staged its own
+  files. Never use `git add -A`, `git add .`, or `git commit -a`
 
 ## Destructive Operations
 
