@@ -72,8 +72,8 @@ Work through the rounds from Step 4 until no open question remains.
 Questions added later — by the gap analysis in Step 6 or the risk review in Step 7 — join this loop. Place them in the
 existing order using the criteria in Step 4 #5, and group them into rounds by Step 4 #6.
 
-For each round, run #1 through #4 for every question in the round before asking anything. Then ask once (#5) and record
-every answer (#6).
+For each round, run #1 through #3 for every question in the round. Then run the critique (#4) once for the whole round,
+and sketch (#5) where needed. Then ask once (#6) and record every answer (#7).
 
 #### 1. Present
 
@@ -96,7 +96,9 @@ cannot be read, stop and tell the user this skill is installed without its stand
 the candidates; add it if the proposal does not list it. Apply an override only when the user stated one this session or
 the proposal carries a `**Tradeoffs:**` field.
 
-Present a structured comparison of all options:
+Do not pick a recommendation yet. The critique in #4 must rank the options before you do.
+
+Build a structured comparison of all options:
 
 ```text
 Option A: <name>
@@ -111,7 +113,27 @@ Option B: <name>
   ...
 ```
 
-#### 4. Sketch (optional)
+#### 4. Critique
+
+Spawn the `design-critic` agent (`coding-standards:design-critic` under the plugin) once for the round. Give it the
+proposal path, each question in the round, and each question's option list with descriptions. Do not give it your
+comparison's pros and cons. Do not say which option you lean toward. The critic ranks blind. A disagreement is only a
+signal when it does.
+
+When it returns:
+
+1. Check each objection against the proposal and the code. Add each objection that holds to that option's cons. When you
+   reject one the critic marked `CONFIRMED`, note why in one line.
+2. Add each missing option that holds to the list, and research it like the others. A missing complete option is always
+   added.
+3. Now pick your recommendation by the rules in #3.
+4. When your recommendation differs from the critic's top option, keep the dissent visible. Put the critic's reason in
+   the description of the option you recommend. Then say in one line why you still recommend it. Do the same for any
+   `UNSOUND` verdict you do not act on.
+
+If the agent cannot run, say so and continue without it.
+
+#### 5. Sketch (optional)
 
 If the user asks, or if options are hard to evaluate abstractly, present inline code sketches showing what each option
 looks like in practice. Label clearly:
@@ -126,7 +148,7 @@ looks like in practice. Label clearly:
 
 Keep sketches minimal and focused on the decision point. Do not write to temporary files.
 
-#### 5. Discuss
+#### 6. Discuss
 
 Present options neutrally first. Then offer a recommendation with rationale only after showing all options.
 
@@ -141,7 +163,7 @@ topic — address their concerns thoroughly, provide full information, and clear
 re-present the decision prompt after the user's concerns are fully addressed and the conversation naturally returns to
 the decision point. Then re-ask only the questions still unanswered, in one AskUserQuestion call.
 
-#### 6. Record
+#### 7. Record
 
 As soon as the call returns, update the proposal file for each decision. Do this before researching the next round:
 
@@ -155,7 +177,7 @@ Write the answers to the file before doing anything else, so progress survives i
 Note each decision that is architecturally significant (cross-component, hard to reverse, sets a precedent). Step 8
 asks about ADRs for all of them at once. Do not ask about an ADR inside the loop.
 
-#### 7. Next
+#### 8. Next
 
 Show the count of remaining open questions.
 
@@ -167,7 +189,12 @@ example, it may have settled a dependency or opened a new constraint. Say so in 
 
 ### Step 6: Coherence Review
 
-When all open questions have been resolved, review the settled decisions as a whole before wrapping up:
+When all open questions have been resolved, review the settled decisions as a whole before wrapping up.
+
+First spawn the `design-critic` agent on the proposal path for a whole-proposal review. Its findings are candidates, not
+conclusions. Check each against the proposal and the code before using it. Feed its inconsistencies, gaps, and weak
+decisions into the checks below. Hold its unlisted risks for Step 7. When you drop a finding the critic marked
+`CONFIRMED`, tell the user why in one line. If the agent cannot run, say so and do the checks without it.
 
 1. **Consistency check**: Read through all settled decisions together and verify they are internally consistent — no
    contradictions, no decisions that undermine each other's rationale, and no implicit assumptions that conflict.
@@ -178,9 +205,12 @@ When all open questions have been resolved, review the settled decisions as a wh
    - Defer it per the "Deferring Decisions" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`:
      record it in Design Decisions (Settled) as a decision to defer, with a concrete revisit hook in both the settled
      entry and the Decision Log
+3. **Weak decisions**: A settled decision the critic showed fails the "Choosing Options" standard, including a hack or
+   over-building. A different but equally sound choice does not count. For each, the user chooses whether to reopen it
+   as an open question (and loop back to Step 5) or keep it. When they keep it, record why in the Decision Log.
 
-Do both checks before asking. Then present every inconsistency and gap in one AskUserQuestion call. When there are more
-than four, ask in successive calls of up to four. Resolve inconsistencies before continuing.
+Do all three checks before asking. Then present every inconsistency, gap, and weak decision in one AskUserQuestion call.
+When there are more than four, ask in successive calls of up to four. Resolve inconsistencies before continuing.
 
 ### Step 7: Risk Review
 
@@ -195,6 +225,7 @@ Before wrap-up, interrogate the proposal's Risks section against the "Risks" sec
 3. **Unstated exposure**: Check for risks implied but not recorded: dependencies on other in-flight proposals whose
    design could still shift (cross-reference the Dependencies and Impacts sections), and open questions whose eventual
    resolution could invalidate a recorded mitigation.
+   Include the unlisted risks the critic reported in Step 6 that held up.
 4. **Blockers**: A risk rated high likelihood and high impact blocks `accepted` until mitigated or explicitly accepted
    with a Decision Log entry.
 
@@ -247,6 +278,9 @@ List any ADRs created with their file paths.
   high-likelihood/high-impact risk left unmitigated and unaccepted
 - Present design options neutrally before offering a recommendation. This governs the options for a design question. It
   does not govern workflow prompts like the `accepted` question in Step 8
+- Never show the `design-critic` your recommendation or your pros and cons before it ranks the options
+- Never hide the critic's dissent. When you recommend against the critic's top option, the user sees its reason in the
+  question
 - Write each round's decisions to the proposal file as soon as the call returns, so progress survives interruption
 - Follow the proposal format from `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` exactly
 - Follow the ADR format from `${CLAUDE_SKILL_DIR}/../../project-management/design.md` exactly

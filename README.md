@@ -89,7 +89,8 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   proposals, etc.
 - **Agents** (`agents/`) -- subagent definitions invoked by name: `implementer`, which writes one milestone for
   `work-queue`; `reviewer`, for post-milestone diff review; `adr-impact`, which checks a diff or proposal against the
-  project's ADRs; and `citation-verifier`, which checks file:line citations for `walkthrough` and
+  project's ADRs; `design-critic`, which critiques design options and whole proposals for `proposal-reviewer`; and
+  `citation-verifier`, which checks file:line citations for `walkthrough` and
   `architecture-exploration`
 - **Commands** (`commands/`) -- slash commands for driving a phase milestone (`work-on`), working through a queue of
   milestones planned up front (`work-queue`), summarizing a session as a commit message (`summary`), and chunking an
