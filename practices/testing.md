@@ -32,6 +32,18 @@
 - Integration tests in a dedicated `tests/` directory
 - Test helpers grouped in a shared test utility (not duplicated across test files)
 
+## Running the App by Hand
+
+A test runner owns the process it starts, so it sees a crash. Launching the app by hand to check a change gives no such
+guarantee. A crash in a detached process goes unnoticed.
+
+- Start the app so the shell owns it. Run it in the foreground, or in the background with stdout and stderr sent to a log
+  file and the PID saved.
+- Avoid launchers that detach the process and drop its output, such as macOS `open`.
+- After interacting with the app, check that the process is still alive. If it exited, read its exit status and the log.
+- Scan the log for crash output: Go `panic:` or `fatal error:`, Rust `panicked at`, Python `Traceback`.
+- A crash during a manual check is a failure. Report it with the trace. Do not report the change as verified.
+
 ## What to Test
 
 - Public API behavior, not internal implementation details

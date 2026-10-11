@@ -88,6 +88,19 @@ Makefile                     # Build targets wrapping xcodebuild / swift build
 - UI tests: `XCUIApplication` for integration / E2E testing
 - Run via Makefile: `make test` wrapping `swift test` or `xcodebuild test`
 
+## Crash Detection
+
+A native macOS crash goes to the system crash reporter, not to the terminal. Swift runtime traps (force-unwrapping nil,
+an index out of range, `fatalError`, `precondition`) kill the process with a signal. They often fire only on a UI path
+that no test reaches. Follow "Running the App by Hand" in [`testing.md`](../practices/testing.md), plus these steps:
+
+- Launch the built binary directly (`MyApp.app/Contents/MacOS/MyApp`), not with `open`.
+- Treat an exit status of 128 plus a signal number as a crash: 133 (SIGTRAP, Swift traps), 134 (SIGABRT), 138 (SIGBUS),
+  139 (SIGSEGV).
+- Touch a marker file before a manual session. Afterwards, check for new crash reports:
+  `find ~/Library/Logs/DiagnosticReports -name '<AppName>*.ips' -newer "$marker"`
+- When a report turns up, read the crashed thread's stack from the `.ips` file and report it as a failure.
+
 ## Build
 
 - Use Makefile targets wrapping `swift build`, `swift test`, `xcodebuild`
