@@ -64,11 +64,15 @@ Do all of this before any question.
 7. **Dependencies.** Map each `PROJ-NNN` in the proposal's Dependencies to the phase or phases whose Proposal column
    names it. A proposal split across several phases maps to all of them. A dependency with no phase yet cannot be
    written as `Phase X`. Hold it for Step 3.
+
+   Then check each mapped dependency phase for a deployment boundary. Search the proposal's Dependencies, Milestones,
+   and Risks for the boundary signals listed in `plans.md` under the Phase Document Format. Record each dependency
+   phase that has a signal, and quote the signal. Every other dependency phase is code-only.
 8. **Milestones and criteria.** Note whether the proposal has a Milestones section. Note whether each acceptance
    criterion it states can be traced to exactly one proposal milestone. Note any Settled decision that defers a
    question to a named proposal milestone.
 
-Report what you found in a few lines before asking anything.
+Report what you found in a few lines before asking anything. Name each code-only dependency phase as code-only.
 
 ### Step 3: Ask once, up front
 
@@ -85,8 +89,10 @@ request or Step 2 already answered.
   - **(c) Preempt with split.** The chosen `IN PROGRESS` phase keeps only its `DONE` milestones and becomes `COMPLETE`.
     The promoted proposal becomes the next phase. The preempted phase's remaining milestones move to a continuation
     phase after the promoted one. Every `PLANNED` phase above the preempted phase moves up by two.
-- **Deployed.** For each mapped dependency phase, ask whether this phase needs it running in production. `plans.md`
-  says only the user can confirm a deployment. Ask in one multi-select question.
+- **Deployed.** Ask only about dependency phases that Step 2 found a boundary signal for. For each one, ask whether
+  this phase needs it running in production, and name the signal in the option. `plans.md` says only the user can
+  confirm a deployment. Ask in one multi-select question within the same AskUserQuestion call. When no dependency phase
+  has a signal, skip this question. Code-only dependencies are written as plain `Phase X`.
 - **Unscheduled dependencies.** If a dependency proposal has no phase, ask whether to proceed. The phase's Dependencies
   line cannot name a proposal.
 - **Missing milestones.** If the proposal has no Milestones section, or a criterion cannot be traced to one milestone,
@@ -239,6 +245,7 @@ Summarize:
 - Use `git mv` for renames inside a git work tree, so history follows the file.
 - Treat any non-`accepted` proposal status as a hard stop. Do not change it to make promotion possible.
 - Treat any open design question as a hard stop, and route the user to `proposal-reviewer`.
-- Phase dependencies name phases, never proposals. Only the user decides `(deployed)`.
+- Phase dependencies name phases, never proposals. Only the user decides `(deployed)`. Ask only when Step 2 found a
+  boundary signal.
 - Use the status values from `tracking.md`. Phases are `PLANNED`, `IN PROGRESS`, or `COMPLETE`. Milestones are
   `NOT STARTED`, `IN PROGRESS`, or `DONE`.

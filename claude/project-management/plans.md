@@ -116,8 +116,28 @@ User-facing issue this phase solves.
 ```
 
 A plain `Phase X` dependency is a code dependency. It is met once Phase X is COMPLETE. Write `Phase X (deployed)` when
-the phase also needs Phase X running in production first. Only the user can confirm a deployment, so tooling asks rather
-than infers it.
+the phase also needs Phase X running in production first.
+
+A deployment dependency crosses a boundary the dependent phase cannot satisfy by itself. Phase X's code must be live
+somewhere the dependent phase does not control. These are the boundaries:
+
+- Another repo. The dependent work lives in a different repo and consumes Phase X through a tagged release or a module
+  bump.
+- A running process. The dependent phase's tests or verification run against a deployed server or consumer that
+  exercises Phase X.
+- A datastore. The dependent phase reads tables, data, or backfilled rows that only Phase X's deployed migration
+  produces.
+- Adopted consumers. The dependent phase removes a compatibility path, flag, or old API version. Consumers must first
+  migrate off it, so Phase X must ship and be adopted.
+
+Signals that a boundary exists include a release, a tag, a `go.mod` or version bump, a consumer, a deployed server, a
+migration, a backfill, a flag removal, or a separate repo. When both phases are code in one repo, and the dependent
+phase only builds and tests against Phase X's merged changes, the dependency is code-only. A coordinated downstream
+release does not change that. It belongs to the consumer repo's plan.
+
+Tooling looks for these signals before it asks about a deployment. With no signal, it writes a plain `Phase X` and says
+the dependency is code-only. With a signal, it asks the user and names the signal. Only the user can confirm a
+deployment.
 
 A phase document may carry an optional `**Tradeoffs:** expedient — <reason>` line after `**Dependencies:**`. It lowers
 the bar for design options in that phase only, and a phase inherits the field from the proposal it implements. Add it
