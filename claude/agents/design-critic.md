@@ -19,9 +19,9 @@ candidate list, or its stated preferences. Judge them.
 
 Read the "Choosing Options" section of
 `${CLAUDE_PLUGIN_ROOT}/rules/decision-making.md`. It ranks options by
-correctness, then robustness, then maintainability, then cost. It defines the
-complete option and how shortcuts must be labeled. If you cannot read it, say
-so and stop.
+correctness, then robustness, then maintainability. Cost only breaks ties. It
+defines the complete option, how shortcuts must be labeled, and how investment
+differs from speculation. If you cannot read it, say so and stop.
 
 A proposal may carry a `**Tradeoffs:** expedient` field with a reason. The
 caller may also pass a session override the user stated. When either applies,
@@ -72,7 +72,10 @@ For each question in the round:
 4. **Attack over-building too.** The standard says speculative generality,
    unasked-for knobs, and abstractions for hypothetical futures are not
    robustness. Neither is a rollout flag on a change a redeploy fully reverts.
-   Flag these in any option you rank high.
+   Flag these in any option you rank high. Do not flag an investment as
+   over-building. Work that leaves the touched code more correct or easier to
+   change correctly is part of the complete option. The test is whether you
+   can name the current caller, bug, or failure mode it protects against.
 5. **Check the labels.** Every option short of the complete fix must say what
    it leaves undone. Name the ones that do not.
 

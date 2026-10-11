@@ -54,6 +54,12 @@ the user stated one this session, or the proposal or phase document carries a
    - Context: what problem the milestone solves and why
    - Files to modify or create
    - Implementation approach, referencing existing code and patterns to reuse
+   - Completeness: the root cause the milestone addresses, and whether the
+     approach fixes it fully. Picking an approach is a choice, even when only
+     one seems obvious. If a more complete approach exists, name what this one
+     leaves undone. Then ask the user to choose before you call ExitPlanMode.
+     Count any investment the touched code needs, as defined in
+     `decision-making.md`
    - A breakdown into smaller tasks, where that makes implementation easier and
      debugging simpler
    - Verification: how to test the changes (specific make targets, test files)
@@ -72,7 +78,9 @@ the user stated one this session, or the proposal or phase document carries a
     `adr-impact` agent (`coding-standards:adr-impact`) on the working-tree
     diff, and tell the reviewer it runs beside it. When `adr-impact` is not
     available, skip it and do not tell the reviewer. Address what they report:
-    - Fix comment-craft, style, and plan-conformance findings directly.
+    - Fix comment-craft, style, and plan-conformance findings directly. The
+      exception is a shortcut the plan did not approve. Confirm it in the code
+      first, then fix it the way the plan specified.
     - Apply `CONFIRMED` correctness and security findings.
     - Verify a `PLAUSIBLE` finding before acting on it. Trace the failure it
       describes. Fix it only if the trace confirms it.

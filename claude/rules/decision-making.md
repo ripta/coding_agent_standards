@@ -52,13 +52,28 @@ Rank options by these criteria, in order:
    next, behavior consistent with existing conventions, and guards on destructive actions. This applies to APIs, CLIs,
    config formats, and function signatures as much as to end-user UI
 3. Long-term maintainability
-4. Implementation cost
+4. Implementation cost, as a tiebreaker only
 
-Implementation time and diff size count for almost nothing. A larger change is not a reason to avoid an option.
+Implementation cost decides only between options that are equal on the first three criteria. It never outweighs a
+difference in correctness, robustness, or maintainability, however small. Implementation time and diff size are not
+reasons to avoid an option.
 
 The complete option is the one that solves the real problem fully, not the largest one. Speculative generality,
 configuration knobs nobody asked for, and abstractions built for hypothetical futures are not robustness. They add
 surface area and work against maintainability.
+
+Investing in the code the change touches is different from speculating. It counts toward correctness, robustness, and
+maintainability, and it is part of the complete option. Treat work as an investment when it leaves that code more
+correct or easier to change correctly:
+
+- Fixing the structure that made the bug possible, not just the instance of it
+- Making an invalid state unrepresentable, or a misuse a compile or load error
+- Removing a one-way door or adding the missing recovery path
+- Paying down the debt that made a workaround tempting
+
+To tell the two apart, ask what the work serves. Investment serves the problem in front of you and the code that
+already exists. Speculation serves a requirement nobody has stated. When you cannot name a current caller, bug, or
+failure mode that the work protects against, it is speculation.
 
 Match safety mechanisms to risk and reversibility. When reverting and redeploying fully undoes a change, that is its
 rollback path; implement it directly, without feature flags, config options, or staged rollouts. Reserve that machinery
@@ -80,7 +95,7 @@ When building the option list:
   reason other than effort, such as a real downside of the complete option or a constraint that rules it out now. State
   that reason in the option's description
 - **Label what each shortcut leaves undone.** Any option short of the complete fix states the bug, edge case, or
-  follow-up cleanup it leaves behind
+  follow-up cleanup it leaves behind. A forgone investment counts too
 - **List the complete option first.** Mark it as recommended unless the previous rule gave a reason not to
 - **Raising an option is not expanding scope.** Offering the larger fix as an option is not the silent expansion that
   `work-discipline.md` forbids. Do not implement it without asking, and do not leave it off the list

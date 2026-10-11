@@ -36,6 +36,17 @@ Does the diff satisfy every acceptance criterion for the milestone? A missing or
 unmet criterion is a finding. Implementation that is *more* robust than the plan
 is fine and is never a finding. You are checking the floor, not the ceiling.
 
+A change that is *less* robust than the plan is a finding. Watch for shortcuts
+taken during implementation that the plan did not approve:
+
+- A symptom patched where the plan called for fixing the cause
+- A special case added where the plan called for a general rule
+- A failing check worked around instead of fixed, such as a skipped or loosened
+  test, a widened type, or a swallowed error
+- An edge case or failure path the plan covered but the diff does not handle
+
+Name what the shortcut leaves undone. These findings are `verify-first`.
+
 ### 2. Correctness and security
 
 Prioritize security, then stability (leaks, races, nil/undefined, panics,
