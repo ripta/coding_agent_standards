@@ -24,6 +24,11 @@ If no matching proposal is found, inform the user and stop.
 
 Read the proposal and validate it contains the expected sections (Summary, Design Decisions, etc.).
 
+Check whether an earlier review left work behind. It did when the Decision Log has entries tagged `(autonomous...)`
+after its last `Review gate` entry. Say so in one line, and see "Resuming".
+
+Check whether the proposal is in a git repository, and whether the proposal file has uncommitted changes.
+
 Then ask the entry gates in one AskUserQuestion call:
 
 1. **Proposal**: "Is this the proposal you want to review: `PROJ-NNN: Title`?" If the user says no, stop.
@@ -33,10 +38,49 @@ Then ask the entry gates in one AskUserQuestion call:
      end. See "Autonomous Mode"
    - **Converge, then ask**: iterate with the critic until each question converges, then ask each round as usual
    - **Manual**: one critique pass per round, then ask each round
-3. **Redesign**: only when the status is neither `draft` nor `implemented`. See Step 2.
+3. **Redesign**: only when the status is neither `draft` nor `implemented`, and the review is not a continuation. A
+   `designing` proposal with open questions or unreviewed `(autonomous...)` entries is a continuation. See Step 2.
+4. **Commit**: whether to commit the proposal after each round. Skip it when the proposal is not in a git repository,
+   or when the status is `implemented`. The options are to commit as the review goes, or to leave every change
+   uncommitted. When the proposal file already has uncommitted changes, say in the first option's description that the
+   first commit will include them. See "Committing".
 
 Mark no mode as recommended. The choice is how much of the user's attention the review takes, and only the user knows
-that.
+that. Mark no commit option as recommended either.
+
+### Changing Mode
+
+The user can change mode at any point by saying so, such as "go autonomous from here" or "let me decide the rest". That
+is an explicit choice for the rest of the review, the same as choosing at the entry gate. Do not suggest a change, and
+do not ask whether to change.
+
+- **Into autonomous or converge**: settled decisions stay as they are. The loop starts with the open questions. When the
+  change comes mid-round, re-run the round's critique as the loop's first pass
+- **Out of autonomous**: first show what autonomous mode decided so far, and run the review gate for those decisions
+  only, without the `accepted` and ADR questions. Then continue in the new mode
+
+### Committing
+
+When the user chose to commit as the review goes, that choice is their explicit request to commit, as
+`${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` requires. It covers this review only.
+
+- Commit after each round is recorded, after the changes from Steps 6 and 7, after the review gate, and after the
+  wrap-up
+- Commit only the proposal file and any ADR this review created. Name the paths in `git commit -- <paths>`
+- Follow `${CLAUDE_SKILL_DIR}/../../rules/commit-style.md`. Name the questions settled, not the round number
+- Never push, amend an earlier round's commit, or change branches
+- If a commit fails, say why and stop committing. Keep recording to the file
+
+### Resuming
+
+An interrupted review leaves its decisions in the file, since each round is recorded as it ends. What it loses is its
+working state: the ledgers, and which decisions were reopened. On resume:
+
+- Treat every settled decision as settled. Resolve only the questions still open
+- The mode is asked again at the entry gate. Never take it from the earlier run
+- Each `(autonomous...)` entry after the last `Review gate` entry has not been reviewed. The next review gate includes
+  them, with the contested ones flagged as before
+- Run Steps 6 and 7 in full. Their earlier passes are lost with the ledger
 
 ### Step 2: Status Check
 
@@ -45,6 +89,7 @@ Check the proposal's `**Status:**` field and branch accordingly:
 - **If status is `implemented`**: Inform the user there is nothing to review since the proposal has already been
   implemented. Offer to discuss the proposal, which could result in a new follow-up proposal. Stop the normal review
   flow.
+- **If status is `designing` and the review is a continuation** (see Step 1): Continue to the next step.
 - **If status is not `draft`** (e.g., `designing`, `accepted`, `scheduled`, `deferred`, `rejected`): The redesign
   question in Step 1 asked whether the user wants to redesign parts of the proposal. If they do not, stop.
 - **If status is `draft`**: Continue to the next step.
@@ -218,7 +263,8 @@ CALL` lean. Put any dissent left standing in the settled entry's rationale, with
 
 Write the answers to the file before doing anything else, so progress survives interruption.
 
-Note each decision that is architecturally significant (cross-component, hard to reverse, sets a precedent). Step 8
+Note each decision that earns an ADR by the "What Earns an ADR" section of
+`${CLAUDE_SKILL_DIR}/../../project-management/design.md`, with the criterion it meets. Most decisions do not. Step 8
 asks about ADRs for all of them at once. Do not ask about an ADR inside the loop.
 
 #### 8. Next
@@ -295,9 +341,11 @@ When the user stops or all questions are resolved (and the coherence and risk re
   is neither mitigated nor explicitly accepted.
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
 
-If any decisions were noted as architecturally significant, ask via AskUserQuestion which should get an ADR. Use one
-multiSelect question that lists them. Put it in the same AskUserQuestion call as the `accepted` question when there is
-one. In autonomous mode, both come last in the review gate. See "The Review Gate".
+Before asking about ADRs, check each noted decision against "What Earns an ADR" again, now that the whole design is
+settled. Drop any that no longer meet a criterion. If none remain, say in one line that no decision earns an ADR, and do
+not ask. Otherwise ask via AskUserQuestion which should get an ADR. Use one multiSelect question that lists them, each
+with the criterion it meets. Put it in the same AskUserQuestion call as the `accepted` question when there is one. In
+autonomous mode, both come last in the review gate. See "The Review Gate".
 
 For each decision the user picks, read `${CLAUDE_SKILL_DIR}/../../project-management/design.md` and create an ADR
 following its "ADR Document Format" section. That file is the only source for the format; this skill does not carry its
@@ -365,9 +413,11 @@ Then ask in one AskUserQuestion call, or successive calls of up to four question
    reopen through "Other"
 3. Each gated item from "What the user authorizes by choosing it" that the review produced, except `accepted` and ADRs
 
-Record every answer at once. When the user reopens a decision or overturns a provisional one, reopen the questions that
-depend on it as well. Resolve them in converge mode, since the user has chosen to weigh in. Then run Steps 6 and 7 for
-what changed, and return to the gate with only what is new.
+Record every answer at once. Add a Decision Log entry for the gate itself: `- YYYY-MM-DD: Review gate: <kept all, or
+what was reopened>`. A resumed review uses it to tell reviewed decisions from unreviewed ones. When the user reopens a
+decision or overturns a provisional one, reopen the questions that depend on it as well. Resolve them in converge
+mode, since the user has chosen to weigh in. Then run Steps 6 and 7 for what changed, and return to the gate with only
+what is new.
 
 Ask the `accepted` and ADR questions from Step 8 last, in their own call, once a gate call returns with nothing
 reopened and nothing changed. Never offer `accepted` in the same call as a reopen question. A reopen would change the
@@ -382,8 +432,8 @@ design after it was accepted.
 - Autonomous mode is the other exception. The user's choice of it at the entry gate authorizes deciding without asking,
   for this review only, and only for what "What the user authorizes by choosing it" lists. All its questions go to the
   one review gate at the end
-- Autonomous mode comes only from this invocation: the entry gate, or a mode the user named when invoking the skill.
-  Never infer it from memory, an earlier session, or how the user answered past reviews. A note that the user delegated
+- Autonomous mode comes only from this invocation: the entry gate, a mode the user named when invoking the skill, or a
+  change of mode the user states during the review. Never infer it from memory, an earlier session, or how the user answered past reviews. A note that the user delegated
   a past review is not a standing grant. Ask the mode question anyway
 - Ask every question through the AskUserQuestion tool. Never ask a question as plain prose and wait for a typed reply.
   Batching changes how many questions go in one call. It never replaces the tool

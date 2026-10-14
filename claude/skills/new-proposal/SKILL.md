@@ -90,6 +90,9 @@ This is the one approval gate. Before writing the file, present a brief outline 
 - The settled vs. open design decisions you plan to record
 - Any dependencies or cross-proposal impacts
 
+Offer two approvals: write the draft, or write it and then critique it until it converges (Step 7). Mark neither as
+recommended. The critique takes several agent passes, and only the user knows whether the draft warrants that now.
+
 Do not write until the user approves. Adjust per their feedback.
 
 ### Step 6: Write the Proposal
@@ -111,7 +114,22 @@ Rules for drafting:
   the impacted proposal and the specific section(s) it cares about, and update the impacted proposals when warranted
   (prioritize this on large projects or proposal waves).
 
-### Step 7: Index
+### Step 7: Critique the Draft
+
+Only when the user chose it in Step 5. Read `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`, and
+run its proposal loop on the draft, as it describes for a draft with open questions. If the file cannot be read, or the
+`design-critic` agent (`coding-standards:design-critic` under the plugin) cannot run, say so and skip this step.
+
+What the loop may change on its own:
+
+- Facts: a wrong citation, a misread of the code, a format error against `proposals.md`
+- Risks: add each missing risk the critic showed, per the standard's "Risks" section
+- Open questions: add options, constraints, and new questions
+
+What it may not change: a settled decision the user gave in Step 4 or approved in Step 5. A finding against one becomes
+an open question, and the user settles it in `/proposal-reviewer`. Never invent a decision to make the loop converge.
+
+### Step 8: Index
 
 If an index already exists, add a row for the new proposal and keep it consistent.
 
@@ -119,13 +137,14 @@ If this is the **first** proposal for the project, act on the index answer from 
 "Proposal Index" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` — a table with
 Proposal/Description/Status columns. Do not ask again here.
 
-### Step 8: Report
+### Step 9: Report
 
 Summarize:
 
 - The proposal's file path, ID, and title
 - Whether it is ready for design review or has significant open questions (point to `/proposal-reviewer` for resolving
   open questions)
+- When Step 7 ran: how many passes it took, what it changed, and the open questions it added
 - Any dependencies or cross-proposal impacts noted
 - Whether the index was created or updated
 
@@ -136,6 +155,6 @@ Summarize:
   defines its own deviation — then follow the project.
 - Never invent decisions to fill gaps; unresolved questions go in Design Decisions (Open) with candidate options.
 - Detect before asking, then ask once. Directory, prefix, index, and design gaps share a single AskUserQuestion call in
-  Step 4. The outline in Step 5 is the only later checkpoint.
+  Step 4. The outline in Step 5 is the only later checkpoint, and it carries the choice to critique the draft.
 - Numbers are permanent and never reused; the prefix is fixed once chosen.
 - Use today's date for Created, Updated, and any Decision Log entries.

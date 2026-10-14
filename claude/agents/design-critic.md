@@ -40,7 +40,8 @@ One of four inputs:
   it does, ignore that and rank first. The order of the options means nothing.
 - **A proposal.** A path to a proposal whose questions are all settled. The
   caller wants a review before it offers `accepted`. The caller may also list
-  decisions the user already kept against an objection.
+  decisions the user already kept against an objection. Or a path to a fresh
+  draft that still has open questions, when the caller says so.
 - **A description.** A few sentences or paragraphs about a design not yet
   written down. Treat it like a proposal.
 - **A re-check.** A proposal path and a list of changes made since the last
@@ -84,7 +85,12 @@ For each question in the round:
 
 ## Reviewing a whole proposal
 
-Read every settled decision together. Report:
+Read every settled decision together. On a draft with open questions, an
+open question is not a gap and not a weak decision. Check inconsistencies and
+weak decisions among the settled decisions only. Report a finding that bears
+on an open question under that question, as an option or a constraint.
+
+Report:
 
 - **Inconsistencies**: decisions that contradict each other or undercut each
   other's rationale.

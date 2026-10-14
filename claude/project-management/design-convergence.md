@@ -4,8 +4,8 @@ How a coordinator iterates a design with the `design-critic` until it settles. W
 acceptable options, the `design-judge` agent rules. Under the plugin the agents are named
 `coding-standards:design-critic` and `coding-standards:design-judge`.
 
-`proposal-reviewer` uses this protocol in its autonomous and converge modes. `/converge-design` uses the question loop
-for a design question that has no proposal yet.
+`proposal-reviewer` uses this protocol in its autonomous and converge modes. `new-proposal` runs the proposal loop on a
+fresh draft. `/converge-design` uses the question loop for a design question that has no proposal yet.
 
 The protocol decides what to recommend. It does not decide whether the user is asked. The caller says that.
 
@@ -77,6 +77,11 @@ the next pass. An `UNSOUND` on the third pass goes to the judge like any other n
 ## The Proposal Loop
 
 Run it once every open question is settled. It replaces the single whole-proposal review.
+
+It can also run on a draft that still has open questions. Then a finding never settles an open question. A finding that
+bears on one goes onto that question as an option, a constraint, or a `Leaves undone` line. A finding against a settled
+decision becomes a new open question, since the draft's author may not change what the user settled. The draft
+converges when what is left is open questions, not defects.
 
 1. **Full pass.** Spawn the critic on the proposal path for a whole-proposal review. List each decision the user kept
    against the critic's dissent.

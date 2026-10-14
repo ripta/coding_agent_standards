@@ -65,6 +65,23 @@ every run.
 
 Keep the list short. An ADR that every change must be checked against is rare.
 
+## What Earns an ADR
+
+Most design decisions do not need an ADR. The proposal that made a decision already records it, with its options and
+rationale. An ADR earns its place when someone could break the decision later without ever reading that proposal.
+
+A decision earns an ADR when at least one of these holds:
+
+- **It binds code outside the proposal.** Other components, services, or future work must follow it, such as "every
+  outbound event goes through the outbox"
+- **It is a one-way door.** It fixes a schema, a wire format, a published contract, or stored data in a way a redeploy
+  cannot undo
+- **It sets a convention.** It settles a question that will come up again elsewhere, and the next person to face it
+  should find the answer without searching old proposals
+
+Being hard, debated, or important to the proposal does not earn an ADR by itself. A decision that shapes only the
+proposal's own internals stays in the proposal. When no decision qualifies, the right number of ADRs is zero.
+
 ## What Does Not Belong in an ADR
 
 An ADR records one decision and why it was made. It holds nothing that changes after acceptance, because it is
