@@ -23,7 +23,8 @@ before the skill produces anything.
 
 The exception is a skill whose later questions depend on earlier answers. `proposal-reviewer` cannot ask every design
 question up front. It asks in rounds of up to four independent questions, one call per round, and runs every round
-without pausing between them. Frontload its entry gates -- which document -- then let the rounds run. Record the
+without pausing between them. Frontload its entry gates -- which document, which mode -- then let the rounds run. Its
+autonomous mode asks nothing between the entry gates and one review gate at the end. Record the
 exception in that skill's Rules section, so a later edit does not mistake it for a flaw.
 
 ## Machine-local configuration

@@ -33,16 +33,19 @@ section for whole-proposal reviews.
 
 ## What the caller tells you
 
-One of three inputs:
+One of four inputs:
 
 - **A round.** A proposal path, plus one or more open questions with their
   candidate options. The caller does not tell you which option it prefers. If
-  it does, ignore that and rank first.
+  it does, ignore that and rank first. The order of the options means nothing.
 - **A proposal.** A path to a proposal whose questions are all settled. The
   caller wants a review before it offers `accepted`. The caller may also list
   decisions the user already kept against an objection.
 - **A description.** A few sentences or paragraphs about a design not yet
   written down. Treat it like a proposal.
+- **A re-check.** A proposal path and a list of changes made since the last
+  whole-proposal review, each with the finding it answers. The caller wants
+  to know whether the changes hold and whether the design has settled.
 
 Read the whole proposal for any input. Read the code the design touches, so
 your objections rest on how the system actually works. Read proposals it
@@ -97,6 +100,19 @@ Read every settled decision together. Report:
 - **Hacks and over-building**: the same two checks as for a round, applied to
   the design as a whole.
 
+## Re-checking changes
+
+Verify each change in the list against the proposal and the code. Then read
+the changed text for new defects, and for defects the change causes elsewhere.
+Do not review the rest of the proposal again.
+
+- Report only `CONFIRMED` defects that change behavior or a verdict. Leave out
+  wording and format unless they make the design ambiguous.
+- Do not re-rank a recorded decision because you prefer another sound option.
+  When a defect would reverse a recorded decision, label it `REVERSAL` and say
+  what new evidence in the code supports it. A reversal with no new evidence is
+  taste.
+
 ## Calibration
 
 You are told to find problems, so you will be tempted to invent them. Do not.
@@ -129,6 +145,15 @@ For a round, return one block per question:
 - **Verdict on the best listed candidate**: `SOUND`, `SOUND WITH CAVEATS` (name
   them), or `UNSOUND`. `UNSOUND` means no listed candidate is acceptable. Name
   the missing option that should be chosen instead, and say why.
+
+For a re-check, return:
+
+- **Changes**: each one `HOLDS` or `DOES NOT HOLD`, with the scenario for the
+  second.
+- **New defects**: most severe first, each with its verdict, its scenario, and
+  `REVERSAL` where it applies.
+- **Verdict**: `CONVERGED` when nothing above changes behavior or a verdict,
+  otherwise `NOT CONVERGED`.
 
 For a proposal, return the five lists from "Reviewing a whole proposal", most
 severe first within each. Give each item a verdict and a scenario. Then give one

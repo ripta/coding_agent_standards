@@ -3,6 +3,7 @@ name: proposal-reviewer
 description: |
   Review a proposal's open design questions, research options, discuss tradeoffs,
   and record decisions. Completes the proposal pipeline: research -> draft -> design review -> accepted.
+  Runs manual, converge-then-ask, or fully autonomous with critic convergence checks.
 model: opus
 allowed-tools: Agent, AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch
 ---
@@ -14,15 +15,28 @@ analyzing tradeoffs, and recording decisions incrementally.
 
 ### Step 1: Locate & Confirm Proposal
 
-The user provides a proposal number (required). Search common locations (`spec/proposals/`, `docs/proposals/`,
-`proposals/`) for a file matching that number. The locations may be symlinked, so make sure to follow symlinks.
+The user provides a proposal number (required), and optionally a mode:
+`/proposal-reviewer PROJ-NNN [autonomous|converge|manual]`. Search common locations (`spec/proposals/`,
+`docs/proposals/`, `proposals/`) for a file matching that number. The locations may be symlinked, so make sure to follow
+symlinks.
 
 If no matching proposal is found, inform the user and stop.
 
 Read the proposal and validate it contains the expected sections (Summary, Design Decisions, etc.).
 
-After reading, confirm the proposal title with the user via AskUserQuestion: "Is this the proposal you want to review:
-`PROJ-NNN: Title`?" If the user says no, stop.
+Then ask the entry gates in one AskUserQuestion call:
+
+1. **Proposal**: "Is this the proposal you want to review: `PROJ-NNN: Title`?" If the user says no, stop.
+2. **Mode**: which review mode to run. Skip this question when the user named a mode when invoking the skill, or when
+   the status is `implemented`. List the options in this order:
+   - **Autonomous**: decide every question, iterating with the critic until each converges. One review gate at the
+     end. See "Autonomous Mode"
+   - **Converge, then ask**: iterate with the critic until each question converges, then ask each round as usual
+   - **Manual**: one critique pass per round, then ask each round
+3. **Redesign**: only when the status is neither `draft` nor `implemented`. See Step 2.
+
+Mark no mode as recommended. The choice is how much of the user's attention the review takes, and only the user knows
+that.
 
 ### Step 2: Status Check
 
@@ -31,8 +45,8 @@ Check the proposal's `**Status:**` field and branch accordingly:
 - **If status is `implemented`**: Inform the user there is nothing to review since the proposal has already been
   implemented. Offer to discuss the proposal, which could result in a new follow-up proposal. Stop the normal review
   flow.
-- **If status is not `draft`** (e.g., `designing`, `accepted`, `scheduled`, `deferred`, `rejected`): Clarify with the
-  user whether they want to redesign parts of the proposal using AskUserQuestion. If they do not, stop.
+- **If status is not `draft`** (e.g., `designing`, `accepted`, `scheduled`, `deferred`, `rejected`): The redesign
+  question in Step 1 asked whether the user wants to redesign parts of the proposal. If they do not, stop.
 - **If status is `draft`**: Continue to the next step.
 
 ### Step 3: Assess Context
@@ -42,7 +56,8 @@ Before engaging the user on any questions:
 1. Read the full proposal: motivation, settled decisions, risks, dependencies, milestones
 2. If the proposal references other proposals (in Dependencies or References), read those for context
 3. Use Agent sub-tasks to scan the codebase for code relevant to the proposal's domain — look for existing patterns,
-   types, interfaces, and conventions that will inform design choices
+   types, interfaces, and conventions that will inform design choices. Scans are lookup work. Spawn `Explore` with
+   `model: sonnet` for them
 4. Spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the proposal path. Each conflict it
    reports is an open question if the proposal does not already settle it. Add it to the triage in Step 4
 
@@ -52,7 +67,7 @@ Before engaging the user on any questions:
    (`- **Question**: ...`)
 2. If there are no open design questions (the section is empty or absent), ask the user if there are new items they want
    to discuss relating to the proposal using AskUserQuestion. If no new items, skip to Step 6. Steps 6 through 8 still
-   run in full before `accepted` is offered.
+   run in full before `accepted` is offered. In autonomous mode, do not ask. Skip to Step 6.
 3. Present a numbered summary of all open questions, showing any candidate options already listed
 4. Flag questions that are related or dependent on each other
 5. Order the questions with the most foundational first — questions that other questions depend on, that affect the most
@@ -127,11 +142,15 @@ AskUserQuestion call in #6.
 Spawn the `design-critic` agent (`coding-standards:design-critic` under the plugin) once for the round. Give it the
 proposal path, each question in the round, and each question's option list with descriptions. Pass any session override
 the user stated. Do not give it your comparison's pros and cons. Do not say which option you recommend, and strip any
-recommended marker from the descriptions. The critic ranks blind. A disagreement is only a signal when it does.
+recommended marker from the descriptions. Describe every option to the same depth, and do not list your favorite
+first. Put any fact the critic needs into the description of the option it bears on, not into a separate "facts"
+section. The critic ranks blind. A disagreement is only a signal when it does.
 
 When it returns:
 
-1. Check each objection against the proposal and the code. Add each objection that holds to that option's cons. When you
+1. Check each objection against the proposal and the code. When it rests on file:line citations, spawn the
+   `citation-verifier` agent (`coding-standards:citation-verifier` under the plugin) on them rather than checking by
+   hand. Add each objection that holds to that option's cons. When you
    reject one the critic marked `CONFIRMED`, note why in one line.
 2. Add each missing option that holds to the list, and research it like the others. A missing complete option is always
    added. The critic's objections to it count like any other.
@@ -142,6 +161,12 @@ When it returns:
    for any `UNSOUND` verdict you do not act on.
 
 If the agent cannot run, say so and continue without it.
+
+In **autonomous** and **converge** modes, the pass above is the first pass of the loop in
+`${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`. Read it before the first round. If it cannot be
+read, stop and tell the user this skill is installed without its standards. Run the loop until every question in the
+round converges or has a judge ruling. The four steps above are its reconcile step. When the design-critic cannot run,
+neither can the loop. Say so, and fall back to manual for the rest of the review.
 
 #### 5. Sketch (optional)
 
@@ -160,7 +185,12 @@ Keep sketches minimal and focused on the decision point. Do not write to tempora
 
 #### 6. Discuss
 
-Present options neutrally first. Then offer a recommendation with rationale only after showing all options.
+In **autonomous** mode, skip this step and decide. See "Autonomous Mode".
+
+Present options neutrally first. Then offer a recommendation with rationale only after showing all options. In converge
+mode, say how each recommendation was reached (`converged in N passes`, or the judge's ruling and its trigger). Show any
+dissent the loop left standing. A `USER'S CALL` ruling carries no recommended marker. Give the judge's lean in its
+description.
 
 Ask for the whole round in one AskUserQuestion call, with one question per round question. Mark the recommended option
 in each.
@@ -181,6 +211,10 @@ As soon as the call returns, update the proposal file for each decision. Do this
 - Add a Decision Log entry with today's date: `- YYYY-MM-DD: <one-line summary of decision>`
 - Update the `**Updated:**` date to today's date
 - If the proposal status is `draft`, change it to `designing`
+
+In autonomous mode, mark each Decision Log entry so the user can audit it later. Use `(autonomous)` for a converged
+decision, `(autonomous, judge)` for one the judge ruled on, and `(autonomous, provisional)` for one taken on a `USER'S
+CALL` lean. Put any dissent left standing in the settled entry's rationale, with the one-line answer to it.
 
 Write the answers to the file before doing anything else, so progress survives interruption.
 
@@ -208,6 +242,10 @@ Feed its inconsistencies, gaps, and weak decisions into the checks below. Hold i
 drop a finding the critic marked `CONFIRMED`, tell the user why in one line. If the agent cannot run, say so and do the
 checks without it.
 
+In autonomous and converge modes, this review is the full pass of the proposal loop in `design-convergence.md`. After
+the checks below are resolved and their fixes made, run its re-check passes until the proposal converges. Questions the
+checks add or reopen go through Step 5 before the next re-check pass.
+
 1. **Consistency check**: Read through all settled decisions together and verify they are internally consistent — no
    contradictions, no decisions that undermine each other's rationale, and no implicit assumptions that conflict.
 2. **Gap analysis**: Consider whether the combined decisions reveal new design questions that weren't visible when
@@ -222,7 +260,8 @@ checks without it.
    as an open question (and loop back to Step 5) or keep it. Record either choice in the Decision Log with the reason.
 
 Do all three checks before asking. Then present every inconsistency, gap, and weak decision in one AskUserQuestion call.
-When there are more than four, ask in successive calls of up to four. Resolve inconsistencies before continuing.
+When there are more than four, ask in successive calls of up to four. Resolve inconsistencies before continuing. In
+autonomous mode, decide these instead, as "Autonomous Mode" describes.
 
 ### Step 7: Risk Review
 
@@ -245,7 +284,7 @@ Record each missing risk in the Risks section immediately. Do not ask whether to
 design, not a choice. If you are unsure a risk is real, check the design and code until you know. Ask via
 AskUserQuestion only about what is the user's to decide: a likelihood or impact rating the evidence does not settle, and
 whether to mitigate or accept. Batch these into one call, or successive calls of up to four. Record each answer with a
-Decision Log entry per the standard.
+Decision Log entry per the standard. In autonomous mode, decide these instead, as "Autonomous Mode" describes.
 
 ### Step 8: Wrap-Up
 
@@ -258,7 +297,7 @@ When the user stops or all questions are resolved (and the coherence and risk re
 
 If any decisions were noted as architecturally significant, ask via AskUserQuestion which should get an ADR. Use one
 multiSelect question that lists them. Put it in the same AskUserQuestion call as the `accepted` question when there is
-one.
+one. In autonomous mode, both come last in the review gate. See "The Review Gate".
 
 For each decision the user picks, read `${CLAUDE_SKILL_DIR}/../../project-management/design.md` and create an ADR
 following its "ADR Document Format" section. That file is the only source for the format; this skill does not carry its
@@ -274,25 +313,94 @@ Present a one-line summary of each decision made this session.
 
 List any ADRs created with their file paths.
 
+## Autonomous Mode
+
+Autonomous mode runs Steps 3 through 7 without asking, then asks everything at one review gate. It changes who decides,
+not how. The ranking in `decision-making.md` and the convergence loop decide each question. Choosing autonomous mode
+does not lower the bar. An override still needs the user to state it, or the proposal's `**Tradeoffs:**` field.
+
+### What the user authorizes by choosing it
+
+Choosing autonomous mode is the user's explicit authorization for this review only. It overrides these rules:
+
+- The rule to never decide without confirmation via AskUserQuestion, in this skill and in `decision-making.md`. Decide
+  each open question on the loop's recommendation
+- The rule to ask in rounds. Run every round, then ask once at the gate
+
+Nothing else is relaxed. These stay with the user, and go to the gate:
+
+- Advancing the proposal to `accepted`
+- Which decisions get an ADR
+- Accepting a high-likelihood, high-impact risk instead of mitigating it
+- Dropping or deferring anything the proposal already plans, such as a milestone or a settled decision
+- Every `USER'S CALL` ruling
+
+### Deciding
+
+- **Step 5**: decide on the loop's recommendation and record it at once, marked as #7 describes. On a `USER'S CALL`,
+  take the judge's lean as a provisional decision. Mark each question that depends on it, so the gate can reopen them
+  together
+- **Step 6, gaps**: add a gap as an open question and resolve it through Step 5. Defer it instead only when it cannot
+  be settled before implementation, such as when it waits on a measurement. Record the deferral with a concrete revisit
+  hook, per the "Deferring Decisions" standard
+- **Step 6, weak decisions**: reopen each one the critic showed fails the standard, and run it through Step 5 again. A
+  decision reopens once per review. If the next coherence pass flags it again, keep it and carry it to the gate
+- **Step 6, repeat**: run the proposal loop to convergence. Carry to the gate any fix the loop left un-checked, and any
+  finding still open when its pass budget ran out
+- **Step 7**: rate each risk on the evidence. When the evidence does not settle a rating, take the higher one and say
+  so in the risk's entry. Mitigate where the design allows it. Accept a risk only when no mitigation exists and it is
+  not high-likelihood and high-impact. Record each with a Decision Log entry marked `(autonomous)`
+
+### The Review Gate
+
+When Step 7 is done, show a summary before asking. List each decision made this review, one line each, with how it was
+reached. Flag the contested ones: every judge ruling, every provisional decision, and every decision with dissent left
+standing.
+
+Then ask in one AskUserQuestion call, or successive calls of up to four questions:
+
+1. Each `USER'S CALL`, first, with its options. Put the judge's lean in its description, unmarked
+2. Which contested decisions to reopen, as multiSelect questions of two to four decisions each. With a single contested
+   decision, ask "Reopen <decision>?" as yes or no instead. With none, skip this. The user names any other decision to
+   reopen through "Other"
+3. Each gated item from "What the user authorizes by choosing it" that the review produced, except `accepted` and ADRs
+
+Record every answer at once. When the user reopens a decision or overturns a provisional one, reopen the questions that
+depend on it as well. Resolve them in converge mode, since the user has chosen to weigh in. Then run Steps 6 and 7 for
+what changed, and return to the gate with only what is new.
+
+Ask the `accepted` and ADR questions from Step 8 last, in their own call, once a gate call returns with nothing
+reopened and nothing changed. Never offer `accepted` in the same call as a reopen question. A reopen would change the
+design after it was accepted.
+
 ## Rules
 
 - This skill is a partial exception to the frontloading rule in `rules/decision-making.md`. It cannot ask every question
   up front. Later questions depend on earlier answers, and each question needs its research shown before the user
   decides. So it asks in rounds: one AskUserQuestion call per round of up to four independent questions. Never split a
   round into one call per question. Never merge dependent questions into one round
+- Autonomous mode is the other exception. The user's choice of it at the entry gate authorizes deciding without asking,
+  for this review only, and only for what "What the user authorizes by choosing it" lists. All its questions go to the
+  one review gate at the end
+- Autonomous mode comes only from this invocation: the entry gate, or a mode the user named when invoking the skill.
+  Never infer it from memory, an earlier session, or how the user answered past reviews. A note that the user delegated
+  a past review is not a standing grant. Ask the mode question anyway
 - Ask every question through the AskUserQuestion tool. Never ask a question as plain prose and wait for a typed reply.
   Batching changes how many questions go in one call. It never replaces the tool
-- Never make a decision without explicit user confirmation via AskUserQuestion. This covers the choice of option for a
-  question. It does not cover which question to take up next
+- Never make a decision without explicit user confirmation via AskUserQuestion, except in autonomous mode. This covers
+  the choice of option for a question. It does not cover which question to take up next
 - Always work through every open question in foundational order. Never ask which question comes next or whether to
   continue. The user stops the review by saying so
 - Never advance a proposal to `accepted` without the risk review: Risks section compliant, and no
   high-likelihood/high-impact risk left unmitigated and unaccepted
 - Present design options neutrally before offering a recommendation. This governs the options for a design question. It
   does not govern workflow prompts like the `accepted` question in Step 8
-- Never show the `design-critic` your recommendation or your pros and cons before it ranks the options
+- Never show the `design-critic` your recommendation or your pros and cons before it ranks the options. In the
+  convergence loop, never show it an earlier pass's ranking either. Every pass is a fresh, blind spawn
+- Run the convergence loop as `design-convergence.md` describes. Never exceed its pass budget. Send a question that does
+  not converge to the `design-judge`, not to another round of critique
 - Never hide the critic's dissent. When you recommend against the critic's top option, the user sees its reason in the
-  question
+  question, or at the review gate in autonomous mode
 - Write each round's decisions to the proposal file as soon as the call returns, so progress survives interruption
 - Follow the proposal format from `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` exactly
 - Follow the ADR format from `${CLAUDE_SKILL_DIR}/../../project-management/design.md` exactly

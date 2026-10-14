@@ -10,6 +10,10 @@ ambiguous or requires a choice, ask.
 Dropping or deferring planned features counts as a design decision. Never unilaterally remove a planned feature --
 always ask first.
 
+The user can authorize deciding without asking, for one run, by choosing it explicitly. Approving a `/work-queue` plan
+and choosing `proposal-reviewer`'s autonomous mode are the two ways. Each lists exactly which rules it relaxes. Nothing
+outside that list is relaxed, and the run ends with the user seeing every decision it made.
+
 Use the AskUserQuestion tool for structured questions when encountering:
 
 - Syntax or API design choices
@@ -130,7 +134,7 @@ Gather first, then ask once. Detection is cheaper than the user's attention.
 The exception is a design review whose later questions depend on earlier answers. It cannot ask everything up front.
 It asks in rounds instead: each round batches up to four questions that do not depend on each other into one call. A
 round holds a single question only when no other question is independent of it. Frontload its entry gates anyway --
-which document -- then run every round without pausing between them.
+which document, which mode -- then run every round without pausing between them.
 
 ## When Corrected
 
