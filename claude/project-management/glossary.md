@@ -42,8 +42,9 @@ but it recommends nothing on its own.
 
 **ADR** — a decision codified with its proof. The proof is the explanation,
 context, and measurements behind it. An ADR serves as a rule or guideline for
-future decisions and designs. Immutable once accepted. Superseded by a new ADR
-rather than edited.
+future decisions and designs. Reserved for decisions that are cross-cutting,
+hard to reverse, or a departure from the past. Takes only minor edits once
+accepted. A change to what it decides is a new ADR that supersedes it.
 
 These three differ in weight. A research write-up is the lightest and may be
 unproven. A design spike is proven, and carries more weight. An ADR is both

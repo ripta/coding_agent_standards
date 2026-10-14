@@ -1,6 +1,7 @@
 # Architecture Decision Records (ADRs)
 
-An ADR captures a significant architectural decision with its context and consequences.
+An ADR captures a significant architectural decision with its context and consequences. Most decisions do not need
+one. See "What Earns an ADR".
 
 ## Lifecycle
 
@@ -43,7 +44,7 @@ What other options did we evaluate?
 
 ## Rules
 
-- ADRs are immutable once accepted; to change, create a new superseding ADR
+- An accepted ADR takes minor edits only. A change to what it decides gets a new, superseding ADR. See "Record"
 - Sequential numbering with 2-digit zero-padding: `ADR-01`, `ADR-02`, etc. A project that already uses another width,
   such as `ADR-0001`, keeps it. Match the padding of existing ADR files
 - File naming: `ADR-NN-short-description.md` (kebab-case)
@@ -70,28 +71,42 @@ Keep the list short. An ADR that every change must be checked against is rare.
 Most design decisions do not need an ADR. The proposal that made a decision already records it, with its options and
 rationale. An ADR earns its place when someone could break the decision later without ever reading that proposal.
 
-A decision earns an ADR when at least one of these holds:
+The name sets the bar. A candidate must pass all three tests: it is architecture, it is a decision, and it is ready to
+be a record. When no candidate passes, the right number of ADRs is zero.
 
-- **It binds code outside the proposal.** Other components, services, or future work must follow it, such as "every
-  outbound event goes through the outbox"
-- **It is a one-way door.** It fixes a schema, a wire format, a published contract, or stored data in a way a redeploy
+### Architecture
+
+The decision is significant and foundational. At least one of these holds:
+
+- **It cuts across the system.** Other components, services, or future work must follow it, such as "every outbound
+  event goes through the outbox"
+- **It is hard to reverse.** It fixes a schema, a wire format, a published contract, or stored data in a way a redeploy
   cannot undo
-- **It sets a convention.** It settles a question that will come up again elsewhere, and the next person to face it
-  should find the answer without searching old proposals
+- **It departs from the past.** It replaces an approach the project used before, or an earlier ADR, so the next person
+  who finds the old pattern needs to know it is gone
 
-Being hard, debated, or important to the proposal does not earn an ADR by itself. A decision that shapes only the
-proposal's own internals stays in the proposal. When no decision qualifies, the right number of ADRs is zero.
+Being hard, debated, or important to one proposal does not pass this test. Neither does a decision that shapes only one
+component's internals. Those stay in the proposal or the design doc that made them.
 
-## What Does Not Belong in an ADR
+### Decision
 
-An ADR records one decision and why it was made. It holds nothing that changes after acceptance, because it is
-immutable. Keep these out:
+An ADR records a choice that has been made, and why. It holds nothing about the future. Keep these out:
 
-- Future work, follow-up tasks, and TODO lists. Put them in a proposal or a phase.
-- Bugs and known issues. Put them in the project's bugs directory or issue tracker.
-- Implementation status or progress. Phase milestone rows hold that.
-- Open questions. Resolve them before the ADR is accepted.
-- Step-by-step implementation plans. Put them in a phase document.
+- Future work, follow-up tasks, ideas, and TODO lists. Put them in a proposal or a phase
+- Plans, migration steps, schedules, and target dates. Put them in a proposal or a phase document
+- Bugs and known issues. Put them in the project's bugs directory or issue tracker
+- Implementation status or progress. Phase milestone rows hold that
+- Open questions. Resolve them before the ADR is accepted
 
 A consequence may name work the decision makes necessary, such as "every client must migrate to v2". That is a fact
 about the decision. Tracking that work belongs elsewhere. Link to the proposal or phase under References instead.
+
+### Record
+
+An accepted ADR should not need to change. Write it only once the decision is settled and well-defined: its scope is
+clear, and nothing it depends on is still being measured or designed. A decision that is likely to shift soon, such as
+one waiting on a benchmark or on an in-flight proposal, is not ready. Keep it in the proposal until it settles.
+
+An accepted ADR takes minor edits only: fixing a typo or a broken link, adding a reference, clarifying wording without
+changing what it means, and updating its status when it is superseded or deprecated. Anything that changes what was
+decided, its scope, or its consequences is a new decision. Write a new ADR that supersedes the old one.

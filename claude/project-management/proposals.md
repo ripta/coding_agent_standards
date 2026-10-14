@@ -71,8 +71,8 @@ Implementable chunks of work.
 
 ## Decision Log
 
-Minor decisions with dates. Significant architectural decisions
-should be extracted to an ADR and referenced here.
+Minor decisions with dates. A decision that passes the bar in
+design.md "What Earns an ADR" is extracted to an ADR and referenced here.
 
 ## References
 

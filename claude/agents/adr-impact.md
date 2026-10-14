@@ -109,7 +109,9 @@ Return, conflicts first:
 - **Load-bearing ADRs checked**: one line of ids, with the relevant ones marked.
 - **Coverage**: ADRs the cap left unread, and any index and file status
   mismatches.
-- **Uncovered decisions**: up to three architecturally significant choices the
-  input makes that no ADR records. Leave it empty when there are none.
+- **Uncovered decisions**: up to three choices the input makes that no ADR
+  records and that pass the bar in the "What Earns an ADR" section of
+  `design.md`. Name the criterion each meets. Most inputs have none. Leave it
+  empty then.
 
 Say plainly when nothing conflicts.

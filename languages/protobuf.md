@@ -43,7 +43,8 @@ Breaking changes:
 - Making an optional field required
 
 When a breaking change is unavoidable, add a new version package, such as `feeds.v2` in `api/feeds/v2/`. Keep the old
-version serving until its clients move. Record the migration path and the retirement date in an ADR.
+version serving until its clients move. Record the decision to version in an ADR. The migration path and the retirement
+date are a plan, so they go in a proposal or a phase document.
 
 ## Field Numbers
 

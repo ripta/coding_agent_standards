@@ -264,7 +264,8 @@ CALL` lean. Put any dissent left standing in the settled entry's rationale, with
 Write the answers to the file before doing anything else, so progress survives interruption.
 
 Note each decision that earns an ADR by the "What Earns an ADR" section of
-`${CLAUDE_SKILL_DIR}/../../project-management/design.md`, with the criterion it meets. Most decisions do not. Step 8
+`${CLAUDE_SKILL_DIR}/../../project-management/design.md`: it must pass the Architecture, Decision, and Record tests.
+Note the Architecture criterion it meets. Most decisions do not. Step 8
 asks about ADRs for all of them at once. Do not ask about an ADR inside the loop.
 
 #### 8. Next
@@ -342,7 +343,8 @@ When the user stops or all questions are resolved (and the coherence and risk re
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
 
 Before asking about ADRs, check each noted decision against "What Earns an ADR" again, now that the whole design is
-settled. Drop any that no longer meet a criterion. If none remain, say in one line that no decision earns an ADR, and do
+settled. Drop any that no longer pass all three tests. A decision that fails only Record, because it may still shift,
+waits for a later review. If none remain, say in one line that no decision earns an ADR, and do
 not ask. Otherwise ask via AskUserQuestion which should get an ADR. Use one multiSelect question that lists them, each
 with the criterion it meets. Put it in the same AskUserQuestion call as the `accepted` question when there is one. In
 autonomous mode, both come last in the review gate. See "The Review Gate".
@@ -433,8 +435,9 @@ design after it was accepted.
   for this review only, and only for what "What the user authorizes by choosing it" lists. All its questions go to the
   one review gate at the end
 - Autonomous mode comes only from this invocation: the entry gate, a mode the user named when invoking the skill, or a
-  change of mode the user states during the review. Never infer it from memory, an earlier session, or how the user answered past reviews. A note that the user delegated
-  a past review is not a standing grant. Ask the mode question anyway
+  change of mode the user states during the review. Never infer it from memory, an earlier session, or how the user
+  answered past reviews. A note that the user delegated a past review is not a standing grant. Ask the mode question
+  anyway
 - Ask every question through the AskUserQuestion tool. Never ask a question as plain prose and wait for a typed reply.
   Batching changes how many questions go in one call. It never replaces the tool
 - Never make a decision without explicit user confirmation via AskUserQuestion, except in autonomous mode. This covers
