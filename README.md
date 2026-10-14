@@ -117,6 +117,27 @@ something Codex has and Claude Code does not. `expand-lore-wiki` is the current 
 Codex skills carry an `agents/openai.yaml` next to `SKILL.md`. That file holds the display name and short description
 Codex shows in its own UI, and Claude Code ignores it.
 
+To build the portable subset of the Claude plugin for Codex, run:
+
+```sh
+bin/build-codex
+```
+
+Requires Python 3, with no third-party packages. All generated files go into the gitignored `dist/codex/` directory:
+the plugin manifest, skills, companion scripts, and referenced standards. Rebuilding replaces that directory.
+The builder does not install anything or write to your home directory. Edit `claude/`, then rebuild; keep authored
+Codex-only skills in `codex/`.
+
+The generated `coding-standards-portable` plugin includes `format-checker`, `gitignore-maintainer`, `go-code-reviewer`,
+`lint-runner`, `makefile-helper`, `release`, `risk-assessment`, `session-report`, and `testing-specialist`.
+It also converts `summary` and `next-pr` into explicit-only skills. Bundled paths resolve relative to each skill,
+so the package can be moved without depending on the source checkout.
+
+Claude agents, hooks, mods, and orchestration workflows such as `work-on` are excluded. Claude model selection and
+tool allowlists are removed; Codex session permissions apply. The builder rejects unknown skill metadata and
+untranslated Claude dependencies in skill instructions. Reference documents are supporting material, not automatically
+loaded project rules. Install the generated directory as a local plugin in a client that supports local plugins.
+
 ### Profiles
 
 Composable profiles that bundle the right standards for a given project type. Each profile imports a baseline plus

@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""Build a standalone Codex plugin in dist/codex; never install user config."""
+
+import json
+import re
+import shutil
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parent.parent
+SOURCE = REPO / "claude"
+OUTPUT = REPO / "dist" / "codex"
+SKILLS = (
+    "format-checker", "gitignore-maintainer", "go-code-reviewer", "lint-runner",
+    "makefile-helper", "release", "risk-assessment", "session-report",
+    "testing-specialist",
+)
+COMMANDS = ("next-pr", "summary")
+UNSUPPORTED = re.compile(
+    r"CLAUDE_[A-Z_]+|\$ARGUMENTS|EnterPlanMode|ExitPlanMode|SendMessage|"
+    r"AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:"
+)
+
+
+def convert_skill(text, name, command=False):
+    parts = text.split("---\n", 2)
+    if len(parts) != 3 or parts[0]:
+        raise ValueError(f"{name}: expected YAML frontmatter")
+    # Preserve multiline descriptions; reject new metadata rather than silently
+    # pretending its Claude behavior is supported.
+    fields = re.split(r"(?=^[a-z][a-z-]*:)", parts[1], flags=re.MULTILINE)
+    kept = []
+    for field in fields:
+        if not field.strip():
+            continue
+        key = field.split(":", 1)[0]
+        if key in ("name", "description"):
+            kept.append(field)
+        elif key not in ("model", "allowed-tools", "argument-hint"):
+            raise ValueError(f"{name}: unsupported metadata {key!r}")
+    if command:
+        kept.insert(0, f"name: {name}\n")
+    body = parts[2].replace("${CLAUDE_PLUGIN_ROOT}", "../..")
+    body = body.replace("${CLAUDE_SKILL_DIR}", ".")
+    body = body.replace("$ARGUMENTS", "the arguments in the user's request")
+    preamble = (
+        "\nResolve bundled paths relative to this SKILL.md, not the project's working\n"
+        "directory. Run project commands in the project being worked on.\n"
+    )
+    if name == "go-code-reviewer":
+        preamble += "Report findings only; do not edit files.\n"
+    result = "---\n" + "".join(kept) + "---\n" + preamble + body
+    if UNSUPPORTED.search(result):
+        raise ValueError(f"{name}: untranslated Claude dependency")
+    return result
+
+
+def main():
+    if len(sys.argv) != 1:
+        raise ValueError("usage: bin/build-codex")
+    # Prepare and validate translations before replacing the previous build.
+    converted = {}
+    for name in (*SKILLS, *COMMANDS):
+        source = (SOURCE / "commands" / f"{name}.md" if name in COMMANDS
+                  else SOURCE / "skills" / name / "SKILL.md")
+        converted[name] = convert_skill(source.read_text(), name, name in COMMANDS)
+    if OUTPUT.is_symlink() or OUTPUT.parent.is_symlink():
+        raise ValueError("refusing to build through a symlink at dist/ or dist/codex/")
+    if OUTPUT.exists():
+        shutil.rmtree(OUTPUT)
+    OUTPUT.mkdir(parents=True)
+    for name, text in converted.items():
+        target = OUTPUT / "skills" / name
+        if name in SKILLS:
+            shutil.copytree(SOURCE / "skills" / name, target)
+        else:
+            target.mkdir(parents=True)
+        (target / "SKILL.md").write_text(text)
+        if name in COMMANDS:
+            (target / "agents").mkdir(exist_ok=True)
+            (target / "agents" / "openai.yaml").write_text(
+                "policy:\n  allow_implicit_invocation: false\n"
+            )
+    for directory in ("rules", "project-management"):
+        shutil.copytree(SOURCE / directory, OUTPUT / directory)
+    # No generated workflow uses the Claude critic/judge orchestration.
+    (OUTPUT / "project-management" / "design-convergence.md").unlink()
+    # These references describe structured questions without requiring Claude's
+    # tool name or its particular question-count limit.
+    decisions = OUTPUT / "rules" / "decision-making.md"
+    text = decisions.read_text().replace("AskUserQuestion", "available user-question")
+    text = text.replace(" (up to 4 questions)", "")
+    decisions.write_text(text)
+    shutil.copytree(REPO / "practices", OUTPUT / "practices")
+    shutil.copytree(REPO / "rumdl", OUTPUT / "rumdl")
+    tracking = OUTPUT / "project-management" / "tracking.md"
+    tracking.write_text(tracking.read_text().replace("claude/rules/", "rules/"))
+    (OUTPUT / "plugin.json").write_text(json.dumps({
+        "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        "name": "coding-standards-portable",
+        "version": "0.1.0",
+        "description": "Portable coding standards workflows adapted for Codex",
+    }, indent=2) + "\n")
+    (OUTPUT / "README.md").write_text(
+        "# Generated Codex plugin\n\n"
+        "Built by bin/build-codex. Edit claude/ and rebuild.\n\n"
+        "Included skills: " + ", ".join(converted) + ".\n\n"
+        "Commands are explicit-only skills. Claude agents, hooks, mods, settings,\n"
+        "and Codex-only skills are not included. Reference documents do not\n"
+        "register agents or enable Claude integrations. Model and tool restrictions\n"
+        "from Claude frontmatter are not enforced; Codex session permissions apply.\n"
+    )
+    print(f"Built {OUTPUT} ({len(converted)} skills)")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (ValueError, OSError) as error:
+        sys.exit(f"error: {error}")
