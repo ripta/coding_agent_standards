@@ -1,0 +1,156 @@
+#!/usr/bin/env bash
+# Builds an OpenCode-compatible copy of a subset of the claude/ plugin into
+# opencode/. The output is generated and gitignored. Edit claude/ instead.
+#
+# Usage: bin/build-opencode [--link]
+#   --link  also symlink the generated agents and commands into the OpenCode
+#           config directory, under a coding-standards/ namespace
+#
+# The build fails if a Claude-only token survives translation. That usually
+# means a source file changed under one of the file-specific rewrites below.
+set -euo pipefail
+
+REPO="$(cd "$(dirname "$0")/.." && pwd)"
+SRC="$REPO/claude"
+OUT="$REPO/opencode"
+OPENCODE_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+
+MODEL_HAIKU=anthropic/claude-haiku-5-5
+MODEL_SONNET=anthropic/claude-sonnet-5-5
+MODEL_OPUS=anthropic/claude-opus-5-5
+
+AGENTS=(adr-impact implementer reviewer)
+COMMANDS=(next-pr summary work-on)
+SKILLS=(
+  bug-triage
+  format-checker
+  gitignore-maintainer
+  go-code-reviewer
+  lint-runner
+  makefile-helper
+  new-proposal
+  open-questions-audit
+  phase-cleanup
+  promote-proposal
+  rca
+  release
+  risk-assessment
+  session-report
+  testing-specialist
+)
+
+LINK=false
+for arg in "$@"; do
+  case "$arg" in
+    --link) LINK=true ;;
+    *) echo "usage: $0 [--link]" >&2; exit 2 ;;
+  esac
+done
+
+# Rewrites frontmatter for one kind of file: agent, command, or skill.
+convert_frontmatter() {
+  local kind="$1" file="$2"
+  awk -v kind="$kind" -v haiku="$MODEL_HAIKU" -v sonnet="$MODEL_SONNET" -v opus="$MODEL_OPUS" '
+    NR == 1 && $0 == "---" { fm = 1; print; next }
+    fm && $0 == "---" {
+      if (kind == "agent") {
+        print "mode: subagent"
+        perm = ""
+        if (tools != "" && tools !~ /Edit|Write/)
+          perm = perm "  - action: edit\n    resource: \"*\"\n    effect: deny\n"
+        if (tools != "" && tools !~ /Agent/)
+          perm = perm "  - action: subagent\n    resource: \"*\"\n    effect: deny\n"
+        if (perm != "") printf "permissions:\n%s", perm
+      }
+      fm = 0; print; next
+    }
+    fm && /^(allowed-tools|argument-hint):/ { next }
+    fm && kind == "agent" && /^name:/ { next }
+    fm && kind == "agent" && /^tools:/ { tools = $0; next }
+    fm && /^model:/ {
+      if (kind == "skill") next
+      m = $2
+      if (m == "haiku") m = haiku
+      else if (m == "sonnet") m = sonnet
+      else if (m == "opus" || m == "opusplan") m = opus
+      print "model: " m; next
+    }
+    { print }
+  ' "$file" >"$file.tmp"
+  mv "$file.tmp" "$file"
+}
+
+# Rewrites Claude-specific paths and tool names in the body.
+convert_body() {
+  local file="$1"
+  SRC="$SRC" perl -pi -e '
+    s{\$\{CLAUDE_SKILL_DIR\}/\.\./\.\./}{$ENV{SRC}/}g;
+    s{\$\{CLAUDE_SKILL_DIR\}}{$ENV{SKILL_DIR}}g if $ENV{SKILL_DIR};
+    s{\$\{CLAUDE_PLUGIN_ROOT\}}{$ENV{SRC}}g;
+    s{\bAskUserQuestion\b}{question}g;
+    s{\bAgent tool\b}{subagent tool}g;
+    s{\bAgent sub-tasks\b}{subagent tasks}g;
+    s{\bExplore agents\b}{the explore subagent}g;
+    s{coding-standards:}{coding-standards/}g;
+  ' "$file"
+}
+
+rm -rf "$OUT"
+mkdir -p "$OUT/agents" "$OUT/commands" "$OUT/skills"
+
+for name in "${AGENTS[@]}"; do
+  file="$OUT/agents/$name.md"
+  cp "$SRC/agents/$name.md" "$file"
+  convert_frontmatter agent "$file"
+  convert_body "$file"
+done
+
+for name in "${COMMANDS[@]}"; do
+  file="$OUT/commands/$name.md"
+  cp "$SRC/commands/$name.md" "$file"
+  convert_frontmatter command "$file"
+  convert_body "$file"
+done
+
+for name in "${SKILLS[@]}"; do
+  cp -R "$SRC/skills/$name" "$OUT/skills/$name"
+  file="$OUT/skills/$name/SKILL.md"
+  convert_frontmatter skill "$file"
+  SKILL_DIR="$OUT/skills/$name" convert_body "$file"
+  # OpenCode skills take no arguments; the request itself carries them.
+  perl -pi -e 's{`?\$ARGUMENTS`?}{the arguments in the user'"'"'s request}g' "$file"
+done
+
+# OpenCode has no plan mode tool. Its plan agent cannot edit, so /work-on stays
+# in the current agent and holds edits until the plan is approved.
+perl -0pi -e '
+  s{Start by calling the EnterPlanMode tool.*?plan mode\.\n\nOnce in plan mode, work on}{Plan before you change anything. Do not edit files until the user approves\nthe plan in step 10.\n\nWork on}s;
+  s{before you call\s+ExitPlanMode}{before you ask for plan approval}s;
+' "$OUT/commands/work-on.md"
+
+# The SendMessage fallback works around a Claude Code bug and has no OpenCode
+# equivalent.
+perl -ni -e 'print unless /Workaround for bugs\/20261005|SendMessage/' "$OUT/agents/implementer.md"
+
+leftovers="$(grep -rnE 'CLAUDE_[A-Z_]+|EnterPlanMode|ExitPlanMode|SendMessage|AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:' \
+  --include='*.md' "$OUT" || true)"
+if [ -n "$leftovers" ]; then
+  echo "error: Claude-only references survived translation:" >&2
+  echo "$leftovers" >&2
+  exit 1
+fi
+
+echo "Built $OUT"
+
+if [ "$LINK" = true ]; then
+  for kind in agents commands; do
+    dst="$OPENCODE_CONFIG/$kind/coding-standards"
+    mkdir -p "$(dirname "$dst")"
+    if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+      echo "error: $dst exists and is not a symlink" >&2
+      exit 1
+    fi
+    ln -sfn "$OUT/$kind" "$dst"
+    echo "Linked $dst"
+  done
+fi
