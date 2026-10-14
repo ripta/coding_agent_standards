@@ -171,6 +171,9 @@ For each milestone picked:
    - Triage an ADR conflict the same way. When honoring the ADR would change
      the approved plan, it is a blocker. Follow section 5.
    - Record an `ADVISORY` conflict in the session report. It never blocks.
+   - Record each uncovered decision `adr-impact` reports, and each ADR
+     candidate the implementer names, in the session report. Do not act on
+     them per milestone. Section 6 reports them once
    - Dismiss a finding that is wrong, and record why. Read the cited code to
      decide this, but no further.
 
@@ -231,7 +234,9 @@ When the last queued milestone of a phase is committed:
 4. Continue with the next ready phase.
 
 When the run is done, run one more review the same way, over the range
-from the run's base commit to `HEAD`. Commit its fixes, check the message as
+from the run's base commit to `HEAD`. This final review is also the run's ADR
+review. Ask the reviewer for one, so it checks every ADR the range adds or
+edits. Phase reviews do not ask for it. Commit its fixes, check the message as
 in section 2, step 6, and amend the last session report.
 
 ## 4. Session reports
@@ -287,6 +292,11 @@ Report to the user:
 - The commits made, in order
 - The session report paths
 - The best guesses that most deserve their review
+- The ADR candidates from the session reports that pass the bar in the "What
+  Earns an ADR" section of
+  `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`, deduplicated, each
+  with the criterion it meets. Most runs have none. Do not write them. The
+  user decides which get written
 - Each held or blocked phase, what it waits on, and any stash holding its
   unfinished work
 - Anything else left open

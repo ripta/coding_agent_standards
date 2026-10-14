@@ -77,7 +77,9 @@ the user stated one this session, or the proposal or phase document carries a
     working-tree diff and does not edit code. In the same message, spawn the
     `adr-impact` agent (`coding-standards:adr-impact`) on the working-tree
     diff, and tell the reviewer it runs beside it. When `adr-impact` is not
-    available, skip it and do not tell the reviewer. Address what they report:
+    available, skip it and do not tell the reviewer. This review is the end of
+    the run, so ask the reviewer for an ADR review too. Address what they
+    report:
     - Fix comment-craft, style, and plan-conformance findings directly. The
       exception is a shortcut the plan did not approve. Confirm it in the code
       first, then fix it the way the plan specified.
@@ -87,6 +89,10 @@ the user stated one this session, or the proposal or phase document carries a
     - Treat an ADR conflict like a correctness finding of the same verdict.
       When honoring the ADR would change the approved plan, stop and ask the
       user. Mention an `ADVISORY` conflict in your response. It never blocks.
+    - Mention the uncovered decisions `adr-impact` reports once, in your final
+      response, and only those that pass the bar in the "What Earns an ADR"
+      section of `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`. Do not
+      write an ADR unless the user asks
     - Push back in your response on any finding you disagree with, and say
       why. Do not apply a finding blindly.
 

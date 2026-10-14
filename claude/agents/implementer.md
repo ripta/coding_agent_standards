@@ -44,6 +44,10 @@ it.
 
 Never stage, commit, stash, reset, or change branches. The coordinator owns git.
 
+Do not write or edit ADRs. ADRs are written once, at the end of a run, not per
+milestone. When the work makes a decision that may need one, name it in your
+report.
+
 ## Fix rounds
 
 The coordinator may send review findings back to you. Fix each finding it marks

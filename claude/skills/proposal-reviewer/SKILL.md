@@ -359,6 +359,10 @@ existing ADRs, or ask the user for the directory via AskUserQuestion if none exi
 
 Add a reference to the new ADR in the proposal's References section.
 
+Once every ADR is written, spawn the `reviewer` agent (`coding-standards:reviewer` under the plugin) once, for an ADR
+review of the new files only. Give it their paths and no milestone. Fix format and linking findings directly. Tell the
+user about any ADR it says fails the bar, and ask whether to keep it. Do not review ADRs at any earlier point.
+
 Present a one-line summary of each decision made this session.
 
 List any ADRs created with their file paths.

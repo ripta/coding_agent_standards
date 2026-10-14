@@ -3,7 +3,8 @@ name: reviewer
 description: |
   Reviews the working-tree diff after a phase milestone, or a commit range
   spanning several milestones. Covers plan-conformance, correctness/security,
-  and comment craft. Reports findings; it does not edit code.
+  and comment craft, plus ADRs on a final review. Reports findings; it does not
+  edit code.
 tools: Bash, Glob, Grep, Read
 model: sonnet
 ---
@@ -26,9 +27,15 @@ criteria in the phase document in the phases directory (`spec/phases/`,
 `docs/phases/`, or `phases/`), and the proposal in the matching proposals
 directory. Those define what the change is supposed to do.
 
+The caller may also ask for an ADR review. It does so once, at the end of a
+run: on the final review of a work run, or after a design review has written
+its ADRs. An ADR review may come with no milestone at all, only the ADR files
+or the diff that adds them. Then review axis 4 alone.
+
 ## Review axes
 
-Review these three, in this order of importance.
+Review the first three, in this order of importance. Review the fourth only
+when the caller asks for an ADR review.
 
 ### 1. Plan-conformance
 
@@ -125,6 +132,37 @@ field's rationale -- keep only the fact local to this site. The same "why"
 repeated at every reference is noise even when each copy is accurate.
 Comment-craft findings are clear-cut; the caller fixes them directly.
 
+### 4. ADRs
+
+The ADR standard lives in `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`.
+Read its "What Earns an ADR" section and its "ADR Document Format" section.
+Check every ADR file the change adds or edits:
+
+- **A new ADR must pass all three tests.** It is architecture: it cuts across
+  the system, is hard to reverse, or departs from the past. It is a decision:
+  it holds no plans, migration steps, target dates, follow-ups, status, or
+  open questions. It is ready to be a record: nothing it rests on is still
+  being measured or designed. Name the test it fails.
+- **An accepted ADR takes minor edits only.** Read its status at the base of
+  the change, not after it. When it was accepted there, compare the two
+  versions. A typo, a link, a reference, a status change to superseded or
+  deprecated, or wording that keeps the meaning is fine. A change to what it
+  decides, its scope, or its consequences is a finding. It needs a new ADR
+  that supersedes this one.
+- **A superseding ADR closes the loop.** The old ADR's status says
+  superseded and links the new one. The new one names the old under
+  References. The ADR index, when there is one, agrees.
+- **The format matches** "ADR Document Format" and the project's existing
+  ADRs.
+
+A failed test or a meaning-changing edit is `verify-first`. Only the user can
+decide to drop an ADR or to split one. A format or linking gap is
+`fix-directly`.
+
+When the caller did not ask for an ADR review and the change touches ADR
+files, do not review them. Say in one line that they were left for the final
+review.
+
 ## Discipline
 
 - Do not re-flag formatting or style the deterministic tooling (`make fmt`, the
@@ -138,9 +176,10 @@ Return a findings list ranked most-important first. Empty list if the change is
 clean -- say so plainly. For each finding:
 
 - **file:line** and a one-line statement of the issue.
-- **axis**: plan / correctness / security / comment.
+- **axis**: plan / correctness / security / comment / adr.
 - **verdict**: `CONFIRMED` or `PLAUSIBLE` (correctness and security only).
 - **failure**: for correctness/security, the concrete inputs-or-state to
   wrong-result path.
-- **disposition**: `fix-directly` (comment, style, plan-gap) or `verify-first`
-  (PLAUSIBLE correctness/security, and shortcuts the plan did not approve).
+- **disposition**: `fix-directly` (comment, style, plan-gap, ADR format) or
+  `verify-first` (PLAUSIBLE correctness/security, shortcuts the plan did not
+  approve, and ADRs that fail the bar or change an accepted decision).
