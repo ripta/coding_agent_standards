@@ -8,6 +8,8 @@ projects.
 - `languages/` - Language-specific coding standards
 - `practices/` - Cross-cutting practices (testing, error handling, security)
 - `.claude/` - Project-local Claude Code config for this repo (skills, settings)
+- `.opencode/` - Project-local OpenCode config for this repo. `/convert-to-opencode` adds a `claude/` item to
+  `bin/build-opencode`
 - `claude/` - Claude Code skills, commands, hooks, rules, and project management standards exported for use by other
   projects (via `--add-dir` or `@import`), and packaged as the `coding-standards` plugin
 - `claude/commands/` - Slash commands. Keep them thin: a command reads its rules from `${CLAUDE_PLUGIN_ROOT}/rules/` or
