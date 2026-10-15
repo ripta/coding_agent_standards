@@ -20,7 +20,7 @@ MODEL_SONNET=anthropic/claude-sonnet-5-5
 MODEL_OPUS=anthropic/claude-opus-5-5
 
 AGENTS=(adr-impact implementer reviewer)
-COMMANDS=(next-pr summary work-on)
+COMMANDS=(next-pr summary work-on work-queue)
 SKILLS=(
   bug-triage
   format-checker
@@ -127,6 +127,20 @@ perl -0pi -e '
   s{Start by calling the EnterPlanMode tool.*?plan mode\.\n\nOnce in plan mode, work on}{Plan before you change anything. Do not edit files until the user approves\nthe plan in step 10.\n\nWork on}s;
   s{before you call\s+ExitPlanMode}{before you ask for plan approval}s;
 ' "$OUT/commands/work-on.md"
+
+# /work-queue gets the same plan-then-approve treatment as /work-on. Fix
+# rounds continue the implementer's subagent session instead of SendMessage,
+# and the wrapped command is the translated /work-on.
+SRC="$SRC" OUT="$OUT" perl -0pi -e '
+  s{Start by calling the EnterPlanMode tool.*?plan mode\.\n\n}{Plan before you change anything. Do not edit files or commit until the user\napproves the plan at the end of section 1.\n\n}s;
+  s{## 1\. Plan mode: build the queue}{## 1. Plan: build the queue};
+  s{before calling\s+ExitPlanMode}{before asking\n   for plan approval}s;
+  s{Call ExitPlanMode\. That approval}{Present the plan and ask the user to approve it with the question tool. That\napproval}s;
+  s{right after\s+ExitPlanMode\.}{right after\nthe plan is approved.}s;
+  s{with SendMessage,\s+so it keeps its context\.}{through the\n   subagent tool, passing its sessionID, so it keeps its context.}s;
+  s{[ \t]*<!-- Workaround for bugs/20261005.*?\n\n}{}s;
+  s{\Q$ENV{SRC}\E/commands/work-on\.md}{$ENV{OUT}/commands/work-on.md}g;
+' "$OUT/commands/work-queue.md"
 
 # The SendMessage fallback works around a Claude Code bug and has no OpenCode
 # equivalent.
