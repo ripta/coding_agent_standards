@@ -87,7 +87,8 @@ convert_body() {
     s{\$\{CLAUDE_SKILL_DIR\}/\.\./\.\./}{$ENV{SRC}/}g;
     s{\$\{CLAUDE_SKILL_DIR\}}{$ENV{SKILL_DIR}}g if $ENV{SKILL_DIR};
     s{\$\{CLAUDE_PLUGIN_ROOT\}}{$ENV{SRC}}g;
-    s{\bAskUserQuestion\b}{question}g;
+    s{`?\bAskUserQuestion\b`? call}{question tool call}g;
+    s{`?\bAskUserQuestion\b`?}{the question tool}g;
     s{\bAgent tool\b}{subagent tool}g;
     s{\bAgent sub-tasks\b}{subagent tasks}g;
     s{\bExplore agents\b}{the explore subagent}g;
