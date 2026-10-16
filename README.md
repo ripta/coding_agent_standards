@@ -94,8 +94,8 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   `citation-verifier`, which checks file:line citations for `walkthrough` and `architecture-exploration`
 - **Commands** (`commands/`) -- slash commands for driving a phase milestone (`work-on`), working through a queue of
   milestones planned up front (`work-queue`), summarizing a session as a commit message (`summary`), chunking an
-  integration branch into PRs (`next-pr`), and iterating a design question with the critic until it converges
-  (`converge-design`)
+  integration branch into PRs (`next-pr`), writing a PR title and description for a branch (`pr-description`), and
+  iterating a design question with the critic until it converges (`converge-design`)
 
 Commands stay thin. The rules they enforce live in `claude/rules/` and `claude/project-management/`, and a command reads
 them at `${CLAUDE_PLUGIN_ROOT}/...` rather than restating them. Keeping one copy is what stops `/summary` and `/work-on`
