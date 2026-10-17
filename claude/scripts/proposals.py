@@ -5,12 +5,16 @@
     python3 proposals.py row --proposals-dir DIR PROJ-NNN [MN]
     python3 proposals.py freeze --proposals-dir DIR [--row-commit SHA ...]
     python3 proposals.py hooks --proposals-dir DIR [--passed] [--today YYYY-MM-DD]
+    python3 proposals.py progress --proposals-dir DIR [--json] [--today YYYY-MM-DD]
+    python3 proposals.py notice --proposals-dir DIR [--today YYYY-MM-DD]
 
 The rules live in project-management/proposals.md and plans.md. `check` reports
 milestone status and hook structure the standard rejects. `row` finds the queue
 row that names a milestone, or a proposal's next unfinished one, and says
 whether it is ready. `freeze` reports edits to implemented proposals that the
 freeze does not allow. `hooks` lists every revisit hook, passed dates first.
+`progress` reports the queue as done, ready, and held rows, with the hooks.
+`notice` prints one line when any hook has passed, and nothing otherwise.
 
 DIR is the proposals directory, which may sit in a symlinked specs repo. Results
 are JSON on stdout. Errors go to stderr with exit status 1.
@@ -728,13 +732,98 @@ def hooks(proposals_dir: Path, today: str, passed_only: bool) -> list[dict[str, 
     return listed
 
 
+# -- progress -------------------------------------------------------------
+
+
+def progress(proposals_dir: Path, today: str) -> dict[str, Any]:
+    """Join each queue row with its milestones' status: what is done, what is ready, what is held."""
+    proposals = load_proposals(proposals_dir)
+    rows = load_queue(proposals_dir)
+    report: dict[str, Any] = {"done": [], "ready": [], "held": [], "hooks": hooks(proposals_dir, today, False)}
+    for row in rows:
+        p = proposals.get(row.proposal)
+        numbers = range(row.first, row.last + 1)
+        statuses = {n: p.milestones[n].status if p and n in p.milestones else None for n in numbers}
+        entry: dict[str, Any] = {
+            "row": row.label,
+            "note": row.note,
+            "done": sum(1 for s in statuses.values() if s == "DONE"),
+            "dropped": sum(1 for s in statuses.values() if s == "DROPPED"),
+            "total": len(statuses),
+        }
+        if all(s in FINISHED for s in statuses.values()):
+            report["done"].append(entry)
+            continue
+        entry["next"] = next(f"{row.proposal} M{n}" for n, s in statuses.items() if s not in FINISHED)
+        reasons = []
+        if p is None:
+            reasons.append(f"{row.proposal} does not exist")
+        elif p.status != "accepted":
+            reasons.append(f"{row.proposal} is {p.status}")
+        for earlier in rows[: row.index]:
+            if earlier.proposal == row.proposal and any(
+                p and p.milestones.get(n) and p.milestones[n].status not in FINISHED
+                for n in range(earlier.first, earlier.last + 1)
+            ):
+                reasons.append(f"waits on its earlier row {earlier.label}")
+        for dep in row.depends_on:
+            state, reason = _dependency_state(dep, proposals, rows)
+            if state != "met":
+                reasons.append(f"{dep}: {reason}")
+        if reasons:
+            entry["held"] = reasons
+            report["held"].append(entry)
+        else:
+            report["ready"].append(entry)
+    return report
+
+
+def render_progress(report: dict[str, Any]) -> str:
+    def tally(entry: dict[str, Any]) -> str:
+        text = f"{entry['done']}/{entry['total'] - entry['dropped']} done"
+        return text + (f", {entry['dropped']} dropped" if entry["dropped"] else "")
+
+    lines = ["Done"]
+    lines += [f"  {e['row']}  {tally(e)}" for e in report["done"]] or ["  (none)"]
+    lines.append("Ready, in queue order")
+    lines += [f"  {e['row']}  {tally(e)}, next {e['next']}" for e in report["ready"]] or ["  (none)"]
+    lines.append("Held")
+    for e in report["held"]:
+        lines.append(f"  {e['row']}  {tally(e)}, next {e['next']}")
+        lines += [f"    - {reason}" for reason in e["held"]]
+    if not report["held"]:
+        lines.append("  (none)")
+    lines.append("Revisit hooks")
+    for h in report["hooks"]:
+        when = f"on or after {h['date']}" if h["date"] else "no date"
+        mark = "PASSED " if h["passed"] else ""
+        lines.append(f"  {mark}{h['proposal']} ({h['status']}, {h['location']}): {h['condition'] or ''}; {when}")
+    if not report["hooks"]:
+        lines.append("  (none)")
+    return "\n".join(lines)
+
+
+def notice(proposals_dir: Path, today: str) -> str:
+    """One line naming how many hooks have passed, or nothing when none has."""
+    passed = hooks(proposals_dir, today, True)
+    if not passed:
+        return ""
+    names = ", ".join(sorted({h["proposal"] for h in passed}))
+    noun = "hook has" if len(passed) == 1 else "hooks have"
+    return (
+        f"{len(passed)} revisit {noun} passed in {proposals_dir} ({names}). Each needs an audit the user decides: "
+        f"act, extend with a reason, or abandon. List them with: python3 {Path(__file__).resolve()} hooks --passed "
+        f"--proposals-dir {proposals_dir}"
+    )
+
+
 # -- cli ------------------------------------------------------------------
 
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("check", "row", "freeze", "hooks"):
+    for name in ("check", "row", "freeze", "hooks", "progress", "notice"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--proposals-dir", type=Path, required=True)
         if name == "row":
@@ -742,17 +831,30 @@ def main(argv: list[str]) -> int:
             cmd.add_argument("milestone", nargs="?")
         if name == "freeze":
             cmd.add_argument("--row-commit", action="append", default=[])
-        if name == "hooks":
+        if name in ("hooks", "progress", "notice"):
             cmd.add_argument("--today", default=date.today().isoformat(), help="YYYY-MM-DD; defaults to today")
+        if name == "hooks":
             cmd.add_argument("--passed", action="store_true", help="list only hooks whose date has passed")
+        if name == "progress":
+            cmd.add_argument("--json", action="store_true", help="print JSON instead of text")
     args = parser.parse_args(argv)
     try:
+        if getattr(args, "today", None) is not None and not ISO_DATE.match(args.today):
+            raise ProposalError(f"--today {args.today!r} is not YYYY-MM-DD")
         if args.command == "check":
             result: Any = check(args.proposals_dir)
         elif args.command == "hooks":
-            if not ISO_DATE.match(args.today):
-                raise ProposalError(f"--today {args.today!r} is not YYYY-MM-DD")
             result = hooks(args.proposals_dir, args.today, args.passed)
+        elif args.command in ("progress", "notice"):
+            # These two print text for a person to read, so they skip the JSON below.
+            if args.command == "notice":
+                text = notice(args.proposals_dir, args.today)
+            else:
+                report = progress(args.proposals_dir, args.today)
+                text = json.dumps(report, indent=2) if args.json else render_progress(report)
+            if text:
+                print(text)
+            return 0
         elif args.command == "row":
             milestone = None
             if args.milestone is not None:

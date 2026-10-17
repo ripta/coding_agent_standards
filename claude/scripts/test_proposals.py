@@ -170,6 +170,36 @@ def test_hooks_flags_a_passed_hook_that_ends_a_sentence(tmp_path: Path) -> None:
     assert (hook["date"], hook["anchor"]) == ("2026-01-01", "two releases (beta)")
 
 
+def test_progress_sorts_rows_into_done_ready_and_held(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "DONE", "- Done.")
+                                                 + _milestone(2, "DROPPED", "- See Decision Log.")
+                                                 + _milestone(3, "NOT STARTED") + _milestone(4, "NOT STARTED")))
+    other = _proposal("accepted", _milestone(1, "NOT STARTED"))
+    _write(tmp_path, "PROJ-002-b.md", other.replace("PROJ-001", "PROJ-002"))
+    _queue(tmp_path, "| PROJ-001 M1-M2 | None | |", "| PROJ-001 M3 | None | Split: PROJ-002 first |",
+           "| PROJ-002 M1 | None | |", "| PROJ-001 M4 | PROJ-002 M1 | Split: needs PROJ-002 M1 |")
+    report = proposals.progress(tmp_path, "2026-10-17")
+    assert [e["row"] for e in report["done"]] == ["PROJ-001 M1-M2"]
+    assert (report["done"][0]["done"], report["done"][0]["dropped"]) == (1, 1)
+    assert [e["row"] for e in report["ready"]] == ["PROJ-001 M3", "PROJ-002 M1"]
+    [held] = report["held"]
+    assert held["row"] == "PROJ-001 M4"
+    assert any("earlier row PROJ-001 M3" in r for r in held["held"])
+    assert any("PROJ-002 M1" in r for r in held["held"])
+    text = proposals.render_progress(report)
+    assert "1/1 done, 1 dropped" in text
+    assert "Revisit hooks\n  (none)" in text
+
+
+def test_notice_is_silent_until_a_hook_passes(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _hooked("deferred", "on or after 2026-11-01 (a release)"))
+    assert proposals.notice(tmp_path, "2026-10-17") == ""
+    line = proposals.notice(tmp_path, "2026-11-01")
+    assert line.startswith("1 revisit hook has passed")
+    assert "(PROJ-001)" in line
+    assert "\n" not in line
+
+
 def test_check_compares_the_index(tmp_path: Path) -> None:
     _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")))
     _write(tmp_path, "index.md", "| Proposal | Description | Status |\n|---|---|---|\n"

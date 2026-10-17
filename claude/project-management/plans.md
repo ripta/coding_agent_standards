@@ -76,7 +76,8 @@ The queue follows these rules:
   A queue row is the unit `/work-queue` runs, reviews over its commit range, and holds or blocks as a whole. Its
   milestone range is its identifier
 - **Progress.** A read-only report joins each row with its milestones' status. It prints what is done, what is next,
-  and what is held
+  and what is held, and lists every revisit hook. `scripts/proposals.py progress` in the plugin prints it. A notice
+  at session start names any hook whose date has passed
 
 A milestone of an `implemented` proposal from an earlier era counts as met for a plain dependency on it. See
 `proposals.md` "History from Earlier Eras".
