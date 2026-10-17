@@ -1,15 +1,15 @@
 ---
-description: Plan a queue of phase milestones up front, then implement and commit them one at a time
-argument-hint: <phase>[.<milestone>] [<phase>[.<milestone>] ...] [notes]
+description: Plan a run of queue rows up front, then implement and commit their milestones one at a time
+argument-hint: [<PROJ-NNN>[ M<n>[-M<m>]] ...] [notes]
 model: opus
 ---
 
 Start by calling the EnterPlanMode tool, before any other action. Skip this
 step if the session is already in plan mode.
 
-Work through the queue of phase milestones named in $ARGUMENTS. Planning
-happens once, up front. Implementation then takes one milestone at a time off
-the queue, and lands each one as its own commit before starting the next.
+Work through the queue rows named in $ARGUMENTS. Planning happens once, up
+front. Implementation then takes one milestone at a time, and lands each one
+as its own commit before starting the next.
 
 This session is the coordinator. It plans, delegates, triages, commits, and
 keeps the session reports. It does not write code. Each milestone goes to a
@@ -20,11 +20,14 @@ fresh `implementer` agent, and each review to a fresh `reviewer` and
 what lets it hold the whole run without drifting.
 
 This command wraps `${CLAUDE_PLUGIN_ROOT}/commands/work-on.md`. Read it now.
-Its checks, artifact sync, and review still apply to every milestone. Its plan
-mode and plan approval happen once for the whole queue, not per milestone, and
-it commits instead of only summarizing. The phase model lives in
+Its checks, proposal updates, and review still apply to every milestone. Its
+plan mode and plan approval happen once for the whole run, not per milestone,
+and it commits instead of only summarizing. The queue lives in
 `${CLAUDE_PLUGIN_ROOT}/project-management/plans.md`. Always defer to a
 project-specific deviation when one exists.
+
+`${CLAUDE_PLUGIN_ROOT}/scripts/proposals.py` reads the queue and the
+proposals, as in `/work-on`. Use it rather than parsing the files by hand.
 
 ## What the user authorizes by approving the plan
 
@@ -33,54 +36,57 @@ run. It overrides these rules for this run only:
 
 - The rule against committing on the user's behalf, in
   `${CLAUDE_PLUGIN_ROOT}/rules/git-workflow.md` and in `/work-on`. Commit each
-  milestone, and each round of review fixes.
+  milestone, and each round of review fixes, in the code repo and in the specs
+  repo.
 - The rule to confirm before moving on to a new milestone, in `plans.md` and
   `${CLAUDE_PLUGIN_ROOT}/rules/work-discipline.md`. Do not pause between
-  milestones or between phases.
-- The rule to ask before deciding an ambiguity. Make the best guess the phase
-  documents, proposals, and design documents support, and record it in the
-  session report.
+  milestones or between rows.
+- The rule to ask before deciding an ambiguity. Make the best guess the
+  proposals and design documents support, and record it in the session
+  report.
 - The rule to leave unfinished work in the tree. Stash a blocked milestone's
   unfinished work by path, as section 5 describes, and list every stash in
   the final report.
 
 Nothing else is relaxed. Never push, never open a PR, and never run a
 destructive git operation. Commit on the branch that is checked out. Never
-create or switch branches.
+create or switch branches. Never act on an edit this run did not make.
 
-## 1. Plan mode: build the queue
+## 1. Plan mode: build the run
 
-1. Parse the arguments into a queue. A bare `PHASE` (e.g., `59`) means every
-   milestone in that phase that is not DONE. `PHASE.MILESTONE` (e.g., `59.3`)
-   names one milestone. A range (e.g., `59.2-59.4`) names every milestone
-   between its ends. Lists may use commas or "and". Milestones within a phase
-   run in milestone order. Across phases, dependencies set the order, and
-   argument order only breaks ties. Treat any trailing prose as notes for the
-   run. A note like "hold 61" or "skip 61" holds that phase.
+1. Parse the arguments into queue rows. `PROJ-NNN` means every unfinished row
+   of that proposal. `PROJ-NNN M3` means the row that names M3, from M3 on.
+   `PROJ-NNN M3-M5` means those milestones, which must sit in one row. With no
+   rows named, take every unfinished row in `queue.md`. Rows run in queue
+   order, whatever order the arguments give. Milestones within a row run in
+   number order. Treat any trailing prose as notes for the run. A note like
+   "hold PROJ-004" holds that proposal's rows.
 
-2. For every phase in the queue, run the checks `/work-on` makes before it
-   explores the codebase: locate the phases directory, read the index, the
-   phase document, and the proposal, and check the proposal status. Where
-   `/work-on` says to stop on a COMPLETE phase or a DONE milestone, drop it
-   from the queue and note that instead.
+2. For every row, run the checks `/work-on` makes before it explores the
+   codebase: locate the proposals directory and the specs repo, run
+   `proposals.py row` on the row's first unfinished milestone, read the
+   proposal, and check its status. Where `/work-on` says to stop on a
+   finished milestone, drop it from the run and note that instead.
 
-3. Classify each queued phase's `**Dependencies:**`, using the format in
-   `plans.md`. Each dependency is one of:
-   - Met: the dependency is COMPLETE. A `(deployed)` dependency also needs
-     the user to confirm the deployment in item 7.
-   - In-run: the dependency is queued, and every milestone it has left is
-     queued too. The phase waits for the run to complete it. A `(deployed)`
-     dependency is never in-run, since the run cannot deploy.
+3. Classify each row's dependencies from the `row` output. Each is one of:
+   - Met: its state is `met`. A `confirm` dependency is met only once the user
+     confirms the deployment in item 7.
+   - In-run: its state is `unmet`, and every milestone it waits on is in this
+     run. The row waits for the run to finish them. A `(deployed)` dependency
+     is never in-run, since the run cannot deploy.
+   - Blocked: its state is `blocked`. It needs the user, so it is a question in
+     item 7. Never hold it silently.
    - Unmet: anything else.
 
-   A phase is held when the notes hold it, when it has an unmet dependency, or
-   when it depends on a held phase. A held phase stays in the plan, but no
-   milestone of it runs. Holding a phase never blocks the other phases. A
-   dependency cycle among queued phases is a blocker.
+   A row is held when the notes hold it, when it has an unmet or blocked
+   dependency, when an earlier row of its proposal is held, or when it depends
+   on a held row. A held row stays in the plan, but no milestone of it runs.
+   Holding a row never blocks the other rows. A dependency cycle among rows in
+   the run is a blocker.
 
-4. Read the design documents and ADRs the phases and proposals cite. Explore
-   the codebase enough to plan every milestone. Use Explore agents for this,
-   so the coordinator keeps their conclusions and not the file dumps. Detailed
+4. Read the design documents and ADRs the proposals cite. Explore the codebase
+   enough to plan every milestone. Use Explore agents for this, so the
+   coordinator keeps their conclusions and not the file dumps. Detailed
    exploration for a later milestone is the implementer's job, since earlier
    milestones change the code it will see.
 
@@ -95,23 +101,25 @@ create or switch branches.
 
 7. Front-load every question. Ask them together, in one batch, before calling
    ExitPlanMode. These always count as questions:
-   - A proposal whose status is not `accepted` or `scheduled`. This blocks the
-     run, as it does in `/work-on`.
+   - A proposal whose status is not `accepted`. This blocks its rows, as it
+     does in `/work-on`.
+   - Each `blocked` dependency from item 3, with its reason. Name a
+     `Replaced by` hint when there is one.
    - A dependency cycle from item 3.
-   - Whether each COMPLETE `(deployed)` dependency from item 3 is deployed.
-     A "no" holds the phase that depends on it.
+   - Whether each `confirm` dependency from item 3 runs in production. A "no"
+     holds the row that depends on it.
    - The session report directory, when item 6 could not resolve it.
    - An ambiguity that only the user can settle: a contradiction between the
-     phase document and the proposal, or a choice the documents do not
+     proposal and the code or an ADR, or a choice the documents do not
      constrain at all and that would be costly to reverse.
 
    Everything else becomes a best guess in the plan.
 
 8. Write the plan:
-   - The queue: every milestone in its expected run order, with its phase,
-     the proposal milestone it implements, and a one-line description
-   - Each phase's dependencies, and how each is met
-   - Each held phase, with the reason it is held
+   - The run: every milestone in its expected run order, with its row and a
+     one-line description
+   - Each row's dependencies, and how each is met
+   - Each held row, with the reason it is held
    - A short implementation approach for each milestone, and the files it
      touches
    - The local checks every milestone runs
@@ -122,52 +130,64 @@ Call ExitPlanMode. That approval is the only gate in the run.
 
 ## 2. Implement each milestone
 
-Record the current `HEAD` before the first milestone, and again before the
-first milestone of each phase. These are the base commits for the phase and
-final reviews. Write them into the session report so they survive context
-compaction.
+Record the code repo's current `HEAD` before the first milestone, and again
+before the first milestone of each row. These are the base commits for the row
+and final reviews. Keep a list of every specs-repo commit the run makes, by
+SHA, per row. When the specs live in the code repo, the code commits are the
+specs commits. Write all of this into the session report so it survives
+context compaction.
 
-Track every queued milestone's run status: QUEUED, IN PROGRESS, DONE, HELD, or
-BLOCKED. A phase is ready when it is not held or blocked and every dependency
-is met. An in-run dependency becomes met when the run marks that phase
-COMPLETE.
+Track every milestone's run status: QUEUED, IN PROGRESS, DONE, HELD, or
+BLOCKED. A row is ready when it is not held or blocked and every dependency
+is met. An in-run dependency becomes met when the run finishes it.
 
 When a tool whose name ends in `work_queue_status` is available, it shows the
-run's progress to the user. Call it with the whole queue right after
+run's progress to the user. Call it with the whole run right after
 ExitPlanMode. Call it again whenever a milestone's run status or the current
 step changes, and with step `finished` when the run is done. Skip it when the
 tool is absent.
+<!-- The tool still names its fields for phases. Remove this mapping once the mod names them for queue rows. -->
+Pass each row as an entry of its `phases` array, with the row's range as `id`.
+Pass each milestone with its `PROJ-NNN MN` ID. Use step `phase-review` for a
+row review.
 
 Pick the next milestone this way:
 
-- While the current phase has a QUEUED milestone, take the next one. Phases run
-  whole, so each phase's commits form one contiguous range for its review.
-- Otherwise, start the first ready phase in argument order.
-- When no phase is ready, the run is done.
+- While the current row has a QUEUED milestone, take the next one. Rows run
+  whole, so each row's commits form one contiguous range for its review.
+- Otherwise, start the first ready row in queue order.
+- When no row is ready, the run is done.
 
 For each milestone picked:
 
-1. When this is the first milestone of a phase, sync the phase-begin artifacts
-   from `plans.md` "Artifact Sync". Set the milestone's status to IN PROGRESS.
+1. Set the milestone's status to `IN PROGRESS` in the proposal.
 
-2. Spawn a fresh `implementer` agent. Brief it with the phase milestone, the
-   proposal milestone, the plan's section for this milestone, the local
-   checks, the session report path, and the run's notes. Do not re-enter plan
-   mode, and do not present a plan for approval.
+2. Spawn a fresh `implementer` agent. Brief it with the milestone, its row,
+   the proposal file, the specs repo when it differs from the code repo, the
+   plan's section for this milestone, the local checks, the session report
+   path, and the run's notes. Do not re-enter plan mode, and do not present a
+   plan for approval.
 
 3. Read its report. If it reports a blocker, follow section 5.
 
-4. Spawn a fresh `reviewer` agent. Tell it the phase milestone and the
-   proposal milestone, and that an `adr-impact` agent runs beside it. In the
-   same message, spawn a fresh `adr-impact` agent
-   (`coding-standards:adr-impact`) on the working-tree diff. Triage what they
-   report:
+4. Run `proposals.py check`, and `proposals.py freeze` with a `--row-commit`
+   for each specs commit this row has made. Then spawn a fresh `reviewer`
+   agent. Tell it the milestone, the proposal file, the specs repo, the row's
+   specs commits, and that an `adr-impact` agent runs beside it. In the same
+   message, spawn a fresh `adr-impact` agent (`coding-standards:adr-impact`)
+   on the working-tree diff. Triage what they report, along with the two
+   script results:
    - Mark comment, style, and plan-gap findings as fix. The exception is a
      shortcut the plan did not approve. Mark it as trace, and have it fixed the
      way the plan specified.
    - Mark a `CONFIRMED` finding as fix.
    - Mark a `PLAUSIBLE` finding as trace. The implementer fixes it only if the
      trace confirms it.
+   - Mark an amendment finding, a `check` finding, and a freeze hunk with
+     origin `row` as fix.
+   - Never send a freeze hunk with origin `other` or `unknown`, or a finding
+     with disposition `user`, to the implementer. Another session may have
+     made that edit. Record it in the session report for the user.
    - Triage an ADR conflict the same way. When honoring the ADR would change
      the approved plan, it is a blocker. Follow section 5.
    - Record an `ADVISORY` conflict in the session report. It never blocks.
@@ -196,12 +216,13 @@ For each milestone picked:
    for its answer to the follow-up.
 
 5. Check the implementer's last report. Every check must have run and passed.
-   Its file list must match `git status`. Ask the implementer about any
-   mismatch before committing.
+   Its file list must match `git status` in the code repo, and the specs repo's
+   status for the proposal. Ask the implementer about any mismatch before
+   committing.
 
-6. Add the milestone's ADR candidates to the originating proposal's Decision
-   Log as `Undecided`, per "Recording ADR Candidates" in `design.md`. Skip one
-   the log already holds. Include the proposal in the commit's paths.
+6. Add the milestone's ADR candidates to the proposal's Decision Log as
+   `Undecided`, per "Recording ADR Candidates" in `design.md`. Skip one the log
+   already holds.
 
    Commit the milestone. The review fixes land in the same commit. Commit the
    files by path with `git commit -- <paths>`. Staging by path is not enough.
@@ -212,67 +233,80 @@ For each milestone picked:
    message against it, including Forbidden Openers. Reviewers see diffs, not
    messages, so this check is the coordinator's.
 
-7. Amend the phase's session report (see section 4). Copy in the
-   implementer's best guesses and deviations, so the next implementer sees
-   them.
+   When the specs live in a separate repo, also commit the proposal there, by
+   path, with a subject in that repo's own style. Record its SHA in the row's
+   list of specs commits. When they live in the code repo, the proposal goes in
+   the same commit.
+
+7. Amend the row's session report (see section 4). Copy in the implementer's
+   best guesses and deviations, so the next implementer sees them.
 
 8. Move on to the next milestone without waiting for the user.
 
-## 3. Phase and final reviews
+## 3. Row and final reviews
 
-When the last queued milestone of a phase is committed:
+When the last milestone of a row in the run is committed:
 
-1. If every milestone in the phase is now DONE, sync the phase-complete
-   artifacts from `plans.md` "Artifact Sync": the phase status, the proposal
-   status, and both indexes.
+1. Spawn a fresh `reviewer` agent for a holistic review of the row. Give it
+   the code commit range from the row's base commit to `HEAD`, the row's specs
+   commits, and every milestone the range covers. Ask it to weigh how the
+   milestones fit together, on top of its usual axes. Run a fresh `adr-impact`
+   agent on the same range beside it, and tell the reviewer so. Run
+   `proposals.py freeze` with the row's specs commits, as in section 2.
 
-2. Spawn a fresh `reviewer` agent for a holistic review of the phase. Give it
-   the commit range from the phase's base commit to `HEAD`, and every
-   milestone the range covers. Ask it to weigh how the milestones fit
-   together, on top of its usual axes. Run a fresh `adr-impact` agent on the
-   same range beside it, and tell the reviewer so.
-
-3. Triage the findings as in section 2. Send them to a fresh `implementer`,
+2. Triage the findings as in section 2. Send them to a fresh `implementer`,
    with the commit range and the milestones it covers in place of a single
-   milestone. Commit the fixes, and any artifact sync, as their own commit.
-   Check its message as in section 2, step 6. Amend the session report.
+   milestone. Commit the fixes as their own commit, in each repo they touch.
+   Record any specs commit. Check its message as in section 2, step 6. Amend
+   the session report.
 
-4. Continue with the next ready phase.
+3. Only now finish the row, per `plans.md` "Working a Milestone". A proposal
+   whose milestones are all finished becomes `implemented`, and the proposal
+   index says so. The row moves above every unfinished row in `queue.md`. Run
+   `proposals.py check`, and fix what it reports. Commit these edits by path,
+   and record the specs commit. Writing `implemented` before the review's
+   fixes land would freeze the proposal before its last amendment.
+
+4. Continue with the next ready row.
 
 When the run is done, run one more review the same way, over the range
-from the run's base commit to `HEAD`. This final review is also the run's ADR
-review. Ask the reviewer for one, so it checks every ADR the range adds or
-edits. Phase reviews do not ask for it. Commit its fixes, check the message as
-in section 2, step 6, and amend the last session report.
+from the run's base commit to `HEAD`, with every specs commit the run made.
+This final review is also the run's ADR review. Ask the reviewer for one, so it
+checks every ADR the range adds or edits. Row reviews do not ask for it. Commit
+its fixes, check the message as in section 2, step 6, and amend the last
+session report. A fix to a proposal the run already marked `implemented` is a
+correction of fact. It needs its Decision Log entry, per `proposals.md`
+"Implemented Proposals Are Frozen".
 
 ## 4. Session reports
 
-Write one report per phase, using the `session-report` skill. Create the file
-when the phase starts, and name it for the phase, e.g.
-`YYYYMMDD-phase-59-<short-title>.md`. Then amend that same file after every
-milestone and review: re-read it and update it in place. The skill's rule to
-extend the slug on a filename collision applies only when creating a phase's
+Write one report per row, using the `session-report` skill. Create the file
+when the row starts, and name it for the row, e.g.
+`YYYYMMDD-proj-004-m3-m5-<short-title>.md`. Then amend that same file after
+every milestone and review: re-read it and update it in place. The skill's rule
+to extend the slug on a filename collision applies only when creating a row's
 file, not when amending it. Do not start a new file per milestone.
 
 The report records, per milestone:
 
-- The commit, by short SHA and subject
+- The commits, by short SHA and subject, in the code repo and the specs repo
 - The checks run, and their result
 - Every best guess: the ambiguity, the choice made, the document it rests on,
   and what would change if the guess is wrong
 - Each review finding, and its disposition: fixed, dismissed with the reason,
-  or deferred
-- Any deviation from the phase document, and anything left open
+  deferred, or left for the user
+- Any deviation from the proposal, and anything left open
 
-The first phase report of the run also carries the run state, near the top:
-the base commits, every queued milestone with its run status, and each held or
-blocked phase with its reason. Update it whenever a status changes. Later
-phase reports link to it. After a context compaction, re-read it, the session
-reports, and the phase documents to find where the run stands, then continue.
+The first row report of the run also carries the run state, near the top: the
+base commits, each row's specs commits, every milestone with its run status,
+and each held or blocked row with its reason. Update it whenever a status
+changes. Later row reports link to it. After a context compaction, re-read it,
+the session reports, the proposals, and `queue.md` to find where the run
+stands, then continue.
 
-## 5. When to block a phase
+## 5. When to block a row
 
-Block a phase, and say why, only when:
+Block a row, and say why, only when:
 
 - A build or test failure cannot be fixed within the milestone's scope
 - A review finding needs a design decision the documents do not cover, and
@@ -280,28 +314,30 @@ Block a phase, and say why, only when:
 - The work turns out to contradict the proposal or an ADR
 
 Before blocking, commit any finished work that passes the checks. Unfinished
-work must not leak into the next phase's commits, and it must never be
+work must not leak into the next row's commits, and it must never be
 discarded. Stash it by path with a message that names the milestone, e.g.
-`git stash push --include-untracked -m "work-queue: blocked 61.2" -- <paths>`.
-The paths include the phase document and index edits made for the milestone.
-Record the stash, the unfinished work, and the blocker in the session report.
+`git stash push --include-untracked -m "work-queue: blocked PROJ-004 M4" -- <paths>`.
+Stash the milestone's proposal edits the same way in the specs repo when it is
+separate. Record each stash, the unfinished work, and the blocker in the
+session report. The milestone stays `IN PROGRESS` in the proposal.
 
-Mark the phase's remaining milestones BLOCKED. Mark every milestone of a phase
+Mark the row's remaining milestones BLOCKED. Mark every milestone of a row
 that depends on it, directly or not, HELD. Then continue with the next ready
-phase. Everything short of these conditions is a best
-guess, not a block.
+row. Everything short of these conditions is a best guess, not a block.
 
 ## 6. Finish
 
 Report to the user:
 
-- The commits made, in order
+- The commits made, in order, in each repo
 - The session report paths
 - The best guesses that most deserve their review
 - The ADR candidates the run recorded, deduplicated, each with the criterion
   it meets and the proposal whose Decision Log holds it. Most runs have none.
   Do not write them. The user decides which get written, usually in the next
   `/proposal-reviewer` run
-- Each held or blocked phase, what it waits on, and any stash holding its
+- Every edit the run found but did not make: freeze hunks with origin `other`
+  or `unknown`, and findings with disposition `user`
+- Each held or blocked row, what it waits on, and any stash holding its
   unfinished work
 - Anything else left open

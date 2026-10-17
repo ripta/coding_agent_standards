@@ -161,7 +161,7 @@ A check reports each of these:
 - An `accepted` proposal whose milestones are not in this form. Live work must carry milestone status
 
 The check skips `deferred`, `rejected`, `superseded`, and `retracted` proposals, whose milestones may be dropped without
-the proposal being built. It also skips history from earlier eras.
+the proposal being built. It also skips history from earlier eras. `scripts/proposals.py check` in the plugin runs it.
 
 ### As Built
 
@@ -205,11 +205,17 @@ Once a proposal is `implemented`, only these edits are allowed:
 - Status changes the lifecycle allows from `implemented`, such as to `superseded`
 - The `**Updated:**` date
 
-Any other change goes to a new proposal. A review checks an edit against the proposal's status at the base of the
-change. The commit that writes `implemented` and the last As built block is not a frozen edit.
+Any other change goes to a new proposal.
 
 When the text and the shipped code disagree, the user says which is wrong. When the code is wrong, it is a bug, and the
-text stays. When the text is wrong, it is a correction of fact, with a Decision Log entry giving the prior meaning.
+text stays. When the text is wrong, it is a correction of fact. Its Decision Log entry says "Correction of fact" and
+gives the prior meaning.
+
+The freeze check enforces this. For each `implemented` proposal, it diffs the file from the commit that wrote
+`implemented` to the working tree. That commit is the base, so the commit that writes `implemented` and the last As
+built block is never a frozen edit. A proposal imported already `implemented` uses its first commit. The check reports
+every change outside the list, and says whether the work under review made it. A change someone else made goes to the
+user, never to the implementer. `scripts/proposals.py freeze` in the plugin runs it.
 
 ## Revisit Hooks
 

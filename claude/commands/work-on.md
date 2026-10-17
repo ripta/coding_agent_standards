@@ -1,56 +1,63 @@
 ---
-description: Plan and implement a phase milestone
-argument-hint: <phase>[.<milestone>] [--review-loop]
+description: Plan and implement a proposal milestone
+argument-hint: <PROJ-NNN> [M<n>] [--review-loop]
 model: opusplan
 ---
 
 Start by calling the EnterPlanMode tool, before any other action. Skip this
 step if the session is already in plan mode.
 
-Once in plan mode, work on phase milestone $ARGUMENTS by following these steps.
+Once in plan mode, work on the proposal milestone in $ARGUMENTS by following
+these steps.
 
-The phase model lives in `${CLAUDE_PLUGIN_ROOT}/project-management/plans.md`.
-Read it for the milestone conventions, status values, and artifact sync rules.
-Always defer to a project-specific deviation when one exists.
+The queue and the rules for working a milestone live in
+`${CLAUDE_PLUGIN_ROOT}/project-management/plans.md`. The milestone format,
+status values, and amendment rules live in
+`${CLAUDE_PLUGIN_ROOT}/project-management/proposals.md`. Read both. Always
+defer to a project-specific deviation when one exists.
+
+`${CLAUDE_PLUGIN_ROOT}/scripts/proposals.py` reads the queue and the
+proposals. Run it with `python3`, and pass `--proposals-dir` the proposals
+directory from step 1. Use it rather than parsing the files by hand.
 
 Whenever a choice comes up, in the plan or during implementation, build the
 options by the "Choosing Options" section of
 `${CLAUDE_PLUGIN_ROOT}/rules/decision-making.md`. Apply an override only when
-the user stated one this session, or the proposal or phase document carries a
-`**Tradeoffs:**` field.
+the user stated one this session, or the proposal carries a `**Tradeoffs:**`
+field.
 
-1. Locate the phases directory. Check the common locations: `spec/phases/`,
-   `docs/phases/`, `phases/`. Read its index, `index.md` or `README.md`.
+1. Locate the proposals directory. Check the common locations:
+   `spec/proposals/`, `docs/proposals/`. It holds `queue.md`. When it sits in
+   a symlinked specs repo, find that repo with
+   `git -C <proposals dir> rev-parse --show-toplevel`. Proposal edits are
+   reviewed there. A project with a phases directory and no `queue.md` has
+   not migrated to era 3. Stop and tell the user to run `/migrate-era` first.
 
-2. Parse the argument. `PHASE.MILESTONE` (e.g., `207.3`) names one milestone. A
-   bare `PHASE` (e.g., `207`) means the next incomplete milestone in that phase.
-   A `--review-loop` flag changes only step 12.
+2. Parse the argument. `PROJ-NNN M3` names one milestone. A bare `PROJ-NNN`
+   means its next unfinished milestone in queue order. A `--review-loop` flag
+   changes only step 12.
 
-3. Check the phase status in the index. Stop and tell the user if the phase is
-   already COMPLETE.
+3. Run `proposals.py row PROJ-NNN [M3]`. It finds the queue row that names the
+   milestone and reports whether it is ready. Stop and tell the user when:
+   - The milestone is in no queue row. It is not scheduled. Schedule it only
+     when the user asks, per `plans.md` "Scheduling a Proposal"
+   - The milestone is already `DONE` or `DROPPED`
+   - The proposal is not `accepted`. Do this even when the user asked for the
+     work directly. Flag the conflict and ask before going further
+   - An earlier row of the proposal, or an earlier milestone in this row, is
+     unfinished. Name it
+   - A dependency is not met. Name each one with its state and reason. A
+     `blocked` one needs the user, and a `Replaced by` hint names what to wait
+     on instead. A `confirm` one is a `(deployed)` dependency: ask the user
+     whether it runs in production
 
-4. Read the phase document itself, `phase-N-*.md` in the same directory. The
-   index carries only the summary table. Milestone descriptions and acceptance
-   criteria live in the phase document.
+4. Read the proposal. Its Design Decisions carry the design. The milestone's
+   bullets are its checks. Read the design documents and ADRs it cites.
 
-5. Select the milestone. If the argument named one, stop and tell the user when
-   its status is already DONE. If the argument gave only a phase number, take
-   the first milestone in the table that is not DONE.
-
-6. Read the proposal named in the phase's Scope section. `PROJ-199` means read
-   `PROJ-199-*.md` in the project's proposals directory, usually
-   `spec/proposals/` or `docs/proposals/`. This carries the design context for
-   the work.
-
-7. Check the proposal's status field. Only `accepted` or `scheduled` proposals
-   may be implemented. Stop and tell the user for any other status. Do this even
-   when the user asked for the work directly. Flag the conflict and ask before
-   going further.
-
-8. Explore the codebase to understand the files and patterns relevant to the
+5. Explore the codebase to understand the files and patterns relevant to the
    milestone. Use Explore agents for this.
 
-9. Write a plan covering:
+6. Write a plan covering:
    - Context: what problem the milestone solves and why
    - Files to modify or create
    - Implementation approach, referencing existing code and patterns to reuse
@@ -63,29 +70,47 @@ the user stated one this session, or the proposal or phase document carries a
    - A breakdown into smaller tasks, where that makes implementation easier and
      debugging simpler
    - Verification: how to test the changes (specific make targets, test files)
-   - Artifact sync: the phase document and phase index updates that land with
-     the milestone
+   - Proposal updates: the milestone status, the As built block, and any
+     amendment the plan already expects
 
-10. Implement once the user approves the plan.
+7. Once the user approves the plan, set the milestone's status to
+   `IN PROGRESS`.
 
-11. Update the phase document and the phase index. Tick the milestone's
-    acceptance criteria and set its status to DONE.
+8. Implement it.
+
+9. Update the proposal, per `plans.md` "Working a Milestone":
+   - Set the milestone's status to `DONE`, and write its As built block by the
+     rules in `proposals.md` "As Built"
+   - Amend any decision or milestone text the work changed, narrowed, or
+     corrected, per `proposals.md` "Amending a Proposal". Never leave the
+     divergence only in the Decision Log
+   - Do not write `implemented` yet. Step 12 does that after the review passes
+
+10. Run `proposals.py check`. Fix every finding on this proposal.
+
+11. Run `proposals.py freeze`. Its hunks with origin `row` are edits this work
+    made. Undo any the freeze does not allow. Leave a hunk with origin
+    `other` or `unknown` alone, and name it to the user in your response.
 
 12. Review the change with the `reviewer` agent, named
-    `coding-standards:reviewer` when installed as a plugin. Tell it the phase
-    milestone and the proposal milestone it implements. The agent reviews the
-    working-tree diff and does not edit code. In the same message, spawn the
-    `adr-impact` agent (`coding-standards:adr-impact`) on the working-tree
-    diff, and tell the reviewer it runs beside it. When `adr-impact` is not
-    available, skip it and do not tell the reviewer. This review is the end of
-    the run, so ask the reviewer for an ADR review too. Address what they
-    report:
+    `coding-standards:reviewer` when installed as a plugin. Tell it the
+    proposal milestone, the proposal file, and the specs repo when it differs
+    from the code repo. Its proposal edits are the specs repo's working-tree
+    diff. The agent reviews the working-tree diff and does not edit code. In
+    the same message, spawn the `adr-impact` agent
+    (`coding-standards:adr-impact`) on the working-tree diff, and tell the
+    reviewer it runs beside it. When `adr-impact` is not available, skip it and
+    do not tell the reviewer. This review is the end of the run, so ask the
+    reviewer for an ADR review too. Address what they report:
     - Fix comment-craft, style, and plan-conformance findings directly. The
       exception is a shortcut the plan did not approve. Confirm it in the code
       first, then fix it the way the plan specified.
     - Apply `CONFIRMED` correctness and security findings.
     - Verify a `PLAUSIBLE` finding before acting on it. Trace the failure it
       describes. Fix it only if the trace confirms it.
+    - Amend the proposal for every amendment finding, as in step 9.
+    - Never act on a finding whose disposition is `user`. Report it to the
+      user. It concerns an edit this work did not make.
     - Treat an ADR conflict like a correctness finding of the same verdict.
       When honoring the ADR would change the approved plan, stop and ask the
       user. Mention an `ADVISORY` conflict in your response. It never blocks.
@@ -107,8 +132,16 @@ the user stated one this session, or the proposal or phase document carries a
     When the fixes touched an ADR conflict, also run a fresh `adr-impact`.
     Repeat until neither reports actionable findings.
 
+    Once the review passes, finish the proposal:
+    - When `row` reported this as the proposal's last unfinished milestone, set
+      the proposal to `implemented` and update the proposal index
+    - When it was the last milestone in its row, move the row above every
+      unfinished row in `queue.md`
+    - Run `proposals.py check` once more
+
 13. Summarize the work as a commit message, following
     `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Emit raw markdown. Use only
     the conversation; do not run `git diff`. Before emitting it, check the
-    message against `commit-style.md`, including Forbidden Openers. Do not
-    commit on behalf of the user.
+    message against `commit-style.md`, including Forbidden Openers. When the
+    specs live in a separate repo, say that the proposal edits there need
+    their own commit. Do not commit on behalf of the user.
