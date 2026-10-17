@@ -22,6 +22,7 @@ defining change. It does not name a rule that later eras kept.
 | 0 | era 0, where phases were sections of one rolling plan | before 2026-02-07 |
 | 1 | era 1, which introduced proposals and one file per phase | 2026-02-07 |
 | 2 | era 2, which split phase and proposal milestones into separate namespaces | 2026-08-08 |
+| 3 | era 3, which retired phases for proposal milestone status and one queue | 2026-10-17 |
 
 For example, "era 1, which introduced proposals and one file per phase" is a
 good first mention. "era 1, where one proposal existed per phase" is not. Era 2
@@ -143,3 +144,31 @@ Known weak points:
   phases, or why other work came between them.
 - Dependencies live in each phase's header. The phase index records none of
   them.
+
+## Era 3: Milestone Status and One Queue
+
+Era 3 retired phase documents and the phase index. A proposal milestone carries
+its own status, its checks, and an As built block of what implementation found.
+One queue, `queue.md` beside the proposal index, records the order work is
+built in. Each queue row names a range of one proposal's milestones. Work is
+named by its milestone ID, such as `PROJ-004 M3-M5`.
+
+Era 3 also added these rules:
+
+- The `DROPPED` milestone status for work that will not be done
+- A milestone's number is permanent once a queue row names it
+- A divergence amends the proposal's text in place, with a Decision Log entry
+- An `implemented` proposal is frozen, except a listed set of edits
+- One `**Revisit:**` form for revisit hooks, required on `deferred` proposals
+- The `scheduled` proposal status is gone. The queue says what is scheduled
+
+Markers:
+
+- A `queue.md` table with Milestones, Depends on, and Note columns
+- `### M1: Title` milestone subsections, each with a `**Status:**` line
+- `**As built:**` blocks under started milestones
+- Milestone checks as plain bullets, never ticked
+- No phases directory, or one kept as history with a note pointing to the queue
+
+A milestone table with a status column is not the era 3 form. It is an era 1
+marker, though it uses the same status words.

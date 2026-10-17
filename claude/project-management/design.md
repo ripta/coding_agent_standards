@@ -96,14 +96,14 @@ component's internals. Those stay in the proposal or the design doc that made th
 
 An ADR records a choice that has been made, and why. It holds nothing about the future. Keep these out:
 
-- Future work, follow-up tasks, ideas, and TODO lists. Put them in a proposal or a phase
-- Plans, migration steps, schedules, and target dates. Put them in a proposal or a phase document
+- Future work, follow-up tasks, ideas, and TODO lists. Put them in a proposal
+- Plans, migration steps, schedules, and target dates. Put the plan in a proposal and the order in the queue
 - Bugs and known issues. Put them in the project's bugs directory or issue tracker
-- Implementation status or progress. Phase milestone rows hold that
+- Implementation status or progress. Proposal milestones hold that
 - Open questions. Resolve them before the ADR is accepted
 
 A consequence may name work the decision makes necessary, such as "every client must migrate to v2". That is a fact
-about the decision. Tracking that work belongs elsewhere. Link to the proposal or phase under References instead.
+about the decision. Tracking that work belongs elsewhere. Link to the proposal under References instead.
 
 ### Record
 
@@ -127,7 +127,7 @@ Each candidate gets one entry. It names the Architecture criterion it meets and 
 - 2026-10-17: ADR candidate (hard to reverse): events carry a schema version. Written as ADR-07.
 - 2026-10-17: ADR candidate (cuts across the system): retries go through the shared client. Declined: its README covers it.
 - 2026-10-17: ADR candidate (departs from the past): drop the cache layer. Waits on the PROJ-012 M3 benchmark.
-- 2026-10-17: ADR candidate (hard to reverse): sessions keyed by account ID. Undecided. Found in Phase 7.2.
+- 2026-10-17: ADR candidate (hard to reverse): sessions keyed by account ID. Undecided. Found in PROJ-007 M2.
 ```
 
 - **Written as ADR-NN**: the ADR exists. The proposal's References lists it too

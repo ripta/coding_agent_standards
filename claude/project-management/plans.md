@@ -1,176 +1,151 @@
-# Plans (Phases)
+# Plans (The Queue)
 
-A phase is a unit of implementation work. Each phase implements exactly one proposal (or a portion of one).
+A project builds its work from one ordered queue. Each queue row names a range of one proposal's milestones. The queue's
+order is the build order, independent of proposal number and acceptance date. Execution status lives on the proposal
+milestones themselves. See `proposals.md` "Milestones".
+
+Phase documents and the phase index belong to earlier eras. A project that still has them keeps them as history. See
+`eras.md`.
 
 ## Rules
 
-- One proposal per phase; never combine or fold phases together
-- A proposal may be split across multiple phases
-- Phase numbers are sequential integers (1, 2, 3...)
-- Proposal numbers are permanent and never change
-- Milestones within a phase are numbered from `.1` upward, and are referred to as `Phase 5.1`, `Phase 5.2`, `Phase 5.3`.
-  Bare `Phase 5` means the whole phase. Proposal milestones use a different form; see `tracking.md` "Referring to
-  Milestones"
-- Acceptance criteria are written per milestone, not per phase. Each criterion belongs to exactly one milestone. A
-  milestone is then reviewable against its own floor while the rest of the phase is still in progress
-- Milestones are units of implementation work only. Design work (a design spike,
-  an ADR, a research write-up) is not a milestone: it gets no row in the milestone
-  table and does not count toward progress, so a phase whose only completed work is
-  design stays `PLANNED` at `0/N`. Record design completion in the proposal or phase
-  Design Decisions, the ADR, or the research document.
+- A queue row names one contiguous range of one proposal's milestones, such as `PROJ-004 M3-M5`. A milestone appears in
+  at most one row
+- Unfinished rows belong only to `accepted` proposals. Finished rows stay, whatever the proposal's status becomes
+- A milestone's ID is permanent once any queue row names it. Rework, or work split out of a milestone, becomes a new
+  milestone with the next free number
+- Milestones are units of implementation work only. Design work (a design spike, an ADR, a research write-up) is not a
+  milestone. Record its result in the proposal's Design Decisions, the ADR, or the research document
+- Refactoring is part of the work. If a feature would be substantially cleaner after restructuring nearby code, include
+  that work in the milestone's checks rather than deferring it or working around it
 
-## Before Starting a Phase
+## Before Starting Work
 
-- Before beginning implementation work on a proposal, check its status field.
-- Only `accepted` or `scheduled` proposals may be implemented.
-- If the status is `draft`, `deferred`, or `rejected`, stop and tell the user. This applies even if the user asks you to
-  implement it -- flag the status conflict and ask for confirmation to change the status first.
-- A detailed plan does not imply the proposal has been accepted. The status field is the sole source of truth.
-- Creating a proposal is not the same as promoting it. Do not promote a proposal to a phase unless the user explicitly
-  asks. A plan document that contains phase numbers or milestones does not authorize promotion; it is a design sketch
-  until the user says to schedule it.
-- Evaluate whether the planned work requires refactoring existing code. If a feature would be substantially cleaner
-  after restructuring nearby code, include that work in the phase scope rather than deferring it or working around it.
+- Before implementing a proposal, check its status field. Only an `accepted` proposal may be implemented
+- If the status is anything else, stop and tell the user. This applies even if the user asks you to implement it. Flag
+  the status conflict and ask for confirmation to change the status first
+- A detailed plan does not imply the proposal has been accepted. The status field is the sole source of truth
+- Implement only a milestone that a queue row names. A milestone with no row is not scheduled. Stop and tell the user
+- Creating or accepting a proposal is not scheduling it. Schedule a proposal only when the user explicitly asks. A plan
+  that lists milestones does not authorize scheduling. It is a design sketch until the user says to schedule it
 
-## Promoting a Proposal to a Phase
+## Scheduling a Proposal
 
-When a proposal is accepted and scheduled for implementation:
+Scheduling adds queue rows for an `accepted` proposal's milestones. The user picks where the rows go.
 
-1. Never renumber completed phases. Completed phases keep their number forever.
-2. The new phase gets the next number after the highest existing phase. Renumber existing pending-only phases upward to
-   make room if needed.
-3. If a partially-completed phase needs rework due to the new phase, split it:
-   - Keep the completed milestones in the original phase and mark it COMPLETE
-   - Create a follow-up phase after the new phase containing the rework milestones plus any remaining incomplete
-     milestones from the original
-   - Renumber remaining pending phases upward to accommodate both new phases
-4. Create milestones numbered from `.1` upward within each new phase. These are phase-local and do not inherit the
-   proposal's milestone numbers.
-5. Add the phase(s) to the status summary table and the Pending Phases section of the phase index.
-6. Update the proposal's status and the proposal index to reflect that implementation is underway.
-7. Do not combine or fold phases together; each phase is separate by default.
-8. Milestone tables use four columns: Milestone, Proposal, Description, and Status. Valid status values are
-   `NOT STARTED`, `IN PROGRESS`, or `DONE`. The Proposal column names the proposal milestone each row implements,
-   written in `PROJ-004 M1` form. It is what makes a proposal milestone's status answerable, so a project that overrides
-   this format must keep it.
+1. Add one row per contiguous range the user wants built together. Usually that is one row for the whole proposal
+2. Place each row at the position the user picks. The queue's order is the build order
+3. Fill each row's depends-on cell with the scheduling dependencies it has, and its note with any reason worth keeping
+4. Do not change the proposal's status. Whether a proposal is scheduled is read from the queue
 
-## Milestone Workflow
+## The Queue File
 
-- Read and maintain the phase document and the phase index before and after every milestone
-- Confirm with the user before moving on to a new milestone
-- Phases and milestones are project management artifacts; do not reference phase or milestone numbers in code or
-  comments
-- If the originating proposal defers a decision to one of its milestones, the phase milestone that implements it must
-  explicitly name the deferred questions it is responsible for revisiting (see `proposals.md` "Deferring Decisions")
-
-## Artifact Sync
-
-Every phase document must include steps to update tracking artifacts as work progresses. These updates are part of the
-work, not an afterthought.
-
-- When a milestone completes: tick its acceptance criteria, then update the phase document status and the phase index
-- When a phase completes: update the phase status to COMPLETE, update the proposal status, and update both index pages
-- When a phase begins: update the phase status to IN PROGRESS, remove it from Pending Phases, and update both index
-  pages
-- Plans must list which tracking artifacts exist and will be updated; do not assume they can be skipped
-
-## Phase Document Format
+The queue is `queue.md`, beside the proposal index in the proposals directory. It holds one table:
 
 ```markdown
-# Phase N: Title
+# Queue
 
-**Goal:** One-line description
-**Status:** PLANNED | IN PROGRESS | COMPLETE
-**Complexity:** LOW | MEDIUM | HIGH
-**Dependencies:** None | Phase X, Phase Y (deployed)
-
-## Scope
-
-Implements: PROJ-NNN (or PROJ-NNN sections 1-3)
-
-## Problem Statement
-
-User-facing issue this phase solves.
-
-## Design Decisions
-
-### Topic
-**Decision:** What was decided
-**Rationale:** Why this approach
-
-## Milestones
-
-| Milestone | Proposal | Description | Status |
-|-----------|----------|-------------|--------|
-| N.1 | PROJ-NNN M1 | Description | NOT STARTED |
-| N.2 | PROJ-NNN M2 | Description | NOT STARTED |
-
-## Acceptance Criteria
-
-### Phase N.1
-- [ ] Criterion 1
-- [ ] Criterion 2
-
-### Phase N.2
-- [ ] Criterion 1
+| Milestones | Depends on | Note |
+|------------|------------|------|
+| PROJ-001 M1-M4 | None | |
+| PROJ-003 M1-M2 | PROJ-001 M4 | Needs the parser M4 adds. Split at M2: M3-M5 waits on the PROJ-002 rollout |
+| PROJ-002 M1-M3 | None | |
+| PROJ-003 M3-M5 | PROJ-002 M3 (deployed) | Split from M1-M2: waits on the PROJ-002 rollout |
 ```
 
-A plain `Phase X` dependency is a code dependency. It is met once Phase X is COMPLETE. Write `Phase X (deployed)` when
-the phase also needs Phase X running in production first.
+The queue carries no status column. Status is read from the milestones. `queue.md` records order. It is not a progress
+view.
 
-A deployment dependency crosses a boundary the dependent phase cannot satisfy by itself. Phase X's code must be live
-somewhere the dependent phase does not control. These are the boundaries:
+The queue follows these rules:
 
-- Another repo. The dependent work lives in a different repo and consumes Phase X through a tagged release or a module
-  bump.
-- A running process. The dependent phase's tests or verification run against a deployed server or consumer that
-  exercises Phase X.
-- A datastore. The dependent phase reads tables, data, or backfilled rows that only Phase X's deployed migration
+- **Order.** When a row's milestones all finish, the row moves above every unfinished row. Finished rows stay, so the
+  top of the file always records the order work was built in
+- **Splits.** When other work is built between milestones of one row, the row splits at that point. Every row of a
+  proposal that has more than one row carries a note saying why
+- **Depends-on.** The cell holds scheduling dependencies only. It names `PROJ-NNN` or `PROJ-NNN MN`, or `None`. Design
+  dependencies stay in the proposal's Dependencies section. See `tracking.md` "Dependency Direction". A dependency's
+  reason goes in the row's note
+- **Met.** A `PROJ-NNN MN` dependency is met when that milestone is `DONE`. A `PROJ-NNN` dependency is met when the
+  proposal is `implemented`. A `(deployed)` dependency is also met only once it runs in production. See "Deployment
+  Dependencies"
+- **Blocked.** A dependency on a `DROPPED` milestone, or on a proposal that will not be built, blocks the row. The tools
+  surface it to the user. They also surface a dependency on a milestone that no queue row names, or on a proposal that
+  is not `accepted` or `implemented`. They never hold such a row silently. When a dropped milestone carries a
+  `Replaced by` line, they name the replacement as what to wait on instead
+- **Readiness.** A row is ready when its dependencies are met and every earlier row of the same proposal is finished.
+  A queue row is the unit `/work-queue` runs, reviews over its commit range, and holds or blocks as a whole. Its
+  milestone range is its identifier
+- **Progress.** A read-only report joins each row with its milestones' status. It prints what is done, what is next,
+  and what is held
+
+A milestone of an `implemented` proposal from an earlier era counts as met for a plain dependency on it. See
+`proposals.md` "History from Earlier Eras".
+
+## Deployment Dependencies
+
+A plain dependency is a code dependency. Write `PROJ-NNN MN (deployed)` or `PROJ-NNN (deployed)` when the row also needs
+that work running in production first.
+
+A deployment dependency crosses a boundary the dependent row cannot satisfy by itself. The dependency's code must be
+live somewhere the dependent row does not control. These are the boundaries:
+
+- Another repo. The dependent work lives in a different repo and consumes the dependency through a tagged release or a
+  module bump.
+- A running process. The dependent row's tests or verification run against a deployed server or consumer that
+  exercises the dependency.
+- A datastore. The dependent row reads tables, data, or backfilled rows that only the dependency's deployed migration
   produces.
-- Adopted consumers. The dependent phase removes a compatibility path, flag, or old API version. Consumers must first
-  migrate off it, so Phase X must ship and be adopted.
+- Adopted consumers. The dependent row removes a compatibility path, flag, or old API version. Consumers must first
+  migrate off it, so the dependency must ship and be adopted.
 
 Signals that a boundary exists include a release, a tag, a `go.mod` or version bump, a consumer, a deployed server, a
-migration, a backfill, a flag removal, or a separate repo. When both phases are code in one repo, and the dependent
-phase only builds and tests against Phase X's merged changes, the dependency is code-only. A coordinated downstream
-release does not change that. It belongs to the consumer repo's plan.
+migration, a backfill, a flag removal, or a separate repo. When both rows are code in one repo, and the dependent row
+only builds and tests against the dependency's merged changes, the dependency is code-only. A coordinated downstream
+release does not change that. It belongs to the consumer repo's queue.
 
-Tooling looks for these signals before it asks about a deployment. With no signal, it writes a plain `Phase X` and says
+Tooling looks for these signals before it asks about a deployment. With no signal, it writes a plain dependency and says
 the dependency is code-only. With a signal, it asks the user and names the signal. Only the user can confirm a
 deployment.
 
-A phase document may carry an optional `**Tradeoffs:** expedient — <reason>` line after `**Dependencies:**`. It lowers
-the bar for design options in that phase only, and a phase inherits the field from the proposal it implements. Add it
-only when the user asks for it. See the "Choosing Options" section of `rules/decision-making.md`.
+## Working a Milestone
 
-## Naming
+- Confirm with the user before moving on to a new milestone
+- Queue rows and milestones are project management artifacts. Do not reference proposal or milestone IDs in code or
+  comments
+- If the proposal defers a decision to a milestone, that milestone names the deferred questions it settles. See
+  `proposals.md` "Deferring Decisions"
 
-- File: `phase-N-short-description.md`
-- Example: `phase-12-user-authentication.md`
+Updating the proposal is part of the work, not an afterthought:
 
-## Phase Index
+- When a milestone starts, set its status to `IN PROGRESS`
+- When implementation changes, narrows, or corrects a decision or milestone, amend the text in place. See
+  `proposals.md` "Amending a Proposal"
+- When a milestone finishes, set its status to `DONE` and write its As built block
+- When the last milestone finishes, set the proposal to `implemented` and update the proposal index. See
+  `proposals.md` "Milestone Status"
+- When a row's milestones all finish, move the row above every unfinished row
 
-When creating the first phase for a project, create an `index.md` in the phases directory, even if this is the only
-phase that will ever exist. An existing `README.md` index is also accepted. See `tracking.md` "Index File Name".
+A queue row inherits a proposal's `**Tradeoffs:** expedient` line. See `proposals.md` "Rules".
 
-Contents:
+## Stopping a Proposal
 
-- A brief explanation that each phase implements one proposal (or a portion of one), and each phase contains one or more
-  milestones
-- A status summary table with columns: Phase, Proposal, Description, Status, Progress
-- One row per phase; progress shown as completed/total milestones (e.g., `3/5`)
-- A Pending Phases section listing the phases that are `PLANNED` but not yet started. A phase is added on promotion
-  and removed the moment it begins, so the section holds exactly the `PLANNED` rows of the table above it
-- A note to update the file as phases progress
+When a proposal with unfinished rows becomes `deferred`, `retracted`, `superseded`, or `rejected`, its unfinished rows
+are removed from the queue. Finished rows stay. The status change goes through these steps, in order:
 
-Example table:
+1. **In-progress milestones.** The user settles an `IN PROGRESS` milestone first. For a terminal status, it becomes
+   `DROPPED`. Its As built block records what code already landed, and whether it was reverted. For `deferred`, it goes
+   back to `NOT STARTED` with the same note. Or it narrows to what landed and becomes `DONE`, as an amendment, and the
+   rest becomes a new milestone. Uncommitted or stashed work is named in the note
+2. **Partly finished rows.** A row with some milestones finished splits at its last finished milestone. The finished
+   part stays as a finished row and moves up under Order. Only the unfinished part is removed
+3. **Milestones.** For `retracted`, `superseded`, and `rejected`, the unfinished milestones become `DROPPED`. Each links
+   the Decision Log entry that records the status change. A `superseded` proposal's milestones carry a `Replaced by`
+   line where the replacing proposal has matching work. For `deferred`, they stay `NOT STARTED`. Dropping is terminal,
+   so a dropped milestone could not be revived without a new number
+4. **Deferred rows.** The Decision Log entry for a deferral records each removed row's milestone range, depends-on cell,
+   and note. The proposal also carries a revisit hook. See `proposals.md` "Revisit Hooks"
 
-```markdown
-| Phase | Proposal | Description | Status | Progress |
-|-------|----------|-------------|--------|----------|
-| 1 | PROJ-001 | Short description | COMPLETE | 4/4 |
-| 2 | PROJ-002 | Short description | IN PROGRESS | 2/5 |
-| 3 | PROJ-003 | Short description | PLANNED | 0/3 |
-```
+Reviving a deferred proposal does not schedule it. Scheduling stays a separate act the user asks for. It starts from the
+rows the deferral recorded, and the user picks the new position.
 
-Update the index whenever a phase is created, a milestone completes, or a phase status changes.
+Rows elsewhere in the queue that depend on the stopped proposal are surfaced under the Blocked rule.

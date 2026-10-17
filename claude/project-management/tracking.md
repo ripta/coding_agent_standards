@@ -6,54 +6,46 @@ Documents reference each other using these patterns:
 
 - Proposals list dependencies under `## Dependencies` as a bullet list: `- PROJ-001`
 - Proposals list ADRs and other references under `## References` as a bullet list: `- ADR-01: decision explanation`
-- Phases reference proposals inline: `Implements: PROJ-003`
+- Queue rows name milestone ranges: `PROJ-003 M1-M4`
 - ADRs list the originating proposal under `## References`: `- PROJ-001 (originating proposal, if any)`
 
 ## Referring to Milestones
 
-Phases and proposals number their milestones separately. Write each in its own
-form and never mix them.
+A milestone belongs to a proposal. Write it `PROJ-004 milestone 5`, or
+`PROJ-004 M5` for short. A range is `PROJ-004 M3-M5`.
 
-- A phase milestone is `Phase 7.1`. Bare `Phase 7` means the whole phase.
-- A proposal milestone is `PROJ-004 milestone 5`, or `PROJ-004 M5` for short.
+A milestone is a plain ordinal. It never repeats the proposal number as a
+prefix. `PROJ-004 milestone 4.5` is wrong. The wrong form restates a number the
+reader already has.
 
-In the `Phase 7` and `Phase 7.1` forms, `Phase` is capitalized in every
-position, like `PROJ-004`. It is part of an identifier there. The bare common
-noun stays lowercase, as in "each phase implements one proposal".
-
-A proposal milestone is a plain ordinal. It never repeats the proposal number as
-a prefix. `PROJ-004 milestone 4.5` is wrong, and so is `Phase 7 milestone 7.1`.
-
-Both wrong forms restate a number the reader already has. They also make the two
-namespaces look alike, which then needs a warning somewhere to tell them apart.
-The forms above cannot be read as each other, so no warning is needed.
+Work has no name besides its milestone ID. A queue row is named by its range.
+Prose that needs a common noun for a row says "queue row". The word "phase"
+names artifacts from earlier eras only. See `eras.md`.
 
 ## Dependency Direction
 
-Dependencies are expressed between proposals. A proposal never depends on a
-phase or a phase milestone.
+Design dependencies are expressed between proposals. A proposal never depends on
+a queue row.
 
-Phases are derived from proposal dependencies. A proposal that names a phase as
-a dependency inverts that, and makes the schedule load-bearing for the design.
-Phase numbers can be renumbered, split, and reordered; proposal numbers are
-permanent. A dependency anchored to a phase breaks when the plan changes.
+The queue is derived from proposal dependencies. A proposal that names a queue
+row as a dependency inverts that, and makes the schedule load-bearing for the
+design. Rows split and reorder. Proposal and milestone IDs are permanent.
 
 - In a proposal's `## Dependencies`, `## Impacts`, Design Decisions, and
   Milestones, reference only `PROJ-NNN`, `PROJ-NNN milestone N`, and the
   `PROJ-NNN MN` short form
-- A proposal's Decision Log may name a phase, because recording that a promotion
-  happened is history rather than dependency
-- When a dependency has a scheduling consequence worth writing down, record the
-  consequence in the phase index, not in the proposal
+- A proposal's Decision Log may name a queue row or a phase from an earlier era,
+  because recording what happened is history rather than dependency
+- A scheduling dependency goes in the queue row's depends-on cell, and its
+  reason in the row's note. See `plans.md` "The Queue File"
 
 ## Metadata
 
 Each artifact type uses inline markdown metadata (not YAML frontmatter), but the fields differ by type:
 
-- Proposals: `**Status:**`, `**Created:**`, `**Updated:**`
+- Proposals: `**Status:**`, `**Created:**`, `**Updated:**`, and `**Revisit:**` when deferred
+- Proposal milestones: `**Status:**`, under the milestone's heading
 - ADRs: `**Status:**`, `**Date:**`
-- Phases: `**Goal:**`, `**Status:**`, `**Complexity:**`, `**Dependencies:**` (no document-level dates; rely on git
-  history)
 
 The colon goes inside the bold, in every artifact type and every field.
 
@@ -62,20 +54,18 @@ The colon goes inside the bold, in every artifact type and every field.
 Each artifact type has its own status values. The casing differs by type. This
 is deliberate, not drift.
 
-- Proposals: lowercase words — `draft`, `designing`, `accepted`, `scheduled`,
+- Proposals: lowercase words — `draft`, `designing`, `accepted`,
   `implemented`, `deferred`, `rejected`, `superseded`, `retracted`
 - ADRs: lowercase words — `proposed`, `accepted`, `superseded`, `deprecated`
-- Phases: uppercase — `PLANNED`, `IN PROGRESS`, `COMPLETE`
-- Phase milestones: uppercase — `NOT STARTED`, `IN PROGRESS`, `DONE`
+- Proposal milestones: uppercase — `NOT STARTED`, `IN PROGRESS`, `DONE`,
+  `DROPPED`
 
-Proposal milestones have no status of their own. Execution status lives in the
-phase milestone table that implements them.
+Each vocabulary is closed. A value outside it is an error, not a synonym. A
+check reports it. See `proposals.md` "Milestone Status".
 
-Phases and phase milestones share `IN PROGRESS`. Every other value differs. A
-phase not yet begun is `PLANNED`; a milestone not yet begun is `NOT STARTED`. A
-finished phase is `COMPLETE`; a finished milestone is `DONE`. So a bare status
-value identifies its table in every case except `IN PROGRESS`. Name the artifact
-alongside that one.
+Proposals and ADRs share `accepted` and `superseded`. Name the artifact
+alongside those. Earlier eras used other values, such as `scheduled` for
+proposals and `PLANNED` and `COMPLETE` for phases. See `eras.md`.
 
 ## Numbering Padding
 
@@ -83,8 +73,7 @@ Padding width differs by artifact type. This is deliberate, not an oversight:
 
 - ADRs: 2-digit (`ADR-01`) — architectural decisions are comparatively rare per project.
 - Proposals: 3-digit (`PROJ-001`) — proposal volume is typically higher over a project's lifetime.
-- Phases: unpadded (`Phase 12`) — phases are referenced in prose and status tables, not sorted as filenames the same way
-  IDs are.
+- Milestones: unpadded (`PROJ-004 M12`) — milestones are referenced in prose and queue rows, not sorted as filenames.
 
 Keep each artifact type's padding fixed once established; do not repad existing files. These widths are defaults for a
 new project. A project that started with another width, such as `ADR-0001`, keeps it, and tools match the existing
@@ -96,15 +85,17 @@ Spec and design documents may live in a centralized specs directory, symlinked i
 directory. This keeps individual repos uncluttered while maintaining a single source of truth. If neither `spec/` nor
 `docs/` are symlinks, then it means the documents live in the project repository and are committed directly there.
 
-Proposals and phases each live in their own subdirectory under this specs directory: `spec/proposals/` and
-`spec/phases/` (or the `docs/` equivalent). This is why the proposal-related skills and commands look for
-`spec/proposals/` and `docs/proposals/` as common locations — they're checking for this directory. ADRs are usually
-named `spec/adrs/`, although legacy projects have no fixed subdirectory name; place them alongside any existing ADRs, or
-ask where they should live if none exist yet.
+Proposals live in their own subdirectory under this specs directory: `spec/proposals/` (or the `docs/` equivalent). It
+holds the proposals, the proposal index, and `queue.md`. This is why the proposal-related skills and commands look for
+`spec/proposals/` and `docs/proposals/` as common locations — they're checking for this directory. A `spec/phases/`
+directory is history from an earlier era. See `eras.md`.
+
+ADRs are usually named `spec/adrs/`, although legacy projects have no fixed subdirectory name; place them alongside any
+existing ADRs, or ask where they should live if none exist yet.
 
 ### Index File Name
 
-A proposals or phases directory has exactly one index. It is named `index.md` or `README.md`. A new index is
+A proposals directory has exactly one index. It is named `index.md` or `README.md`. A new index is
 `index.md`. Skills and commands accept either name.
 
 A directory holding both is out of standard. Consolidate it before any tool updates its index. Merge the rows and any

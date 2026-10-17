@@ -8,27 +8,32 @@ here and used consistently in `proposals.md`, `plans.md`, `design.md`,
 before implementation begins. Carries a lifecycle status from `draft` to
 `implemented`. Numbered permanently within a project. One proposal per file.
 
-**Phase** — a unit of implementation work. Each phase implements exactly one
-proposal, or a portion of one. A proposal may be split across several phases.
-Completed phases keep their number forever. Pending phases may be renumbered.
+**Milestone** — a chunk of work a proposal commits to. A plain ordinal from 1.
+Written `PROJ-004 milestone 5`, or `PROJ-004 M5`. A subsection of the proposal
+whose bullets are its checks. Carries a status, and that status is the only
+record of execution progress. Its number is permanent once a queue row names
+it.
 
-**Promotion** — moving an accepted proposal into a phase so implementation can
-start. Creating a proposal is not promotion. Promotion happens only when the
-user asks for it.
+**As built** — the block at the end of a started milestone that records what
+implementation found: bugs fixed along the way, residuals, measurements, and
+scope narrowed.
 
-**Milestone** — a numbered subdivision of work. Proposals and phases each number
-their milestones separately, and the two namespaces do not overlap.
+**Queue** — the ordered list of work a project will build, in `queue.md` beside
+the proposal index. Its order is the build order. Finished rows sit at the top.
 
-**Proposal milestone** — a chunk of work the proposal commits to, named at
-design time. A plain ordinal from 1. Written `PROJ-004 milestone 5`, or
-`PROJ-004 M5`. Carries no status of its own.
+**Queue row** — one contiguous range of one proposal's milestones, such as
+`PROJ-004 M3-M5`, with its scheduling dependencies and a note. Named by its
+range. The unit `/work-queue` runs and reviews as a whole.
 
-**Phase milestone** — a slice of a phase that is implemented and reviewed as one
-unit. Numbered from `.1` upward within its phase. Written `Phase 7.1`.
-Phase-local: it does not inherit the numbering of the proposal milestone it
-implements, and names that milestone in its Proposal column instead. Carries a
-status, and that status is the only record of execution progress. To find what a
-proposal milestone's status is, read the phase milestone rows pointing at it.
+**Scheduling** — adding queue rows for an accepted proposal. Creating or
+accepting a proposal is not scheduling it. Scheduling happens only when the user
+asks for it.
+
+**Revisit hook** — a `**Revisit:**` line that says when to look at deferred work
+again: a condition, an on-or-after date with its anchor, or both.
+
+**Phase** — a unit of implementation work in eras 0 through 2. Era 3 retired
+it. The word names those artifacts only. See `eras.md`.
 
 **Research write-up** — a document usually imported from an external source. Its
 claims may be unproven. It can feed a design spike, a proposal, or eventually an
@@ -58,11 +63,10 @@ live. An artifact belongs to the era whose markers it carries. The first mention
 of an era in a document carries a short gloss naming what that era introduced.
 See `eras.md`.
 
-**Index** — an `index.md` or `README.md` at the root of a proposals or
-phases directory, holding a status table with one row per artifact.
-Created with the first artifact of its kind, even when only one will ever
-exist.
+**Index** — an `index.md` or `README.md` at the root of a proposals
+directory, holding a status table with one row per proposal. Created with the
+first proposal, even when only one will ever exist.
 
-**Specs directory** — where proposals, phases, and ADRs live. Often a
+**Specs directory** — where proposals, the queue, and ADRs live. Often a
 centralized directory symlinked into a project as `spec/` or `docs/`. When
 neither is a symlink, the documents are committed to the project repo directly.
