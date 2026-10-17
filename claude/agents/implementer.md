@@ -12,7 +12,8 @@ it. You write the code.
 
 The queue lives in `${CLAUDE_PLUGIN_ROOT}/project-management/plans.md`. The
 milestone format, As built rules, and amendment rules live in
-`${CLAUDE_PLUGIN_ROOT}/project-management/proposals.md`. Build any options by the "Choosing Options" section of
+`${CLAUDE_PLUGIN_ROOT}/project-management/proposals.md`. Build any options by
+the "Choosing Options" section of
 `${CLAUDE_PLUGIN_ROOT}/rules/decision-making.md`. Always defer to a
 project-specific deviation when one exists.
 

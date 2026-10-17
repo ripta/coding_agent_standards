@@ -187,6 +187,29 @@ def test_row_blocks_dependency_on_unscheduled_milestone(tmp_path: Path) -> None:
     assert "no queue row" in dep["reason"]
 
 
+def test_row_blocks_dependency_on_unscheduled_proposal(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")))
+    other = _proposal("accepted", _milestone(1, "NOT STARTED"))
+    _write(tmp_path, "PROJ-002-b.md", other.replace("PROJ-001", "PROJ-002"))
+    _queue(tmp_path, "| PROJ-001 M1 | PROJ-002 | |")
+    dep = proposals.row_info(tmp_path, "PROJ-001", 1)["dependencies"][0]
+    assert dep["state"] == "blocked"
+    assert "no queue row" in dep["reason"]
+
+
+def test_check_reports_unreadable_queue(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")))
+    _queue(tmp_path, "| PROJ-001 M1 | None |")
+    with pytest.raises(proposals.ProposalError, match="3 cells"):
+        proposals.check(tmp_path)
+
+
+def test_check_without_a_queue_skips_queue_checks(tmp_path: Path) -> None:
+    dropped = _milestone(1, "DROPPED", "- See Decision Log.\n\nReplaced by: PROJ-001 M2")
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", dropped + _milestone(2, "NOT STARTED")))
+    assert _problems(tmp_path) == []
+
+
 def test_row_names_replacement_for_dropped_dependency(tmp_path: Path) -> None:
     _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")))
     other = _proposal("accepted", _milestone(1, "DROPPED", "- See Decision Log.\n\nReplaced by: PROJ-002 M2")
@@ -251,7 +274,7 @@ def test_freeze_reports_decision_and_milestone_status_edits(specs: Path) -> None
     [result] = proposals.freeze(directory, [])
     assert len(result["hunks"]) == 2
     assert all(h["origin"] == "row" for h in result["hunks"])
-    assert result["freeze_fallback"] is False
+    assert result["freeze_base"] == "flip"
 
 
 def test_freeze_attributes_other_sessions_commits(specs: Path) -> None:
@@ -288,7 +311,78 @@ def test_freeze_falls_back_to_first_commit_for_imported_proposal(specs: Path) ->
     path.write_text(FROZEN.replace("Keys carry a version.", "Keys carry no version."))
     [result] = proposals.freeze(directory, [])
     assert result["freeze_commit"] == first
-    assert result["freeze_fallback"] is True
+    assert result["freeze_base"] == "first-commit"
+
+
+def test_freeze_attributes_deletions(specs: Path) -> None:
+    directory, path = _freeze_setup(specs)
+    path.write_text(FROZEN.replace("Keys carry a version.\n", ""))
+    [result] = proposals.freeze(directory, [])
+    assert result["hunks"][0]["origin"] == "row"
+    other = _commit(specs, "elsewhere")
+    [result] = proposals.freeze(directory, [])
+    assert result["hunks"][0]["origin"] == "other"
+    [result] = proposals.freeze(directory, [other])
+    assert result["hunks"][0]["origin"] == "row"
+
+
+@pytest.mark.parametrize("status, reported", [("accepted", True), ("superseded", False)])
+def test_freeze_limits_status_changes(specs: Path, status: str, reported: bool) -> None:
+    directory, path = _freeze_setup(specs)
+    path.write_text(FROZEN.replace("**Status:** implemented", f"**Status:** {status}"))
+    _commit(specs, "status")
+    path.write_text(path.read_text().replace("Keys carry a version.", "Keys carry no version."))
+    [result] = proposals.freeze(directory, [])
+    kinds = [h["kind"] for h in result["hunks"]]
+    assert any("status change" in k for k in kinds) is reported
+    assert any("outside the allowed edits" in k for k in kinds)
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        "Keys carry a version. Superseded in part by PROJ-009 and the rest is rewritten.",
+        "Keys carry a version.\n\nSuperseded in part by PROJ-009; we now do something else entirely.",
+        "Keys carry a version. Superseded in part by PROJ-009; see Decision Log. Also new text.",
+    ],
+)
+def test_freeze_accepts_only_the_exact_marker(specs: Path, replacement: str) -> None:
+    directory, path = _freeze_setup(specs)
+    path.write_text(FROZEN.replace("Keys carry a version.", replacement))
+    [result] = proposals.freeze(directory, [])
+    assert result["hunks"]
+
+
+def test_freeze_needs_an_audit_for_a_revisit_change(specs: Path) -> None:
+    directory, path = _freeze_setup(specs)
+    hooked = FROZEN.replace("**Updated:** 2026-10-01", "**Updated:** 2026-10-01\n**Revisit:** on or after 2027-01-01 (x)")
+    path.write_text(hooked)
+    _commit(specs, "hook")
+    moved = hooked.replace("2027-01-01", "2027-06-01")
+    path.write_text(moved)
+    [result] = proposals.freeze(directory, [])
+    assert "without a revisit audit" in result["hunks"][0]["kind"]
+    path.write_text(moved.replace("- 2026-10-01: Created.\n", "- 2026-10-01: Created.\n- 2027-01-02: Revisit audit: extended.\n"))
+    assert proposals.freeze(directory, []) == []
+
+
+def test_freeze_ignores_implemented_only_in_the_working_tree(specs: Path) -> None:
+    directory = specs / "proj" / "proposals"
+    path = _write(directory, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "IN PROGRESS")))
+    _commit(specs, "accepted")
+    path.write_text(FROZEN.replace("Keys carry a version.", "Keys carry a schema version."))
+    assert proposals.freeze(directory, []) == []
+
+
+def test_freeze_skips_a_proposal_never_committed(specs: Path) -> None:
+    directory = specs / "proj" / "proposals"
+    _write(directory, "PROJ-001-a.md", FROZEN)
+    _write(directory, "README.md", "x")
+    _commit(specs, "unrelated")
+    _write(directory, "PROJ-001-a.md", FROZEN)
+    (directory / "PROJ-002-b.md").write_text(FROZEN.replace("PROJ-001", "PROJ-002"))
+    results = proposals.freeze(directory, [])
+    assert [r["proposal"] for r in results] == []
 
 
 def test_freeze_skips_history(specs: Path) -> None:

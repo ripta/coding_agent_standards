@@ -146,7 +146,12 @@ run's progress to the user. Call it with the whole run right after
 ExitPlanMode. Call it again whenever a milestone's run status or the current
 step changes, and with step `finished` when the run is done. Skip it when the
 tool is absent.
-<!-- The tool still names its fields for phases. Remove this mapping once the mod names them for queue rows. -->
+
+<!--
+The tool still names its fields for phases. Remove this mapping once the mod
+names them for queue rows.
+-->
+
 Pass each row as an entry of its `phases` array, with the row's range as `id`.
 Pass each milestone with its `PROJ-NNN MN` ID. Use step `phase-review` for a
 row review.
@@ -184,7 +189,9 @@ For each milestone picked:
    - Mark a `PLAUSIBLE` finding as trace. The implementer fixes it only if the
      trace confirms it.
    - Mark an amendment finding, a `check` finding, and a freeze hunk with
-     origin `row` as fix.
+     origin `row` as fix. The exception is a text hunk in a proposal whose
+     `corrections_logged` is above zero. It may be a correction of fact, so
+     follow the reviewer's judgment on it.
    - Never send a freeze hunk with origin `other` or `unknown`, or a finding
      with disposition `user`, to the implementer. Another session may have
      made that edit. Record it in the session report for the user.

@@ -37,7 +37,8 @@ AS_BUILT = "**As built:**"
 ROW_RANGE = re.compile(r"^([A-Z][A-Z0-9]*-\d+)\s+M(\d+)(?:-M(\d+))?$")
 DEPENDENCY = re.compile(r"^([A-Z][A-Z0-9]*-\d+)(?:\s+M(\d+))?(\s+\(deployed\))?$")
 META_LINE = re.compile(r"^\*\*(Status|Updated|Revisit):\*\*", re.IGNORECASE)
-PARTIAL_SUPERSESSION = re.compile(r"Superseded in part by [A-Z][A-Z0-9]*-\d+", re.IGNORECASE)
+PARTIAL_SUPERSESSION = re.compile(r"Superseded in part by [A-Z][A-Z0-9]*-\d+; see Decision Log\.")
+FROZEN_STATUSES = {"implemented", "superseded"}
 LINK_TARGET = re.compile(r"\]\([^)]*\)")
 AUDIT_ENTRY = re.compile(r"\brevisit\b", re.IGNORECASE)
 CORRECTION_ENTRY = re.compile(r"\bcorrection of fact\b", re.IGNORECASE)
@@ -181,8 +182,10 @@ def load_queue(proposals_dir: Path) -> list[Row]:
         if not line.lstrip().startswith("|"):
             continue
         cells = _cells(line)
-        if len(cells) < 3 or cells[0] == "Milestones" or set(cells[0]) <= {"-", ":"}:
+        if cells[0] == "Milestones" or set(cells[0]) <= {"-", ":"}:
             continue
+        if len(cells) != 3:
+            raise ProposalError(f"{path}:{number}: a queue row has 3 cells, not {len(cells)}")
         m = ROW_RANGE.match(cells[0])
         if not m:
             raise ProposalError(f"{path}:{number}: cannot read milestone range {cells[0]!r}")
@@ -205,10 +208,9 @@ def load_queue(proposals_dir: Path) -> list[Row]:
 
 def check(proposals_dir: Path) -> list[dict[str, Any]]:
     proposals = load_proposals(proposals_dir)
-    try:
-        rows = load_queue(proposals_dir)
-    except ProposalError:
-        rows = []
+    # Without a queue nothing is scheduled yet, so the checks that need one are skipped. A
+    # queue that exists but cannot be read is an error, not an empty queue.
+    rows = load_queue(proposals_dir) if (proposals_dir / "queue.md").is_file() else None
     findings: list[dict[str, Any]] = []
 
     def report(proposal: Proposal, problem: str, milestone: int | None = None) -> None:
@@ -217,7 +219,7 @@ def check(proposals_dir: Path) -> list[dict[str, Any]]:
         )
 
     def queued(pid: str, number: int) -> bool:
-        return any(row.names(pid, number) for row in rows)
+        return rows is None or any(row.names(pid, number) for row in rows)
 
     for p in proposals.values():
         if p.history or p.status in STOPPED:
@@ -270,6 +272,9 @@ def _dependency_state(dep: Dependency, proposals: dict[str, Proposal], rows: lis
             return ("confirm", "confirm it runs in production") if dep.deployed else ("met", "implemented")
         if target.status != "accepted":
             return "blocked", f"{dep.proposal} is {target.status or 'missing a status'}"
+        unfinished = [n for n, m in target.milestones.items() if m.status not in FINISHED]
+        if not any(row.names(dep.proposal, n) for row in rows for n in unfinished):
+            return "blocked", f"{dep.proposal} has no queue row for its unfinished milestones"
         return "unmet", f"{dep.proposal} is not implemented yet"
 
     if target.history and target.status == "implemented":
@@ -374,10 +379,13 @@ def _status_at(repo: Path, commit: str, rel: str) -> str:
     return ""
 
 
-def freeze_point(repo: Path, rel: str) -> tuple[str, str, bool]:
-    """Return the commit that wrote `implemented`, the file's path there, and whether it fell back.
+def freeze_point(repo: Path, rel: str) -> tuple[str, str, str] | None:
+    """Return the freeze base: a commit, the file's path there, and how it was found.
 
-    The fallback is the file's first commit, for a proposal imported already implemented.
+    The base is the commit that wrote `implemented` ("flip"). A proposal imported already
+    implemented uses its first commit ("first-commit"). None means no commit ever froze it.
+    A proposal marked implemented only in the working tree is not frozen yet, since its
+    uncommitted edits are the work that finishes it.
     """
     log = _git(repo, "log", "--follow", "--first-parent", "--format=%x00%H", "--name-only", "--", rel)
     history: list[tuple[str, str]] = []
@@ -386,21 +394,23 @@ def freeze_point(repo: Path, rel: str) -> tuple[str, str, bool]:
         if len(parts) >= 2:
             history.append((parts[0], parts[-1]))
     if not history:
-        raise ProposalError(f"{rel} has no commits in {repo}")
+        return None
     for n, (commit, path) in enumerate(history[:-1]):
         if _status_at(repo, commit, path) != "implemented":
             continue
         if _status_at(repo, f"{commit}^", history[n + 1][1]) != "implemented":
-            return commit, path, False
-    commit, path = history[-1]
-    return commit, path, True
+            return commit, path, "flip"
+    first_commit, first_path = history[-1]
+    if _status_at(repo, first_commit, first_path) == "implemented":
+        return first_commit, first_path, "first-commit"
+    return None
 
 
 def _regions(lines: list[str]) -> list[str]:
-    """Label each line meta, as-built, decision-log, or text.
+    """Label each line status, revisit, meta, as-built, decision-log, or text.
 
-    Only the header's metadata counts as meta. A milestone's status line is text, since the
-    freeze allows no milestone status change.
+    Only the header's metadata counts. A milestone's status line is text, since the freeze
+    allows no milestone status change.
     """
     labels = ["text"] * len(lines)
     spans = _sections(lines)
@@ -412,8 +422,9 @@ def _regions(lines: list[str]) -> list[str]:
     for i, line in enumerate(lines):
         if line.startswith("#"):
             in_as_built = False
-        if i < header_end and META_LINE.match(line):
-            labels[i] = "meta"
+        meta = META_LINE.match(line) if i < header_end else None
+        if meta:
+            labels[i] = {"status": "status", "revisit": "revisit"}.get(meta.group(1).lower(), "meta")
         elif line.strip() == AS_BUILT:
             in_as_built = True
             labels[i] = "as-built"
@@ -428,13 +439,29 @@ def _link_only(old: list[str], new: list[str]) -> bool:
     return all(LINK_TARGET.sub("]()", a) == LINK_TARGET.sub("]()", b) for a, b in zip(old, new))
 
 
-def _marker_only(old: list[str], new: list[str]) -> bool:
-    """Whether the change only appends a partial supersession marker to existing lines."""
-    if len(old) != len(new):
+def _marker_only(tag: str, old: list[str], new: list[str]) -> bool:
+    """Whether the change only adds the exact partial supersession marker.
+
+    The marker is inserted as its own line, or appended to an existing line with nothing
+    after it. Any other text beside it is a frozen edit.
+    """
+    if tag == "insert":
+        return all(not line.strip() or PARTIAL_SUPERSESSION.fullmatch(line.strip()) for line in new)
+    if tag != "replace" or len(old) != len(new):
         return False
-    marker = re.compile(r"\s*" + PARTIAL_SUPERSESSION.pattern + r"[^.]*\.?", re.IGNORECASE)
-    return all(a == b or (PARTIAL_SUPERSESSION.search(b) and marker.sub("", b).rstrip() == a.rstrip())
-               for a, b in zip(old, new))
+    for a, b in zip(old, new):
+        if a == b:
+            continue
+        m = PARTIAL_SUPERSESSION.search(b)
+        if not m or m.end() != len(b.rstrip()) or b[: m.start()].rstrip() != a.rstrip():
+            return False
+    return True
+
+
+def _status_allowed(old: list[str], new: list[str]) -> bool:
+    """Whether a header status change is one the lifecycle allows from `implemented`."""
+    values = [m.group(1).strip().lower() for m in map(PROPOSAL_STATUS.match, new) if m]
+    return len(values) == 1 and values[0] in FROZEN_STATUSES and any(PROPOSAL_STATUS.match(a) for a in old)
 
 
 def _entries(lines: list[str]) -> list[str]:
@@ -459,60 +486,99 @@ def _blame(repo: Path, rel: str) -> list[str]:
     return commits
 
 
+def _removers(repo: Path, rel: str, base: str, head_text: str, removed: list[str]) -> set[str]:
+    """Return the commits that removed these lines since the base, or zeros when uncommitted.
+
+    Blame sees only lines that exist, so a removal is traced through history instead.
+    """
+    if "\n".join(removed) in head_text:
+        return {UNCOMMITTED}
+    probe = next((line for line in removed if line.strip()), "")
+    if not probe:
+        return set()
+    out = _git(repo, "log", "--follow", "--format=%H", "-S", probe, f"{base}..HEAD", "--", rel, check=False)
+    return set(out.split())
+
+
+def _origin(authors: set[str], row: set[str]) -> str:
+    """Name who made a hunk. Uncommitted edits count as the run's own."""
+    if not authors:
+        return "unknown"
+    return "row" if authors <= row | {UNCOMMITTED} else "other"
+
+
 def freeze(proposals_dir: Path, row_commits: list[str]) -> list[dict[str, Any]]:
     proposals_dir = proposals_dir.resolve()
     repo = Path(_git(proposals_dir, "rev-parse", "--show-toplevel").strip())
     row = {_git(repo, "rev-parse", c).strip() for c in row_commits}
     results: list[dict[str, Any]] = []
     for p in load_proposals(proposals_dir).values():
-        # History was edited under its own era's rules, so the freeze starts with era 3.
-        if p.status != "implemented" or p.history:
+        # History was edited under its own era's rules, so the freeze starts with era 3. Any
+        # proposal a commit ever froze stays frozen, whatever its status says now.
+        if p.history or not p.era3:
             continue
         rel = str(p.path.resolve().relative_to(repo))
-        commit, old_rel, fell_back = freeze_point(repo, rel)
+        point = freeze_point(repo, rel)
+        if point is None:
+            continue
+        commit, old_rel, found = point
         old = _git(repo, "show", f"{commit}:{old_rel}").splitlines()
         new = p.path.read_text().splitlines()
+        head_text = _git(repo, "show", f"HEAD:{rel}", check=False)
         old_labels, new_labels = _regions(old), _regions(new)
         blame = _blame(repo, rel)
-        hunks, corrections = [], 0
-        matcher = difflib.SequenceMatcher(a=old, b=new, autojunk=False)
-        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
-            if tag == "equal":
-                continue
+        opcodes = [op for op in difflib.SequenceMatcher(a=old, b=new, autojunk=False).get_opcodes() if op[0] != "equal"]
+
+        audits = corrections = 0
+        log_inserts: dict[int, bool] = {}
+        for n, (tag, i1, i2, j1, j2) in enumerate(opcodes):
+            labels = set(old_labels[i1:i2]) | set(new_labels[j1:j2])
+            if tag == "insert" and labels == {"decision-log"}:
+                entries = _entries(new[j1:j2])
+                audits += sum(1 for e in entries if AUDIT_ENTRY.search(e))
+                corrections += sum(1 for e in entries if CORRECTION_ENTRY.search(e))
+                log_inserts[n] = all(AUDIT_ENTRY.search(e) or CORRECTION_ENTRY.search(e) for e in entries)
+
+        hunks = []
+        for n, (tag, i1, i2, j1, j2) in enumerate(opcodes):
             old_part, new_part = old[i1:i2], new[j1:j2]
             labels = set(old_labels[i1:i2]) | set(new_labels[j1:j2])
             kind = None
-            if labels <= {"meta", "as-built"} or _link_only(old_part, new_part) or _marker_only(old_part, new_part):
-                continue
-            if tag == "insert" and all(PARTIAL_SUPERSESSION.search(line) or not line.strip() for line in new_part):
-                continue
-            if labels == {"decision-log"} and tag == "insert":
-                entries = _entries(new_part)
-                corrections += sum(1 for e in entries if CORRECTION_ENTRY.search(e))
-                if all(AUDIT_ENTRY.search(e) or CORRECTION_ENTRY.search(e) for e in entries):
+            if n in log_inserts:
+                if log_inserts[n]:
                     continue
                 kind = "decision-log entry that records neither a revisit audit nor a correction of fact"
+            elif "status" in labels:
+                if labels <= {"status", "meta"} and _status_allowed(old_part, new_part):
+                    continue
+                kind = "status change the lifecycle does not allow from implemented"
+            elif "revisit" in labels:
+                if labels <= {"revisit", "meta"} and audits:
+                    continue
+                kind = "revisit hook changed without a revisit audit in the Decision Log"
+            elif (
+                labels <= {"meta", "as-built"}
+                or _link_only(old_part, new_part)
+                or _marker_only(tag, old_part, new_part)
+            ):
+                continue
             authors = {blame[j] for j in range(j1, j2) if j < len(blame)}
-            if not authors:
-                origin = "unknown"
-            elif authors <= row | {UNCOMMITTED}:
-                origin = "row"
-            else:
-                origin = "other"
+            if old_part:
+                authors |= _removers(repo, rel, commit, head_text, old_part)
             hunks.append({
                 "kind": kind or "changed text outside the allowed edits",
                 "old_lines": [i1 + 1, i2],
                 "new_lines": [j1 + 1, j2],
                 "removed": old_part,
                 "added": new_part,
-                "origin": origin,
+                "origin": _origin(authors, row),
             })
         if hunks:
             results.append({
                 "proposal": p.id,
                 "file": str(p.path),
                 "freeze_commit": commit,
-                "freeze_fallback": fell_back,
+                "freeze_base": found,
                 "corrections_logged": corrections,
                 "hunks": hunks,
             })

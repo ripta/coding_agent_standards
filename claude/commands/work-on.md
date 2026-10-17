@@ -31,7 +31,8 @@ field.
    a symlinked specs repo, find that repo with
    `git -C <proposals dir> rev-parse --show-toplevel`. Proposal edits are
    reviewed there. A project with a phases directory and no `queue.md` has
-   not migrated to era 3. Stop and tell the user to run `/migrate-era` first.
+   not migrated to era 3. Stop and tell the user it must migrate first, per
+   `${CLAUDE_PLUGIN_ROOT}/project-management/eras.md`.
 
 2. Parse the argument. `PROJ-NNN M3` names one milestone. A bare `PROJ-NNN`
    means its next unfinished milestone in queue order. A `--review-loop` flag
@@ -89,8 +90,11 @@ field.
 10. Run `proposals.py check`. Fix every finding on this proposal.
 
 11. Run `proposals.py freeze`. Its hunks with origin `row` are edits this work
-    made. Undo any the freeze does not allow. Leave a hunk with origin
-    `other` or `unknown` alone, and name it to the user in your response.
+    made, and uncommitted edits count as this work's own. Undo each one the
+    freeze does not allow. The exception is a correction of fact: when the
+    proposal's `corrections_logged` is above zero, leave its text hunks for the
+    reviewer to judge in step 12. Leave a hunk with origin `other` or
+    `unknown` alone, and name it to the user in your response.
 
 12. Review the change with the `reviewer` agent, named
     `coding-standards:reviewer` when installed as a plugin. Tell it the

@@ -211,11 +211,14 @@ When the text and the shipped code disagree, the user says which is wrong. When 
 text stays. When the text is wrong, it is a correction of fact. Its Decision Log entry says "Correction of fact" and
 gives the prior meaning.
 
-The freeze check enforces this. For each `implemented` proposal, it diffs the file from the commit that wrote
-`implemented` to the working tree. That commit is the base, so the commit that writes `implemented` and the last As
-built block is never a frozen edit. A proposal imported already `implemented` uses its first commit. The check reports
-every change outside the list, and says whether the work under review made it. A change someone else made goes to the
-user, never to the implementer. `scripts/proposals.py freeze` in the plugin runs it.
+The freeze check enforces this. For each proposal a commit ever marked `implemented`, it diffs the file from that commit
+to the working tree, whatever the status says now. That commit is the base, so the commit that writes `implemented` and
+the last As built block is never a frozen edit. A proposal imported already `implemented` uses its first commit. A
+status change passes only to `superseded`, and a `**Revisit:**` change only with its audit in the Decision Log.
+
+The check reports every change outside the list, and says whether the work under review made it. Uncommitted edits count
+as the work's own. A change someone else made goes to the user, never to the implementer. `scripts/proposals.py freeze`
+in the plugin runs it.
 
 ## Revisit Hooks
 

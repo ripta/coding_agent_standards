@@ -77,13 +77,17 @@ The proposal must say what shipped. Check the work's proposal edits:
   queue row come after the review, so their absence is not a finding.
 - **The freeze.** Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/proposals.py
   freeze --proposals-dir <dir>`, with a `--row-commit <sha>` for each specs
-  commit the caller named. Each hunk it reports is an edit to an
-  `implemented` proposal outside the allowed list. Judge whether a hunk with
-  `corrections_logged` above zero is a correction of fact whose entry gives
-  the prior meaning. Such a hunk is not a finding.
+  commit the caller named. Each hunk it reports is an edit to a frozen
+  proposal outside the allowed list. When that proposal's
+  `corrections_logged` is above zero, judge whether each text hunk is a
+  correction of fact whose Decision Log entry gives the prior meaning. Such a
+  hunk is not a finding.
 
 A finding on a hunk with origin `other` or `unknown` has disposition `user`.
 The work under review did not make it. Never ask the caller to revert it.
+Uncommitted edits in the specs working tree count as the work's own, so
+another session's uncommitted edit there would show as `row`. Name any such
+hunk that the work's diff does not explain, with disposition `user`.
 
 ### 3. Correctness and security
 
