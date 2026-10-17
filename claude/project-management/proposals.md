@@ -71,8 +71,8 @@ Implementable chunks of work.
 
 ## Decision Log
 
-Minor decisions with dates. A decision that passes the bar in
-design.md "What Earns an ADR" is extracted to an ADR and referenced here.
+Minor decisions with dates. Each ADR candidate gets an entry with its
+outcome, per design.md "Recording ADR Candidates".
 
 ## References
 

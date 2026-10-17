@@ -119,7 +119,8 @@ milestone row names the proposal milestone it implements.
 Era 2 also attached acceptance criteria to each milestone, put the metadata
 colon inside the bold, and added the glossary. Later in the era, the phase
 template dropped its file-list section (2026-10-04), and indexes could be named
-`README.md` (2026-10-04).
+`README.md` (2026-10-04). Every ADR candidate gained a Decision Log entry with
+its outcome (2026-10-17).
 
 Markers:
 

@@ -89,10 +89,13 @@ the user stated one this session, or the proposal or phase document carries a
     - Treat an ADR conflict like a correctness finding of the same verdict.
       When honoring the ADR would change the approved plan, stop and ask the
       user. Mention an `ADVISORY` conflict in your response. It never blocks.
-    - Mention the uncovered decisions `adr-impact` reports once, in your final
-      response, and only those that pass the bar in the "What Earns an ADR"
-      section of `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`. Do not
-      write an ADR unless the user asks
+    - Check each uncovered decision `adr-impact` reports against the bar in
+      the "What Earns an ADR" section of
+      `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`. Record each that
+      passes as `Undecided` in the originating proposal's Decision Log, per
+      its "Recording ADR Candidates" section. Skip one the log already holds.
+      Mention them once, in your final response, and name the proposal file
+      as changed. Do not write an ADR unless the user asks
     - Push back in your response on any finding you disagree with, and say
       why. Do not apply a finding blindly.
 

@@ -105,6 +105,9 @@ Before engaging the user on any questions:
    `model: sonnet` for them
 4. Spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the proposal path. Each conflict it
    reports is an open question if the proposal does not already settle it. Add it to the triage in Step 4
+5. Find the Decision Log's ADR candidates marked `Undecided` or `Waits on`, per "Recording ADR Candidates" in
+   `${CLAUDE_SKILL_DIR}/../../project-management/design.md`. Treat each as a noted decision for Step 8. For one that
+   waits, check whether its hook has fired
 
 ### Step 4: Triage Open Questions
 
@@ -349,6 +352,12 @@ not ask. Otherwise ask via AskUserQuestion which should get an ADR. Use one mult
 with the criterion it meets. Put it in the same AskUserQuestion call as the `accepted` question when there is one. In
 autonomous mode, both come last in the review gate. See "The Review Gate".
 
+Record every candidate's outcome in the Decision Log, per "Recording ADR Candidates" in
+`${CLAUDE_SKILL_DIR}/../../project-management/design.md`. A candidate the user picks is `Written as ADR-NN`. One the user
+leaves unpicked is `Declined`. One that fails only Record `Waits on` a concrete hook. A candidate already in the log that
+now fails another test is `Declined`, with the test it fails. Record these even when none is asked about. A candidate
+that was noted and dropped leaves no entry unless it was already in the log.
+
 For each decision the user picks, read `${CLAUDE_SKILL_DIR}/../../project-management/design.md` and create an ADR
 following its "ADR Document Format" section. That file is the only source for the format; this skill does not carry its
 own copy. If it cannot be read, stop and tell the user this skill is installed without its standards.
@@ -356,6 +365,9 @@ own copy. If it cannot be read, stop and tell the user this skill is installed w
 Determine the ADR number by scanning existing ADR files for the next sequential number. Match the zero-padding of the
 existing files (e.g. `ADR-01` vs `ADR-0001`). Use 2-digit padding only when no ADR exists yet. Place the ADR alongside
 existing ADRs, or ask the user for the directory via AskUserQuestion if none exist.
+
+Set the new ADR's status to `accepted` when the proposal is accepted in this review. Otherwise set it to `proposed`.
+When this review accepts the proposal, also flip any `proposed` ADR its References list to `accepted`.
 
 Add a reference to the new ADR in the proposal's References section.
 

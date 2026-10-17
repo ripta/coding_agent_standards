@@ -9,10 +9,14 @@ one. See "What Earns an ADR".
 proposed → accepted → superseded / deprecated
 ```
 
-- **proposed**: Under discussion
+- **proposed**: Written, but not yet in effect. An ADR from a proposal stays proposed until that proposal is accepted.
+  Whoever accepts the proposal flips its proposed ADRs to accepted
 - **accepted**: In effect
 - **superseded**: Replaced by a newer ADR (link to replacement)
 - **deprecated**: No longer applicable
+
+A proposed ADR still records a settled decision. A decision that may still shift is never written as a proposed ADR. It
+stays in the proposal as a candidate that waits. See "Recording ADR Candidates".
 
 ## ADR Document Format
 
@@ -110,3 +114,29 @@ one waiting on a benchmark or on an in-flight proposal, is not ready. Keep it in
 An accepted ADR takes minor edits only: fixing a typo or a broken link, adding a reference, clarifying wording without
 changing what it means, and updating its status when it is superseded or deprecated. Anything that changes what was
 decided, its scope, or its consequences is a new decision. Write a new ADR that supersedes the old one.
+
+## Recording ADR Candidates
+
+A candidate is a decision that passes the Architecture and Decision tests. Record every candidate in its originating
+proposal's Decision Log, whatever happens to it. Then a later reader can tell a decision that was weighed and declined
+from one nobody weighed. A decision with no candidate entry did not pass the bar, or predates this rule.
+
+Each candidate gets one entry. It names the Architecture criterion it meets and ends with its outcome:
+
+```markdown
+- 2026-10-17: ADR candidate (hard to reverse): events carry a schema version. Written as ADR-07.
+- 2026-10-17: ADR candidate (cuts across the system): retries go through the shared client. Declined: its README covers it.
+- 2026-10-17: ADR candidate (departs from the past): drop the cache layer. Waits on the PROJ-012 M3 benchmark.
+- 2026-10-17: ADR candidate (hard to reverse): sessions keyed by account ID. Undecided. Found in Phase 7.2.
+```
+
+- **Written as ADR-NN**: the ADR exists. The proposal's References lists it too
+- **Declined**: the user chose not to write it, or it failed a test on a later check. Give the reason in a few words
+- **Waits on**: it fails only the Record test. Name a concrete revisit hook, as "Deferring Decisions" in
+  `proposals.md` requires
+- **Undecided**: it passes all three tests, but the user has not chosen yet. Implementation runs record candidates this
+  way. The next proposal review asks about them
+
+When the outcome changes, edit it in place and add the date of the change, such as `Written as ADR-07 on 2026-11-02`.
+Keep the entry's original date. A change with no originating proposal records its candidates in its session report
+instead. Without a session report, the run lists them in its final response.

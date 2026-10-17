@@ -171,9 +171,11 @@ For each milestone picked:
    - Triage an ADR conflict the same way. When honoring the ADR would change
      the approved plan, it is a blocker. Follow section 5.
    - Record an `ADVISORY` conflict in the session report. It never blocks.
-   - Record each uncovered decision `adr-impact` reports, and each ADR
-     candidate the implementer names, in the session report. Do not act on
-     them per milestone. Section 6 reports them once
+   - Check each uncovered decision `adr-impact` reports, and each ADR
+     candidate the implementer names, against the bar in the "What Earns an
+     ADR" section of `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`.
+     Record each that passes in the session report. Step 6 below adds it to the
+     proposal's Decision Log. Do not write ADRs. Section 6 reports them once
    - Dismiss a finding that is wrong, and record why. Read the cited code to
      decide this, but no further.
 
@@ -197,7 +199,11 @@ For each milestone picked:
    Its file list must match `git status`. Ask the implementer about any
    mismatch before committing.
 
-6. Commit the milestone. The review fixes land in the same commit. Commit the
+6. Add the milestone's ADR candidates to the originating proposal's Decision
+   Log as `Undecided`, per "Recording ADR Candidates" in `design.md`. Skip one
+   the log already holds. Include the proposal in the commit's paths.
+
+   Commit the milestone. The review fixes land in the same commit. Commit the
    files by path with `git commit -- <paths>`. Staging by path is not enough.
    Another session may share the checkout and have its own files staged, and a
    bare `git commit` takes them too. Never use `git add -A`, `git add .`, or
@@ -292,11 +298,10 @@ Report to the user:
 - The commits made, in order
 - The session report paths
 - The best guesses that most deserve their review
-- The ADR candidates from the session reports that pass the bar in the "What
-  Earns an ADR" section of
-  `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`, deduplicated, each
-  with the criterion it meets. Most runs have none. Do not write them. The
-  user decides which get written
+- The ADR candidates the run recorded, deduplicated, each with the criterion
+  it meets and the proposal whose Decision Log holds it. Most runs have none.
+  Do not write them. The user decides which get written, usually in the next
+  `/proposal-reviewer` run
 - Each held or blocked phase, what it waits on, and any stash holding its
   unfinished work
 - Anything else left open
