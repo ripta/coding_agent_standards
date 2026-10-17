@@ -4,11 +4,13 @@
     python3 proposals.py check --proposals-dir DIR
     python3 proposals.py row --proposals-dir DIR PROJ-NNN [MN]
     python3 proposals.py freeze --proposals-dir DIR [--row-commit SHA ...]
+    python3 proposals.py hooks --proposals-dir DIR [--passed] [--today YYYY-MM-DD]
 
 The rules live in project-management/proposals.md and plans.md. `check` reports
-milestone status the standard rejects. `row` finds the queue row that names a
-milestone, or a proposal's next unfinished one, and says whether it is ready.
-`freeze` reports edits to implemented proposals that the freeze does not allow.
+milestone status and hook structure the standard rejects. `row` finds the queue
+row that names a milestone, or a proposal's next unfinished one, and says
+whether it is ready. `freeze` reports edits to implemented proposals that the
+freeze does not allow. `hooks` lists every revisit hook, passed dates first.
 
 DIR is the proposals directory, which may sit in a symlinked specs repo. Results
 are JSON on stdout. Errors go to stderr with exit status 1.
@@ -21,6 +23,7 @@ import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -47,6 +50,70 @@ UNCOMMITTED = "0" * 40
 
 class ProposalError(Exception):
     """A failure the user must act on; the message says what and where."""
+
+
+# -- revisit hooks --------------------------------------------------------
+
+
+REVISIT_LINE = re.compile(r"^\s*(?:-\s*)?\*\*Revisit:\*\*\s*(.*?)\s*$")
+HOOK_DATE = re.compile(r"\bon or after\s+(.+?)(?:\s*\(([^)]*)\))?\s*$", re.IGNORECASE)
+ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+@dataclass
+class Hook:
+    line: int
+    location: str
+    text: str
+    condition: str
+    date: str | None
+    anchor: str | None
+
+
+def hook_lines(lines: list[str]) -> dict[int, str]:
+    """Map each revisit hook's line index to where it sits: the header or a settled decision.
+
+    Only those two places hold live hooks. A Decision Log copy is history, and its date is
+    never replaced, so it is not a hook.
+    """
+    spans = _sections(lines)
+    header_end = min((start for start, _ in spans.values()), default=len(lines))
+    settled = spans.get("Design Decisions (Settled)", (0, 0))
+    found = {}
+    for i, line in enumerate(lines):
+        if not REVISIT_LINE.match(line):
+            continue
+        if i < header_end:
+            found[i] = "header"
+        elif settled[0] < i < settled[1]:
+            found[i] = "settled"
+    return found
+
+
+def parse_hooks(lines: list[str]) -> list[Hook]:
+    hooks = []
+    for i, location in hook_lines(lines).items():
+        text = REVISIT_LINE.match(lines[i]).group(1)
+        when = anchor = None
+        condition = text
+        m = HOOK_DATE.search(text)
+        if m:
+            when, anchor = m.group(1).rstrip(".;,"), m.group(2)
+            condition = text[: m.start()].rstrip(" ;,")
+        hooks.append(Hook(i + 1, location, text, condition, when, anchor))
+    return hooks
+
+
+def hook_faults(hook: Hook) -> list[str]:
+    """Return what is structurally wrong with a hook. A passed date is not a fault."""
+    if hook.date is None:
+        return [] if hook.condition else ["revisit hook has neither a condition nor a date"]
+    faults = []
+    if not ISO_DATE.match(hook.date):
+        faults.append(f"revisit date {hook.date!r} is not YYYY-MM-DD")
+    if not hook.anchor:
+        faults.append("revisit date has no anchor in parentheses saying why that date")
+    return faults
 
 
 # -- parsing --------------------------------------------------------------
@@ -206,6 +273,26 @@ def load_queue(proposals_dir: Path) -> list[Row]:
 # -- check ----------------------------------------------------------------
 
 
+INDEX_ROW = re.compile(r"^\[?([A-Z][A-Z0-9]*-\d+)\]?(?:\(.*\))?$")
+
+
+def _index_statuses(proposals_dir: Path) -> dict[str, tuple[Path, str]]:
+    """Read each proposal's status from the index table, keyed by proposal ID."""
+    found = [proposals_dir / name for name in ("index.md", "README.md") if (proposals_dir / name).is_file()]
+    if len(found) > 1:
+        raise ProposalError(f"{proposals_dir} has both index.md and README.md. Merge them into one index first.")
+    statuses: dict[str, tuple[Path, str]] = {}
+    for index in found:
+        for line in index.read_text().splitlines():
+            if not line.lstrip().startswith("|"):
+                continue
+            cells = _cells(line)
+            m = INDEX_ROW.match(cells[0])
+            if m and len(cells) >= 2:
+                statuses[m.group(1)] = (index, cells[-1].lower())
+    return statuses
+
+
 def check(proposals_dir: Path) -> list[dict[str, Any]]:
     proposals = load_proposals(proposals_dir)
     # Without a queue nothing is scheduled yet, so the checks that need one are skipped. A
@@ -220,6 +307,19 @@ def check(proposals_dir: Path) -> list[dict[str, Any]]:
 
     def queued(pid: str, number: int) -> bool:
         return rows is None or any(row.names(pid, number) for row in rows)
+
+    for pid, (index, listed) in _index_statuses(proposals_dir).items():
+        p = proposals.get(pid)
+        if p is not None and listed != p.status:
+            report(p, f"{index.name} lists {listed!r}, but the proposal says {p.status!r}")
+
+    for p in proposals.values():
+        hooks = parse_hooks(p.path.read_text().splitlines())
+        for hook in hooks:
+            for fault in hook_faults(hook):
+                report(p, f"line {hook.line}: {fault}")
+        if p.status == "deferred" and not any(h.location == "header" for h in hooks):
+            report(p, "deferred proposal has no **Revisit:** line in its header")
 
     for p in proposals.values():
         if p.history or p.status in STOPPED:
@@ -418,13 +518,16 @@ def _regions(lines: list[str]) -> list[str]:
     log_start, log_end = spans.get("Decision Log", (0, 0))
     for i in range(log_start + 1, log_end):
         labels[i] = "decision-log"
+    hooks = hook_lines(lines)
     in_as_built = False
     for i, line in enumerate(lines):
         if line.startswith("#"):
             in_as_built = False
         meta = META_LINE.match(line) if i < header_end else None
-        if meta:
-            labels[i] = {"status": "status", "revisit": "revisit"}.get(meta.group(1).lower(), "meta")
+        if i in hooks:
+            labels[i] = "revisit"
+        elif meta:
+            labels[i] = "status" if meta.group(1).lower() == "status" else "meta"
         elif line.strip() == AS_BUILT:
             in_as_built = True
             labels[i] = "as-built"
@@ -500,6 +603,11 @@ def _removers(repo: Path, rel: str, base: str, head_text: str, removed: list[str
     return set(out.split())
 
 
+def _hunk_labels(lines: list[str], labels: list[str], start: int, end: int) -> set[str]:
+    """Return the regions a hunk's lines fall in. Blank lines carry no meaning, so they never count."""
+    return {labels[i] for i in range(start, end) if lines[i].strip()}
+
+
 def _origin(authors: set[str], row: set[str]) -> str:
     """Name who made a hunk. Uncommitted edits count as the run's own."""
     if not authors:
@@ -531,8 +639,12 @@ def freeze(proposals_dir: Path, row_commits: list[str]) -> list[dict[str, Any]]:
 
         audits = corrections = 0
         log_inserts: dict[int, bool] = {}
+        hunk_labels = [
+            _hunk_labels(old, old_labels, i1, i2) | _hunk_labels(new, new_labels, j1, j2)
+            for _, i1, i2, j1, j2 in opcodes
+        ]
         for n, (tag, i1, i2, j1, j2) in enumerate(opcodes):
-            labels = set(old_labels[i1:i2]) | set(new_labels[j1:j2])
+            labels = hunk_labels[n]
             if tag == "insert" and labels == {"decision-log"}:
                 entries = _entries(new[j1:j2])
                 audits += sum(1 for e in entries if AUDIT_ENTRY.search(e))
@@ -542,8 +654,10 @@ def freeze(proposals_dir: Path, row_commits: list[str]) -> list[dict[str, Any]]:
         hunks = []
         for n, (tag, i1, i2, j1, j2) in enumerate(opcodes):
             old_part, new_part = old[i1:i2], new[j1:j2]
-            labels = set(old_labels[i1:i2]) | set(new_labels[j1:j2])
+            labels = hunk_labels[n]
             kind = None
+            if not labels:
+                continue
             if n in log_inserts:
                 if log_inserts[n]:
                     continue
@@ -585,13 +699,40 @@ def freeze(proposals_dir: Path, row_commits: list[str]) -> list[dict[str, Any]]:
     return results
 
 
+# -- hooks ----------------------------------------------------------------
+
+
+def hooks(proposals_dir: Path, today: str, passed_only: bool) -> list[dict[str, Any]]:
+    """List every revisit hook, passed dates first. A hook is passed on or after its date."""
+    listed = []
+    for p in load_proposals(proposals_dir).values():
+        for hook in parse_hooks(p.path.read_text().splitlines()):
+            readable = hook.date is not None and ISO_DATE.match(hook.date) is not None
+            passed = readable and hook.date <= today
+            if passed_only and not passed:
+                continue
+            listed.append({
+                "proposal": p.id,
+                "status": p.status,
+                "file": str(p.path),
+                "line": hook.line,
+                "location": hook.location,
+                "condition": hook.condition or None,
+                "date": hook.date,
+                "anchor": hook.anchor,
+                "passed": passed,
+            })
+    listed.sort(key=lambda h: (not h["passed"], h["date"] or "9999", h["proposal"], h["line"]))
+    return listed
+
+
 # -- cli ------------------------------------------------------------------
 
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("check", "row", "freeze"):
+    for name in ("check", "row", "freeze", "hooks"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--proposals-dir", type=Path, required=True)
         if name == "row":
@@ -599,10 +740,17 @@ def main(argv: list[str]) -> int:
             cmd.add_argument("milestone", nargs="?")
         if name == "freeze":
             cmd.add_argument("--row-commit", action="append", default=[])
+        if name == "hooks":
+            cmd.add_argument("--today", default=date.today().isoformat(), help="YYYY-MM-DD; defaults to today")
+            cmd.add_argument("--passed", action="store_true", help="list only hooks whose date has passed")
     args = parser.parse_args(argv)
     try:
         if args.command == "check":
             result: Any = check(args.proposals_dir)
+        elif args.command == "hooks":
+            if not ISO_DATE.match(args.today):
+                raise ProposalError(f"--today {args.today!r} is not YYYY-MM-DD")
+            result = hooks(args.proposals_dir, args.today, args.passed)
         elif args.command == "row":
             milestone = None
             if args.milestone is not None:

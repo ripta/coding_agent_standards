@@ -232,15 +232,21 @@ It carries a condition, an on-or-after date with the anchor that justifies it, o
 not a hook. The anchor says why that date, such as a release, a measurement window, or another proposal landing.
 
 Every `deferred` proposal carries one, after `**Updated:**`. Deferred work that has no proposal becomes a `deferred`
-proposal. A deferred decision carries one in its settled entry. See "Deferring Decisions".
+proposal. A deferred decision carries one in its settled entry. See "Deferring Decisions". These two places are the
+only live hooks. The Decision Log records a deferral in prose, not as a `**Revisit:**` line, since a log entry is
+history and its date is never replaced.
 
 When the date passes, an audit is required. Its outcome is one of these:
 
-- Act: the deferred work resumes, or the decision is settled
+- Act: the deferred work resumes, or the decision is settled. The hook's line is removed
 - Extend: the date moves later, with the reason
-- Abandon: the work is retracted or rejected, or the decision is closed
+- Abandon: the work is retracted or rejected, or the decision is closed. The hook's line is removed
 
-The outcome goes in the Decision Log, and the hook's date is replaced.
+The outcome goes in the Decision Log. Only the user picks it.
+
+`scripts/proposals.py hooks` in the plugin lists every hook, with passed dates first. The check reports a hook's
+structure only: a `deferred` proposal with no hook, a date with no anchor, or a date that is not `YYYY-MM-DD`. It never
+reports a passed date, so no tool fixes one by moving it.
 
 ## History from Earlier Eras
 

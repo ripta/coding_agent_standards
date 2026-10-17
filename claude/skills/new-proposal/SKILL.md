@@ -108,8 +108,9 @@ Rules for drafting:
   mitigation or explicit acceptance. Flag one-way-door decisions (migrations, published contracts, wire formats) as
   risks. "None identified" requires a stated reason.
 - Omit Dependencies/Impacts entries when there are none (keep the headings only if the project does).
-- Number milestones as plain ordinals from 1. They carry no status column; execution status lives in the phase that
-  implements them.
+- Write milestones as `### MN: Title` subsections, numbered from 1, per the standard's "Milestones" section. Give each
+  a `**Status:** NOT STARTED` line and plain bullets phrased as checks. Never tick the bullets, and add no As built
+  block until work starts.
 - Capture dependencies and cross-proposal impact per `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` — note
   the impacted proposal and the specific section(s) it cares about, and update the impacted proposals when warranted
   (prioritize this on large projects or proposal waves).

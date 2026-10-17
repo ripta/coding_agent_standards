@@ -4,8 +4,8 @@ description: |
   Reconcile issue-tracker groups (Jira epics, Linear projects, GitHub tracking
   issues, milestones, or labels) with work merged in mapped repository
   subdirectories since the last sync. Closes or updates tickets whose work
-  landed, proposes tickets for untracked proposals or phases, fixes phase and
-  proposal doc drift, and backlinks ticket keys into docs. Triggers: "sync my
+  landed, proposes tickets for untracked proposals or queue rows, fixes
+  proposal and queue doc drift, and backlinks ticket keys into docs. Triggers: "sync my
   tickets", "which tickets can I close", "update jira/linear/issues for what I
   merged", "reconcile <epic> with <path>", /tracker-sync. DO NOT trigger on:
   reading or summarizing a single ticket, sprint planning, starting work on a
@@ -20,7 +20,7 @@ the default branch, not when a commit mentions it.
 
 Tracker-specific operations live in `${CLAUDE_SKILL_DIR}/trackers/<type>.md`
 (`jira`, `github`, `linear`). Read the file for each tracker type in scope
-before touching that tracker. The phase and proposal model is
+before touching that tracker. The proposal and queue model is
 `${CLAUDE_SKILL_DIR}/../../project-management/plans.md`,
 `proposals.md`, and `tracking.md`. Defer to a project's own deviation where one
 exists.
@@ -82,7 +82,7 @@ word-split them.
 
 ## Workflow
 
-### Phase 1: Scope
+### Step 1: Scope
 
 1. Run `$SCOPE scope [--since REV] [args...]` from inside the repository.
 2. `behind_origin > 0`: tell the user their default branch is behind origin
@@ -102,7 +102,7 @@ word-split them.
 5. Record `head` from the output. Every later read, and the final watermark,
    uses that commit, even if the branch moves during the run.
 
-### Phase 2: Tickets
+### Step 2: Tickets
 
 For each selected group, confirm the tracker's interface is available (per
 its `trackers/<type>.md`). If it is not, stop and tell the user what is
@@ -113,28 +113,29 @@ Delegate reading long ticket bodies to a subagent (`model: sonnet`) when the
 group is large. Its job is extraction, not judgment: for each open ticket
 return the key, title, state, assignee, stated completion criteria ("Done
 when", acceptance criteria) verbatim, and every repo path, proposal,
-phase, or ticket the body cites.
+milestone, or ticket the body cites.
 
-### Phase 3: Evidence
+### Step 3: Evidence
 
 Read evidence at `head`. If the checkout is not the default branch at `head`,
 read through `git show <head>:<path>` and `git grep <pattern> <head>` rather
 than the working tree.
 
-- The mapping's phase and proposal indexes (`docs/phases/index.md`,
-  `docs/proposals/index.md` or the project's equivalent), and every phase or
-  proposal doc among `changed_files`.
+- The mapping's proposal index and `queue.md` (`docs/proposals/` or the
+  project's equivalent), and every proposal among `changed_files`. A milestone's
+  status and As built block say what landed.
 - Where each open ticket is cited in the mapping's docs: grep for its key.
 - The commits in range whose `refs` name a ticket in the group.
 - Code or config the ticket's criteria name. A criterion like "prod runs with
-  X enabled" is checked in the prod config, not inferred from a phase status.
+  X enabled" is checked in the prod config, not inferred from a milestone
+  status.
 
 Every open ticket is assessed against the current state, not only tickets the
 range touched. The range focuses attention; it does not bound it. Closed
 tickets are out of scope unless a commit in range reverts work they depend on.
 Flag those for the user; do not reopen them.
 
-### Phase 4: Classify
+### Step 4: Classify
 
 Give each open ticket exactly one verdict, with evidence as `path:line` or a
 commit SHA:
@@ -154,20 +155,21 @@ name the work that appears to resolve it.
 
 Then, across the mapping:
 
-- **Untracked work:** a proposal or phase in scope that no ticket in the group
-  covers. Propose a ticket: title, a short problem and "Done when" drawn from
-  the doc, and the doc path.
-- **Doc drift:** phase and proposal status mismatches, found with the checks
-  in `${CLAUDE_SKILL_DIR}/../phase-cleanup/SKILL.md` (steps 2–6). Where a
-  milestone reads done but its acceptance criteria are unchecked, report it
-  and do not pick a side.
-- **Missing backlinks:** a proposal or phase that a ticket tracks but that
+- **Untracked work:** a proposal or queue row in scope that no ticket in the
+  group covers. Propose a ticket: title, a short problem and "Done when" drawn
+  from the doc, and the doc path.
+- **Doc drift:** status that disagrees between milestones, proposals, and the
+  proposal index. Find it with
+  `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py check --proposals-dir <dir>`,
+  read at `head`. Report each finding, and do not pick a side. Milestone
+  checks are never ticked, so an unticked check is not drift.
+- **Missing backlinks:** a proposal that a ticket tracks but that
   does not cite the ticket. Follow the project's existing citation convention.
   If there is none, propose a `## References` bullet
   (`- <tracker ref>: <ticket title>`) and say that it is a new convention for
   that project.
 
-### Phase 5: Approve
+### Step 5: Approve
 
 Present the findings in the reply itself as tables grouped by verdict, each
 row with the ticket, the proposed action, and the evidence. Write out every
@@ -178,7 +180,7 @@ Then ask once, with AskUserQuestion: apply all, apply with exclusions (the user
 names them), or report only. Anything the user excludes is dropped, not
 retried later in the run.
 
-### Phase 6: Apply
+### Step 6: Apply
 
 Tracker writes go to one subagent per tracker (`model: sonnet`). Give it:
 
@@ -196,13 +198,13 @@ the checkout is the default branch at `head`. Otherwise show them as proposed
 diffs. Follow `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`: leave the
 edits uncommitted and unstaged for the user.
 
-### Phase 7: Verify
+### Step 7: Verify
 
 Re-list the touched tickets and check the state and assignee of each against
 what was approved. Report any mismatch. Do not re-read full bodies unless a
 write reported an error.
 
-### Phase 8: Advance
+### Step 8: Advance
 
 For each group whose approved tracker writes all succeeded (a group with
 nothing to change counts), run
@@ -217,8 +219,8 @@ anything left for the user.
 ## Rules
 
 - Never write to a tracker, the repository, or the config without the
-  approval in Phase 5. The one exception is saving a mapping the user agreed
-  to in Phase 1.
+  approval in Step 5. The one exception is saving a mapping the user agreed
+  to in Step 1.
 - Never close a ticket whose completion criteria are not all met at `head`.
   A commit that mentions a ticket is a lead, not evidence.
 - Every verdict cites evidence. A verdict you cannot cite is **No change**.
@@ -227,7 +229,7 @@ anything left for the user.
 - Assign every ticket the skill touches to the tracker's configured
   `assignee`, and touch no ticket that was not approved.
 - Description edits preserve all existing text except the approved change.
-- Advance a watermark only to the `head` recorded in Phase 1, and only after
+- Advance a watermark only to the `head` recorded in Step 1, and only after
   that group's writes succeed.
 - Tracker writes run in a subagent; keep issue bodies and write echoes out of
   the main context.

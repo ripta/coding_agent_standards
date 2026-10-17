@@ -90,7 +90,7 @@ Check the proposal's `**Status:**` field and branch accordingly:
   implemented. Offer to discuss the proposal, which could result in a new follow-up proposal. Stop the normal review
   flow.
 - **If status is `designing` and the review is a continuation** (see Step 1): Continue to the next step.
-- **If status is not `draft`** (e.g., `designing`, `accepted`, `scheduled`, `deferred`, `rejected`): The redesign
+- **If status is not `draft`** (e.g., `designing`, `accepted`, `deferred`, `rejected`): The redesign
   question in Step 1 asked whether the user wants to redesign parts of the proposal. If they do not, stop.
 - **If status is `draft`**: Continue to the next step.
 
@@ -304,7 +304,7 @@ checks add or reopen go through Step 5 before the next re-check pass.
    - Add it as a new open question in the proposal (and loop back to Step 5 to resolve it)
    - Defer it per the "Deferring Decisions" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`:
      record it in Design Decisions (Settled) as a decision to defer, with a concrete revisit hook in both the settled
-     entry and the Decision Log
+     entry and the Decision Log. Write a hook with a condition or a date as a `**Revisit:**` line, per "Revisit Hooks"
 3. **Weak decisions**: A settled decision the critic showed fails the "Choosing Options" standard, including a hack or
    over-building. A different but equally sound choice does not count. For each, the user chooses whether to reopen it
    as an open question (and loop back to Step 5) or keep it. Record either choice in the Decision Log with the reason.
@@ -342,7 +342,9 @@ When the user stops or all questions are resolved (and the coherence and risk re
 
 - **All resolved**: Ask via AskUserQuestion if the proposal should advance to `accepted`. If yes, update the status. Do
   not offer `accepted` while the Risks section is missing or non-compliant, or while a high-likelihood/high-impact risk
-  is neither mitigated nor explicitly accepted.
+  is neither mitigated nor explicitly accepted. Do not offer it while the milestones are not `### MN: Title`
+  subsections, each with a `**Status:**` line, per the "Milestones" section of `proposals.md`. Accepting does not
+  schedule the proposal. Scheduling adds queue rows, and happens only when the user asks.
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
 
 Before asking about ADRs, check each noted decision against "What Earns an ADR" again, now that the whole design is

@@ -84,7 +84,7 @@ single AskUserQuestion call.
 
 1. Set the file's status to `fixed` with today's date, such as `**Status:** fixed 2026-05-25`. Add or fill a `Fixed:`
    line with the date.
-2. Identify what fixed it, best-effort. Scan `git log`, the phase index, and the proposal index for the responsible
+2. Identify what fixed it, best-effort. Scan `git log`, `queue.md`, and the proposal index for the responsible
    change. Record a commit hash and subject only if you can identify it confidently. Do not guess.
 3. Set the index row's Status to `fixed`.
 
@@ -134,5 +134,5 @@ Summarize concisely:
 - Never commit, stage, or push. Stop and let the user commit.
 - Do not make a design decision on a fix alone. Ask whenever the approach is ambiguous.
 - A fix always lands with a regression test that failed before it.
-- Keep bug, phase, milestone, and proposal IDs out of source code, comments, and diagnostic strings, per
+- Keep bug, milestone, and proposal IDs out of source code, comments, and diagnostic strings, per
   `${CLAUDE_SKILL_DIR}/../../rules/work-discipline.md`. They belong in bug files, proposals, and commit messages.

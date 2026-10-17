@@ -29,7 +29,7 @@ project-specific deviation when one exists.
 Collect every proposal whose status is **not** finalized or closed. Using the standard lifecycle in
 `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`, the closed/finalized statuses are:
 
-`accepted`, `scheduled`, `implemented`, `rejected`, `superseded`, `retracted`
+`accepted`, `implemented`, `rejected`, `superseded`, `retracted`
 
 This leaves in-flight statuses where open questions still matter — typically `draft`, `designing`, and `deferred`. If
 the project defines its own statuses, exclude the ones that mean "design is finalized" or "no longer active" and keep

@@ -115,9 +115,70 @@ def test_check_reports_all_dropped_and_non_era3(tmp_path: Path) -> None:
     assert any("not subsections" in p for p in problems)
 
 
+def _hooked(status: str, header_hook: str | None, settled_hook: str | None = None, log_hook: str | None = None) -> str:
+    text = _proposal(status, _milestone(1, "NOT STARTED"))
+    if header_hook is not None:
+        text = text.replace("**Updated:** 2026-10-01", f"**Updated:** 2026-10-01\n**Revisit:** {header_hook}")
+    if settled_hook is not None:
+        text = text.replace("Keys carry a version.", f"Keys carry a version.\n\n**Revisit:** {settled_hook}")
+    if log_hook is not None:
+        text = text.replace("- 2026-10-01: Created.", f"- 2026-10-01: Created.\n\n**Revisit:** {log_hook}")
+    return text
+
+
+@pytest.mark.parametrize(
+    "hook, fault",
+    [
+        ("when the parser streams; on or after 2027-01-15 (two releases out)", None),
+        ("when the parser streams", None),
+        ("on or after 2027-01-15", "no anchor"),
+        ("on or after next spring (x)", "not YYYY-MM-DD"),
+        ("", "neither a condition nor a date"),
+    ],
+)
+def test_check_reports_hook_structure(tmp_path: Path, hook: str, fault: str | None) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _hooked("deferred", hook))
+    problems = _problems(tmp_path)
+    assert any(fault in p for p in problems) if fault else problems == []
+
+
+def test_check_requires_a_hook_on_deferred_but_never_reports_passed_dates(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _hooked("deferred", None))
+    _write(tmp_path, "PROJ-002-b.md", _hooked("deferred", "on or after 2000-01-01 (long ago)").replace("PROJ-001", "PROJ-002"))
+    assert _problems(tmp_path) == ["deferred proposal has no **Revisit:** line in its header"]
+
+
+def test_hooks_lists_header_and_settled_hooks_passed_first(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _hooked("deferred", "on or after 2027-06-01 (a)",
+                                               settled_hook="when X; on or after 2026-01-01 (b)",
+                                               log_hook="on or after 2025-01-01 (old copy)"))
+    listed = proposals.hooks(tmp_path, "2026-10-17", passed_only=False)
+    assert [(h["location"], h["date"], h["passed"]) for h in listed] == [
+        ("settled", "2026-01-01", True),
+        ("header", "2027-06-01", False),
+    ]
+    assert listed[0]["condition"] == "when X"
+    assert [h["date"] for h in proposals.hooks(tmp_path, "2026-10-17", passed_only=True)] == ["2026-01-01"]
+
+
+def test_check_compares_the_index(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")))
+    _write(tmp_path, "index.md", "| Proposal | Description | Status |\n|---|---|---|\n"
+                                 "| [PROJ-001](PROJ-001-a.md) | A | implemented |\n")
+    assert any("index.md lists 'implemented'" in p for p in _problems(tmp_path))
+
+
+def test_check_refuses_two_indexes(tmp_path: Path) -> None:
+    _write(tmp_path, "index.md", "x")
+    _write(tmp_path, "README.md", "x")
+    with pytest.raises(proposals.ProposalError, match="both index.md and README.md"):
+        proposals.check(tmp_path)
+
+
 def test_check_skips_history_and_stopped(tmp_path: Path) -> None:
     _write(tmp_path, "PROJ-001-a.md", _proposal("implemented", "| 1 | x | NOT STARTED |\n"))
-    _write(tmp_path, "PROJ-002-b.md", _proposal("deferred", _milestone(1, "WHATEVER")))
+    deferred = _proposal("deferred", _milestone(1, "WHATEVER"))
+    _write(tmp_path, "PROJ-002-b.md", deferred.replace("**Updated:** 2026-10-01", "**Updated:** 2026-10-01\n**Revisit:** when X"))
     assert _problems(tmp_path) == []
 
 
@@ -363,6 +424,25 @@ def test_freeze_needs_an_audit_for_a_revisit_change(specs: Path) -> None:
     [result] = proposals.freeze(directory, [])
     assert "without a revisit audit" in result["hunks"][0]["kind"]
     path.write_text(moved.replace("- 2026-10-01: Created.\n", "- 2026-10-01: Created.\n- 2027-01-02: Revisit audit: extended.\n"))
+    assert proposals.freeze(directory, []) == []
+
+
+def test_freeze_allows_an_audited_settled_hook(specs: Path) -> None:
+    directory = specs / "proj" / "proposals"
+    hook = "Keys carry a version.\n\n**Revisit:** on or after 2027-01-01 (x)"
+    accepted = _proposal("accepted", _milestone(1, "IN PROGRESS")).replace("Keys carry a version.", hook)
+    path = _write(directory, "PROJ-001-a.md", accepted)
+    _commit(specs, "accepted")
+    hooked = FROZEN.replace("Keys carry a version.", hook)
+    path.write_text(hooked)
+    _commit(specs, "flip")
+    path.write_text(hooked + "\n")
+    assert proposals.freeze(directory, []) == []
+    audited = hooked.replace("2027-01-01", "2027-06-01").replace(
+        "- 2026-10-01: Created.\n", "- 2026-10-01: Created.\n- 2027-01-02: Revisit audit: extended.\n")
+    path.write_text(audited)
+    assert proposals.freeze(directory, []) == []
+    path.write_text(audited.replace("\n\n**Revisit:** on or after 2027-06-01 (x)", ""))
     assert proposals.freeze(directory, []) == []
 
 
