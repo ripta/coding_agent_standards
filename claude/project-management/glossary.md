@@ -1,8 +1,8 @@
 # Glossary
 
 Terms used across the project management standards. Each term is defined once
-here and used consistently in `proposals.md`, `plans.md`, `design.md`, and
-`tracking.md`.
+here and used consistently in `proposals.md`, `plans.md`, `design.md`,
+`tracking.md`, and `eras.md`.
 
 **Proposal** — a description of a feature or change at the design level, written
 before implementation begins. Carries a lifecycle status from `draft` to
@@ -51,6 +51,12 @@ unproven. A design spike is proven, and carries more weight. An ADR is both
 proven and recommended, so it is the heaviest. Weight is not permanence. A later
 spike, research write-up, or proposal can show an ADR to be wrong, and the ADR
 is then superseded.
+
+**Era** — a numbered style of project management, written `era 1`. Each era is a
+set of conventions for where design, execution status, and implementation order
+live. An artifact belongs to the era whose markers it carries. The first mention
+of an era in a document carries a short gloss naming what that era introduced.
+See `eras.md`.
 
 **Index** — an `index.md` or `README.md` at the root of a proposals or
 phases directory, holding a status table with one row per artifact.

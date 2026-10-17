@@ -15,8 +15,8 @@ projects.
 - `claude/commands/` - Slash commands. Keep them thin: a command reads its rules from `${CLAUDE_PLUGIN_ROOT}/rules/` or
   `${CLAUDE_PLUGIN_ROOT}/project-management/` instead of restating them. Every command carries frontmatter with at least
   a `description`, plus `argument-hint` when it takes arguments
-- `claude/project-management/` - Plans, proposals, design, tracking, and commit chunking standards. Lives under
-  `claude/` so it ships with the plugin
+- `claude/project-management/` - Plans, proposals, design, tracking, and commit chunking standards, and the eras
+  that name past styles. Lives under `claude/` so it ships with the plugin
 - `codex/` - Codex skills that have no Claude Code equivalent, packaged as a separate Codex plugin. A skill belongs here
   only when it depends on something Codex has and Claude Code does not
 - `mods/` - Claude Code mods (function-hook plugins that can draw UI). Each is its own opt-in plugin listed in
