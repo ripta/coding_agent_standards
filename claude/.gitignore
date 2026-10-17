@@ -1,2 +1,5 @@
 # Written by Claude Code each time it loads the plugin's hooks module.
 .claude-plugin/types/
+
+# Written when the Python helpers and their tests run.
+__pycache__/
