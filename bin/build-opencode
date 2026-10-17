@@ -20,7 +20,7 @@ MODEL_SONNET=anthropic/claude-sonnet-5-5
 MODEL_OPUS=anthropic/claude-opus-5-5
 
 AGENTS=(adr-impact implementer reviewer)
-COMMANDS=(next-pr summary work-on work-queue)
+COMMANDS=(migrate-era next-pr summary work-on work-queue)
 SKILLS=(
   bug-triage
   format-checker
@@ -128,6 +128,13 @@ perl -0pi -e '
   s{Start by calling the EnterPlanMode tool.*?plan mode\.\n\nOnce in plan mode, work on}{Plan before you change anything. Do not edit files until the user approves\nthe plan in step 10.\n\nWork on}s;
   s{before you call\s+ExitPlanMode}{before you ask for plan approval}s;
 ' "$OUT/commands/work-on.md"
+
+# /migrate-era plans the same way, and asks for approval before it edits.
+perl -0pi -e '
+  s{Start by calling the EnterPlanMode tool.*?plan mode\.\n\n}{Plan before you change anything. Do not edit files until the user approves\nthe plan in step 4.\n\n}s;
+  s{ in plan mode, reading and\s+planning only}{, reading and planning only}s;
+  s{Call ExitPlanMode\. That approval}{Present the plan and ask the user to approve it with the question tool. That\n   approval}s;
+' "$OUT/commands/migrate-era.md"
 
 # /work-queue gets the same plan-then-approve treatment as /work-on. Fix
 # rounds continue the implementer's subagent session instead of SendMessage,

@@ -7,6 +7,9 @@ The eras below follow the history of the standards in this directory.
 Use eras to describe an existing project or artifact, and to name what a change
 to the standards would replace.
 
+The shared tools support era 3 only. `migration.md` says how a project moves to
+era 3 from any earlier era, and `/migrate-era` follows it.
+
 ## Writing About Eras
 
 Write `era 1` in lowercase, like the common noun "phase". It is not an

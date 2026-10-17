@@ -41,7 +41,7 @@ Do all of this before any question.
 
 1. **Directories.** Find the proposals directory (`spec/proposals/`, or the `docs/` equivalent). It may be a symlink
    into a separate specs repo. Follow it. If the project has a phases directory and no `queue.md`, it has not migrated
-   to era 3. Stop and tell the user it must migrate first, per `eras.md`.
+   to era 3. Stop and tell the user it must migrate first, with `/migrate-era`.
 2. **Queue.** Read `queue.md` in the proposals directory. If it does not exist, this is the project's first scheduled
    work. Step 5 creates it in the form `plans.md` "The Queue File" gives.
 3. **Proposal.** Find `<ID>-*.md` in the proposals directory. If none exists, tell the user and stop. Read it and

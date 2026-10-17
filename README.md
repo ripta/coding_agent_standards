@@ -68,6 +68,7 @@ Standards for planning and tracking work:
 - **Glossary** -- what each term means: proposal, milestone, queue, spike, ADR
 - **Plans** -- the queue that orders work, scheduling, and the rules for working and stopping a milestone
 - **Eras** -- the numbered styles of project management, and how to tell which one an artifact belongs to
+- **Migration** -- moving a project to era 3 from any earlier era, without losing what its phases recorded
 - **Proposals** -- feature proposal lifecycle (draft through implemented), numbering
 - **Design** -- Architecture Decision Records (ADRs), lifecycle, immutability rules
 - **Tracking** -- cross-reference conventions, metadata standards, markdown guidelines
@@ -97,8 +98,9 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   `citation-verifier`, which checks file:line citations for `walkthrough` and `architecture-exploration`
 - **Commands** (`commands/`) -- slash commands for driving a proposal milestone (`work-on`), working through queue
   rows planned up front (`work-queue`), summarizing a session as a commit message (`summary`), chunking an
-  integration branch into PRs (`next-pr`), writing a PR title and description for a branch (`pr-description`), and
-  iterating a design question with the critic until it converges (`converge-design`)
+  integration branch into PRs (`next-pr`), writing a PR title and description for a branch (`pr-description`),
+  iterating a design question with the critic until it converges (`converge-design`), and migrating a project to
+  era 3 (`migrate-era`)
 
 Commands stay thin. The rules they enforce live in `claude/rules/` and `claude/project-management/`, and a command reads
 them at `${CLAUDE_PLUGIN_ROOT}/...` rather than restating them. Keeping one copy is what stops `/summary` and `/work-on`

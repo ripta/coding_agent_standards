@@ -31,8 +31,8 @@ field.
    a symlinked specs repo, find that repo with
    `git -C <proposals dir> rev-parse --show-toplevel`. Proposal edits are
    reviewed there. A project with a phases directory and no `queue.md` has
-   not migrated to era 3. Stop and tell the user it must migrate first, per
-   `${CLAUDE_PLUGIN_ROOT}/project-management/eras.md`.
+   not migrated to era 3. Stop and tell the user it must migrate first, with
+   `/migrate-era`.
 
 2. Parse the argument. `PROJ-NNN M3` names one milestone. A bare `PROJ-NNN`
    means its next unfinished milestone in queue order. A `--review-loop` flag

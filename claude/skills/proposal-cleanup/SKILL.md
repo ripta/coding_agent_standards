@@ -27,7 +27,7 @@ holds the index and `queue.md`. The index is `index.md` or `README.md`, per the 
 Tell the user to consolidate the two into one file first.
 
 If the project has a phases directory and no `queue.md`, it has not migrated to era 3. Stop and tell the user it must
-migrate first, per `eras.md`.
+migrate first, with `/migrate-era`.
 
 ### Step 2: Run the Check
 
