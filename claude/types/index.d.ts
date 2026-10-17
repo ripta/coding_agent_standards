@@ -1,11 +1,11 @@
-export type MilestoneStatus = 'QUEUED' | 'IN PROGRESS' | 'DONE' | 'HELD' | 'BLOCKED'
+export type MilestoneStatus = 'QUEUED' | 'IN PROGRESS' | 'DONE' | 'DROPPED' | 'HELD' | 'BLOCKED'
 
 export type Step =
   | 'implementing'
   | 'reviewing'
   | 'fixing'
   | 'committing'
-  | 'phase-review'
+  | 'row-review'
   | 'final-review'
   | 'finished'
 
@@ -16,7 +16,8 @@ export type Milestone = {
   commit?: string
 }
 
-export type Phase = {
+// A queue row in the run: one contiguous range of one proposal's milestones.
+export type Row = {
   id: string
   title?: string
   held?: string
@@ -25,7 +26,7 @@ export type Phase = {
 }
 
 export type Run = {
-  phases: Phase[]
+  rows: Row[]
   current?: { milestone?: string; step: Step }
   updatedAt: number
 }

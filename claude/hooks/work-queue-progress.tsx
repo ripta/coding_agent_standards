@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import type { Milestone, MilestoneStatus, Phase, Run, Step, Worker } from '../types'
+import type { Milestone, MilestoneStatus, Row, Run, Step, Worker } from '../types'
 
 const run = atom({ plugin: 'coding-standards', key: 'run' } as const, null)
 const workers = atom({ plugin: 'coding-standards', key: 'workers' } as const, [])
@@ -14,18 +14,20 @@ const RULE_LEAD = '──'
 // The pane lists this many recent subagents.
 const WORKER_HISTORY = 8
 
-const STATUSES: readonly MilestoneStatus[] = ['QUEUED', 'IN PROGRESS', 'DONE', 'HELD', 'BLOCKED']
+const STATUSES: readonly MilestoneStatus[] = ['QUEUED', 'IN PROGRESS', 'DONE', 'DROPPED', 'HELD', 'BLOCKED']
 const STEPS: readonly Step[] = [
-  'implementing', 'reviewing', 'fixing', 'committing', 'phase-review', 'final-review', 'finished',
+  'implementing', 'reviewing', 'fixing', 'committing', 'row-review', 'final-review', 'finished',
 ]
 
 const GLYPH: Record<MilestoneStatus, string> = {
   QUEUED: '○',
   'IN PROGRESS': '●',
   DONE: '✓',
+  DROPPED: '–',
   HELD: '⏸',
   BLOCKED: '✗',
 }
+const DIM: ReadonlySet<MilestoneStatus> = new Set(['QUEUED', 'DROPPED', 'HELD'])
 const COLOR: Partial<Record<MilestoneStatus, string>> = {
   'IN PROGRESS': ACCENT,
   DONE: 'green',
@@ -35,22 +37,22 @@ const COLOR: Partial<Record<MilestoneStatus, string>> = {
 const INPUT_SCHEMA = {
   type: 'object',
   properties: {
-    phases: {
+    rows: {
       type: 'array',
-      description: 'Every queued phase, in run order',
+      description: 'Every queue row in the run, in run order',
       items: {
         type: 'object',
         properties: {
-          id: { type: 'string', description: 'Phase number, e.g. "59"' },
+          id: { type: 'string', description: 'Milestone range, e.g. "PROJ-004 M3-M5"' },
           title: { type: 'string' },
-          held: { type: 'string', description: 'Why the phase is held, when it is' },
-          blocked: { type: 'string', description: 'Why the phase is blocked, when it is' },
+          held: { type: 'string', description: 'Why the row is held, when it is' },
+          blocked: { type: 'string', description: 'Why the row is blocked, when it is' },
           milestones: {
             type: 'array',
             items: {
               type: 'object',
               properties: {
-                id: { type: 'string', description: 'Phase milestone, e.g. "59.3"' },
+                id: { type: 'string', description: 'Milestone ID, e.g. "PROJ-004 M3"' },
                 title: { type: 'string' },
                 status: { type: 'string', enum: STATUSES },
                 commit: { type: 'string', description: 'Short SHA once committed' },
@@ -66,13 +68,13 @@ const INPUT_SCHEMA = {
       type: 'object',
       description: 'What the coordinator is doing now',
       properties: {
-        milestone: { type: 'string', description: 'Phase milestone being worked, e.g. "59.3"' },
+        milestone: { type: 'string', description: 'Milestone being worked, e.g. "PROJ-004 M3"' },
         step: { type: 'string', enum: STEPS },
       },
       required: ['step'],
     },
   },
-  required: ['phases'],
+  required: ['rows'],
 }
 
 const DESCRIPTION = [
@@ -84,12 +86,12 @@ const DESCRIPTION = [
 ].join(' ')
 
 export function parseRun(input: Record<string, unknown>, now: number): Run | string {
-  if (!Array.isArray(input.phases)) return 'phases must be an array'
-  const phases: Phase[] = []
-  for (const raw of input.phases as unknown[]) {
-    const p = raw as Partial<Phase>
+  if (!Array.isArray(input.rows)) return 'rows must be an array'
+  const rows: Row[] = []
+  for (const raw of input.rows as unknown[]) {
+    const p = raw as Partial<Row>
     if (typeof p?.id !== 'string' || !Array.isArray(p.milestones)) {
-      return 'each phase needs an id and a milestones array'
+      return 'each row needs an id and a milestones array'
     }
     const milestones: Milestone[] = []
     for (const m of p.milestones as Partial<Milestone>[]) {
@@ -98,17 +100,17 @@ export function parseRun(input: Record<string, unknown>, now: number): Run | str
       }
       milestones.push({ id: m.id, title: m.title, status: m.status as MilestoneStatus, commit: m.commit })
     }
-    phases.push({ id: p.id, title: p.title, held: p.held, blocked: p.blocked, milestones })
+    rows.push({ id: p.id, title: p.title, held: p.held, blocked: p.blocked, milestones })
   }
   const cur = input.current as Run['current'] | undefined
   if (cur !== undefined && !STEPS.includes(cur.step)) {
     return `current.step must be one of ${STEPS.join(', ')}`
   }
-  return { phases, current: cur, updatedAt: now }
+  return { rows, current: cur, updatedAt: now }
 }
 
 export function milestonesOf(r: Run): Milestone[] {
-  return r.phases.flatMap(p => p.milestones)
+  return r.rows.flatMap(p => p.milestones)
 }
 
 export function countOf(r: Run, status: MilestoneStatus): number {
@@ -125,9 +127,12 @@ export function headline(r: Run): string {
   } else if (step !== undefined) {
     parts.push(r.current?.milestone ? `${r.current.milestone} ${step}` : step)
   }
-  parts.push(`${countOf(r, 'DONE')}/${all.length} done`)
-  const held = r.phases.filter(p => p.held).length
-  const blocked = r.phases.filter(p => p.blocked).length
+  // A dropped milestone is never work to do, so it counts toward neither side of the tally.
+  const dropped = countOf(r, 'DROPPED')
+  parts.push(`${countOf(r, 'DONE')}/${all.length - dropped} done`)
+  if (dropped > 0) parts.push(`${dropped} dropped`)
+  const held = r.rows.filter(p => p.held).length
+  const blocked = r.rows.filter(p => p.blocked).length
   if (held > 0) parts.push(`${held} held`)
   if (blocked > 0) parts.push(`${blocked} blocked`)
   return parts.join(' · ')
@@ -199,7 +204,7 @@ export const register: Register = on => {
       if (typeof parsed === 'string') return { deny: `${TOOL}: ${parsed}` }
       await update($, run, () => parsed)
       const n = milestonesOf(parsed).length
-      return { result: `Recorded ${n} milestones in ${parsed.phases.length} phases.` }
+      return { result: `Recorded ${n} milestones in ${parsed.rows.length} rows.` }
     }
 
     const agentId = e.agentId
@@ -286,7 +291,7 @@ export const register: Register = on => {
               <Text
                 key={`chip-${m.id}`}
                 color={COLOR[m.status]}
-                dimColor={m.status === 'QUEUED' || m.status === 'HELD'}
+                dimColor={DIM.has(m.status)}
                 bold={m.status === 'IN PROGRESS'}
               >
                 {GLYPH[m.status]}{m.id}
@@ -314,10 +319,10 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column">
         <Text bold>{headline(r)}</Text>
-        {r.phases.map(p => (
-          <Box key={`phase-${p.id}`} flexDirection="column" marginTop={1}>
+        {r.rows.map(p => (
+          <Box key={`row-${p.id}`} flexDirection="column" marginTop={1}>
             <Text bold color={ACCENT} wrap="truncate-end">
-              Phase {p.id}{p.title ? ` · ${p.title}` : ''}
+              {p.id}{p.title ? ` · ${p.title}` : ''}
             </Text>
             {p.held && <Text dimColor wrap="wrap">⏸ held: {p.held}</Text>}
             {p.blocked && <Text color="red" wrap="wrap">✗ blocked: {p.blocked}</Text>}
@@ -325,7 +330,7 @@ export const register: Register = on => {
               <Text
                 key={`row-${m.id}`}
                 color={COLOR[m.status]}
-                dimColor={m.status === 'QUEUED' || m.status === 'HELD'}
+                dimColor={DIM.has(m.status)}
                 wrap="truncate-end"
               >
                 {GLYPH[m.status]} {m.id}{m.commit ? ` ${m.commit}` : ''}{m.title ? ` ${m.title}` : ''}

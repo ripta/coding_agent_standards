@@ -137,8 +137,9 @@ SHA, per row. When the specs live in the code repo, the code commits are the
 specs commits. Write all of this into the session report so it survives
 context compaction.
 
-Track every milestone's run status: QUEUED, IN PROGRESS, DONE, HELD, or
-BLOCKED. A row is ready when it is not held or blocked and every dependency
+Track every milestone's run status: QUEUED, IN PROGRESS, DONE, DROPPED, HELD,
+or BLOCKED. A milestone the proposal marks `DROPPED` is never work to run. A
+row is ready when it is not held or blocked and every dependency
 is met. An in-run dependency becomes met when the run finishes it.
 
 When a tool whose name ends in `work_queue_status` is available, it shows the
@@ -147,14 +148,9 @@ ExitPlanMode. Call it again whenever a milestone's run status or the current
 step changes, and with step `finished` when the run is done. Skip it when the
 tool is absent.
 
-<!--
-The tool still names its fields for phases. Remove this mapping once the mod
-names them for queue rows.
--->
-
-Pass each row as an entry of its `phases` array, with the row's range as `id`.
-Pass each milestone with its `PROJ-NNN MN` ID. Use step `phase-review` for a
-row review.
+Pass each row in its `rows` array, with the row's range as `id`. Pass each
+milestone with its `PROJ-NNN MN` ID, and a `DROPPED` milestone with run status
+`DROPPED`. Use step `row-review` for a row review.
 
 Pick the next milestone this way:
 
