@@ -30,11 +30,11 @@ SKILLS=(
   makefile-helper
   new-proposal
   open-questions-audit
-  phase-cleanup
-  promote-proposal
+  proposal-cleanup
   rca
   release
   risk-assessment
+  schedule-proposal
   session-report
   testing-specialist
 )
