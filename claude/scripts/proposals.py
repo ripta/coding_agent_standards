@@ -37,15 +37,15 @@ FINISHED = {"DONE", "DROPPED"}
 NOT_LIVE = {"implemented", "rejected", "superseded", "retracted"}
 STOPPED = {"deferred", "rejected", "superseded", "retracted"}
 
-PROPOSAL_FILE = re.compile(r"^([A-Z][A-Z0-9]*-\d+)-.*\.md$")
+PROPOSAL_FILE = re.compile(r"^([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)-.*\.md$")
 PROPOSAL_STATUS = re.compile(r"^\*\*Status:\*\*\s*(.+?)\s*$", re.IGNORECASE)
 MILESTONE_HEADING = re.compile(r"^###\s+M(\d+):")
-REPLACED_BY = re.compile(r"^\s*(?:-\s*)?Replaced by:\s*([A-Z][A-Z0-9]*-\d+)(?:\s+M(\d+))?\s*$")
+REPLACED_BY = re.compile(r"^\s*(?:-\s*)?Replaced by:\s*([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)(?:\s+M(\d+))?\s*$")
 AS_BUILT = "**As built:**"
-ROW_RANGE = re.compile(r"^([A-Z][A-Z0-9]*-\d+)\s+M(\d+)(?:-M(\d+))?$")
-DEPENDENCY = re.compile(r"^([A-Z][A-Z0-9]*-\d+)(?:\s+M(\d+))?(\s+\(deployed\))?$")
+ROW_RANGE = re.compile(r"^([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)\s+M(\d+)(?:-M(\d+))?$")
+DEPENDENCY = re.compile(r"^([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)(?:\s+M(\d+))?(\s+\(deployed\))?$")
 META_LINE = re.compile(r"^\*\*(Status|Updated|Revisit):\*\*", re.IGNORECASE)
-PARTIAL_SUPERSESSION = re.compile(r"Superseded in part by [A-Z][A-Z0-9]*-\d+; see Decision Log\.")
+PARTIAL_SUPERSESSION = re.compile(r"Superseded in part by [A-Z0-9]*[A-Z][A-Z0-9]*-\d+; see Decision Log\.")
 FROZEN_STATUSES = {"implemented", "superseded"}
 LINK_TARGET = re.compile(r"\]\([^)]*\)")
 AUDIT_ENTRY = re.compile(r"\brevisit\b", re.IGNORECASE)
@@ -280,7 +280,7 @@ def load_queue(proposals_dir: Path) -> list[Row]:
 # -- check ----------------------------------------------------------------
 
 
-INDEX_ROW = re.compile(r"^\[?([A-Z][A-Z0-9]*-\d+)\]?(?:\(.*\))?$")
+INDEX_ROW = re.compile(r"^\[?([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)\]?(?:\(.*\))?$")
 
 
 def _index_statuses(proposals_dir: Path) -> dict[str, tuple[Path, str]]:
