@@ -31,6 +31,9 @@
       "WebFetch(domain:docs.anthropic.com)",
       "WebFetch(domain:www.anthropic.com)",
       "WebSearch"
+    ],
+    "additionalDirectories": [
+      "/Users/ripta/projects/private_specs"
     ]
   }
 }

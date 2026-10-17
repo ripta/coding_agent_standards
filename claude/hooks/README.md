@@ -1,7 +1,11 @@
 # Hooks
 
-`hooks.json` is loaded by the `coding-standards` plugin. It wires three events:
+`hooks.json` is loaded by the `coding-standards` plugin. It wires four events:
 
+- `SessionStart` runs `link-current.sh`. It points
+  `~/.claude/coding-standards-current` at the installed plugin, so profiles
+  import the standards from the same commit as the tools. It skips
+  `--plugin-dir` sessions, which would otherwise link a working tree.
 - `PreToolUse` on `Bash` runs `block-broad-find.sh`.
 - `PostToolUse` on `Edit|Write` runs `make fmt` when the target exists.
 - `Stop` reminds you to run `make test` and `make lint` when those targets exist.

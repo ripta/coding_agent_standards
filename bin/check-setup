@@ -74,6 +74,28 @@ if [ -n "$STANDARDS_DIR" ] && [ "$HOOKS_INSTALLED" = true ]; then
   fi
 fi
 
+# --- Check 5: Plugin link ---
+# Profiles import the standards through this link. The plugin's SessionStart
+# hook maintains it.
+LINK="$HOME/.claude/coding-standards-current"
+if [ ! -L "$LINK" ]; then
+  WARNINGS+=("$LINK is missing. Install or update the coding-standards plugin, then start a new session.")
+elif [ ! -d "$LINK/" ]; then
+  WARNINGS+=("$LINK points at $(readlink "$LINK"), which no longer exists. Update the coding-standards plugin, then start a new session.")
+fi
+
+# --- Check 6: External imports approved ---
+# Profiles live outside the project, so Claude Code loads them only once the
+# project approves external imports. Without approval it skips them silently.
+if grep -qsE "^@.*(coding-standards|coding_agent_standards)" \
+    "$PROJECT_ROOT/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.local.md" "$PROJECT_ROOT/.claude/CLAUDE.md" \
+  && command -v jq &>/dev/null && [ -f "$HOME/.claude.json" ]; then
+  APPROVED="$(jq -r --arg p "$PROJECT_ROOT" '.projects[$p].hasClaudeMdExternalIncludesApproved // false' "$HOME/.claude.json" 2>/dev/null || echo unknown)"
+  if [ "$APPROVED" = false ]; then
+    WARNINGS+=("This project imports the coding standards but has not approved external imports, so none of them load. Start an interactive session here and accept the external imports prompt.")
+  fi
+fi
+
 # --- Output ---
 if [ ${#WARNINGS[@]} -gt 0 ]; then
   echo "CODING STANDARDS SETUP:"
