@@ -60,8 +60,9 @@ a proposal to match its index row.
 ### Step 5: Move Finished Queue Rows
 
 A queue row is finished when every milestone it names is `DONE` or `DROPPED`. Under the Order rule in `plans.md` "The
-Queue File", every finished row sits above every unfinished row. For each finished row below an unfinished one, move it
-up to just after the last finished row. Keep the relative order of the rows you move. Never edit a row's cells.
+Queue File", every finished row sits above every unfinished row. The finished block is the rows above the first
+unfinished row. Move each finished row below that point to the end of the finished block, in its current relative
+order. Never edit a row's cells.
 
 Then look for rows the queue should no longer hold. An unfinished row of a proposal that is `deferred`, `retracted`,
 `superseded`, or `rejected` means the proposal stopped without the steps in `plans.md` "Stopping a Proposal". Report

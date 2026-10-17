@@ -130,7 +130,10 @@ def _hooked(status: str, header_hook: str | None, settled_hook: str | None = Non
     "hook, fault",
     [
         ("when the parser streams; on or after 2027-01-15 (two releases out)", None),
+        ("when the parser streams; on or after 2027-01-15 (two releases out).", None),
+        ("on or after 2027-01-15 (after v1.2 (beta))", None),
         ("when the parser streams", None),
+        ("on or after 2027-01-15.", "no anchor"),
         ("on or after 2027-01-15", "no anchor"),
         ("on or after next spring (x)", "not YYYY-MM-DD"),
         ("", "neither a condition nor a date"),
@@ -159,6 +162,12 @@ def test_hooks_lists_header_and_settled_hooks_passed_first(tmp_path: Path) -> No
     ]
     assert listed[0]["condition"] == "when X"
     assert [h["date"] for h in proposals.hooks(tmp_path, "2026-10-17", passed_only=True)] == ["2026-01-01"]
+
+
+def test_hooks_flags_a_passed_hook_that_ends_a_sentence(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _hooked("deferred", "when X; on or after 2026-01-01 (two releases (beta))."))
+    [hook] = proposals.hooks(tmp_path, "2026-10-17", passed_only=True)
+    assert (hook["date"], hook["anchor"]) == ("2026-01-01", "two releases (beta)")
 
 
 def test_check_compares_the_index(tmp_path: Path) -> None:

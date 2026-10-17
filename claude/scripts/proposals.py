@@ -56,7 +56,9 @@ class ProposalError(Exception):
 
 
 REVISIT_LINE = re.compile(r"^\s*(?:-\s*)?\*\*Revisit:\*\*\s*(.*?)\s*$")
-HOOK_DATE = re.compile(r"\bon or after\s+(.+?)(?:\s*\(([^)]*)\))?\s*$", re.IGNORECASE)
+# The anchor runs to the last ")", so it may hold parentheses of its own. Trailing punctuation
+# after it ends the sentence, not the date.
+HOOK_DATE = re.compile(r"\bon or after\s+(.+?)(?:\s*\((.*)\))?[\s.;,]*$", re.IGNORECASE)
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 

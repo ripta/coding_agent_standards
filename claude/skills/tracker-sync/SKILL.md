@@ -5,9 +5,10 @@ description: |
   issues, milestones, or labels) with work merged in mapped repository
   subdirectories since the last sync. Closes or updates tickets whose work
   landed, proposes tickets for untracked proposals or queue rows, fixes
-  proposal and queue doc drift, and backlinks ticket keys into docs. Triggers: "sync my
-  tickets", "which tickets can I close", "update jira/linear/issues for what I
-  merged", "reconcile <epic> with <path>", /tracker-sync. DO NOT trigger on:
+  proposal and queue doc drift, and backlinks ticket keys into docs.
+  Triggers: "sync my tickets", "which tickets can I close", "update
+  jira/linear/issues for what I merged", "reconcile <epic> with <path>",
+  /tracker-sync. DO NOT trigger on:
   reading or summarizing a single ticket, sprint planning, starting work on a
   ticket, or filing a bug.
 model: opus

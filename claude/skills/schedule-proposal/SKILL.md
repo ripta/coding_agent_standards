@@ -43,7 +43,7 @@ Do all of this before any question.
    into a separate specs repo. Follow it. If the project has a phases directory and no `queue.md`, it has not migrated
    to era 3. Stop and tell the user it must migrate first, per `eras.md`.
 2. **Queue.** Read `queue.md` in the proposals directory. If it does not exist, this is the project's first scheduled
-   work. Step 7 creates it in the form `plans.md` "The Queue File" gives.
+   work. Step 5 creates it in the form `plans.md` "The Queue File" gives.
 3. **Proposal.** Find `<ID>-*.md` in the proposals directory. If none exists, tell the user and stop. Read it and
    capture the title, `**Status:**`, `**Tradeoffs:**` if present, Dependencies, Design Decisions (Settled), Design
    Decisions (Open), Milestones, Risks, and the Decision Log.
@@ -54,20 +54,26 @@ Do all of this before any question.
    - Design Decisions (Open) contains any item. An empty or absent section is fine. Route the user to
      `proposal-reviewer`.
 5. **Unscheduled milestones.** List the proposal's milestones that are not `DONE` or `DROPPED` and that no queue row
-   names. If there are none, tell the user the proposal is already fully scheduled, name its rows, and stop.
+   names. If there are none, tell the user the proposal is already fully scheduled, name its rows, and stop. A
+   proposal may already have some rows. Then the unscheduled milestones must form one or more contiguous ranges that
+   follow its last scheduled milestone. A gap between scheduled milestones cannot be filled, since rows of one
+   proposal run in order. Stop and tell the user when you find one. Note whether its existing rows carry notes,
+   since every row of a multi-row proposal needs one.
 6. **A revived proposal.** If the Decision Log has an entry that recorded removed queue rows at a deferral, read the
    ranges, depends-on cells, and notes it recorded. Offer them as the starting layout in Step 4.
 7. **Dependencies.** For each `PROJ-NNN` in the proposal's Dependencies, find its state:
    - `implemented`: the dependency is met. It needs no depends-on entry.
    - `accepted` with queue rows: it becomes a depends-on entry. Name the milestone this work needs, as `PROJ-NNN MN`,
-     when the proposal's text says which. Otherwise name the proposal, `PROJ-NNN`.
+     when the proposal's text says which. Otherwise name the proposal, `PROJ-NNN`. A named milestone that is already
+     `DONE` is met and needs no entry, unless it is a `(deployed)` dependency.
    - Anything else, or `accepted` with no queue rows: hold it for Step 3. A row that depends on it would be blocked.
 
    Then check each depends-on entry for a deployment boundary. Search the proposal's Dependencies, Milestones, and
    Risks for the boundary signals listed in `plans.md` "Deployment Dependencies". Record each entry that has a signal,
    and quote the signal. Every other entry is code-only.
 8. **Positions.** Note where new rows can go. Finished rows sit at the top of the queue and never move. A new row goes
-   at the end of the queue, or before any unfinished row. A row must not go above a row it depends on.
+   at the end of the queue, or before any unfinished row. A row must not go above a row it depends on, or above an
+   earlier row of the same proposal.
 
 Report what you found in a few lines before asking anything. Name each code-only dependency as code-only.
 
@@ -94,7 +100,9 @@ Four questions is the cap.
 ### Step 4: Compute the layout and confirm
 
 Compute each new row: its milestone range, its depends-on cell, and its note. A note carries the reason for a
-dependency or a split. Every row of a proposal that has more than one row needs a note saying why.
+dependency or a split. Every row of a proposal that has more than one row needs a note saying why. When this run
+gives a proposal its second row, an existing row may lack a note. Never edit it. Name it in the plan, and ask the user
+to add the note.
 
 Show the user the full plan: the rows, where each goes, and the lines added to the proposal. This is the one approval
 gate. Do not write until the user approves.
