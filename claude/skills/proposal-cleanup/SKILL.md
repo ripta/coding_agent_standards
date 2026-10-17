@@ -26,8 +26,9 @@ holds the index and `queue.md`. The index is `index.md` or `README.md`, per the 
 `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. If the directory holds both, stop before editing anything.
 Tell the user to consolidate the two into one file first.
 
-If the project has a phases directory and no `queue.md`, it has not migrated to era 3. Stop and tell the user it must
-migrate first, with `/migrate-era`.
+Run `python3 ${CLAUDE_SKILL_DIR}/../../scripts/detect_era.py --specs-dir <specs dir>`. If it reports an era other
+than 3, or `partial`, the project has not finished migrating to era 3. Stop and tell the user to migrate first, with
+`/migrate-era`. A project with no era at all has nothing to clean up yet.
 
 ### Step 2: Run the Check
 

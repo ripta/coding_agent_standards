@@ -87,8 +87,9 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   prompt and in a `/queue` pane
 - **Settings** (`settings/`) -- permission whitelist templates to copy into a project's `.claude/settings.local.json`,
   one per language ecosystem
-- **Scripts** (`scripts/`) -- standalone scripts not tied to a hook: the statusline, and `proposals.py`, which checks
-  proposals and the queue, reports progress, and lists revisit hooks for the commands and skills
+- **Scripts** (`scripts/`) -- standalone scripts not tied to a hook: the statusline; `proposals.py`, which checks
+  proposals and the queue, reports progress, and lists revisit hooks for the commands and skills; and `detect_era.py`,
+  which reads a project's era from its markers and inventories what a migration to era 3 moves
 - **Skills** (`skills/`) -- specialized agents for code review, testing, linting, Makefile maintenance, releases,
   proposals, etc.
 - **Agents** (`agents/`) -- subagent definitions invoked by name: `implementer`, which writes one milestone for

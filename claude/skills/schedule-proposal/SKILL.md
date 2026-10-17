@@ -40,8 +40,10 @@ convention conflicts with the standard, follow the project.
 Do all of this before any question.
 
 1. **Directories.** Find the proposals directory (`spec/proposals/`, or the `docs/` equivalent). It may be a symlink
-   into a separate specs repo. Follow it. If the project has a phases directory and no `queue.md`, it has not migrated
-   to era 3. Stop and tell the user it must migrate first, with `/migrate-era`.
+   into a separate specs repo. Follow it. Run `python3 ${CLAUDE_SKILL_DIR}/../../scripts/detect_era.py --specs-dir
+   <specs dir>`. If it reports era 0, 1, 2, `mixed`, or `partial`, the project has not finished migrating to era 3.
+   Stop and tell the user to migrate first, with `/migrate-era`. Era 3, or no era at all for a project with no
+   scheduled work yet, may go on.
 2. **Queue.** Read `queue.md` in the proposals directory. If it does not exist, this is the project's first scheduled
    work. Step 5 creates it in the form `plans.md` "The Queue File" gives.
 3. **Proposal.** Find `<ID>-*.md` in the proposals directory. If none exists, tell the user and stop. Read it and

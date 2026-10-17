@@ -92,16 +92,54 @@ def test_a_status_mid_line_or_only_in_the_index(tmp_path: Path) -> None:
 
 def test_era0_rolling_plan_and_archive(tmp_path: Path) -> None:
     spec = tmp_path / "spec"
-    _write(spec / "implementation.md", "# Plan\n\n## Phase 12: Fast path (1ZP-405)\n\nText\n")
+    _write(spec / "implementation.md", "# Plan\n\n## Phase 12: Fast path (9AB-405)\n\nText\n")
     _write(spec / "completed_detailed.md", "## Phase 1: Old\n\n## Phase 2: Older\n")
-    _proposal(spec, "1ZP-405", "accepted")
-    _proposal(spec, "1ZP-100", "absorbed (by 1ZP-405)")
+    _proposal(spec, "9AB-405", "accepted")
+    _proposal(spec, "9AB-100", "absorbed (by 9AB-405)")
     result = detect_era.detect(spec, None)
     assert result["era"] == 0
     plans = {Path(p["file"]).name: p for p in result["plan_files"]}
     assert plans["completed_detailed.md"]["likely_archive"] is True
-    assert plans["implementation.md"]["sections"][0]["proposals"] == ["1ZP-405"]
-    assert result["nonstandard_proposal_statuses"] == {"1ZP-100": "absorbed"}
+    assert plans["implementation.md"]["sections"][0]["proposals"] == ["9AB-405"]
+    assert result["nonstandard_proposal_statuses"] == {"9AB-100": "absorbed"}
+
+
+def test_a_migrated_live_phase_is_history_and_an_unmarked_one_is_partial(tmp_path: Path) -> None:
+    spec = tmp_path / "spec"
+    _write(spec / "proposals" / "queue.md", "# Queue\n")
+    _proposal(spec, "PROJ-003", "accepted")
+    phase = _write(spec / "phases" / "phase-4-printer.md", ERA2_PHASE.format(status="PLANNED"))
+    assert detect_era.detect(spec, None)["era"] == "partial"
+    phase.write_text(ERA2_PHASE.format(status="PLANNED").replace(
+        "## Scope", "**Migrated:** 2026-10-17, see queue.md row PROJ-003 M1\n\n## Scope"))
+    result = detect_era.detect(spec, None)
+    assert result["era"] == 3
+    assert result["live_phases"] == []
+
+
+def test_a_migrated_plan_section_is_history(tmp_path: Path) -> None:
+    spec = tmp_path / "spec"
+    _write(spec / "proposals" / "queue.md", "# Queue\n")
+    _write(spec / "plan.md", "## Phase 12: Fast path\n\n**Migrated:** 2026-10-17, see queue.md\n\n## Notes\n")
+    assert detect_era.detect(spec, None)["era"] == 3
+
+
+def test_a_phase_file_with_no_proposal_is_era0_and_lookalike_ids_are_ignored(tmp_path: Path) -> None:
+    spec = tmp_path / "spec"
+    _write(spec / "phases" / "phase-1-a.md", "# Phase 1\n\n**Status:** PLANNED\n\nImplements: UTF-8 support\n")
+    _proposal(spec, "PROJ-001", "scheduled")
+    result = detect_era.detect(spec, None)
+    [live] = result["live_phases"]
+    assert (live["era"], live["proposals"]) == (0, [])
+    assert result["scheduled_without_live_phase"] == ["PROJ-001"]
+
+
+def test_a_stray_byte_does_not_stop_detection(tmp_path: Path) -> None:
+    spec = tmp_path / "spec"
+    path = spec / "phases" / "phase-1-a.md"
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"# Phase 1\n\n**Status:** DONE \xff\n")
+    assert detect_era.detect(spec, None)["finished_phases"] == 1
 
 
 def test_era3_and_retired_skill_copies(tmp_path: Path) -> None:

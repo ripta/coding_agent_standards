@@ -232,9 +232,9 @@ def test_notice_is_silent_until_a_hook_passes(tmp_path: Path) -> None:
 
 
 def test_a_prefix_may_start_with_a_digit(tmp_path: Path) -> None:
-    _write(tmp_path, "1ZP-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")).replace("PROJ-001", "1ZP-001"))
-    _queue(tmp_path, "| 1ZP-001 M1 | None | |")
-    assert proposals.row_info(tmp_path, "1ZP-001", 1)["ready"] is True
+    _write(tmp_path, "9AB-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")).replace("PROJ-001", "9AB-001"))
+    _queue(tmp_path, "| 9AB-001 M1 | None | |")
+    assert proposals.row_info(tmp_path, "9AB-001", 1)["ready"] is True
 
 
 def test_check_compares_the_index(tmp_path: Path) -> None:

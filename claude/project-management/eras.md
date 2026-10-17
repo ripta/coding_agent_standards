@@ -172,6 +172,8 @@ Markers:
 - `**As built:**` blocks under started milestones
 - Milestone checks as plain bullets, never ticked
 - No phases directory, or one kept as history with a note pointing to the queue
+- A `**Migrated:**` line on each phase document or plan section a migration moved
+  into the queue
 
 A milestone table with a status column is not the era 3 form. It is an era 1
 marker, though it uses the same status words.
