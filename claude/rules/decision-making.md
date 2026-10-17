@@ -111,8 +111,8 @@ time it would take, or the tone of the conversation.
 
 - **For a session:** the user says so explicitly, such as "optimize for speed this time" or "the cheap option is fine
   here." The override lasts for that session only
-- **For a document:** a proposal or phase document carries a `**Tradeoffs:** expedient` field with a stated reason. The
-  override applies to work driven by that document
+- **For a document:** a proposal carries a `**Tradeoffs:** expedient` field with a stated reason. The override applies
+  to work driven by that proposal, including its queue rows
 
 Under an override, rank implementation cost second, above robustness and maintainability. Correctness stays first: an
 expedient option may be less reliable or less polished, but it must not put data at risk. Still include the complete

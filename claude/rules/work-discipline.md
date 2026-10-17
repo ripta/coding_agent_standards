@@ -10,7 +10,7 @@
 
 - Do not ignore compilation or build failures
 - Confirm with the user before moving on to a new milestone or task
-- Read and maintain the phase document and the phase index before and after every milestone
+- Read and maintain the proposal's milestone status and As built block before and after every milestone
 
 ## Refactoring
 
@@ -30,7 +30,8 @@ silently expand a feature task into a sweeping rewrite.
 ## Output Style
 
 - Avoid emojis in output
-- Do not include references to phase or milestone numbers in code or comments; those are project management artifacts
+- Do not include proposal or milestone IDs, or phase numbers from older projects, in code or comments; those are
+  project management artifacts
 - Preserve the tone, wording, and style of existing comments that are not being changed; keep user voice exactly as
   written
 - Separate logical blocks of code with blank lines; let the code breathe. Do not squash statements together to save

@@ -36,8 +36,8 @@ Apply these only when the repository expresses no convention of its own.
   at the subject. A body that restates the subject is noise
 - The body explains WHY, not WHAT. The diff shows the what
 - Describe the problem being solved and the observable behavior change
-- Do not reference phase, milestone, or proposal numbers. Those are project
-  management artifacts
+- Do not reference proposal or milestone IDs, or phase numbers from older
+  projects. Those are project management artifacts
 - Avoid class names, struct names, and other implementation nouns
 - Avoid over-explaining. Keep it succinct
 

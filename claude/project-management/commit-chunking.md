@@ -35,13 +35,15 @@ Stop if there are no unmerged commits.
 
 ## Chunk Boundary Heuristics
 
-1. **Primary**: map commits to the project's phases. Locate the phase documents
-   as described in `plans.md`; they usually live in `spec/phases/`,
-   `docs/phases/`, or `phases/`. One phase or milestone of work is one chunk.
+1. **Primary**: map commits to the project's queue rows. Read `queue.md` and
+   the proposals it names, as described in `plans.md`; they usually live in
+   `spec/proposals/` or `docs/proposals/`. Match each commit to a row by the
+   milestone checks and As built blocks it fulfills. One queue row of work is
+   one chunk.
 
 2. **Secondary**: infer boundaries from commit messages, file paths, and
-   thematic similarity. Use this when commits don't map cleanly to a phase. A
-   project with no phase documents relies on this heuristic alone.
+   thematic similarity. Use this when commits don't map cleanly to a row. A
+   project with no queue relies on this heuristic alone.
 
 3. **Ambiguous commits** that could belong to either of two adjacent chunks:
    - Prerequisite work goes with the chunk that needs it.
@@ -68,8 +70,8 @@ about in a single reply.
 
 For each chunk, output:
 
-1. **Title**: the phase number, if there is one, plus a short name suitable as a
-   PR title.
+1. **Title**: the queue row's milestone range, if there is one, plus a short
+   name suitable as a PR title.
 2. **Description**: a short paragraph or a few bullet points suitable as a PR
    body. Follow the PR description rules in `rules/pr-style.md`, a sibling
    directory of this file.
@@ -106,7 +108,7 @@ repository.
 
 One chunk, with a paragraph description. A few bullet points work equally well.
 
-### Phase 5: Streams
+### PROJ-005 M1-M3: Streams
 
 Reading and writing external data needs a value type that survives across calls,
 plus primitives to open, seek, and buffer it. This chunk adds the stream type

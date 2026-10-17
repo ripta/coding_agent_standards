@@ -65,8 +65,9 @@ Cross-cutting concerns that apply regardless of language:
 
 Standards for planning and tracking work:
 
-- **Glossary** -- what each term means: proposal, phase, milestone, spike, ADR
-- **Plans** -- phase and milestone definitions, promotion rules, document format
+- **Glossary** -- what each term means: proposal, milestone, queue, spike, ADR
+- **Plans** -- the queue that orders work, scheduling, and the rules for working and stopping a milestone
+- **Eras** -- the numbered styles of project management, and how to tell which one an artifact belongs to
 - **Proposals** -- feature proposal lifecycle (draft through implemented), numbering
 - **Design** -- Architecture Decision Records (ADRs), lifecycle, immutability rules
 - **Tracking** -- cross-reference conventions, metadata standards, markdown guidelines
@@ -77,14 +78,16 @@ Standards for planning and tracking work:
 Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
 
 - **Rules** (`rules/`) -- decision-making boundaries, work discipline, git workflow, commit/PR style, writing voice
-- **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. The
+- **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. At session
+  start it keeps the plugin link that profiles import through, and names any passed revisit hook. The
   `block-broad-find`, `block-redirection`, and `cg-check` guard scripts ship alongside it, plus opt-in hooks for
   project-management references, golden files, and the Zig cache; see `claude/hooks/README.md` for which are wired by
   default. `hooks.json` also loads `work-queue-progress.tsx`, a mod that shows a `work-queue` run's progress above the
   prompt and in a `/queue` pane
 - **Settings** (`settings/`) -- permission whitelist templates to copy into a project's `.claude/settings.local.json`,
   one per language ecosystem
-- **Scripts** (`scripts/`) -- standalone scripts not tied to a hook, currently the statusline
+- **Scripts** (`scripts/`) -- standalone scripts not tied to a hook: the statusline, and `proposals.py`, which checks
+  proposals and the queue, reports progress, and lists revisit hooks for the commands and skills
 - **Skills** (`skills/`) -- specialized agents for code review, testing, linting, Makefile maintenance, releases,
   proposals, etc.
 - **Agents** (`agents/`) -- subagent definitions invoked by name: `implementer`, which writes one milestone for
@@ -92,8 +95,8 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   diff or proposal against the project's ADRs; `design-critic`, which critiques design options and whole proposals for
   `proposal-reviewer`; `design-judge`, which breaks ties when repeated critique does not converge; and
   `citation-verifier`, which checks file:line citations for `walkthrough` and `architecture-exploration`
-- **Commands** (`commands/`) -- slash commands for driving a phase milestone (`work-on`), working through a queue of
-  milestones planned up front (`work-queue`), summarizing a session as a commit message (`summary`), chunking an
+- **Commands** (`commands/`) -- slash commands for driving a proposal milestone (`work-on`), working through queue
+  rows planned up front (`work-queue`), summarizing a session as a commit message (`summary`), chunking an
   integration branch into PRs (`next-pr`), writing a PR title and description for a branch (`pr-description`), and
   iterating a design question with the critic until it converges (`converge-design`)
 
