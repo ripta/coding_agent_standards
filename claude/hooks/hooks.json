@@ -9,7 +9,8 @@
           },
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/revisit-notice.sh"
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/revisit-notice.sh",
+            "timeout": 5
           }
         ]
       }

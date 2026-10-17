@@ -24,6 +24,7 @@ import argparse
 import difflib
 import json
 import re
+import shlex
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -739,7 +740,9 @@ def progress(proposals_dir: Path, today: str) -> dict[str, Any]:
     """Join each queue row with its milestones' status: what is done, what is ready, what is held."""
     proposals = load_proposals(proposals_dir)
     rows = load_queue(proposals_dir)
-    report: dict[str, Any] = {"done": [], "ready": [], "held": [], "hooks": hooks(proposals_dir, today, False)}
+    report: dict[str, Any] = {
+        "done": [], "ready": [], "held": [], "blocked": [], "hooks": hooks(proposals_dir, today, False),
+    }
     for row in rows:
         p = proposals.get(row.proposal)
         numbers = range(row.first, row.last + 1)
@@ -755,23 +758,31 @@ def progress(proposals_dir: Path, today: str) -> dict[str, Any]:
             report["done"].append(entry)
             continue
         entry["next"] = next(f"{row.proposal} M{n}" for n, s in statuses.items() if s not in FINISHED)
-        reasons = []
+        # Blocked reasons need the user. Held reasons clear once other work finishes.
+        blocked, held = [], []
         if p is None:
-            reasons.append(f"{row.proposal} does not exist")
-        elif p.status != "accepted":
-            reasons.append(f"{row.proposal} is {p.status}")
+            blocked.append(f"{row.proposal} does not exist")
+        else:
+            if p.status != "accepted":
+                blocked.append(f"{row.proposal} is {p.status}")
+            blocked += [f"{row.proposal} has no M{n}" for n, s in statuses.items() if s is None]
         for earlier in rows[: row.index]:
             if earlier.proposal == row.proposal and any(
-                p and p.milestones.get(n) and p.milestones[n].status not in FINISHED
+                p is None or p.milestones.get(n) is None or p.milestones[n].status not in FINISHED
                 for n in range(earlier.first, earlier.last + 1)
             ):
-                reasons.append(f"waits on its earlier row {earlier.label}")
+                held.append(f"waits on its earlier row {earlier.label}")
         for dep in row.depends_on:
             state, reason = _dependency_state(dep, proposals, rows)
-            if state != "met":
-                reasons.append(f"{dep}: {reason}")
-        if reasons:
-            entry["held"] = reasons
+            if state == "blocked":
+                blocked.append(f"{dep}: {reason}")
+            elif state != "met":
+                held.append(f"{dep}: {reason}")
+        if blocked:
+            entry["blocked"] = blocked + held
+            report["blocked"].append(entry)
+        elif held:
+            entry["held"] = held
             report["held"].append(entry)
         else:
             report["ready"].append(entry)
@@ -787,12 +798,13 @@ def render_progress(report: dict[str, Any]) -> str:
     lines += [f"  {e['row']}  {tally(e)}" for e in report["done"]] or ["  (none)"]
     lines.append("Ready, in queue order")
     lines += [f"  {e['row']}  {tally(e)}, next {e['next']}" for e in report["ready"]] or ["  (none)"]
-    lines.append("Held")
-    for e in report["held"]:
-        lines.append(f"  {e['row']}  {tally(e)}, next {e['next']}")
-        lines += [f"    - {reason}" for reason in e["held"]]
-    if not report["held"]:
-        lines.append("  (none)")
+    for title, key in (("Held, until other work finishes", "held"), ("Blocked, needs the user", "blocked")):
+        lines.append(title)
+        for e in report[key]:
+            lines.append(f"  {e['row']}  {tally(e)}, next {e['next']}")
+            lines += [f"    - {reason}" for reason in e[key]]
+        if not report[key]:
+            lines.append("  (none)")
     lines.append("Revisit hooks")
     for h in report["hooks"]:
         when = f"on or after {h['date']}" if h["date"] else "no date"
@@ -812,8 +824,8 @@ def notice(proposals_dir: Path, today: str) -> str:
     noun = "hook has" if len(passed) == 1 else "hooks have"
     return (
         f"{len(passed)} revisit {noun} passed in {proposals_dir} ({names}). Each needs an audit the user decides: "
-        f"act, extend with a reason, or abandon. List them with: python3 {Path(__file__).resolve()} hooks --passed "
-        f"--proposals-dir {proposals_dir}"
+        f"act, extend with a reason, or abandon. List them with: python3 {shlex.quote(str(Path(__file__).resolve()))} "
+        f"hooks --passed --proposals-dir {shlex.quote(str(proposals_dir))}"
     )
 
 

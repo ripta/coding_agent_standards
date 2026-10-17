@@ -84,6 +84,16 @@ test('a dropped milestone counts toward no tally and is never next', async () =>
   }))
   const { chips } = visibleChips(run({ rows: [{ id: 'PX-7 M1-M30', milestones }] }), 40)
   expect(chips.some(m => m.id === 'PX-7 M21')).toBe(true)
+
+  const allDropped = run({ rows: [{ id: 'PX-8 M1', milestones: [{ id: 'PX-8 M1', status: 'DROPPED' }] }] })
+  expect(headline(allDropped)).toBe('0/0 done · 1 dropped')
+
+  const before = Array.from({ length: 30 }, (_, i) => ({
+    id: `PX-9 M${i + 1}`,
+    status: i < 25 ? ('DROPPED' as const) : i === 25 ? ('IN PROGRESS' as const) : ('QUEUED' as const),
+  }))
+  const shown = visibleChips(run({ rows: [{ id: 'PX-9 M1-M30', milestones: before }] }), 40).chips
+  expect(shown.some(m => m.id === 'PX-9 M26')).toBe(true)
 })
 
 test('chips that do not fit keep the current milestone in view', async () => {

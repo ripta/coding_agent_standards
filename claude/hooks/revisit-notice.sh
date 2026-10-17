@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prints one line at session start when a revisit hook in the project's proposals has passed. A
-# deferral is only useful if someone notices its hook fire, so this does the remembering.
+# deferral is only useful if someone notices its hook fire, and nobody runs a listing on a hunch.
 #
 # It prints nothing when no hook has passed, when the project has no proposals directory, or
 # when anything fails. A broken notice must never get in the way of a session.

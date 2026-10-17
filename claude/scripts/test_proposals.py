@@ -1,5 +1,6 @@
 """Tests for proposals.py. Run: uv run --with pytest pytest claude/scripts"""
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -189,6 +190,36 @@ def test_progress_sorts_rows_into_done_ready_and_held(tmp_path: Path) -> None:
     text = proposals.render_progress(report)
     assert "1/1 done, 1 dropped" in text
     assert "Revisit hooks\n  (none)" in text
+
+
+@pytest.mark.parametrize(
+    "status, queue_row, key, reason",
+    [
+        ("accepted", "| PROJ-001 M1-M2 | None | |", "blocked", "PROJ-001 has no M2"),
+        ("deferred", "| PROJ-001 M1 | None | |", "blocked", "PROJ-001 is deferred"),
+        ("accepted", "| PROJ-001 M1 | PROJ-002 M1 (deployed) | |", "held", "confirm it runs in production"),
+        ("accepted", "| PROJ-001 M1 | PROJ-002 M9 | |", "blocked", "has no M9"),
+    ],
+)
+def test_progress_separates_held_from_blocked(tmp_path: Path, status: str, queue_row: str, key: str, reason: str) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _hooked(status, "when X") if status == "deferred"
+           else _proposal(status, _milestone(1, "NOT STARTED")))
+    other = _proposal("accepted", _milestone(1, "DONE", "- Done."))
+    _write(tmp_path, "PROJ-002-b.md", other.replace("PROJ-001", "PROJ-002"))
+    _queue(tmp_path, "| PROJ-002 M1 | None | |", queue_row)
+    report = proposals.progress(tmp_path, "2026-10-17")
+    [entry] = report[key]
+    assert any(reason in r for r in entry[key])
+    assert report["ready"] == []
+
+
+def test_progress_cli_prints_json_and_notice_prints_nothing(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")))
+    _queue(tmp_path, "| PROJ-001 M1 | None | |")
+    assert proposals.main(["progress", "--proposals-dir", str(tmp_path), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["ready"][0]["row"] == "PROJ-001 M1"
+    assert proposals.main(["notice", "--proposals-dir", str(tmp_path)]) == 0
+    assert capsys.readouterr().out == ""
 
 
 def test_notice_is_silent_until_a_hook_passes(tmp_path: Path) -> None:

@@ -139,8 +139,8 @@ context compaction.
 
 Track every milestone's run status: QUEUED, IN PROGRESS, DONE, DROPPED, HELD,
 or BLOCKED. A milestone the proposal marks `DROPPED` is never work to run. A
-row is ready when it is not held or blocked and every dependency
-is met. An in-run dependency becomes met when the run finishes it.
+row is ready when it is not held or blocked and every dependency is met. An
+in-run dependency becomes met when the run finishes it.
 
 When a tool whose name ends in `work_queue_status` is available, it shows the
 run's progress to the user. Call it with the whole run right after
