@@ -2,9 +2,10 @@
 name: bug-triage
 description: |
   Verify the oldest open bug in the project's bugs directory. Reproduce it against
-  the current build, then close it if fixed, offer to fix it if simple, or offer to
-  open a proposal if complex. Reconciles the bug index when a bug file is already
-  closed. Works one bug per run.
+  the current build, then close it if fixed. If it still reproduces, estimate the
+  fix's size and design decisions, then recommend fixing it now or opening a
+  proposal. Reconciles the bug index when a bug file is already closed. Works one
+  bug per run.
 model: sonnet
 allowed-tools: Read, Edit, Write, Bash, Grep, Glob, AskUserQuestion
 ---
@@ -88,25 +89,55 @@ single AskUserQuestion call.
    change. Record a commit hash and subject only if you can identify it confidently. Do not guess.
 3. Set the index row's Status to `fixed`.
 
-### STILL A BUG: judge the size
+### STILL A BUG: estimate, then offer
 
-A fix is **simple** when it is localized, clear, and easy to validate. The bug often already documents a chosen fix. A
-fix is **complex** when it carries downstream changes, touches many files, or is hard to validate.
+Estimate the fix before choosing what to offer. Read the code the fix would touch. Do not estimate from the bug report
+alone.
 
-- **Simple: offer to fix it now.** If the bug lists several possible fixes but no chosen one, ask which approach in
-  the same AskUserQuestion call. Never pick one yourself. If the user accepts:
+1. **Size.** Pick one:
+   - **Small.** One or two files in one place. One regression test validates it.
+   - **Medium.** Several files in one subsystem, or a shared helper with a few callers. It still lands as one change
+     and one test run validates it.
+   - **Large.** It crosses subsystems, changes a public interface, file format, or wire format, needs a migration, or
+     is hard to validate.
+2. **Design decisions.** List each choice the fix forces, such as where the check lives or which of two behaviors wins.
+   Judge each one:
+   - **Trivial.** The bug already records a chosen fix. Or one option is clearly better on correctness, robustness, or
+     performance, and you can say why in one sentence. Or the choice follows an existing pattern in the codebase.
+   - **Non-trivial.** Two or more options are equally correct, equally robust, and equally performant, so picking one is
+     a judgment call. Or an option changes behavior a user or caller can observe beyond the bug itself.
+3. **Record the estimate.** Add an `Estimate:` line next to the status, such as
+   `**Estimate:** small; no open design decisions`. Name each non-trivial decision when there is one.
+
+Then offer options in one AskUserQuestion call. Put the estimate and each decision's resolution in the question text,
+so the user can check your reasoning. The estimate picks which option comes first:
+
+| Estimate                                     | First option (Recommended)                                   | Other options                       |
+|----------------------------------------------|--------------------------------------------------------------|-------------------------------------|
+| Small or medium, all decisions trivial       | Fix now                                                      | Amend the bug report, leave it open |
+| Small or medium, a non-trivial decision      | Fix now, with one option per approach for that decision      | Open a proposal, amend the report   |
+| Large, or several non-trivial decisions      | Open a proposal                                              | Fix now, amend the report           |
+
+A proposal exists to settle design questions. Do not recommend one when every question is already settled.
+
+- **Fix now.** If the user accepts:
   1. Write the regression test first, in the suite and shape the project uses. Run it and confirm it fails for the
      reason the bug describes. A test that passes before the fix does not cover the bug.
-  2. Implement the fix, following the chosen approach.
+  2. Implement the fix, following the approach the bug records, the one you resolved as trivial, or the one the user
+     picked.
   3. Run the formatter, then the regression test, then the full test suite. Regenerate golden files only through the
      project's update target.
   4. Close the bug: status `fixed` with today's date, and a short fix note naming the files changed and the observable
      behavior change. Set the index row to `fixed`.
-- **Complex: offer to open a proposal.** If the user accepts:
+- **Open a proposal.** If the user accepts:
   1. Create a `draft` proposal following `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`. Use the next
-     sequential number and the project's prefix. Carry the bug's research into its Motivation and Design Decisions.
+     sequential number and the project's prefix. Carry the bug's research into its Motivation. Carry each non-trivial
+     decision into Design Decisions as an open question.
   2. Add the proposal to the proposal index.
   3. Set the bug's status to `proposed` and link the proposal, so later runs skip it. Set the index row to `proposed`.
+- **Amend the bug report.** Append what this run learned to the bug file: the confirmed repro, the files involved, and
+  the estimate. Add or update a `Triaged:` line with today's date, such as
+  `**Triaged:** 2026-07-16 (still reproduces; small fix, deferred)`. The bug stays open.
 
 ### INCONCLUSIVE: do not close
 
@@ -132,7 +163,8 @@ Summarize concisely:
 - Step 4 asks after verification on purpose, because what to offer depends on the outcome. This is an exception to
   the ask-once flow in `skills/README.md`. Step 1 asks only for a build command it cannot find.
 - Never commit, stage, or push. Stop and let the user commit.
-- Do not make a design decision on a fix alone. Ask whenever the approach is ambiguous.
+- Resolve a trivial design decision yourself and state why in the question. Ask about every non-trivial one. Never
+  break a tie between equally good options on your own.
 - A fix always lands with a regression test that failed before it.
 - Keep bug, milestone, and proposal IDs out of source code, comments, and diagnostic strings, per
   `${CLAUDE_SKILL_DIR}/../../rules/work-discipline.md`. They belong in bug files, proposals, and commit messages.
