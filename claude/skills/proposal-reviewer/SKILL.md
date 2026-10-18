@@ -40,10 +40,14 @@ Then ask the entry gates in one AskUserQuestion call:
    - **Manual**: one critique pass per round, then ask each round
 3. **Redesign**: only when the status is neither `draft` nor `implemented`, and the review is not a continuation. A
    `designing` proposal with open questions or unreviewed `(autonomous...)` entries is a continuation. See Step 2.
-4. **Commit**: whether to commit the proposal after each round. Skip it when the proposal is not in a git repository,
-   or when the status is `implemented`. The options are to commit as the review goes, or to leave every change
-   uncommitted. When the proposal file already has uncommitted changes, say in the first option's description that the
-   first commit will include them. See "Committing".
+4. **Commit**: whether and when to commit the proposal. Skip it when the proposal is not in a git repository, or when
+   the status is `implemented`. List the options in this order:
+   - **Commit as the review goes**: one commit after each round and each later step
+   - **Commit once at the end**: one commit after the review is done and every change is in
+   - **Leave uncommitted**: commit nothing
+
+   When the proposal file already has uncommitted changes, say in the first two options' descriptions that the first
+   commit will include them. See "Committing".
 
 Mark no mode as recommended. The choice is how much of the user's attention the review takes, and only the user knows
 that. Mark no commit option as recommended either.
@@ -61,14 +65,16 @@ do not ask whether to change.
 
 ### Committing
 
-When the user chose to commit as the review goes, that choice is their explicit request to commit, as
+When the user chose either commit option, that choice is their explicit request to commit, as
 `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` requires. It covers this review only.
 
-- Commit after each round is recorded, after the changes from Steps 6 and 7, after the review gate, and after the
-  wrap-up
+- **As the review goes**: commit after each round is recorded, after the changes from Steps 6 and 7, after the review
+  gate, and after the wrap-up
+- **Once at the end**: commit once, after the wrap-up, with the ADR review's fixes in. When the user stops the review
+  early, commit what was recorded at that point. The message names every question settled this review
 - Commit only the proposal file and any ADR this review created. Name the paths in `git commit -- <paths>`
 - Follow `${CLAUDE_SKILL_DIR}/../../rules/commit-style.md`. Name the questions settled, not the round number
-- Never push, amend an earlier round's commit, or change branches
+- Never push, amend an earlier commit, or change branches
 - If a commit fails, say why and stop committing. Keep recording to the file
 
 ### Resuming
