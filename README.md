@@ -229,7 +229,8 @@ It refuses to run inside a coding agent, and it shows the diff before asking to 
 python3 ~/.claude/coding-standards-current/scripts/setup_permissions.py
 ```
 
-Re-run it after updating the plugin. It is safe to repeat. `--check` only reports.
+Re-run it after updating the plugin. It is safe to repeat. `--check` only reports. The link moves to a new plugin
+version only when a session starts. `/reload-plugins` does not move it.
 
 #### Updating
 
