@@ -220,11 +220,44 @@ For each milestone picked:
    so it keeps its context. It re-runs the local checks and reports again.
 
    While waiting on any agent, keep a fallback timer armed, such as a
-   background `sleep 1200`. A lost report or notification otherwise stalls the
-   run with nothing to wake it. When the timer fires and the agent has not
-   reported, check its progress before re-sending anything. Use
-   `git diff --stat`, not `git status`. New edits to files that were already
-   modified do not show in `git status`.
+   background `sleep 600`. A lost report or notification otherwise stalls the
+   run with nothing to wake it. An agent that hangs or dies does the same.
+   When the timer fires and the agent has not reported, check its liveness
+   before re-sending anything. Never kill a command the agent started. A
+   restarted test suite costs more than waiting for it.
+
+   The agent's transcript is the notification's `<output-file>`. It is JSONL,
+   and too large to read whole. Query it instead:
+
+   ```sh
+   jq -s '([.[] | select(.type=="user") | .message.content[]? | objects | select(.type=="tool_result") | .tool_use_id]) as $done | {last: (map(.timestamp // empty) | last), pending: [.[] | select(.type=="assistant") | .message.content[]? | objects | select(.type=="tool_use") | select(.id as $i | $done | index($i) | not) | {name, command: .input.command}]}' <output-file>
+   ```
+
+   `last` is the time of its latest entry. `pending` lists its tool calls that
+   have no result yet. Act on the first case that applies:
+   - The transcript ends with the agent's report. It finished, and its
+     notification was lost. Read the report.
+   - `last` moved since the previous check. The agent is alive. Re-arm the
+     timer.
+   - A pending call is to a tool whose name ends in `cg_run` or `cg_wait`. Find
+     its run with `cg_list`, `state: running`, and this session's `session_id`
+     from `cg_info`. Subagents share it. Match the run by its command. Read the
+     run's output with `cg_stdout`, `from: tail`, and compare its elapsed time
+     with `cg_stats` for the same command. Output that grew since the previous
+     check, or an elapsed time within the usual range, means wait. Neither
+     means the run is stuck. A `running` run with no `started_at` carries no
+     liveness signal. Treat it as unknown.
+   - Some other call is pending and `last` has not moved. Compare
+     `git diff --stat` with the previous check, not `git status`. New edits to
+     files that were already modified do not show in `git status`. No change
+     means it is stuck.
+   - Nothing is pending and `last` has not moved. The agent is dead.
+
+   Nudge a stuck or dead agent once with SendMessage. Ask it what it is
+   waiting on. If the next check shows no progress, stop it with TaskStop.
+   Spawn a fresh agent with the same brief. Tell it the working tree holds the
+   stopped agent's partial work, and to continue from it. Record the restart
+   in the session report.
 
    <!-- Workaround for bugs/20261005-subagent-second-report-dropped.md. Remove once that bug is fixed. -->
    A "finished" notification may say the agent's report was delivered

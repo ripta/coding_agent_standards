@@ -45,6 +45,13 @@ project-specific deviation when one exists.
    Fix every failure and warning, including lint warnings in code you touched,
    and every `check` finding on this proposal.
 
+When a tool whose name ends in `cg_run` is available, run every check through
+it, with `wait_timeout_auto` set. A timed-out response does not stop the
+command. Resume waiting on it with `cg_wait` and its run ID. The coordinator
+watches these runs to tell a slow check from a stuck one. A check run through
+Bash is invisible to it. Never wrap a check in `timeout` or anything else that
+kills it.
+
 Do not ask the user anything. The user approved the run up front. Make the best
 guess the proposals and design documents support, and report it.
 

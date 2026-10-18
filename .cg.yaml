@@ -1,6 +1,7 @@
 version: 1
 allow:
   - prefix: [./rumdl/lint-markdown]
+  - prefix: [du]
   - prefix: [ls]
   - prefix: [mv]
   - prefix: [pnpm]
