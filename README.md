@@ -180,6 +180,10 @@ For repos you don't own, use `CLAUDE.local.md` (auto-gitignored by Claude Code) 
 @~/projects/coding_agent_standards/profiles/oss-contrib.md
 ```
 
+A gitignored `CLAUDE.local.md` does not reach a new worktree on its own. Claude Code copies the gitignored files listed
+in a `.worktreeinclude` file at the repo root into the worktrees it creates. List `CLAUDE.local.md` there. In a repo you
+don't own, keep `.worktreeinclude` out of commits by adding it to `.git/info/exclude`.
+
 ### Installing the Claude Code Plugin
 
 The skills, hooks, and agents under `claude/` are packaged as a Claude Code plugin named `coding-standards`. The

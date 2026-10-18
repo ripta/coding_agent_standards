@@ -16,3 +16,12 @@
 - Do not run `git reset --hard`, `git checkout .`, `git clean -f`, `git push --force`, or `git branch -D` unless the
   user explicitly requests it
 - Warn the user before any operation that discards uncommitted changes
+
+## Worktrees
+
+- Commit inside a worktree by path, the same as in the main checkout
+- Integrate a worktree's branch before removing the worktree. Confirm it with `git branch --merged <target>`
+- Remove a worktree with plain `git worktree remove`, and its branch with `git branch -d`. Both refuse when work would
+  be lost. Never add `--force`, and never use `-D`, unless the user explicitly requests it
+- At an exit prompt, choose to keep a worktree that still holds work. Removing it deletes that work along with the
+  directory and branch

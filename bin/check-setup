@@ -22,6 +22,8 @@ if ! git rev-parse --is-inside-work-tree &>/dev/null; then
 fi
 
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
+# In a linked worktree, this is the main checkout. Otherwise it is PROJECT_ROOT.
+MAIN_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
 
 # Don't check the standards repo itself
 if [ -n "$STANDARDS_DIR" ] && [ "$PROJECT_ROOT" = "$(cd "$STANDARDS_DIR" && git rev-parse --show-toplevel 2>/dev/null)" ]; then
@@ -42,7 +44,10 @@ for f in "$PROJECT_ROOT/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.local.md" "$PROJECT_ROO
   fi
 done
 
-if [ "$STANDARDS_REFERENCED" = false ]; then
+if [ "$STANDARDS_REFERENCED" = false ] && [ "$MAIN_ROOT" != "$PROJECT_ROOT" ] \
+  && grep -qsE "(coding-standards|coding_agent_standards)" "$MAIN_ROOT/CLAUDE.local.md"; then
+  WARNINGS+=("This worktree has no CLAUDE.local.md, so the coding standards it imports in $MAIN_ROOT do not load. List CLAUDE.local.md in $MAIN_ROOT/.worktreeinclude so new worktrees get a copy, and copy it into this one.")
+elif [ "$STANDARDS_REFERENCED" = false ]; then
   WARNINGS+=("Coding standards not referenced. Add a @~/projects/coding_agent_standards/profiles/<profile>.md import to CLAUDE.md or CLAUDE.local.md in this project.")
 fi
 
