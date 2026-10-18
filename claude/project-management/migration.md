@@ -56,13 +56,19 @@ subsection, a `**Status:**` line, and plain bullets phrased as checks.
 - **Status.** Take each milestone's status from the phase milestones that implement it, including those in finished
   phases that stay as history. A milestone done in any phase is `DONE`. One a phase started is `IN PROGRESS`. Any other
   is `NOT STARTED`. When a phase and the proposal disagree, ask the user which is right.
+- **Form.** A milestone table row becomes a subsection. Give it a short title drawn from its description, and keep the
+  description word for word as its check. Rewrite it only with the user's approval. A numbered `### N. Title` heading
+  becomes `### MN: Title`.
 - **Checks.** Carry each acceptance criterion held only in a phase into its milestone's checks. Untick every box. Checks
-  are never ticked.
+  are never ticked. Bullets that list files to change or steps to take are not checks. Offer to replace them with the
+  phase's criteria, and record what they said in the Decision Log.
 - **As built.** A finished milestone gets an As built block. Carry in what its phase recorded that the checks do not
   say, by the rules in `proposals.md` "As Built". Link a long record instead of copying it.
 - **Dropped work.** Rewrite `CANCELLED`, `SUPERSEDED`, `SKIPPED`, and other spellings of dropped work to `DROPPED`.
   Each gets a Decision Log entry giving its reason, and its As built block links to it. Name the replacing milestone
   in a `Replaced by` line where there is one.
+- **Record.** Set each rewritten proposal's `**Updated:**` date, and add a Decision Log entry saying it migrated to era
+  3, what its milestones became, and anything carried in from a phase.
 
 ## Step 4: Amend divergences
 
@@ -107,8 +113,8 @@ Run `scripts/proposals.py check` and `scripts/proposals.py progress`. Fix every 
 
 ## Step 7: Retire what era 3 replaces
 
-- **The phases directory.** Leave every phase document in place. Add a short note at its root, such as a `README.md`
-  section, naming its era and pointing to `queue.md`. Do not delete or rewrite finished phases.
+- **The phases directory.** Leave every phase document in place. Add a short note at the top of its index, naming its
+  era and pointing to `queue.md`. Do not delete or rewrite finished phases.
 - **Moved phases.** Each live phase whose work moved into the queue gets one line under its title, such as
   `**Migrated:** 2026-10-17, see queue.md row PROJ-004 M3-M5`. Change nothing else in it. The line marks the document
   as history, so neither a reader nor detection mistakes it for live work. An era 0 plan section that moved gets the
