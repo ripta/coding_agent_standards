@@ -74,7 +74,7 @@ async function run(plan, { failVerifyFile, failWrite } = {}) {
         // A batch holding the poisoned file dies, in every round.
         if (failVerifyFile && prompt.includes(failVerifyFile)) return null
         const ids = [...prompt.matchAll(/"id":\s*(\d+)/g)].map((m) => Number(m[1]))
-        return { verdicts: ids.map((id) => ({ id, status: 'confirmed' })) }
+        return { verdicts: ids.map((id) => ({ id, status: 'confirmed', quote: 'func Handler() {}' })) }
       }
       if (label === 'spine') {
         return {
