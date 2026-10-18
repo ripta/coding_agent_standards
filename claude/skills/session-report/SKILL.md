@@ -117,9 +117,11 @@ next steps; systemic/wider implications if any; status.
 ## 5. After writing
 
 Report the absolute path of the report and which topic pages were tagged
-versus updated (and any created). The target directory is often a git repo;
-do not commit or push unless explicitly asked. When asked, commit only the
-explicit paths this report touched (the report, a regenerated index, touched
-topic pages) with `git commit -- <paths>`, never `git add -A` or
+versus updated (and any created). The target directory is often a git repo.
+Do not commit unless explicitly asked, or unless the project's rules (e.g.
+its `CLAUDE.md`) allow commits on the user's behalf. Do not push unless
+explicitly asked. When committing, commit only the explicit paths this report
+touched (the report, a regenerated index, touched topic pages) with
+`git commit -- <paths>`, never `git add -A` or
 `git commit -a`: other sessions may share the checkout. Follow the target's
 commit message conventions.

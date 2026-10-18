@@ -37,7 +37,8 @@ run. It overrides these rules for this run only:
 - The rule against committing on the user's behalf, in
   `${CLAUDE_PLUGIN_ROOT}/rules/git-workflow.md` and in `/work-on`. Commit each
   milestone, and each round of review fixes, in the code repo and in the specs
-  repo.
+  repo. This covers the session reports when they live in either repo, as
+  section 4 describes.
 - The rule to confirm before moving on to a new milestone, in `plans.md` and
   `${CLAUDE_PLUGIN_ROOT}/rules/work-discipline.md`. Do not pause between
   milestones or between rows.
@@ -186,10 +187,11 @@ For each milestone picked:
 4. Run `proposals.py check`, and `proposals.py freeze` with a `--row-commit`
    for each specs commit this row has made. Then spawn a fresh `reviewer`
    agent. Tell it the milestone, the proposal file, the specs repo, the row's
-   specs commits, and that an `adr-impact` agent runs beside it. In the same
-   message, spawn a fresh `adr-impact` agent (`coding-standards:adr-impact`)
-   on the working-tree diff. Triage what they report, along with the two
-   script results:
+   specs commits, and that an `adr-impact` agent runs beside it. When the
+   session reports live in the code repo, name their paths and say they are
+   out of review scope. In the same message, spawn a fresh `adr-impact` agent
+   (`coding-standards:adr-impact`) on the working-tree diff. Triage what they
+   report, along with the two script results:
    - Mark comment, style, and plan-gap findings as fix. The exception is a
      shortcut the plan did not approve. Mark it as trace, and have it fixed the
      way the plan specified.
@@ -232,8 +234,8 @@ For each milestone picked:
 
 5. Check the implementer's last report. Every check must have run and passed.
    Its file list must match `git status` in the code repo, and the specs repo's
-   status for the proposal. Ask the implementer about any mismatch before
-   committing.
+   status for the proposal. Leave the run's session reports out of this
+   comparison. Ask the implementer about any mismatch before committing.
 
 6. Add the milestone's ADR candidates to the proposal's Decision Log as
    `Undecided`, per "Recording ADR Candidates" in `design.md`. Skip one the log
@@ -254,7 +256,9 @@ For each milestone picked:
    the same commit.
 
 7. Amend the row's session report (see section 4). Copy in the implementer's
-   best guesses and deviations, so the next implementer sees them.
+   best guesses and deviations, so the next implementer sees them. When the
+   report lives in a repo step 6 commits to, amend it before that commit, and
+   commit it by path with the milestone.
 
 8. Move on to the next milestone without waiting for the user.
 
@@ -318,6 +322,13 @@ and each held or blocked row with its reason. Update it whenever a status
 changes. Later row reports link to it. After a context compaction, re-read it,
 the session reports, the proposals, and `queue.md` to find where the run
 stands, then continue.
+
+The report directory may sit inside the code repo or the specs repo, e.g. at
+`./spec/reports`. Then the run commits the reports in that repo. Each commit
+the run makes there carries the reports' current amendments, by path. A report
+cannot hold the SHA of the commit that carries it, so the next amendment adds
+it. When the run is done, commit the reports' last amendments by path as their
+own commit. Check its message as in section 2, step 6.
 
 ## 5. When to block a row
 
