@@ -222,6 +222,15 @@ Plugin skills and commands are namespaced: invoke them as `/coding-standards:<na
 `~/.claude/skills/`, or a command in `~/.claude/commands/`, both versions will appear -- delete the personal copy once
 the plugin version works for you.
 
+Then, once per machine, let sandboxed sessions write the standards' state directory. Run this from your own terminal.
+It refuses to run inside a coding agent, and it shows the diff before asking to write `~/.claude/settings.json`:
+
+```sh
+python3 ~/.claude/coding-standards-current/scripts/setup_permissions.py
+```
+
+Re-run it after updating the plugin. It is safe to repeat. `--check` only reports.
+
 #### Updating
 
 Installed plugins are cached copies, not live references. After changes land in the repo:

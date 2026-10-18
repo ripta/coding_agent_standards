@@ -48,3 +48,19 @@ Conventions:
   re-ask and rewrite the file when stale.
 
 See `session-report/SKILL.md` for a worked example of this pattern.
+
+## Machine-local state
+
+Runtime state that changes as sessions run, such as a guardian's ledger, lives apart from preferences:
+
+```text
+~/.local/state/coding_agent_standards/<tool-name>/
+```
+
+Conventions:
+
+- One subdirectory per skill, command, or tool, named after it.
+- Never put state under `~/.config/coding_agent_standards/`. The sandbox blocks all of `~/.config`, since it holds
+  credentials.
+- Sandboxed sessions can write here only once the user's settings allow it. `scripts/setup_permissions.py` adds that
+  allowance. Read state defensively, and fall back to the session's scratchpad when the directory cannot be written.
