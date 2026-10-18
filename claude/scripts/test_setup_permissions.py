@@ -10,14 +10,14 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 import setup_permissions
 
-EDIT_RULE = "Edit(~/.local/state/coding_agent_standards/**)"
-STATE_DIR = "~/.local/state/coding_agent_standards"
+ALLOW = setup_permissions.MANAGED[("permissions", "allow")]
+WRITE = setup_permissions.MANAGED[("sandbox", "filesystem", "allowWrite")]
 
 
 def test_an_empty_file_gets_every_managed_entry() -> None:
     new, changes = setup_permissions.plan({})
-    assert new == {"permissions": {"allow": [EDIT_RULE]}, "sandbox": {"filesystem": {"allowWrite": [STATE_DIR]}}}
-    assert len(changes) == 2
+    assert new == {"permissions": {"allow": ALLOW}, "sandbox": {"filesystem": {"allowWrite": WRITE}}}
+    assert len(changes) == len(ALLOW) + len(WRITE)
 
 
 def test_other_keys_and_entries_are_kept_in_order() -> None:
@@ -28,9 +28,9 @@ def test_other_keys_and_entries_are_kept_in_order() -> None:
     }
     new, _ = setup_permissions.plan(old)
     assert new["theme"] == "light"
-    assert new["permissions"]["allow"] == ["Read", "Bash(ls:*)", EDIT_RULE]
+    assert new["permissions"]["allow"] == ["Read", "Bash(ls:*)", *ALLOW]
     assert new["permissions"]["deny"] == ["Read(~/.aws/**)"]
-    assert new["sandbox"] == {"enabled": True, "filesystem": {"allowWrite": [STATE_DIR]}}
+    assert new["sandbox"] == {"enabled": True, "filesystem": {"allowWrite": WRITE}}
     assert old["permissions"]["allow"] == ["Read", "Bash(ls:*)"]
 
 
@@ -41,9 +41,9 @@ def test_a_settled_file_needs_no_change() -> None:
 
 
 def test_duplicates_are_dropped_keeping_the_first() -> None:
-    old = {"permissions": {"allow": ["Read", "WebSearch", "Read", EDIT_RULE]}, "hooks": {"x": [1, 1]}}
+    old = {"permissions": {"allow": ["Read", "WebSearch", "Read", *ALLOW]}, "hooks": {"x": [1, 1]}}
     new, changes = setup_permissions.plan(old)
-    assert new["permissions"]["allow"] == ["Read", "WebSearch", EDIT_RULE]
+    assert new["permissions"]["allow"] == ["Read", "WebSearch", *ALLOW]
     assert new["hooks"] == {"x": [1, 1]}
     assert changes[0] == "drop duplicate permissions.allow: Read"
 
@@ -75,14 +75,14 @@ def test_covered_rules_are_dropped_within_one_list_only() -> None:
         }
     }
     new, changes = setup_permissions.plan(old)
-    assert new["permissions"]["allow"] == ["Bash(grep:*)", "WebFetch(domain:*)", EDIT_RULE]
+    assert new["permissions"]["allow"] == ["Bash(grep:*)", "WebFetch(domain:*)", *ALLOW]
     assert new["permissions"]["deny"] == ["Bash(grep -h:*)"]
     assert "drop permissions.allow: Bash(grep -h:*), covered by Bash(grep:*)" in changes
 
 
 def test_a_managed_entry_is_never_dropped_as_covered() -> None:
     settled, _ = setup_permissions.plan({"permissions": {"allow": ["Edit"]}})
-    assert settled["permissions"]["allow"] == ["Edit", EDIT_RULE]
+    assert settled["permissions"]["allow"] == ["Edit", *ALLOW]
     assert setup_permissions.plan(settled)[1] == []
 
 
@@ -122,7 +122,7 @@ def test_hooks_the_plugin_already_runs_are_dropped(monkeypatch: pytest.MonkeyPat
 def test_retired_entries_are_removed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(setup_permissions, "RETIRED", {("permissions", "allow"): ["Edit(~/old/**)"]})
     new, changes = setup_permissions.plan({"permissions": {"allow": ["Edit(~/old/**)", "Read"]}})
-    assert new["permissions"]["allow"] == ["Read", EDIT_RULE]
+    assert new["permissions"]["allow"] == ["Read", *ALLOW]
     assert "remove retired permissions.allow: Edit(~/old/**)" in changes
 
 
@@ -136,7 +136,7 @@ def test_check_reports_and_never_writes(tmp_path: Path, capsys: pytest.CaptureFi
     path.write_text('{"theme": "light"}\n')
     assert setup_permissions.main(["--settings", str(path), "--check"]) == 1
     assert path.read_text() == '{"theme": "light"}\n'
-    assert "needs 2 change(s)" in capsys.readouterr().out
+    assert f"needs {len(ALLOW) + len(WRITE)} change(s)" in capsys.readouterr().out
 
 
 def test_check_exits_3_when_only_cleanup_is_pending(tmp_path: Path) -> None:
