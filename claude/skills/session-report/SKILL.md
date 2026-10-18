@@ -35,6 +35,7 @@ real path with `cd <dir> && pwd -P`, and the owning repo with
 to its own root.
 
 Precedence:
+
 1. A path given in the request → use it for this report only; do NOT update
    the preference file unless the user says to make it the default.
 2. Otherwise `default_dir` from the preference file.
