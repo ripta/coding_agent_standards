@@ -317,8 +317,13 @@ can adopt them without a burn-down first. See `rumdl/README.md` and `vale/README
 
 ### Setup Validation
 
-The `bin/check-setup` script validates that a project has standards properly configured. It can be wired up as a Claude
-Code `SessionStart` hook to run automatically when you open a project.
+The plugin checks setup at every session start, through `claude/hooks/check-setup.sh`. It prints nothing when all is
+well. Otherwise it names what is missing:
+
+- Settings entries that `setup_permissions.py` adds
+- A project with no standards import in `CLAUDE.md` or `CLAUDE.local.md`
+- A worktree missing the main checkout's `CLAUDE.local.md`
+- A project whose standards import is not yet approved
 
 ### Non-standard Paths
 

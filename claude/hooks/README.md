@@ -7,9 +7,9 @@
   import the standards from the same commit as the tools. It skips
   `--plugin-dir` sessions, which would otherwise link a working tree. It also
   runs `revisit-notice.sh`, which prints one line when a revisit hook in the
-  project's proposals has passed, and nothing otherwise. Last, `state-dir.sh`
-  creates `~/.local/state/coding_agent_standards/`. It prints one line when the
-  user's settings do not yet let sandboxed sessions write there.
+  project's proposals has passed, and nothing otherwise. Last, `check-setup.sh`
+  creates `~/.local/state/coding_agent_standards/`, and checks that the
+  machine and the project are set up. It prints nothing when they are.
 - `PreToolUse` on `Bash` runs `block-broad-find.sh`.
 - `PostToolUse` on `Edit|Write` runs `make fmt` when the target exists.
 - `Stop` reminds you to run `make test` and `make lint` when those targets exist.

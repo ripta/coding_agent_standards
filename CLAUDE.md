@@ -47,5 +47,4 @@ If the repo is at a non-standard path, symlink it:
 ln -s /actual/path/to/coding_agent_standards ~/coding-standards
 ```
 
-The setup checker (`bin/check-setup`) looks for this repo at `~/projects/coding_agent_standards` or
-`~/coding-standards`.
+The plugin's SessionStart hook, `claude/hooks/check-setup.sh`, checks that the machine and the project are set up.
