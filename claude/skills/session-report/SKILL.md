@@ -23,13 +23,19 @@ Preference file: `~/.config/coding_agent_standards/session-report.json`, shape
 `{"default_dir": "/abs/path"}`. It is machine-local state — never edit it into
 this skill, never commit it anywhere.
 
+`default_dir` may be relative, e.g. `./spec/reports`. A relative path resolves
+against the current repo's root (`git rev-parse --show-toplevel`), never the
+working directory. Outside a git repo, a relative `default_dir` doesn't exist.
+
 Precedence:
 1. A path given in the request → use it for this report only; do NOT update
    the preference file unless the user says to make it the default.
 2. Otherwise `default_dir` from the preference file.
 3. If the file is missing or `default_dir` doesn't exist on disk, ask the user
-   for the directory, verify it exists, then write the preference file
-   (create the parent directory if needed).
+   for the directory and verify it exists. Then write the preference file
+   (create the parent directory if needed). Exception: when `default_dir` is
+   relative, use the answer for this report only. Leave the file alone, since
+   the relative default still serves other repos.
 
 "Make <path> the default" (with or without a report to write) → validate and
 update the preference file.
