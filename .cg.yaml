@@ -8,4 +8,5 @@ allow:
   - prefix: [python3]
   - prefix: [rumdl]
   - prefix: [sed]
+  - prefix: [uv, run]
   - prefix: [which]

@@ -227,14 +227,10 @@ For each milestone picked:
    restarted test suite costs more than waiting for it.
 
    The agent's transcript is the notification's `<output-file>`. It is JSONL,
-   and too large to read whole. Query it instead:
-
-   ```sh
-   jq -s '([.[] | select(.type=="user") | .message.content[]? | objects | select(.type=="tool_result") | .tool_use_id]) as $done | {last: (map(.timestamp // empty) | last), pending: [.[] | select(.type=="assistant") | .message.content[]? | objects | select(.type=="tool_use") | select(.id as $i | $done | index($i) | not) | {name, command: .input.command}]}' <output-file>
-   ```
-
-   `last` is the time of its latest entry. `pending` lists its tool calls that
-   have no result yet. Act on the first case that applies:
+   and too large to read whole. Query it instead with
+   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/agent_liveness.py <output-file>`.
+   Its `last` is the time of the latest entry. Its `pending` lists the tool
+   calls that have no result yet. Act on the first case that applies:
    - The transcript ends with the agent's report. It finished, and its
      notification was lost. Read the report.
    - `last` moved since the previous check. The agent is alive. Re-arm the
@@ -247,6 +243,9 @@ For each milestone picked:
      check, or an elapsed time within the usual range, means wait. Neither
      means the run is stuck. A `running` run with no `started_at` carries no
      liveness signal. Treat it as unknown.
+   - A Bash call is pending. Wait. Without cg, the agent runs its checks
+     through Bash, and a slow check looks the same as a stuck one. The Bash
+     tool's own timeout ends the call.
    - Some other call is pending and `last` has not moved. Compare
      `git diff --stat` with the previous check, not `git status`. New edits to
      files that were already modified do not show in `git status`. No change
