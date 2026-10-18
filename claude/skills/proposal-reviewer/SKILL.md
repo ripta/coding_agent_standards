@@ -42,15 +42,15 @@ Then ask the entry gates in one AskUserQuestion call:
    `designing` proposal with open questions or unreviewed `(autonomous...)` entries is a continuation. See Step 2.
 4. **Commit**: whether and when to commit the proposal. Skip it when the proposal is not in a git repository, or when
    the status is `implemented`. List the options in this order:
+   - **Commit once at the end (Recommended)**: one commit after the review is done and every change is in
    - **Commit as the review goes**: one commit after each round and each later step
-   - **Commit once at the end**: one commit after the review is done and every change is in
    - **Leave uncommitted**: commit nothing
 
    When the proposal file already has uncommitted changes, say in the first two options' descriptions that the first
    commit will include them. See "Committing".
 
 Mark no mode as recommended. The choice is how much of the user's attention the review takes, and only the user knows
-that. Mark no commit option as recommended either.
+that. Do mark the commit-once option as recommended. Few reviews need a commit per round.
 
 ### Changing Mode
 
