@@ -10,8 +10,9 @@ editing the domain themselves. The guardian checks each request, agrees on a fix
 checkout is a clone or a worktree, named by its absolute path. An entry with no scopes covers the whole checkout. One
 guardian can own several checkouts, or a few paths in one large monorepo.
 
-**Domain name**: a short name for the domain, such as the repo's directory name. The guardian's session name is
-`<domain name>_guardian`. Requestors find it by that name in ListAgents.
+**Domain name**: a short name for the domain that the user picks. It may be the repo's directory name, or an
+abbreviation such as `cas` for `coding_agent_standards`. The guardian's session name is `<domain name>_guardian`.
+Requestors find it by that name in ListAgents.
 
 **Requestor**: a session that asks the guardian for a change.
 

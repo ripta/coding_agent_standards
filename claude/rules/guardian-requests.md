@@ -6,9 +6,10 @@ in `project-management/guardian.md`. This rule is the requestor's side.
 ## When to Request
 
 - You find a defect in a repo other than the one the user asked you to work in, such as the coding standards a skill
-  reads. Call ListAgents and look for a session named `<name>_guardian`, where the name is that repo's or domain's.
+  reads. Call ListAgents and look for a session named `<name>_guardian`. The name may be the repo's directory name or
+  an abbreviation of it, such as `cas_guardian` for `coding_agent_standards`.
 - When one is listed, send it a request. Do not edit its domain yourself.
-- When none is listed, tell your user instead.
+- When none is listed, or you cannot tell which guardian owns the repo, tell your user instead.
 
 ## Writing the Request
 
