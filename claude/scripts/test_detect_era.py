@@ -90,6 +90,28 @@ def test_a_status_mid_line_or_only_in_the_index(tmp_path: Path) -> None:
     assert result["era"] == 1
 
 
+def test_a_legend_table_above_the_index_does_not_supply_its_header(tmp_path: Path) -> None:
+    spec = tmp_path / "spec"
+    _write(spec / "phases" / "phase-39-a.md", "# Phase 39\n\nNo status line here.\n")
+    _write(spec / "phases" / "phase-40-b.md", "# Phase 40\n\nNo status line here.\n")
+    _write(spec / "phases" / "index.md", "## Status legend\n\n| Status | Meaning |\n|---|---|\n| COMPLETE | Done |\n\n"
+                                         "## Phases\n\n| Phase | Status | Title | Proposal |\n|---|---|---|---|\n"
+                                         "| 39 | COMPLETE | A | PROJ-001 |\n| 40 | IN PROGRESS | B | PROJ-001 |\n")
+    result = detect_era.detect(spec, None)
+    assert [(p["phase"], p["status"]) for p in result["live_phases"]] == [("40", "IN PROGRESS")]
+    assert result["finished_phases"] == 1
+
+
+def test_a_plain_status_label(tmp_path: Path) -> None:
+    spec = tmp_path / "spec"
+    _write(spec / "phases" / "phase-1-a.md", "# Phase 1\n\nStatus: **Completed** (2026-01-08)\n")
+    _write(spec / "phases" / "phase-2-b.md", "# Phase 2\n\nStatus: In Progress\n")
+    _write(spec / "phases" / "phase-3-c.md", "# Phase 3\n\nThe status: DONE is not a label.\n")
+    result = detect_era.detect(spec, None)
+    assert [(p["phase"], p["status"]) for p in result["live_phases"]] == [("2", "IN PROGRESS"), ("3", "")]
+    assert result["finished_phases"] == 1
+
+
 def test_era0_rolling_plan_and_archive(tmp_path: Path) -> None:
     spec = tmp_path / "spec"
     _write(spec / "implementation.md", "# Plan\n\n## Phase 12: Fast path (9AB-405)\n\nText\n")

@@ -24,8 +24,12 @@ PROPOSAL_FILE = re.compile(r"^([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)-.*\.md$")
 PROPOSAL_REF = re.compile(r"\b([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)\b")
 # Older documents put the status mid-line and follow it with notes, as in
 # "**Status**: DONE **Complexity**: HIGH" or "**Status:** implemented (Phase 12)". Only the
-# leading status words count.
-STATUS = re.compile(r"\*\*Status(?::\*\*|\*\*:)\s*([A-Za-z]+(?:[ _-](?:PROGRESS|STARTED))?)", re.IGNORECASE)
+# leading status words count. Some leave the label plain and bold the value instead, as in
+# "Status: **Completed** (2026-01-08)". A plain label counts only at the start of a line.
+STATUS = re.compile(
+    r"(?:\*\*Status(?::\*\*|\*\*:)|^Status:)\s*\**([A-Za-z]+(?:[ _-](?:PROGRESS|STARTED))?)",
+    re.IGNORECASE | re.MULTILINE,
+)
 COLON_OUTSIDE = re.compile(r"^\*\*Status\*\*:", re.MULTILINE)
 ERA2_TABLE = re.compile(r"^\|\s*Milestone\s*\|\s*Proposal\s*\|", re.MULTILINE | re.IGNORECASE)
 ERA2_CRITERIA = re.compile(r"^### Phase \d+\.\d+", re.MULTILINE)
@@ -56,7 +60,9 @@ def index_rows(phases_dir: Path) -> dict[str, dict[str, str]]:
             continue
         header: list[str] | None = None
         for line in _read(path).splitlines():
+            # Each table has its own header, so a legend table above the index cannot lend it one.
             if not line.lstrip().startswith("|"):
+                header = None
                 continue
             cells = [c.strip() for c in line.strip().strip("|").split("|")]
             if header is None and "Status" in cells:
