@@ -107,7 +107,7 @@ def test_era0_rolling_plan_and_archive(tmp_path: Path) -> None:
 def test_a_migrated_live_phase_is_history_and_an_unmarked_one_is_partial(tmp_path: Path) -> None:
     spec = tmp_path / "spec"
     _write(spec / "proposals" / "queue.md", "# Queue\n")
-    _proposal(spec, "PROJ-003", "accepted")
+    _write(spec / "proposals" / "PROJ-003-printer.md", ERA3_PROPOSAL.replace("PROJ-009", "PROJ-003"))
     phase = _write(spec / "phases" / "phase-4-printer.md", ERA2_PHASE.format(status="PLANNED"))
     assert detect_era.detect(spec, None)["era"] == "partial"
     phase.write_text(ERA2_PHASE.format(status="PLANNED").replace(
@@ -115,6 +115,24 @@ def test_a_migrated_live_phase_is_history_and_an_unmarked_one_is_partial(tmp_pat
     result = detect_era.detect(spec, None)
     assert result["era"] == 3
     assert result["live_phases"] == []
+
+
+def test_one_era3_proposal_does_not_make_a_project_era3(tmp_path: Path) -> None:
+    spec = tmp_path / "spec"
+    _write(spec / "phases" / "phase-1-a.md", ERA2_PHASE.format(status="COMPLETE"))
+    _write(spec / "proposals" / "PROJ-009-queue.md", ERA3_PROPOSAL)
+    _proposal(spec, "PROJ-010", "accepted")
+    result = detect_era.detect(spec, None)
+    assert result["era"] == 2
+    assert result["proposals_without_milestone_status"] == ["PROJ-010"]
+    _write(spec / "proposals" / "queue.md", "# Queue\n")
+    assert detect_era.detect(spec, None)["era"] == "partial"
+
+
+def test_an_era3_project_needs_no_queue_before_its_first_schedule(tmp_path: Path) -> None:
+    spec = tmp_path / "spec"
+    _write(spec / "proposals" / "PROJ-009-queue.md", ERA3_PROPOSAL)
+    assert detect_era.detect(spec, None)["era"] == 3
 
 
 def test_a_migrated_plan_section_is_history(tmp_path: Path) -> None:

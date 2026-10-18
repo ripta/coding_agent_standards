@@ -197,7 +197,7 @@ def test_progress_sorts_rows_into_done_ready_and_held(tmp_path: Path) -> None:
     [
         ("accepted", "| PROJ-001 M1-M2 | None | |", "blocked", "PROJ-001 has no M2"),
         ("deferred", "| PROJ-001 M1 | None | |", "blocked", "PROJ-001 is deferred"),
-        ("accepted", "| PROJ-001 M1 | PROJ-002 M1 (deployed) | |", "held", "confirm it runs in production"),
+        ("accepted", "| PROJ-001 M1 | PROJ-002 M1 (deployed) | |", "blocked", "confirm it runs in production"),
         ("accepted", "| PROJ-001 M1 | PROJ-002 M9 | |", "blocked", "has no M9"),
     ],
 )
@@ -235,6 +235,19 @@ def test_a_prefix_may_start_with_a_digit(tmp_path: Path) -> None:
     _write(tmp_path, "9AB-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")).replace("PROJ-001", "9AB-001"))
     _queue(tmp_path, "| 9AB-001 M1 | None | |")
     assert proposals.row_info(tmp_path, "9AB-001", 1)["ready"] is True
+
+
+def test_check_reports_queue_rules(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")
+                                                 + _milestone(2, "DONE", "- Done.") + _milestone(3, "NOT STARTED")))
+    _write(tmp_path, "PROJ-002-b.md", _hooked("deferred", "when X").replace("PROJ-001", "PROJ-002"))
+    _queue(tmp_path, "| PROJ-001 M1 | None | |", "| PROJ-001 M2 | None | Split: other work first |",
+           "| PROJ-001 M2-M3 | None | Split again |", "| PROJ-002 M1 | None | |")
+    problems = _problems(tmp_path)
+    assert any("PROJ-001 M2 is also in row PROJ-001 M2" in p for p in problems)
+    assert any("PROJ-001 M2: finished, but sits below the unfinished row PROJ-001 M1" in p for p in problems)
+    assert any("queue row PROJ-001 M1: PROJ-001 has more than one row" in p for p in problems)
+    assert any("unfinished, but PROJ-002 is deferred" in p for p in problems)
 
 
 def test_check_compares_the_index(tmp_path: Path) -> None:

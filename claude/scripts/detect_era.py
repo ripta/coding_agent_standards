@@ -193,15 +193,23 @@ def detect(specs_dir: Path, project_root: Path | None) -> dict[str, Any]:
         | ({0} if plans else set())
         | ({3} if has_queue or any(p["era3_milestones"] for p in proposals) else set())
     )
-    # A migration marks each phase it moved with a **Migrated:** line. A queue beside a live
-    # phase without that line means the migration stopped partway.
-    if has_queue and not live_phases and not live_sections:
-        era: Any = 3
-    elif has_queue:
-        era = "partial"
-    elif live_phases or live_sections:
-        live_eras = {p["era"] for p in live_phases} | ({0} if live_sections else set())
-        era = live_eras.pop() if len(live_eras) == 1 else "mixed"
+    # Live work in an older form: a phase or plan section a migration has not marked with a
+    # **Migrated:** line, or an accepted or scheduled proposal without milestone status. One era 3
+    # proposal does not make a project era 3 while such work remains.
+    old_proposals = [
+        p for p in proposals if p["status"] in ("accepted", "scheduled") and not p["era3_milestones"]
+    ]
+    if live_phases or live_sections or old_proposals:
+        if has_queue:
+            era: Any = "partial"
+        elif live_phases or live_sections:
+            live_eras = {p["era"] for p in live_phases} | ({0} if live_sections else set())
+            era = live_eras.pop() if len(live_eras) == 1 else "mixed"
+        else:
+            older = set(eras_present) - {3}
+            era = max(older) if older else 1
+    elif 3 in eras_present:
+        era = 3
     elif eras_present:
         era = max(eras_present)
     else:
@@ -217,6 +225,7 @@ def detect(specs_dir: Path, project_root: Path | None) -> dict[str, Any]:
         "finished_phases": len(phases) - len(live_phases),
         "plan_files": plans,
         "live_proposals": [p for p in proposals if p["live"]],
+        "proposals_without_milestone_status": [p["id"] for p in old_proposals],
         "scheduled_proposals": [p["id"] for p in proposals if p["status"] == "scheduled"],
         "scheduled_without_live_phase": [
             p["id"] for p in proposals

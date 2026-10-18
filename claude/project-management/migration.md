@@ -25,6 +25,8 @@ Run `scripts/detect_era.py --specs-dir <specs dir> --project-root <project root>
 - Each era 0 plan file, with its `## Phase N:` sections, and whether it looks like an archive of finished work
 - Each live proposal, the `scheduled` and `deferred` proposals, and any status outside the vocabulary
 - Each `scheduled` proposal that no live phase covers
+- Each `accepted` or `scheduled` proposal whose milestones carry no status yet. One era 3 proposal does not make the
+  project era 3 while these remain
 - Project-local copies of retired skills
 
 A project already in era 3 has nothing to migrate. Stop there. A project reported as `partial` stopped partway
@@ -136,6 +138,6 @@ check`, `progress`, and `hooks --passed`. Report what each says.
 
 ## Committing
 
-A migration lands as one commit per repo it touches: the project repo and, when the specs live in a separate repo, the
-specs repo. Commit by path, so unrelated changes another session left in either tree stay out. The specs repo's commit
-names the project.
+A migration lands in each repo it touches: the project repo and, when the specs live in a separate repo, the specs
+repo. It may land as one commit per repo, or as one commit per step. Commit by path, so unrelated changes another
+session left in either tree stay out. Each commit to the specs repo names the project.

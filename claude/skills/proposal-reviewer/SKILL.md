@@ -464,6 +464,10 @@ design after it was accepted.
   continue. The user stops the review by saying so
 - Never advance a proposal to `accepted` without the risk review: Risks section compliant, and no
   high-likelihood/high-impact risk left unmitigated and unaccepted
+- When a proposal with queue rows becomes `deferred`, `retracted`, `superseded`, or `rejected`, follow the steps in
+  `${CLAUDE_SKILL_DIR}/../../project-management/plans.md` "Stopping a Proposal" before changing its status. Ask the user
+  each decision they need, such as what happens to an `IN PROGRESS` milestone. A `deferred` proposal also needs its
+  `**Revisit:**` line
 - Present design options neutrally before offering a recommendation. This governs the options for a design question. It
   does not govern workflow prompts like the `accepted` question in Step 8
 - Never show the `design-critic` your recommendation or your pros and cons before it ranks the options. In the

@@ -363,6 +363,46 @@ def check(proposals_dir: Path) -> list[dict[str, Any]]:
             report(p, "every milestone is DROPPED, so it can never be implemented. Retract or supersede it")
         if p.status == "implemented" and not (all_finished and done):
             report(p, "implemented, but not every milestone is finished with at least one DONE")
+    if rows is not None:
+        findings += _queue_findings(rows, proposals)
+    return findings
+
+
+def _queue_findings(rows: list[Row], proposals: dict[str, Proposal]) -> list[dict[str, Any]]:
+    """Report the queue rules in plans.md "The Queue File" that hold mechanically."""
+    findings: list[dict[str, Any]] = []
+
+    def report(row: Row, problem: str) -> None:
+        p = proposals.get(row.proposal)
+        findings.append({
+            "proposal": row.proposal, "milestone": None, "file": str(p.path) if p else None,
+            "problem": f"queue row {row.label}: {problem}",
+        })
+
+    def finished(row: Row) -> bool:
+        p = proposals.get(row.proposal)
+        return p is not None and all(
+            p.milestones.get(n) is not None and p.milestones[n].status in FINISHED
+            for n in range(row.first, row.last + 1)
+        )
+
+    seen: dict[tuple[str, int], str] = {}
+    unfinished_above = None
+    for row in rows:
+        for n in range(row.first, row.last + 1):
+            other = seen.setdefault((row.proposal, n), row.label)
+            if other != row.label:
+                report(row, f"{row.proposal} M{n} is also in row {other}")
+        p = proposals.get(row.proposal)
+        is_finished = finished(row)
+        if is_finished and unfinished_above is not None:
+            report(row, f"finished, but sits below the unfinished row {unfinished_above}")
+        if not is_finished:
+            unfinished_above = unfinished_above or row.label
+            if p is not None and p.status != "accepted":
+                report(row, f"unfinished, but {row.proposal} is {p.status}. See plans.md \"Stopping a Proposal\"")
+        if not row.note and sum(1 for r in rows if r.proposal == row.proposal) > 1:
+            report(row, f"{row.proposal} has more than one row, so each needs a note saying why")
     return findings
 
 
@@ -774,7 +814,8 @@ def progress(proposals_dir: Path, today: str) -> dict[str, Any]:
                 held.append(f"waits on its earlier row {earlier.label}")
         for dep in row.depends_on:
             state, reason = _dependency_state(dep, proposals, rows)
-            if state == "blocked":
+            # A deployment never confirms itself, so a "confirm" dependency needs the user too.
+            if state in ("blocked", "confirm"):
                 blocked.append(f"{dep}: {reason}")
             elif state != "met":
                 held.append(f"{dep}: {reason}")
