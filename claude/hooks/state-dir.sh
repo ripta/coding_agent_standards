@@ -13,6 +13,11 @@ if [ -z "$root" ] || ! command -v python3 >/dev/null; then
   exit 0
 fi
 
-if ! python3 "$root/scripts/setup_permissions.py" --check >/dev/null 2>&1; then
-  echo "coding-standards: ~/.claude/settings.json lacks entries the standards need, so sandboxed sessions cannot write ~/.local/state/coding_agent_standards. Ask the user to run 'python3 ~/.claude/coding-standards-current/scripts/setup_permissions.py' from their own terminal."
-fi
+status=0
+python3 "$root/scripts/setup_permissions.py" --check >/dev/null 2>&1 || status=$?
+
+case "$status" in
+  0) ;;
+  1) echo "coding-standards: ~/.claude/settings.json lacks entries the standards need, so sandboxed sessions cannot write ~/.local/state/coding_agent_standards. Ask the user to run 'python3 ~/.claude/coding-standards-current/scripts/setup_permissions.py' from their own terminal." ;;
+  *) echo "coding-standards: setup_permissions.py --check could not read ~/.claude/settings.json. Ask the user to run it with --check from their own terminal to see why." ;;
+esac
