@@ -43,6 +43,7 @@ async function run(plan, { failVerifyFile, failWrite } = {}) {
   const logs = []
   const writePrompts = new Map()
   let assemblerPrompt = null
+  const models = new Map()
 
   const globals = {
     args: {
@@ -58,6 +59,7 @@ async function run(plan, { failVerifyFile, failWrite } = {}) {
     parallel: (thunks) => Promise.all(thunks.map((t) => Promise.resolve().then(t).catch(() => null))),
     agent: async (prompt, opts) => {
       const label = opts?.label || ''
+      models.set(label, opts?.model)
       if (label.startsWith('discover:')) {
         const key = label.slice('discover:'.length)
         const n = plan.find((p) => p.key === key).n
@@ -105,7 +107,7 @@ async function run(plan, { failVerifyFile, failWrite } = {}) {
   const outputs = assemblerPrompt
     ? JSON.parse(assemblerPrompt.slice(assemblerPrompt.indexOf('## Outputs') + '## Outputs'.length).trim())
     : null
-  return { result, logs, outputs, writePrompts, assemblerPrompt }
+  return { result, logs, outputs, writePrompts, assemblerPrompt, models }
 }
 
 // ---------------------------------------------------------------------------
@@ -124,12 +126,15 @@ const total = (plan) => plan.reduce((a, p) => a + p.n, 0)
 // === scenario 1: full run, everything succeeds ==============================
 console.log('\n--- full run ---')
 {
-  const { result, logs, outputs, writePrompts } = await run(FULL_PLAN)
+  const { result, logs, outputs, writePrompts, models } = await run(FULL_PLAN)
   for (const l of logs) console.log(`      ${l}`)
 
   check('every claim verified', result.citations.confirmed === total(FULL_PLAN), result.citations)
   check('nothing unchecked', result.citations.unchecked === 0)
   check('no failed parts', result.failedParts.length === 0)
+  check('spine runs on sonnet', models.get('spine') === 'sonnet', models.get('spine'))
+  check('assembler runs on haiku', models.get('assemble') === 'haiku', models.get('assemble'))
+  check('writers inherit the session model', models.get('write:orientation') === undefined, models.get('write:orientation'))
   check('four output files', outputs.length === 4, outputs.map((o) => o.file).join(', '))
 
   const main = outputs.find((o) => o.file.endsWith('/ARCHITECTURE.md'))

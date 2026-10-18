@@ -5,9 +5,9 @@ export const meta = {
   phases: [
     { title: 'Discover', detail: 'one read-only Explore agent per section' },
     { title: 'Verify', detail: 'confirm every file:line citation, batched by file' },
-    { title: 'Spine', detail: 'fix shared vocabulary and topic ownership before anyone writes' },
+    { title: 'Spine', detail: 'fix shared vocabulary and topic ownership before anyone writes', model: 'sonnet' },
     { title: 'Write', detail: 'one agent per part, each writing its own file' },
-    { title: 'Assemble', detail: 'concatenate the parts mechanically' },
+    { title: 'Assemble', detail: 'concatenate the parts mechanically', model: 'haiku' },
   ],
 }
 
@@ -602,7 +602,7 @@ are looking at what the document will cover, not at the code.
 ${parts
   .map((p) => `### ${p.title} (${p.key})\n${p.claims.map((c) => `- ${c.claim}`).join('\n')}`)
   .join('\n\n')}`,
-    { label: 'spine', phase: 'Spine', schema: SPINE_SCHEMA }
+    { label: 'spine', phase: 'Spine', schema: SPINE_SCHEMA, model: 'sonnet' }
   )
 
   if (!raw?.summary) {
@@ -934,6 +934,7 @@ ${JSON.stringify(
   {
     label: 'assemble',
     phase: 'Assemble',
+    model: 'haiku',
     schema: {
       type: 'object',
       required: ['files'],

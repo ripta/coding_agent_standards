@@ -203,7 +203,8 @@ Budget, for `S` sections and `C` verified claims: `S` discovery agents, about
 roughly `2S + C/30 + 2`. Verifiers cap at 32 per round. A 12-section plan over
 1,250 claims comes to about 58 agents. Most of that is verifiers on the fast
 model. Without `verifierAgent`, verifiers take about `C/80` at low effort
-instead. Quote the number to the
+instead. The spine agent runs on Sonnet and the assembler on Haiku. Part
+writers inherit the session model. Quote the number to the
 user when you ask for the go-ahead in Step 4.
 
 ```js
