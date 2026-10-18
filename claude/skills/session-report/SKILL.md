@@ -27,6 +27,13 @@ this skill, never commit it anywhere.
 against the current repo's root (`git rev-parse --show-toplevel`), never the
 working directory. Outside a git repo, a relative `default_dir` doesn't exist.
 
+The directory may sit behind a symlink into another repo, e.g. `./spec`
+linking to a separate specs repo. Git does not follow such a link, so run
+every git command on the report in the repo that owns its real path. Find the
+real path with `cd <dir> && pwd -P`, and the owning repo with
+`git -C <real path> rev-parse --show-toplevel`. Give that repo paths relative
+to its own root.
+
 Precedence:
 1. A path given in the request → use it for this report only; do NOT update
    the preference file unless the user says to make it the default.
@@ -83,9 +90,10 @@ If the README names a build or lint command (zip_specs: `tools/wiki/wiki.py
 build`, then `tools/wiki/wiki.py check`), run it after writing and fix any
 errors in files you wrote or edited. Leave errors in other files alone and mention
 them. If the tool only sees git-tracked or staged files, as zip_specs' does,
-first stage your new files by explicit path (`git add -- <report> <new topic
-page>`). Otherwise the build silently leaves them out and the check passes
-without checking them. Staging is not committing.
+first stage your new files by explicit path in the owning repo (section 1):
+`git -C <owning repo> add -- <report> <new topic page>`. Otherwise the build
+silently leaves them out and the check passes without checking them. Staging
+is not committing.
 
 ## 4. What the report must contain
 
@@ -121,7 +129,7 @@ versus updated (and any created). The target directory is often a git repo.
 Do not commit unless explicitly asked, or unless the project's rules (e.g.
 its `CLAUDE.md`) allow commits on the user's behalf. Do not push unless
 explicitly asked. When committing, commit only the explicit paths this report
-touched (the report, a regenerated index, touched topic pages) with
-`git commit -- <paths>`, never `git add -A` or
-`git commit -a`: other sessions may share the checkout. Follow the target's
-commit message conventions.
+touched (the report, a regenerated index, touched topic pages), in the owning
+repo (section 1), with `git -C <owning repo> commit -- <paths>`. Never use
+`git add -A` or `git commit -a`: other sessions may share the checkout. Follow
+the target's commit message conventions.

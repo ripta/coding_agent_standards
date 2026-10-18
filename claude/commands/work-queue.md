@@ -324,11 +324,13 @@ the session reports, the proposals, and `queue.md` to find where the run
 stands, then continue.
 
 The report directory may sit inside the code repo or the specs repo, e.g. at
-`./spec/reports`. Then the run commits the reports in that repo. Each commit
-the run makes there carries the reports' current amendments, by path. A report
-cannot hold the SHA of the commit that carries it, so the next amendment adds
-it. When the run is done, commit the reports' last amendments by path as their
-own commit. Check its message as in section 2, step 6.
+`./spec/reports`. Decide which by the directory's owning repo, per the
+skill's "Resolve the target directory" section, not by the path as written.
+A `./spec` that links to a separate specs repo puts the reports in the specs
+repo. Then the run commits the reports in that repo. Each commit the run makes
+there carries the reports' current amendments, by path. A report cannot hold
+the SHA of the commit that carries it, so the next amendment adds it. When the
+run is done, commit the reports' last amendments by path as their own commit. Check its message as in section 2, step 6.
 
 ## 5. When to block a row
 
