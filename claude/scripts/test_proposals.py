@@ -222,6 +222,51 @@ def test_progress_cli_prints_json_and_notice_prints_nothing(tmp_path: Path, caps
     assert capsys.readouterr().out == ""
 
 
+def _next_setup(directory: Path) -> None:
+    _write(directory, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "DONE", "- Done.")
+                                                  + _milestone(2, "NOT STARTED") + _milestone(3, "NOT STARTED")))
+    for n, deps in ((2, "None"), (3, "PROJ-009 M1"), (4, "PROJ-001 M2")):
+        other = _proposal("accepted", _milestone(1, "NOT STARTED"))
+        _write(directory, f"PROJ-00{n}-b.md", other.replace("PROJ-001", f"PROJ-00{n}"))
+    _queue(directory, "| PROJ-001 M1 | None | |", "| PROJ-001 M2 | None | Split: PROJ-002 between |",
+           "| PROJ-002 M1 | None | |", "| PROJ-001 M3 | None | Split: PROJ-002 between |",
+           "| PROJ-003 M1 | PROJ-009 M1 | |", "| PROJ-004 M1 | PROJ-001 M2 | |")
+
+
+def test_next_defaults_to_the_first_ready_row(tmp_path: Path) -> None:
+    _next_setup(tmp_path)
+    report = proposals.next_rows(tmp_path, 1, [])
+    assert [e["row"] for e in report["run"]] == ["PROJ-001 M2"]
+    assert report["skipped"] == []
+
+
+def test_next_takes_rows_that_wait_only_on_picked_rows(tmp_path: Path) -> None:
+    _next_setup(tmp_path)
+    report = proposals.next_rows(tmp_path, 4, [])
+    assert [e["row"] for e in report["run"]] == ["PROJ-001 M2", "PROJ-002 M1", "PROJ-001 M3", "PROJ-004 M1"]
+    [skipped] = report["skipped"]
+    assert skipped["row"] == "PROJ-003 M1"
+    assert any("has no M1" in r or "does not exist" in r for r in skipped["reasons"])
+
+
+def test_next_skips_held_proposals_and_what_waits_on_them(tmp_path: Path) -> None:
+    _next_setup(tmp_path)
+    report = proposals.next_rows(tmp_path, 2, ["PROJ-001"])
+    assert [e["row"] for e in report["run"]] == ["PROJ-002 M1"]
+    assert [s["row"] for s in report["skipped"]] == ["PROJ-001 M2", "PROJ-001 M3", "PROJ-003 M1", "PROJ-004 M1"]
+    assert "held by the run's notes" in report["skipped"][0]["reasons"]
+    assert any("earlier row PROJ-001 M2, which is not in the run" in r for r in report["skipped"][1]["reasons"])
+    assert any("PROJ-001 M2" in r and "not in the run" in r for r in report["skipped"][3]["reasons"])
+
+
+def test_next_cli_rejects_a_count_below_one(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _next_setup(tmp_path)
+    assert proposals.main(["next", "--proposals-dir", str(tmp_path), "--count", "2"]) == 0
+    assert [e["row"] for e in json.loads(capsys.readouterr().out)["run"]] == ["PROJ-001 M2", "PROJ-002 M1"]
+    assert proposals.main(["next", "--proposals-dir", str(tmp_path), "--count", "0"]) == 1
+    assert "not a positive number" in capsys.readouterr().err
+
+
 def test_notice_is_silent_until_a_hook_passes(tmp_path: Path) -> None:
     _write(tmp_path, "PROJ-001-a.md", _hooked("deferred", "on or after 2026-11-01 (a release)"))
     assert proposals.notice(tmp_path, "2026-10-17") == ""

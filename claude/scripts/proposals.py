@@ -7,6 +7,7 @@
     python3 proposals.py hooks --proposals-dir DIR [--passed] [--today YYYY-MM-DD]
     python3 proposals.py progress --proposals-dir DIR [--json] [--today YYYY-MM-DD]
     python3 proposals.py notice --proposals-dir DIR [--today YYYY-MM-DD]
+    python3 proposals.py next --proposals-dir DIR [--count N] [--hold PROJ-NNN ...]
 
 The rules live in project-management/proposals.md and plans.md. `check` reports
 milestone status and hook structure the standard rejects. `row` finds the queue
@@ -15,6 +16,7 @@ whether it is ready. `freeze` reports edits to implemented proposals that the
 freeze does not allow. `hooks` lists every revisit hook, passed dates first.
 `progress` reports the queue as done, ready, and held rows, with the hooks.
 `notice` prints one line when any hook has passed, and nothing otherwise.
+`next` picks the next N rows a `/work-queue` run can take, in queue order.
 
 DIR is the proposals directory, which may sit in a symlinked specs repo. Results
 are JSON on stdout. Errors go to stderr with exit status 1.
@@ -784,42 +786,10 @@ def progress(proposals_dir: Path, today: str) -> dict[str, Any]:
         "done": [], "ready": [], "held": [], "blocked": [], "hooks": hooks(proposals_dir, today, False),
     }
     for row in rows:
-        p = proposals.get(row.proposal)
-        numbers = range(row.first, row.last + 1)
-        statuses = {n: p.milestones[n].status if p and n in p.milestones else None for n in numbers}
-        entry: dict[str, Any] = {
-            "row": row.label,
-            "note": row.note,
-            "done": sum(1 for s in statuses.values() if s == "DONE"),
-            "dropped": sum(1 for s in statuses.values() if s == "DROPPED"),
-            "total": len(statuses),
-        }
-        if all(s in FINISHED for s in statuses.values()):
+        entry, finished, blocked, held = _classify(row, rows, proposals)
+        if finished:
             report["done"].append(entry)
-            continue
-        entry["next"] = next(f"{row.proposal} M{n}" for n, s in statuses.items() if s not in FINISHED)
-        # Blocked reasons need the user. Held reasons clear once other work finishes.
-        blocked, held = [], []
-        if p is None:
-            blocked.append(f"{row.proposal} does not exist")
-        else:
-            if p.status != "accepted":
-                blocked.append(f"{row.proposal} is {p.status}")
-            blocked += [f"{row.proposal} has no M{n}" for n, s in statuses.items() if s is None]
-        for earlier in rows[: row.index]:
-            if earlier.proposal == row.proposal and any(
-                p is None or p.milestones.get(n) is None or p.milestones[n].status not in FINISHED
-                for n in range(earlier.first, earlier.last + 1)
-            ):
-                held.append(f"waits on its earlier row {earlier.label}")
-        for dep in row.depends_on:
-            state, reason = _dependency_state(dep, proposals, rows)
-            # A deployment never confirms itself, so a "confirm" dependency needs the user too.
-            if state in ("blocked", "confirm"):
-                blocked.append(f"{dep}: {reason}")
-            elif state != "met":
-                held.append(f"{dep}: {reason}")
-        if blocked:
+        elif blocked:
             entry["blocked"] = blocked + held
             report["blocked"].append(entry)
         elif held:
@@ -828,6 +798,51 @@ def progress(proposals_dir: Path, today: str) -> dict[str, Any]:
         else:
             report["ready"].append(entry)
     return report
+
+
+def _unfinished(row: Row, p: Proposal | None) -> bool:
+    return any(
+        p is None or p.milestones.get(n) is None or p.milestones[n].status not in FINISHED
+        for n in range(row.first, row.last + 1)
+    )
+
+
+def _classify(
+    row: Row, rows: list[Row], proposals: dict[str, Proposal]
+) -> tuple[dict[str, Any], bool, list[str], list[str]]:
+    """Summarize one row. Say whether it is finished, and what blocks or holds it."""
+    p = proposals.get(row.proposal)
+    numbers = range(row.first, row.last + 1)
+    statuses = {n: p.milestones[n].status if p and n in p.milestones else None for n in numbers}
+    entry: dict[str, Any] = {
+        "row": row.label,
+        "note": row.note,
+        "done": sum(1 for s in statuses.values() if s == "DONE"),
+        "dropped": sum(1 for s in statuses.values() if s == "DROPPED"),
+        "total": len(statuses),
+    }
+    if all(s in FINISHED for s in statuses.values()):
+        return entry, True, [], []
+    entry["next"] = next(f"{row.proposal} M{n}" for n, s in statuses.items() if s not in FINISHED)
+    # Blocked reasons need the user. Held reasons clear once other work finishes.
+    blocked, held = [], []
+    if p is None:
+        blocked.append(f"{row.proposal} does not exist")
+    else:
+        if p.status != "accepted":
+            blocked.append(f"{row.proposal} is {p.status}")
+        blocked += [f"{row.proposal} has no M{n}" for n, s in statuses.items() if s is None]
+    for earlier in rows[: row.index]:
+        if earlier.proposal == row.proposal and _unfinished(earlier, p):
+            held.append(f"waits on its earlier row {earlier.label}")
+    for dep in row.depends_on:
+        state, reason = _dependency_state(dep, proposals, rows)
+        # A deployment never confirms itself, so a "confirm" dependency needs the user too.
+        if state in ("blocked", "confirm"):
+            blocked.append(f"{dep}: {reason}")
+        elif state != "met":
+            held.append(f"{dep}: {reason}")
+    return entry, False, blocked, held
 
 
 def render_progress(report: dict[str, Any]) -> str:
@@ -870,13 +885,67 @@ def notice(proposals_dir: Path, today: str) -> str:
     )
 
 
+# -- next -----------------------------------------------------------------
+
+
+def next_rows(proposals_dir: Path, count: int, holds: list[str]) -> dict[str, Any]:
+    """Pick the first `count` unfinished rows, in queue order, that a run can take.
+
+    A row qualifies when nothing blocks it. Every row or milestone it waits on
+    must be finished or already picked. A row the run cannot take is skipped and
+    listed with its reasons, so the plan can say what it passed over.
+    """
+    if count < 1:
+        raise ProposalError(f"--count {count} is not a positive number")
+    proposals = load_proposals(proposals_dir)
+    rows = load_queue(proposals_dir)
+    picked: list[Row] = []
+    report: dict[str, Any] = {"run": [], "skipped": []}
+
+    def in_run(proposal: str, milestone: int) -> bool:
+        return any(row.names(proposal, milestone) for row in picked)
+
+    for row in rows:
+        if len(picked) == count:
+            break
+        entry, finished, blocked, _ = _classify(row, rows, proposals)
+        if finished:
+            continue
+        reasons = list(blocked)
+        if row.proposal in holds:
+            reasons.append("held by the run's notes")
+        p = proposals.get(row.proposal)
+        for earlier in rows[: row.index]:
+            if earlier.proposal == row.proposal and _unfinished(earlier, p) and earlier not in picked:
+                reasons.append(f"waits on its earlier row {earlier.label}, which is not in the run")
+        for dep in row.depends_on:
+            state, reason = _dependency_state(dep, proposals, rows)
+            if state != "unmet":
+                continue
+            if dep.deployed:
+                reasons.append(f"{dep}: {reason}, and a run cannot deploy it")
+                continue
+            target = proposals[dep.proposal]
+            needed = [dep.milestone] if dep.milestone else [
+                n for n, m in target.milestones.items() if m.status not in FINISHED
+            ]
+            if not all(in_run(dep.proposal, n) for n in needed):
+                reasons.append(f"{dep}: {reason}, and it is not in the run")
+        if reasons:
+            report["skipped"].append({"row": row.label, "reasons": reasons})
+            continue
+        picked.append(row)
+        report["run"].append(entry)
+    return report
+
+
 # -- cli ------------------------------------------------------------------
 
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("check", "row", "freeze", "hooks", "progress", "notice"):
+    for name in ("check", "row", "freeze", "hooks", "progress", "notice", "next"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--proposals-dir", type=Path, required=True)
         if name == "row":
@@ -890,12 +959,17 @@ def main(argv: list[str]) -> int:
             cmd.add_argument("--passed", action="store_true", help="list only hooks whose date has passed")
         if name == "progress":
             cmd.add_argument("--json", action="store_true", help="print JSON instead of text")
+        if name == "next":
+            cmd.add_argument("--count", type=int, default=1, help="how many rows to pick; defaults to 1")
+            cmd.add_argument("--hold", action="append", default=[], help="a proposal whose rows the run holds")
     args = parser.parse_args(argv)
     try:
         if getattr(args, "today", None) is not None and not ISO_DATE.match(args.today):
             raise ProposalError(f"--today {args.today!r} is not YYYY-MM-DD")
         if args.command == "check":
             result: Any = check(args.proposals_dir)
+        elif args.command == "next":
+            result = next_rows(args.proposals_dir, args.count, args.hold)
         elif args.command == "hooks":
             result = hooks(args.proposals_dir, args.today, args.passed)
         elif args.command in ("progress", "notice"):

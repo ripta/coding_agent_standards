@@ -1,6 +1,6 @@
 ---
 description: Plan a run of queue rows up front, then implement and commit their milestones one at a time
-argument-hint: [<PROJ-NNN>[ M<n>[-M<m>]] ...] [notes]
+argument-hint: [next [N] | all | <PROJ-NNN>[ M<n>[-M<m>]] ...] [notes]
 model: opus
 ---
 
@@ -54,13 +54,24 @@ create or switch branches. Never act on an edit this run did not make.
 
 ## 1. Plan mode: build the run
 
-1. Parse the arguments into queue rows. `PROJ-NNN` means every unfinished row
-   of that proposal. `PROJ-NNN M3` means the row that names M3, from M3 on.
-   `PROJ-NNN M3-M5` means those milestones, which must sit in one row. With no
-   rows named, take every unfinished row in `queue.md`. Rows run in queue
-   order, whatever order the arguments give. Milestones within a row run in
-   number order. Treat any trailing prose as notes for the run. A note like
-   "hold PROJ-004" holds that proposal's rows.
+1. Parse the arguments into queue rows. Treat any trailing prose as notes for
+   the run. A note like "hold PROJ-004" holds that proposal's rows. The
+   arguments take one of three forms:
+   - A count. `next N` means the next N rows the run can take, in queue order.
+     N counts rows, not milestones. `next` alone, or no arguments at all, means
+     `next 1`. Run `proposals.py next --count N`, with a `--hold PROJ-NNN` for
+     each proposal the notes hold. Its `run` list is the run. A row in it may
+     wait on a row picked before it. Its `skipped` list holds each row it
+     passed over, with the reasons. These rows are not in the run, so they
+     raise no questions in item 7. The user names a skipped row by its ID to
+     run it. When `run` is empty, report the skipped rows and stop.
+   - `all` means every unfinished row in `queue.md`.
+   - Rows by ID. `PROJ-NNN` means every unfinished row of that proposal.
+     `PROJ-NNN M3` means the row that names M3, from M3 on. `PROJ-NNN M3-M5`
+     means those milestones, which must sit in one row.
+
+   Rows run in queue order, whatever order the arguments give. Milestones
+   within a row run in number order.
 
 2. For every row, run the checks `/work-on` makes before it explores the
    codebase: locate the proposals directory and the specs repo, run
@@ -120,6 +131,7 @@ create or switch branches. Never act on an edit this run did not make.
      one-line description
    - Each row's dependencies, and how each is met
    - Each held row, with the reason it is held
+   - Each row `next` skipped, with its reasons
    - A short implementation approach for each milestone, and the files it
      touches
    - The local checks every milestone runs
