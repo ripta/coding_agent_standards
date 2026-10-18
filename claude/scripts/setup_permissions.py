@@ -3,19 +3,26 @@
 
     python3 setup_permissions.py [--settings FILE] [--check]
 
-FILE defaults to ~/.claude/settings.json. The script adds the entries in MANAGED, removes
-the entries in RETIRED, and drops exact duplicates from the permission and sandbox lists. It
-never touches any other key.
+FILE defaults to ~/.claude/settings.json. The script adds the entries in MANAGED, and removes
+the entries in RETIRED. It also drops redundant entries:
 
---check reports what would change and never writes. It exits 1 when something would change,
-so a hook can warn. Without --check the script writes, but only from a terminal outside a
-coding agent, and only after the user confirms the diff.
+- exact duplicates in the permission and sandbox lists
+- permission rules that a broader rule in the same list already covers
+- hooks listed twice, and user hooks that run a standards script the plugin already runs
+
+It never touches any other key.
+
+--check reports what would change and never writes. It exits 1 when a managed entry is
+missing, so a hook can warn, and 3 when only redundant entries would go. Without --check the
+script writes, but only from a terminal outside a coding agent, and only after the user
+confirms the diff.
 """
 
 import argparse
 import difflib
 import json
 import os
+import re
 import shutil
 import sys
 import time
@@ -36,6 +43,17 @@ MANAGED: dict[tuple[str, ...], list[str]] = {
 RETIRED: dict[tuple[str, ...], list[str]] = {}
 
 DEDUPED_PARENTS = (("permissions",), ("sandbox", "filesystem"))
+RULE_LISTS = ("allow", "deny", "ask")
+RULE = re.compile(r"^([\w-]+)(?:\((.*)\))?$")
+
+PLUGIN_HOOKS = Path(__file__).resolve().parent.parent / "hooks" / "hooks.json"
+PLUGIN_SCRIPT = re.compile(r"^\$\{CLAUDE_PLUGIN_ROOT\}/(hooks/\S+)$")
+# Every place a user's settings may run a standards hook script from: a clone, the link the
+# plugin maintains, or a cached plugin version.
+STANDARDS_SCRIPT = re.compile(
+    r"^~/(?:projects/coding_agent_standards/claude|coding-standards/claude|\.claude/coding-standards-current"
+    r"|\.claude/plugins/cache/coding-standards/coding-standards/[^/]+)/(hooks/\S+)$"
+)
 
 
 class SetupError(Exception):
@@ -59,10 +77,115 @@ def _name(path: tuple[str, ...]) -> str:
     return ".".join(path)
 
 
-def plan(settings: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
-    """Return the settings with every change applied, and one line per change."""
+def _rule(rule: Any) -> tuple[str, str | None] | None:
+    m = RULE.match(rule) if isinstance(rule, str) else None
+    return (m.group(1), m.group(2)) if m else None
+
+
+def covers(broad: str, narrow: str) -> bool:
+    """Report whether the rule broad matches everything the rule narrow does.
+
+    Only forms whose matching is plain are compared: a bare tool name, a Bash prefix rule such
+    as "Bash(git:*)", and "WebFetch(domain:*)". Path rules use glob matching, so they are never
+    treated as covered.
+    """
+    b, n = _rule(broad), _rule(narrow)
+    if b is None or n is None or b[0] != n[0] or broad == narrow:
+        return False
+
+    tool, bspec = b
+    nspec = n[1]
+    if bspec is None:
+        return nspec is not None
+    if nspec is None:
+        return False
+
+    if tool == "Bash" and bspec.endswith(":*"):
+        prefix = bspec[:-2]
+        command = nspec[:-2] if nspec.endswith(":*") else nspec
+        return command == prefix or command.startswith(prefix + " ")
+    if tool == "WebFetch" and bspec == "domain:*":
+        return nspec.startswith("domain:")
+    return False
+
+
+def plugin_hooks(path: Path = PLUGIN_HOOKS) -> set[tuple[str, str, str]]:
+    """Return (event, matcher, script) for each plugin hook that runs a script of its own."""
+    try:
+        config = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return set()
+
+    found = set()
+    for event, groups in config.get("hooks", {}).items():
+        for group in groups:
+            for hook in group.get("hooks", []):
+                m = PLUGIN_SCRIPT.match(str(hook.get("command", "")).replace('"', ""))
+                if m:
+                    found.add((event, group.get("matcher", ""), m.group(1)))
+    return found
+
+
+def _standards_script(command: Any) -> str | None:
+    """Return the hooks/ script a user hook runs from a copy of the standards, if it runs one."""
+    if not isinstance(command, str):
+        return None
+    command = command.replace('"', "").replace("'", "").strip()
+    home = str(Path.home())
+    for spelling in ("${HOME}", "$HOME", home):
+        if command.startswith(spelling + "/"):
+            command = "~" + command[len(spelling):]
+    m = STANDARDS_SCRIPT.match(command)
+    return m.group(1) if m else None
+
+
+def _short(text: str) -> str:
+    return text if len(text) <= 90 else text[:87] + "..."
+
+
+def _dedupe_hooks(new: dict[str, Any], plugin: set[tuple[str, str, str]], changes: list[str]) -> None:
+    hooks = new.get("hooks")
+    if not isinstance(hooks, dict):
+        return
+
+    for event, groups in hooks.items():
+        if not isinstance(groups, list):
+            continue
+        seen: set[tuple[str, str]] = set()
+        emptied = []
+        for group in groups:
+            if not isinstance(group, dict) or not isinstance(group.get("hooks"), list):
+                continue
+            matcher = group.get("matcher", "")
+            kept = []
+            for hook in group["hooks"]:
+                label = f"{event}[{matcher}]: {_short(str(hook.get('command', hook)))}"
+                key = (matcher, json.dumps(hook, sort_keys=True))
+                script = _standards_script(hook.get("command"))
+                if key in seen:
+                    changes.append(f"drop duplicate hook {label}")
+                elif script and (event, matcher, script) in plugin:
+                    changes.append(f"drop hook the plugin already runs, {label}")
+                else:
+                    seen.add(key)
+                    kept.append(hook)
+            if group["hooks"] and not kept:
+                emptied.append(group)
+            group["hooks"] = kept
+        groups[:] = [g for g in groups if not any(g is e for e in emptied)]
+
+
+def plan(
+    settings: dict[str, Any], plugin: set[tuple[str, str, str]] = frozenset()
+) -> tuple[dict[str, Any], list[str]]:
+    """Return the settings with every change applied, and one line per change.
+
+    plugin is what plugin_hooks returns. A user hook that runs the same script on the same
+    event and matcher runs twice, so it is dropped.
+    """
     new = json.loads(json.dumps(settings))
     changes: list[str] = []
+    managed = {entry for entries in MANAGED.values() for entry in entries}
 
     for parent_path in DEDUPED_PARENTS:
         parent = _node(new, parent_path, create=False)
@@ -78,6 +201,21 @@ def plan(settings: dict[str, Any]) -> tuple[dict[str, Any], list[str]]:
                 else:
                     seen.append(item)
             parent[key] = seen
+
+    for key in RULE_LISTS:
+        rules = _node(new, ("permissions",), create=False)
+        if rules is None or not isinstance(rules.get(key), list):
+            continue
+        kept = []
+        for rule in rules[key]:
+            broader = next((b for b in rules[key] if covers(b, rule)), None)
+            if broader is not None and rule not in managed:
+                changes.append(f"drop permissions.{key}: {rule}, covered by {broader}")
+            else:
+                kept.append(rule)
+        rules[key] = kept
+
+    _dedupe_hooks(new, plugin, changes)
 
     for path, entries in RETIRED.items():
         parent = _node(new, path[:-1], create=False)
@@ -152,7 +290,7 @@ def main(argv: list[str]) -> int:
 
     try:
         old = load(args.settings)
-        new, changes = plan(old)
+        new, changes = plan(old, plugin_hooks())
         if not changes:
             print(f"{args.settings} already has what the coding standards need.")
             return 0
@@ -162,7 +300,7 @@ def main(argv: list[str]) -> int:
             print(f"  - {change}")
         if args.check:
             print("Run setup_permissions.py from your own terminal to apply them.")
-            return 1
+            return 1 if any(c.startswith("add ") for c in changes) else 3
 
         _refuse_unattended()
         diff = difflib.unified_diff(
