@@ -245,7 +245,12 @@ For each milestone picked:
      liveness signal. Treat it as unknown.
    - A Bash call is pending. Wait. Without cg, the agent runs its checks
      through Bash, and a slow check looks the same as a stuck one. The Bash
-     tool's own timeout ends the call.
+     tool's timeout does not kill the command. It moves it to the background.
+   - The agent's latest notification says it is waiting on its own background
+     work, and `last` has not moved since. Wait. The agent resumes when that
+     work finishes. Its output is the `<task-id>.output` file beside the
+     transcript, where `<task-id>` is the ID the agent's last tool result
+     names. Output that grows means it is still working.
    - Some other call is pending and `last` has not moved. Compare
      `git diff --stat` with the previous check, not `git status`. New edits to
      files that were already modified do not show in `git status`. No change
@@ -254,6 +259,8 @@ For each milestone picked:
 
    Nudge a stuck or dead agent once with SendMessage. Ask it what it is
    waiting on. If the next check shows no progress, stop it with TaskStop.
+   Stopping an agent also kills every background command it started. Never
+   stop one that is waiting on its own background work.
    Spawn a fresh agent with the same brief. Tell it the working tree holds the
    stopped agent's partial work, and to continue from it. Record the restart
    in the session report.
