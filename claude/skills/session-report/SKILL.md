@@ -65,8 +65,15 @@ reports still sit there. (zip_specs files reports under
 top-level `.md`, preferably `README.md`, carries the frontmatter.)
 
 Check for filename collisions; on collision, extend the slug. Never overwrite
-an existing report, and never rewrite another session's committed report: if
-the work extends or corrects one, write a new report and link back to it.
+an existing report.
+
+A report belongs to the work that created it. Amend one only when this
+session created it, or continues the same work, such as a `/work-queue` run
+resumed in a new session. Whether it is committed does not matter. Re-read it
+right before each edit and change it in place, never rewrite it from memory.
+If it changed since you last read it, and you did not make the change, another
+session may be writing it. Stop and ask the user. When the work only extends
+or corrects someone else's report, write a new report and link back to it.
 
 ## 3. Frontmatter and topics
 
@@ -126,8 +133,9 @@ next steps; systemic/wider implications if any; status.
 
 Report the absolute path of the report and which topic pages were tagged
 versus updated (and any created). The target directory is often a git repo.
-Do not commit unless explicitly asked, or unless the project's rules (e.g.
-its `CLAUDE.md`) allow commits on the user's behalf. Do not push unless
+Do not commit unless explicitly asked, or unless the rules of the project this
+session runs in (e.g. its `CLAUDE.md`) allow commits on the user's behalf.
+Those rules apply even when the report lands in another repo. Do not push unless
 explicitly asked. When committing, commit only the explicit paths this report
 touched (the report, a regenerated index, touched topic pages), in the owning
 repo (section 1), with `git -C <owning repo> commit -- <paths>`. Never use

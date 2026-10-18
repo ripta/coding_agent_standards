@@ -321,7 +321,8 @@ base commits, each row's specs commits, every milestone with its run status,
 and each held or blocked row with its reason. Update it whenever a status
 changes. Later row reports link to it. After a context compaction, re-read it,
 the session reports, the proposals, and `queue.md` to find where the run
-stands, then continue.
+stands, then continue. A run resumed in a new session does the same. The run's
+reports are still its own to amend, even once committed.
 
 The report directory may sit inside the code repo or the specs repo, e.g. at
 `./spec/reports`. Decide which by the directory's owning repo, per the
@@ -330,7 +331,9 @@ A `./spec` that links to a separate specs repo puts the reports in the specs
 repo. Then the run commits the reports in that repo. Each commit the run makes
 there carries the reports' current amendments, by path. A report cannot hold
 the SHA of the commit that carries it, so the next amendment adds it. When the
-run is done, commit the reports' last amendments by path as their own commit. Check its message as in section 2, step 6.
+run is done, commit the reports' last amendments by path as their own commit.
+In the code repo, check its message as in section 2, step 6. In the specs repo,
+write its subject in that repo's own style, as for the other specs commits.
 
 ## 5. When to block a row
 
