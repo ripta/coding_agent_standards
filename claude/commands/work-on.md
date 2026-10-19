@@ -124,8 +124,8 @@ field.
       `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`. Record each that
       passes as `Undecided` in the originating proposal's Decision Log, per
       its "Recording ADR Candidates" section. Skip one the log already holds.
-      Mention them once, in your final response, and name the proposal file
-      as changed. Do not write an ADR unless the user asks
+      Mention them once, in your final response, per its "Listing ADR
+      Candidates" section, and name the proposal file as changed. Do not write an ADR unless the user asks
     - Push back in your response on any finding you disagree with, and say
       why. Do not apply a finding blindly.
 

@@ -274,7 +274,7 @@ Write the answers to the file before doing anything else, so progress survives i
 
 Note each decision that earns an ADR by the "What Earns an ADR" section of
 `${CLAUDE_SKILL_DIR}/../../project-management/design.md`: it must pass the Architecture, Decision, and Record tests.
-Note the Architecture criterion it meets. Most decisions do not. Step 8
+Note how it passes each test. Most decisions do not. Step 8
 asks about ADRs for all of them at once. Do not ask about an ADR inside the loop.
 
 #### 8. Next
@@ -354,11 +354,29 @@ When the user stops or all questions are resolved (and the coherence and risk re
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
 
 Before asking about ADRs, check each noted decision against "What Earns an ADR" again, now that the whole design is
-settled. Drop any that no longer pass all three tests. A decision that fails only Record, because it may still shift,
-waits for a later review. If none remain, say in one line that no decision earns an ADR, and do
-not ask. Otherwise ask via AskUserQuestion which should get an ADR. Use one multiSelect question that lists them, each
-with the criterion it meets. Put it in the same AskUserQuestion call as the `accepted` question when there is one. In
-autonomous mode, both come last in the review gate. See "The Review Gate".
+settled. Drop any that no longer pass all three tests. A dropped decision never appears in the question. A decision that
+fails only Record, because it may still shift, waits for a later review. If none remain, say in one line that no
+decision earns an ADR, and do not ask.
+
+Otherwise ask via AskUserQuestion which should get an ADR, as a multiSelect question. Build it this way:
+
+- Each candidate is one option. Its description shows how it passes all three tests, per "Listing ADR Candidates" in
+  `${CLAUDE_SKILL_DIR}/../../project-management/design.md`
+- Decide which candidates you recommend writing. Append `(Recommended)` to each one's label, and list them first. In
+  its description, say in a few words why it is worth writing over the others
+- Add a last option labeled `None`. Its description says no candidate becomes an ADR. Mark it `(Recommended)` when you
+  recommend writing none. Then no candidate carries the marker
+- With more than three candidates, split them across questions of up to three, each with its own `None` option
+
+Put these questions in the same AskUserQuestion call as the `accepted` question when there is one. In autonomous mode,
+they come last in the review gate. See "The Review Gate".
+
+Read the answers this way:
+
+- A picked candidate gets an ADR
+- `None`, or no option picked, means no candidate in that question gets an ADR. Never read an empty answer as consent
+  to your recommendation
+- `None` picked with a candidate contradicts itself. Ask that question again
 
 Record every candidate's outcome in the Decision Log, per "Recording ADR Candidates" in
 `${CLAUDE_SKILL_DIR}/../../project-management/design.md`. A candidate the user picks is `Written as ADR-NN`. One the user

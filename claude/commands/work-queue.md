@@ -402,8 +402,9 @@ Report to the user:
 - The commits made, in order, in each repo
 - The session report paths
 - The best guesses that most deserve their review
-- The ADR candidates the run recorded, deduplicated, each with the criterion
-  it meets and the proposal whose Decision Log holds it. Most runs have none.
+- The ADR candidates the run recorded, deduplicated, each with how it passes
+  the three tests, per "Listing ADR Candidates" in `design.md`, and the
+  proposal whose Decision Log holds it. Most runs have none.
   Do not write them. The user decides which get written, usually in the next
   `/proposal-reviewer` run
 - Every edit the run found but did not make: freeze hunks with origin `other`

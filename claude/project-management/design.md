@@ -140,3 +140,21 @@ Each candidate gets one entry. It names the Architecture criterion it meets and 
 When the outcome changes, edit it in place and add the date of the change, such as `Written as ADR-07 on 2026-11-02`.
 Keep the entry's original date. A change with no originating proposal records its candidates in its session report
 instead. Without a session report, the run lists them in its final response.
+
+## Listing ADR Candidates
+
+A list of ADR candidates shown to the user holds only candidates that pass all three tests. A candidate that fails any
+test stays off the list. Its outcome goes in the Decision Log instead.
+
+Each item shows how it passes every test, in a short phrase per test:
+
+- **Architecture**: the criterion it meets, and the concrete thing that meets it
+- **Decision**: the choice it records
+- **Record**: why it will not shift
+
+```markdown
+- Events carry a schema version. Architecture: hard to reverse, it fixes the wire format. Decision: a version field
+  over content negotiation. Record: nothing it depends on is still in design.
+```
+
+An item that does not show all three tests has not been shown to pass. Treat it as passing none, and leave it off.
