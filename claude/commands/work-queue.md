@@ -182,7 +182,8 @@ For each milestone picked:
    path, and the run's notes. Do not re-enter plan mode, and do not present a
    plan for approval.
 
-3. Read its report. If it reports a blocker, follow section 5.
+3. Read its report. If it reports a blocker, check it against section 5. A
+   blocker that section 5 does not cover becomes a best guess.
 
 4. Run `proposals.py check`, and `proposals.py freeze` with a `--row-commit`
    for each specs commit this row has made. Then spawn a fresh `reviewer`
@@ -202,6 +203,12 @@ For each milestone picked:
      origin `row` as fix. The exception is a text hunk in a proposal whose
      `corrections_logged` is above zero. It may be a correction of fact, so
      follow the reviewer's judgment on it.
+   - A finding whose fix is to amend the proposal is still fix. This holds when
+     the proposal contradicts itself, or when its check text cannot be met as
+     written. The implementer amends the proposal per "Amending a Proposal" in
+     `proposals.md`. It writes the plan's best guess into the amended text, and
+     marks the Decision Log entry as a run best guess. It never escalates to
+     section 5.
    - Never send a freeze hunk with origin `other` or `unknown`, or a finding
      with disposition `user`, to the implementer. Another session may have
      made that edit. Record it in the session report for the user.
@@ -381,7 +388,23 @@ Block a row, and say why, only when:
 - A build or test failure cannot be fixed within the milestone's scope
 - A review finding needs a design decision the documents do not cover, and
   any guess would be costly to reverse
-- The work turns out to contradict the proposal or an ADR
+- The work contradicts an ADR, and honoring the ADR would change the approved
+  plan
+- The work contradicts the proposal's goals, and no amendment can reconcile
+  them
+
+These are last resorts. "What the user authorizes by approving the plan"
+relaxes the rule to ask before deciding an ambiguity. This section does not
+restore it. Read the conditions this way:
+
+- A guess is costly to reverse only when it reaches users before the user can
+  review it. The run never pushes, so its own commits are not costly to
+  reverse. A format or API that no milestone ships on its own is not either.
+- A proposal that contradicts itself is not a contradiction with the work.
+  Pick the narrowest reading the proposal and the shipped code support, and
+  amend the proposal to match, as section 2 step 4 describes.
+- A best guess the approved plan records stays a best guess when review
+  confirms the ambiguity behind it. The plan approval already covered it.
 
 Before blocking, commit any finished work that passes the checks. Unfinished
 work must not leak into the next row's commits, and it must never be
