@@ -86,6 +86,12 @@ lives at `~/projects/coding_agent_standards`.
 }
 ```
 
+## Tests
+
+Each `test_<hook>.py` feeds commands to one shell hook and checks its
+decision. `hooktest.py` holds the shared runner. Run them with
+`uv run --with pytest pytest claude/hooks`.
+
 ## Parked Configs Do Not Belong in hooks.json
 
 Claude Code refuses to load a plugin whose `hooks.json` has a matcher-shaped
