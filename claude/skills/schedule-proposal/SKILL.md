@@ -9,8 +9,8 @@ model: sonnet
 allowed-tools: AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
-You schedule one or more proposals by adding queue rows for their milestones. This is spec-only. You do not plan code, scan the
-codebase, or implement anything. Your only artifacts are `queue.md` and the proposal.
+You schedule one or more proposals by adding queue rows for their milestones. This is spec-only. You do not plan code,
+scan the codebase, or implement anything. Your only artifacts are `queue.md` and the proposals.
 
 The queue lives in `${CLAUDE_SKILL_DIR}/../../project-management/plans.md`. Metadata, status vocabularies, and
 milestone references live in `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. The proposal format lives in
@@ -64,9 +64,9 @@ Do all of this before any question.
    The picks are the batch. Continue as if they had been the arguments.
 4. **Batch order.** With several proposals, put each after any proposal in the batch that its Dependencies section
    names. Otherwise keep the order they were given or picked in. A dependency cycle in the batch is a stop.
-5. **Proposal.** For each proposal, find `<ID>-*.md` in the proposals directory. If none exists, tell the user and stop. Read it and
-   capture the title, `**Status:**`, `**Tradeoffs:**` if present, Dependencies, Design Decisions (Settled), Design
-   Decisions (Open), Milestones, Risks, and the Decision Log.
+5. **Proposal.** For each proposal, find `<ID>-*.md` in the proposals directory. If none exists, tell the user and stop.
+   Read it and capture the title, `**Status:**`, `**Tradeoffs:**` if present, Dependencies, Design Decisions (Settled),
+   Design Decisions (Open), Milestones, Risks, and the Decision Log.
 6. **Validate.** Run `proposals.py check`. Stop and report the failed check if any of these is true. In a batch, drop
    only the failing proposal and report it. The others go on, unless one of them depends on it:
    - The proposal's `**Status:**` is anything other than `accepted`.
@@ -151,8 +151,8 @@ Milestone numbers named by a queue row are now permanent. Say so in the report.
 
 ### Step 7: Verify
 
-Run `proposals.py check`, and `proposals.py row PROJ-NNN` for each proposal's first new row. Report each dependency's state from
-`row`. Fix any `check` finding this run caused.
+Run `proposals.py check`, and `proposals.py row PROJ-NNN` for each proposal's first new row. Report each dependency's
+state from `row`. Fix any `check` finding this run caused.
 
 ### Step 8: Report
 
