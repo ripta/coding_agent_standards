@@ -1,14 +1,15 @@
 ---
 name: schedule-proposal
 description: |
-  Schedule an accepted proposal (PROJ-NNN) by adding its milestones to the
-  project's queue. Spec-only: edits queue.md and the proposal's Decision Log.
-  No code planning or implementation. Invoked as `/schedule-proposal PROJ-NNN`.
+  Schedule accepted proposals (PROJ-NNN) by adding their milestones to the
+  project's queue. With no ID, recommends which to schedule and asks. Spec-only:
+  edits queue.md and the proposals' Decision Logs. No code planning or
+  implementation. Invoked as `/schedule-proposal [PROJ-NNN ...]`.
 model: sonnet
 allowed-tools: AskUserQuestion, Read, Write, Edit, Glob, Grep, Bash
 ---
 
-You schedule one proposal by adding queue rows for its milestones. This is spec-only. You do not plan code, scan the
+You schedule one or more proposals by adding queue rows for their milestones. This is spec-only. You do not plan code, scan the
 codebase, or implement anything. Your only artifacts are `queue.md` and the proposal.
 
 The queue lives in `${CLAUDE_SKILL_DIR}/../../project-management/plans.md`. Metadata, status vocabularies, and
@@ -22,8 +23,11 @@ when one exists.
 
 ## Inputs
 
-The skill's argument is a proposal identifier such as `PROJ-033`. If it is missing or malformed, ask for it with
-AskUserQuestion, on its own, before anything else. Nothing below can be detected without it.
+The skill's arguments are proposal identifiers such as `PROJ-033`, or none. If one is malformed, ask for it with
+AskUserQuestion, on its own, before anything else. With none, Step 2 recommends candidates and asks which to schedule.
+
+Several proposals make one batch. Steps 3 to 8 then cover the whole batch at once, with one question call and one
+approval.
 
 ## Workflow
 
@@ -46,24 +50,40 @@ Do all of this before any question.
    scheduled work yet, may go on.
 2. **Queue.** Read `queue.md` in the proposals directory. If it does not exist, this is the project's first scheduled
    work. Step 5 creates it in the form `plans.md` "The Queue File" gives.
-3. **Proposal.** Find `<ID>-*.md` in the proposals directory. If none exists, tell the user and stop. Read it and
+3. **Recommend, when no ID was given.** Run `proposals.py candidates`. Show its tiers, as `plans.md` "Choosing What to
+   Schedule" describes, in its order. For each candidate, give its unscheduled milestones, what it unblocks, the open
+   bugs it cites, its `**Created:**` date, and a one-line reason drawn from its `motivation`. Name what each waiting
+   candidate waits on, and each not-schedulable one's reasons.
+
+   Then ask which to schedule, with AskUserQuestion in one multi-select call. Offer the first three ready candidates,
+   and mark the first "(Recommended)". End with a "Do not schedule" option. Say in the question that "Other" takes any
+   IDs from the list, such as a waiting candidate together with what it waits on. When the ready tier is empty, offer
+   the waiting candidates' dependencies that are themselves candidates. When there are no candidates at all, say so,
+   route any not-schedulable ones to `proposal-reviewer`, and stop. Stop as well on "Do not schedule".
+
+   The picks are the batch. Continue as if they had been the arguments.
+4. **Batch order.** With several proposals, put each after any proposal in the batch that its Dependencies section
+   names. Otherwise keep the order they were given or picked in. A dependency cycle in the batch is a stop.
+5. **Proposal.** For each proposal, find `<ID>-*.md` in the proposals directory. If none exists, tell the user and stop. Read it and
    capture the title, `**Status:**`, `**Tradeoffs:**` if present, Dependencies, Design Decisions (Settled), Design
    Decisions (Open), Milestones, Risks, and the Decision Log.
-4. **Validate.** Run `proposals.py check`. Stop and report the failed check if any of these is true:
+6. **Validate.** Run `proposals.py check`. Stop and report the failed check if any of these is true. In a batch, drop
+   only the failing proposal and report it. The others go on, unless one of them depends on it:
    - The proposal's `**Status:**` is anything other than `accepted`.
    - `check` reports a finding on this proposal, such as milestones that are not subsections with a status line, or
      an index row that disagrees.
    - Design Decisions (Open) contains any item. An empty or absent section is fine. Route the user to
      `proposal-reviewer`.
-5. **Unscheduled milestones.** List the proposal's milestones that are not `DONE` or `DROPPED` and that no queue row
+7. **Unscheduled milestones.** List the proposal's milestones that are not `DONE` or `DROPPED` and that no queue row
    names. If there are none, tell the user the proposal is already fully scheduled, name its rows, and stop. A
    proposal may already have some rows. Then the unscheduled milestones must form one or more contiguous ranges that
    follow its last scheduled milestone. A gap between scheduled milestones cannot be filled, since rows of one
    proposal run in order. Stop and tell the user when you find one. Note whether its existing rows carry notes,
    since every row of a multi-row proposal needs one.
-6. **A revived proposal.** If the Decision Log has an entry that recorded removed queue rows at a deferral, read the
+8. **A revived proposal.** If the Decision Log has an entry that recorded removed queue rows at a deferral, read the
    ranges, depends-on cells, and notes it recorded. Offer them as the starting layout in Step 4.
-7. **Dependencies.** For each `PROJ-NNN` in the proposal's Dependencies, find its state:
+9. **Dependencies.** For each `PROJ-NNN` in the proposal's Dependencies, find its state. A proposal earlier in the
+   batch counts as `accepted` with queue rows, since its rows land first:
    - `implemented`: the dependency is met. It needs no depends-on entry.
    - `accepted` with queue rows: it becomes a depends-on entry. Name the milestone this work needs, as `PROJ-NNN MN`,
      when the proposal's text says which. Otherwise name the proposal, `PROJ-NNN`. A named milestone that is already
@@ -73,9 +93,11 @@ Do all of this before any question.
    Then check each depends-on entry for a deployment boundary. Search the proposal's Dependencies, Milestones, and
    Risks for the boundary signals listed in `plans.md` "Deployment Dependencies". Record each entry that has a signal,
    and quote the signal. Every other entry is code-only.
-8. **Positions.** Note where new rows can go. Finished rows sit at the top of the queue and never move. A new row goes
-   at the end of the queue, or before any unfinished row. A row must not go above a row it depends on, or above an
-   earlier row of the same proposal.
+10. **Positions.** Note where new rows can go. Finished rows sit at the top of the queue and never move. A new row
+    goes at the end of the queue, or before any unfinished row. A row must not go above a row it depends on, or above
+    an earlier row of the same proposal.
+
+In a batch, every stop in items 5 to 10 that concerns one proposal drops only that proposal, as in item 6.
 
 Report what you found in a few lines before asking anything. Name each code-only dependency as code-only.
 
@@ -87,7 +109,9 @@ request or Step 2 already answered.
 - **Confirm and position.** "Schedule `PROJ-NNN: <title>`, and where?" Always ask. Accepting a proposal is not
   scheduling it, and `plans.md` requires an explicit request. Offer "At the end of the queue", one option for each
   unfinished row it may go before, and a "Do not schedule" option. When there are many unfinished rows, offer the end,
-  the next few rows, and let the user name another in "Other".
+  the next few rows, and let the user name another in "Other". Ask it once for a batch. The batch's rows go together,
+  in batch order, at the chosen position. A user who picked the batch in Step 2 already asked for it, so this question
+  then confirms only the position.
 - **Deployed.** Ask only about depends-on entries that Step 2 found a boundary signal for. For each one, ask whether
   this work needs it running in production, and name the signal in the option. Only the user can confirm a deployment.
   Ask in one multi-select question within the same call. Skip it when no entry has a signal.
@@ -97,7 +121,7 @@ request or Step 2 already answered.
   should be built between this proposal's milestones. Each split needs a note saying why. Rows split only along
   milestone boundaries.
 
-Four questions is the cap.
+Four questions is the cap. In a batch, each question covers every proposal, with one option per entry.
 
 ### Step 4: Compute the layout and confirm
 
@@ -116,6 +140,8 @@ does not exist yet, create it with the heading, the table header, and the new ro
 
 ### Step 6: Update the proposal
 
+Update each scheduled proposal:
+
 - Set `**Updated:**` to today's date.
 - Add a Decision Log entry: `- YYYY-MM-DD: Scheduled as <range> in queue.md.` Name every row when there are several.
   `tracking.md` allows a Decision Log to name a queue row, because the entry records history.
@@ -125,14 +151,15 @@ Milestone numbers named by a queue row are now permanent. Say so in the report.
 
 ### Step 7: Verify
 
-Run `proposals.py check`, and `proposals.py row PROJ-NNN` for the first new row. Report each dependency's state from
+Run `proposals.py check`, and `proposals.py row PROJ-NNN` for each proposal's first new row. Report each dependency's state from
 `row`. Fix any `check` finding this run caused.
 
 ### Step 8: Report
 
 Summarize:
 
-- The proposal scheduled, and where its rows went.
+- Each proposal scheduled, and where its rows went.
+- Each proposal dropped from the batch, and why.
 - Each new row, with its range, depends-on cell, and note.
 - Each dependency, with its state, and any that is blocked.
 - Every file created or edited.
@@ -143,11 +170,13 @@ Summarize:
 - Spec-only. No code reads, no Agent sub-tasks for codebase exploration, and no planning beyond what the proposal
   contains.
 - Never invent milestones or checks. If the proposal lacks them, route the user to `proposal-reviewer`.
-- Detect before asking, then ask once. The layout confirmation in Step 4 is the only later checkpoint. Write nothing
-  before the user approves it.
+- Detect before asking, then ask once. The pick in Step 2, when no ID was given, comes before that. The layout
+  confirmation in Step 4 is the only later checkpoint. Write nothing before the user approves it.
+- Recommend, never pick. Schedule only what the user named or picked.
 - Never move, split, or edit an existing queue row. Never renumber a milestone.
-- Treat any non-`accepted` proposal status as a hard stop. Do not change it to make scheduling possible.
-- Treat any open design question as a hard stop, and route the user to `proposal-reviewer`.
+- Treat any non-`accepted` proposal status as a hard stop for that proposal. Do not change it to make scheduling
+  possible.
+- Treat any open design question as a hard stop for that proposal, and route the user to `proposal-reviewer`.
 - A depends-on cell names `PROJ-NNN` or `PROJ-NNN MN`. Only the user decides `(deployed)`. Ask only when Step 2 found
   a boundary signal.
 - Use the status values from `tracking.md`. Milestones are `NOT STARTED`, `IN PROGRESS`, `DONE`, or `DROPPED`.
