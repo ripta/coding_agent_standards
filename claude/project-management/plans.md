@@ -38,6 +38,31 @@ Scheduling adds queue rows for an `accepted` proposal's milestones. The user pic
 3. Fill each row's depends-on cell with the scheduling dependencies it has, and its note with any reason worth keeping
 4. Do not change the proposal's status. Whether a proposal is scheduled is read from the queue
 
+## Choosing What to Schedule
+
+When the user asks to schedule without naming a proposal, tooling recommends candidates. It never picks for the user.
+The user's choice is the explicit request "Before Starting Work" requires.
+
+A candidate is an `accepted` proposal with a milestone that is not finished and that no queue row names. Each candidate
+falls into one tier:
+
+1. **Ready.** It has no open design question. Every proposal its Dependencies section names is `implemented` or has
+   queue rows
+2. **Waiting.** It has no open design question. A dependency is `accepted` but has no queue rows. That dependency is
+   scheduled first, or ahead of it in the same batch
+3. **Not schedulable.** It has an open design question, which goes to `proposal-reviewer`. Or a dependency is neither
+   `implemented` nor `accepted`
+
+Within a tier, candidates are ordered by these signals, in turn:
+
+- **Unblocks.** How many live proposals depend on it, directly or through others. Foundational work comes first
+- **Fixes a bug.** A proposal that cites a bug file, such as `spec/bugs/<file>.md`, comes before one that cites none
+- **Age.** An older `**Created:**` date comes first. Accepted work drifts from the code the longer it waits
+
+The order is a recommendation. Each candidate carries a one-line reason, drawn from its Motivation, so the user can
+overrule the order. When the user picks several, they are scheduled in dependency order, whatever order they were
+picked in. `scripts/proposals.py candidates` in the plugin computes the tiers and the order.
+
 ## The Queue File
 
 The queue is `queue.md`, beside the proposal index in the proposals directory. It holds one table:
