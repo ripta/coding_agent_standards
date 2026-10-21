@@ -8,6 +8,7 @@
     python3 proposals.py progress --proposals-dir DIR [--json] [--today YYYY-MM-DD]
     python3 proposals.py notice --proposals-dir DIR [--today YYYY-MM-DD]
     python3 proposals.py next --proposals-dir DIR [--count N] [--hold PROJ-NNN ...]
+    python3 proposals.py candidates --proposals-dir DIR
 
 The rules live in project-management/proposals.md and plans.md. `check` reports
 milestone status and hook structure the standard rejects. `row` finds the queue
@@ -17,6 +18,7 @@ freeze does not allow. `hooks` lists every revisit hook, passed dates first.
 `progress` reports the queue as done, ready, and held rows, with the hooks.
 `notice` prints one line when any hook has passed, and nothing otherwise.
 `next` picks the next N rows a `/work-queue` run can take, in queue order.
+`candidates` recommends accepted proposals to schedule, in tiers.
 
 DIR is the proposals directory, which may sit in a symlinked specs repo. Results
 are JSON on stdout. Errors go to stderr with exit status 1.
@@ -939,13 +941,159 @@ def next_rows(proposals_dir: Path, count: int, holds: list[str]) -> dict[str, An
     return report
 
 
+# -- candidates -----------------------------------------------------------
+
+
+DEPENDENCY_BULLET = re.compile(r"^[-*]\s+\[?([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)\b")
+OPEN_ITEM = re.compile(r"^(?:[-*]|\d+\.|###)\s+(.*)$")
+CREATED = re.compile(r"^\*\*Created:\*\*\s*(\d{4}-\d{2}-\d{2})")
+BUG_FILE = re.compile(r"bugs/(\d{8}-[^\s`)\]]+?\.md)")
+TITLE = re.compile(r"^#\s+[A-Z0-9]*[A-Z][A-Z0-9]*-\d+:\s*(.+?)\s*$")
+
+
+@dataclass
+class Facts:
+    """What a proposal's text says that bears on when to schedule it."""
+
+    title: str
+    created: str | None
+    dependencies: list[str]
+    open_questions: int
+    bugs: list[str]
+    motivation: str
+
+
+def _facts(path: Path) -> Facts:
+    lines = path.read_text().splitlines()
+    spans = _sections(lines)
+
+    def body(name: str) -> list[str]:
+        start, end = spans.get(name, (0, 0))
+        return lines[start + 1 : end]
+
+    title = next((m.group(1) for line in lines if (m := TITLE.match(line))), "")
+    created = next((m.group(1) for line in lines if (m := CREATED.match(line))), None)
+    dependencies = [m.group(1) for line in body("Dependencies") if (m := DEPENDENCY_BULLET.match(line))]
+    open_questions = sum(
+        1 for line in body("Design Decisions (Open)")
+        if (m := OPEN_ITEM.match(line)) and not re.match(r"none\b", m.group(1), re.IGNORECASE)
+    )
+    # A Decision Log entry that names a bug is history, not a reason to build.
+    log = spans.get("Decision Log", (0, 0))
+    cited = (line for i, line in enumerate(lines) if not log[0] <= i < log[1])
+    bugs = sorted({m.group(1) for line in cited for m in BUG_FILE.finditer(line)})
+    paragraph: list[str] = []
+    why = next((name for name in ("Motivation", "Summary", "Overview") if name in spans), "Motivation")
+    for line in body(why):
+        if line.strip():
+            paragraph.append(line.strip())
+        elif paragraph:
+            break
+    first = " ".join(paragraph)
+    motivation = re.split(r"(?<=\.)\s", first, maxsplit=1)[0]
+    return Facts(title, created, dependencies, open_questions, bugs, motivation)
+
+
+def _bug_open(bugs_dir: Path, name: str) -> bool:
+    """A bug file whose status is fixed or closed no longer argues for the work. An unreadable one still does."""
+    path = bugs_dir / name
+    if not path.is_file():
+        return True
+    for line in path.read_text().splitlines():
+        m = PROPOSAL_STATUS.match(line)
+        if m:
+            return _base_status(m.group(1)) not in ("fixed", "closed")
+    return True
+
+
+def _base_status(status: str) -> str:
+    """Drop the trailing note some statuses carry, as in `implemented (phase 459)`."""
+    return status.split(maxsplit=1)[0].lower() if status.strip() else ""
+
+
+def candidates(proposals_dir: Path) -> dict[str, list[dict[str, Any]]]:
+    """Sort the accepted proposals that have unscheduled milestones into tiers, per plans.md.
+
+    The tiers are ready, waiting, and not_schedulable. Within a tier the order is the
+    recommendation: most unblocked first, then bug fixes, then the oldest.
+    """
+    proposals = load_proposals(proposals_dir)
+    rows = load_queue(proposals_dir) if (proposals_dir / "queue.md").is_file() else []
+    status = {pid: _base_status(p.status) for pid, p in proposals.items()}
+    facts = {pid: _facts(p.path) for pid, p in proposals.items() if status[pid] not in NOT_LIVE}
+    bugs_dir = proposals_dir.parent / "bugs"
+
+    dependents: dict[str, set[str]] = {}
+    for pid, f in facts.items():
+        if status[pid] in STOPPED:
+            continue
+        for dep in f.dependencies:
+            if dep != pid:
+                dependents.setdefault(dep, set()).add(pid)
+
+    def unblocks(pid: str) -> list[str]:
+        seen: set[str] = set()
+        todo = [pid]
+        while todo:
+            for other in dependents.get(todo.pop(), ()):
+                if other not in seen and other != pid:
+                    seen.add(other)
+                    todo.append(other)
+        return sorted(seen)
+
+    tiers: dict[str, list[dict[str, Any]]] = {"ready": [], "waiting": [], "not_schedulable": []}
+    for pid, p in proposals.items():
+        if status[pid] != "accepted":
+            continue
+        scheduled = {n for n in p.milestones for row in rows if row.names(pid, n)}
+        unscheduled = sorted(n for n, m in p.milestones.items() if m.status not in FINISHED and n not in scheduled)
+        if not unscheduled:
+            continue
+        f = facts[pid]
+        waits_on: list[str] = []
+        reasons: list[str] = []
+        if f.open_questions:
+            reasons.append(f"{f.open_questions} open design question(s); route it to proposal-reviewer")
+        if not p.era3:
+            reasons.append("its milestones are not subsections with a **Status:** line")
+        if scheduled and min(unscheduled) < max(scheduled):
+            reasons.append("an unscheduled milestone sits between scheduled ones")
+        for dep in f.dependencies:
+            if dep not in proposals or dep == pid or status[dep] == "implemented":
+                continue
+            if status[dep] != "accepted":
+                reasons.append(f"depends on {dep}, which is {proposals[dep].status or 'missing a status'}")
+            elif not any(row.proposal == dep for row in rows):
+                waits_on.append(dep)
+        entry = {
+            "proposal": pid,
+            "title": f.title,
+            "file": str(p.path),
+            "created": f.created,
+            "unscheduled": [f"{pid} M{n}" for n in unscheduled],
+            "unblocks": unblocks(pid),
+            "bugs": [name for name in f.bugs if _bug_open(bugs_dir, name)],
+            "motivation": f.motivation,
+        }
+        if reasons:
+            tiers["not_schedulable"].append({**entry, "reasons": reasons, "waits_on": waits_on})
+        elif waits_on:
+            tiers["waiting"].append({**entry, "waits_on": waits_on})
+        else:
+            tiers["ready"].append(entry)
+
+    for tier in tiers.values():
+        tier.sort(key=lambda e: (-len(e["unblocks"]), not e["bugs"], e["created"] or "9999-99-99", e["proposal"]))
+    return tiers
+
+
 # -- cli ------------------------------------------------------------------
 
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
-    for name in ("check", "row", "freeze", "hooks", "progress", "notice", "next"):
+    for name in ("check", "row", "freeze", "hooks", "progress", "notice", "next", "candidates"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--proposals-dir", type=Path, required=True)
         if name == "row":
@@ -970,6 +1118,8 @@ def main(argv: list[str]) -> int:
             result: Any = check(args.proposals_dir)
         elif args.command == "next":
             result = next_rows(args.proposals_dir, args.count, args.hold)
+        elif args.command == "candidates":
+            result = candidates(args.proposals_dir)
         elif args.command == "hooks":
             result = hooks(args.proposals_dir, args.today, args.passed)
         elif args.command in ("progress", "notice"):

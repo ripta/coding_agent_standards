@@ -267,6 +267,74 @@ def test_next_cli_rejects_a_count_below_one(tmp_path: Path, capsys: pytest.Captu
     assert "not a positive number" in capsys.readouterr().err
 
 
+def _candidate(directory: Path, pid: str, status: str = "accepted", deps: str = "", created: str = "2026-10-01",
+               extra: str = "", milestones: str | None = None) -> None:
+    text = _proposal(status, milestones or _milestone(1, "NOT STARTED"))
+    text = text.replace("PROJ-001", pid).replace("**Created:** 2026-10-01", f"**Created:** {created}")
+    text = text.replace("## Design Decisions (Settled)",
+                        f"## Dependencies\n\n{deps or 'None.'}\n\n## Motivation\n\nWhy {pid}. More detail.\n\n"
+                        f"{extra}\n## Design Decisions (Settled)")
+    _write(directory, f"{pid}-x.md", text)
+
+
+def _tier(report: dict, name: str) -> list[str]:
+    return [e["proposal"] for e in report[name]]
+
+
+def test_candidates_sort_tiers_by_unblocks_then_bugs_then_age(tmp_path: Path) -> None:
+    _candidate(tmp_path, "PROJ-001", created="2026-09-01")
+    _candidate(tmp_path, "PROJ-002", created="2026-10-05")
+    _candidate(tmp_path, "PROJ-003", created="2026-10-09", extra="See `spec/bugs/20261001-crash.md`.\n")
+    _candidate(tmp_path, "PROJ-007", created="2026-10-10", extra="See `spec/bugs/20260901-fixed.md`.\n")
+    (tmp_path.parent / "bugs").mkdir()
+    _write(tmp_path.parent / "bugs", "20260901-fixed.md", "# Bug\n\n**Status:** fixed 2026-09-30\n")
+    _candidate(tmp_path, "PROJ-004", deps="- PROJ-002 (the base)")
+    _candidate(tmp_path, "PROJ-005", status="designing", deps="- [PROJ-004](PROJ-004-x.md) -- builds on it")
+    _candidate(tmp_path, "PROJ-006", status="rejected", deps="- PROJ-001")
+    report = proposals.candidates(tmp_path)
+    assert _tier(report, "ready") == ["PROJ-002", "PROJ-003", "PROJ-001", "PROJ-007"]
+    assert report["ready"][3]["bugs"] == []
+    assert report["ready"][0]["unblocks"] == ["PROJ-004", "PROJ-005"]
+    assert report["ready"][1]["bugs"] == ["20261001-crash.md"]
+    assert report["ready"][0]["motivation"] == "Why PROJ-002."
+    assert _tier(report, "waiting") == ["PROJ-004"]
+    assert report["waiting"][0]["waits_on"] == ["PROJ-002"]
+    assert report["not_schedulable"] == []
+
+
+def test_candidates_skip_scheduled_work_and_count_queued_dependencies_as_ready(tmp_path: Path) -> None:
+    _candidate(tmp_path, "PROJ-001")
+    _candidate(tmp_path, "PROJ-002", deps="- PROJ-001")
+    _candidate(tmp_path, "PROJ-003", status="implemented (phase 12)",
+               milestones=_milestone(1, "DONE", "- Done."))
+    _candidate(tmp_path, "PROJ-004", deps="- PROJ-003\n- ADR-0019 (not a proposal)")
+    _queue(tmp_path, "| PROJ-001 M1 | None | |")
+    report = proposals.candidates(tmp_path)
+    assert _tier(report, "ready") == ["PROJ-002", "PROJ-004"]
+    assert _tier(report, "waiting") == []
+
+
+def test_candidates_hold_back_what_cannot_be_scheduled(tmp_path: Path) -> None:
+    _candidate(tmp_path, "PROJ-001", extra="## Design Decisions (Open)\n\n- Which cache?\n")
+    _candidate(tmp_path, "PROJ-002", extra="## Design Decisions (Open)\n\nNone.\n")
+    _candidate(tmp_path, "PROJ-003", deps="- PROJ-009 (elsewhere)\n- PROJ-004")
+    _candidate(tmp_path, "PROJ-004", status="draft")
+    _candidate(tmp_path, "PROJ-005", milestones=_milestone(1, "NOT STARTED") + _milestone(2, "NOT STARTED"))
+    _queue(tmp_path, "| PROJ-005 M2 | None | |")
+    report = proposals.candidates(tmp_path)
+    assert _tier(report, "ready") == ["PROJ-002"]
+    blocked = {e["proposal"]: e["reasons"] for e in report["not_schedulable"]}
+    assert "open design question" in blocked["PROJ-001"][0]
+    assert blocked["PROJ-003"] == ["depends on PROJ-004, which is draft"]
+    assert "between scheduled ones" in blocked["PROJ-005"][0]
+
+
+def test_candidates_cli_works_without_a_queue(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _candidate(tmp_path, "PROJ-001")
+    assert proposals.main(["candidates", "--proposals-dir", str(tmp_path)]) == 0
+    assert _tier(json.loads(capsys.readouterr().out), "ready") == ["PROJ-001"]
+
+
 def test_notice_is_silent_until_a_hook_passes(tmp_path: Path) -> None:
     _write(tmp_path, "PROJ-001-a.md", _hooked("deferred", "on or after 2026-11-01 (a release)"))
     assert proposals.notice(tmp_path, "2026-10-17") == ""
