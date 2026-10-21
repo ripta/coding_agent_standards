@@ -95,8 +95,9 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
 - **Agents** (`agents/`) -- subagent definitions invoked by name: `implementer`, which writes one milestone for
   `work-queue`; `reviewer`, for post-milestone diff review and the end-of-run ADR review; `adr-impact`, which checks a
   diff or proposal against the project's ADRs; `design-critic`, which critiques design options and whole proposals for
-  `proposal-reviewer`; `design-judge`, which breaks ties when repeated critique does not converge; and
-  `citation-verifier`, which checks file:line citations for `walkthrough` and `architecture-exploration`
+  `proposal-reviewer`; `design-judge`, which breaks ties when repeated critique does not converge;
+  `citation-verifier`, which checks file:line citations for `walkthrough` and `architecture-exploration`; and
+  `claim-verifier`, which checks a research document's factual claims against their sources for `research-audit`
 - **Commands** (`commands/`) -- slash commands for driving a proposal milestone (`work-on`), working through queue
   rows planned up front (`work-queue`), summarizing a session as a commit message (`summary`), chunking an
   integration branch into PRs (`next-pr`), writing a PR title and description for a branch (`pr-description`),
