@@ -65,7 +65,8 @@ create or switch branches. Never act on an edit this run did not make.
      wait on a row picked before it. Its `skipped` list holds each row it
      passed over, with the reasons. These rows are not in the run, so they
      raise no questions in item 7. The user names a skipped row by its ID to
-     run it. When `run` is empty, see "When there is nothing to run" below.
+     run it. When `run` is empty, or `next` reports there is no queue, see
+     "When there is nothing to run" below.
    - `all` means every unfinished row in `queue.md`. With none, see "When
      there is nothing to run".
    - Rows by ID. `PROJ-NNN` means every unfinished row of that proposal.
@@ -162,7 +163,8 @@ call ExitPlanMode with a plan that runs nothing. It names the picks, in the
 order `candidates` gave, and the commands to run next:
 `/schedule-proposal PROJ-012 PROJ-015`, then `/work-queue`. Approving it
 only leaves plan mode, so `/schedule-proposal` can write. It authorizes
-nothing in "What the user authorizes by approving the plan".
+nothing in "What the user authorizes by approving the plan". Stop there.
+Nothing in sections 2 to 6 runs.
 
 ## 2. Implement each milestone
 

@@ -51,7 +51,8 @@ falls into one tier:
 2. **Waiting.** It has no open design question. A dependency is `accepted` but has no queue rows. That dependency is
    scheduled first, or ahead of it in the same batch
 3. **Not schedulable.** It has an open design question, which goes to `proposal-reviewer`. Or a dependency is neither
-   `implemented` nor `accepted`
+   `implemented` nor `accepted`. Or scheduling would refuse it for another reason, such as an unscheduled milestone
+   between scheduled ones
 
 Within a tier, candidates are ordered by these signals, in turn:
 
