@@ -48,3 +48,27 @@ ln -s /actual/path/to/coding_agent_standards ~/coding-standards
 ```
 
 The plugin's SessionStart hook, `claude/hooks/check-setup.sh`, checks that the machine and the project are set up.
+
+## Standards for This Repo
+
+These imports mirror `profiles/baseline.md`. They use relative paths so they read the working tree. The profile's
+`~/.claude/coding-standards-current/` paths would read the installed plugin, which lags behind edits made here.
+
+@claude/rules/decision-making.md
+@claude/rules/work-discipline.md
+@claude/rules/response-style.md
+@claude/rules/git-workflow.md
+@claude/rules/commit-style.md
+@claude/rules/pr-style.md
+@claude/rules/sentence-structure.md
+@claude/rules/writing-voice.md
+@claude/rules/shell-discipline.md
+@claude/rules/guardian-requests.md
+@claude/rules/research-limits.md
+@practices/code-review.md
+@practices/makefile.md
+@claude/project-management/glossary.md
+@claude/project-management/design.md
+@claude/project-management/plans.md
+@claude/project-management/proposals.md
+@claude/project-management/tracking.md
