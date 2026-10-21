@@ -146,8 +146,8 @@ Call ExitPlanMode. That approval is the only gate in the run.
 ### When there is nothing to run
 
 A `next` or `all` run may find no row to take. Then offer to schedule
-proposals instead, and hand off. Do not schedule here. Plan mode cannot
-write, and scheduling has its own approval in `/schedule-proposal`.
+proposals instead, and hand off. Do not schedule in plan mode. Plan mode
+cannot write, and scheduling has its own approval in `/schedule-proposal`.
 
 - No `queue.md`, or no unfinished row in it. Run `proposals.py candidates`.
   Show its tiers, and ask which to schedule, the way
@@ -159,12 +159,21 @@ write, and scheduling has its own approval in `/schedule-proposal`.
   general list of candidates does not help here, so offer only those.
 
 When the user picks nothing, or there is nothing to offer, stop. Otherwise
-call ExitPlanMode with a plan that runs nothing. It names the picks, in the
-order `candidates` gave, and the commands to run next:
-`/schedule-proposal PROJ-012 PROJ-015`, then `/work-queue`. Approving it
-only leaves plan mode, so `/schedule-proposal` can write. It authorizes
-nothing in "What the user authorizes by approving the plan". Stop there.
-Nothing in sections 2 to 6 runs.
+call ExitPlanMode with a plan that implements nothing. It names the picks, in
+the order `candidates` gave. It says the run will schedule them and then plan
+again. Approving it only leaves plan mode, so `/schedule-proposal` can write.
+It authorizes nothing in "What the user authorizes by approving the plan".
+
+Once approved, run the handoff yourself. Do not print it as commands for the
+user to type.
+
+1. Invoke `/schedule-proposal` with the Skill tool, passing the picks, as in
+   `/schedule-proposal PROJ-012 PROJ-015`. Under a plugin it is named
+   `coding-standards:schedule-proposal`. Follow it through its own approval.
+2. When it added no queue row, stop. Nothing in sections 2 to 6 runs.
+3. Otherwise call EnterPlanMode and start section 1 again with this run's
+   arguments. Run "When there is nothing to run" at most once per run. If
+   `next` still finds no row, report that and stop.
 
 ## 2. Implement each milestone
 
