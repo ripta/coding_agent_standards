@@ -65,8 +65,9 @@ create or switch branches. Never act on an edit this run did not make.
      wait on a row picked before it. Its `skipped` list holds each row it
      passed over, with the reasons. These rows are not in the run, so they
      raise no questions in item 7. The user names a skipped row by its ID to
-     run it. When `run` is empty, report the skipped rows and stop.
-   - `all` means every unfinished row in `queue.md`.
+     run it. When `run` is empty, see "When there is nothing to run" below.
+   - `all` means every unfinished row in `queue.md`. With none, see "When
+     there is nothing to run".
    - Rows by ID. `PROJ-NNN` means every unfinished row of that proposal.
      `PROJ-NNN M3` means the row that names M3, from M3 on. `PROJ-NNN M3-M5`
      means those milestones, which must sit in one row.
@@ -140,6 +141,28 @@ create or switch branches. Never act on an edit this run did not make.
    - The session report directory
 
 Call ExitPlanMode. That approval is the only gate in the run.
+
+### When there is nothing to run
+
+A `next` or `all` run may find no row to take. Then offer to schedule
+proposals instead, and hand off. Do not schedule here. Plan mode cannot
+write, and scheduling has its own approval in `/schedule-proposal`.
+
+- No `queue.md`, or no unfinished row in it. Run `proposals.py candidates`.
+  Show its tiers, and ask which to schedule, the way
+  `${CLAUDE_PLUGIN_ROOT}/skills/schedule-proposal/SKILL.md` Step 2, item 3,
+  does. That includes its one multi-select AskUserQuestion call.
+- Unfinished rows exist, but `next` skipped them all. Report the skipped rows
+  with their reasons. A reason may name a proposal or milestone that no queue
+  row names. When `candidates` lists that proposal, offer it the same way. A
+  general list of candidates does not help here, so offer only those.
+
+When the user picks nothing, or there is nothing to offer, stop. Otherwise
+call ExitPlanMode with a plan that runs nothing. It names the picks, in the
+order `candidates` gave, and the commands to run next:
+`/schedule-proposal PROJ-012 PROJ-015`, then `/work-queue`. Approving it
+only leaves plan mode, so `/schedule-proposal` can write. It authorizes
+nothing in "What the user authorizes by approving the plan".
 
 ## 2. Implement each milestone
 
