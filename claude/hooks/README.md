@@ -44,6 +44,10 @@ lives at `~/projects/coding_agent_standards`.
   Write, or Bash. Goldens must come from the project's update target.
 - `block-zig-cache.sh` denies running a binary from `.zig-cache/` and deleting
   the cache. `settings/zig-dev.json` already wires it.
+- `block-rm-rf.sh` denies an `rm` that has both a recursive and a force flag,
+  in any spelling. Its reason checks each operand on disk. It suggests `unlink`
+  for a file or symlink and `rmdir` for an empty directory. A non-empty
+  directory must be emptied first, or deleted by the user. Wire it on `Bash`.
 
 ```json
 {
