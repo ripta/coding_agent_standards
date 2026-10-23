@@ -1,0 +1,42 @@
+#!/bin/sh
+# Reject conventional-commit subjects.
+#
+# A wiki is all docs, so a type prefix carries no information: every commit would be "docs:".
+# Subjects are plain descriptions with the first word capitalized.
+#
+# Topic prefixes are fine and intentionally not matched here, as in
+# "cache-eviction: close out the sizing study". Only the change-type words below are rejected.
+
+subject=$(sed -n '/^[^#]/{p;q;}' "$1")
+
+# fixup!, squash!, and amend! reuse a subject that was already checked.
+case "$subject" in
+	fixup!*|squash!*|amend!*) exit 0 ;;
+esac
+
+types='feat|fix|docs?|style|refactor|perf|test|build|ci|chore|revert|tools?|deps'
+
+if printf '%s\n' "$subject" | grep -Eiq "^($types)(\([^)]*\))?!?:"; then
+	bad=$(printf '%s\n' "$subject" | sed -E 's/^([^:]*):.*/\1/')
+	rest=$(printf '%s\n' "$subject" | sed -E "s/^($types)(\([^)]*\))?!?:[[:space:]]*//I")
+	# Capitalize the first letter without relying on GNU sed's \U.
+	head=$(printf '%s' "$rest" | cut -c1 | tr '[:lower:]' '[:upper:]')
+	suggestion="$head$(printf '%s' "$rest" | cut -c2-)"
+	cat >&2 <<MSG
+
+Rejected: conventional-commit prefix "$bad:" in the subject.
+
+  $subject
+
+Everything in this repo is docs, so the type prefix says nothing. Drop it
+and capitalize the first word:
+
+  $suggestion
+
+Topic prefixes like "cache-eviction: ..." are fine.
+
+If this is a false positive, commit again with --no-verify.
+
+MSG
+	exit 1
+fi

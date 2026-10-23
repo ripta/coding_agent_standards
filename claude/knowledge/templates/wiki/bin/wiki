@@ -1,0 +1,21 @@
+#!/bin/sh
+# Run the wiki tool from the coding standards. CODING_STANDARDS_ROOT wins when it holds the
+# script. Otherwise the link that the coding-standards plugin keeps at session start is used.
+
+for root in "${CODING_STANDARDS_ROOT:-}" "$HOME/.claude/coding-standards-current"; do
+	if [ -n "$root" ] && [ -f "$root/scripts/wiki.py" ]; then
+		exec python3 "$root/scripts/wiki.py" "$@"
+	fi
+done
+
+cat >&2 <<'MSG'
+bin/wiki: cannot find scripts/wiki.py from the coding standards.
+
+Fix it one of two ways:
+
+  - Set CODING_STANDARDS_ROOT to the installed coding-standards plugin, or to the
+    claude/ directory of a coding_agent_standards checkout.
+  - Start a Claude Code session with the coding-standards plugin installed. Its
+    session start creates ~/.claude/coding-standards-current.
+MSG
+exit 1

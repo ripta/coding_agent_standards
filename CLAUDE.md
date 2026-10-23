@@ -15,6 +15,8 @@ projects.
 - `claude/commands/` - Slash commands. Keep them thin: a command reads its rules from `${CLAUDE_PLUGIN_ROOT}/rules/` or
   `${CLAUDE_PLUGIN_ROOT}/project-management/` instead of restating them. Every command carries frontmatter with at least
   a `description`, plus `argument-hint` when it takes arguments
+- `claude/knowledge/` - Standards for knowledge repositories, such as the LLM wiki layout, and the templates a wiki
+  copies. The wiki tool itself is `claude/scripts/wiki.py`
 - `claude/project-management/` - Plans, proposals, design, tracking, and commit chunking standards, the eras
   that name past styles, and the guardian protocol. Lives under `claude/` so it ships with the plugin
 - `codex/` - Codex skills that have no Claude Code equivalent, packaged as a separate Codex plugin. A skill belongs here

@@ -61,9 +61,12 @@ these fallbacks only when the README says nothing about where reports go:
   `reports/YYYY-MM-DD-short-slug.md`.
 
 If the README gives a location, the root fallback is wrong even when older
-reports still sit there. (zip_specs files reports under
-`reports/YYYY/MM/YYYYMMDD-slug.md`, or a directory of that name whose one
-top-level `.md`, preferably `README.md`, carries the frontmatter.)
+reports still sit there.
+
+When the README points at the wiki standard, also read
+`${CLAUDE_PLUGIN_ROOT}/knowledge/wiki.md`. Follow it for report naming,
+frontmatter, and the report-writing sequence. Repo-specific rules stay in
+that README.
 
 Check for filename collisions; on collision, extend the slug. Never overwrite
 an existing report.
@@ -79,25 +82,24 @@ or corrects someone else's report, write a new report and link back to it.
 ## 3. Frontmatter and topics
 
 If the README specifies report frontmatter, write it exactly as specified.
-(zip_specs: `topics: [slug, ...]`, most relevant first, and `summary: "one
-sentence"` stating the conclusion; `title:` only when the report has no H1.)
+The wiki standard's frontmatter is one example.
 
-If the target has a topic or index layer (zip_specs: `topics/<slug>.md`):
+If the target has a topic or index layer, such as a wiki's `topics/<slug>.md`:
 
 - **Tag existing topics.** List the topic pages and draw tags from their
   slugs. Create a new topic page only if none fits, following the README's
   template.
 - **Update a topic only when the finding changes its position.** Then edit
-  that page's hand-written position section (zip_specs: "Current position",
-  plus its `reviewed` date) and nothing else. If the report only adds
+  that page's hand-written position section, such as a wiki's "Current
+  position" and its `reviewed` date, and nothing else. If the report only adds
   evidence, tagging is enough.
 - **Never hand-edit generated content**: generated blocks in topic pages or a
-  generated index (zip_specs: the "Reports" block and `index.md`).
+  generated index, such as a wiki's "Reports" block and `index.md`.
 
-If the README names a build or lint command (zip_specs: `tools/wiki/wiki.py
-build`, then `tools/wiki/wiki.py check`), run it after writing and fix any
-errors in files you wrote or edited. Leave errors in other files alone and mention
-them. If the tool only sees git-tracked or staged files, as zip_specs' does,
+If the README names a build or lint command, such as a wiki's `bin/wiki
+build` then `bin/wiki check`, run it after writing and fix any errors in files
+you wrote or edited. Leave errors in other files alone and mention them. If
+the tool only sees git-tracked or staged files, as the wiki tool does,
 first stage your new files by explicit path in the owning repo (section 1):
 `git -C <owning repo> add -- <report> <new topic page>`. Otherwise the build
 silently leaves them out and the check passes without checking them. Staging

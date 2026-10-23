@@ -1,0 +1,19 @@
+#!/bin/sh
+# Lint report metadata and make sure generated pages are current.
+#
+# This only checks and never stages anything. Several sessions share one checkout, and adding
+# index.md or topics/ here could sweep another session's in-progress edits into this commit.
+
+if ! bin/wiki check; then
+	cat >&2 <<'MSG'
+
+Commit blocked by bin/wiki check (see errors above).
+If the only errors are "stale", run:
+
+    bin/wiki build
+
+then add index.md and the topics/*.md pages your reports are tagged with.
+If this is a false positive, commit again with --no-verify.
+MSG
+	exit 1
+fi
