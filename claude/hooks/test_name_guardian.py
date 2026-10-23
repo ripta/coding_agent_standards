@@ -30,7 +30,7 @@ def run(prompt: str, title: str | None = None) -> str | None:
         ("/guardian cas", "cas_guardian"),
         ("/coding-standards:guardian cas", "cas_guardian"),
         ("/coding-standards:guardian cas ~/projects/coding_agent_standards", "cas_guardian"),
-        ("  /guardian zip-specs.v2 claude/", "zip-specs.v2_guardian"),
+        ("  /guardian team-notes.v2 claude/", "team-notes.v2_guardian"),
     ],
 )
 def test_a_domain_name_names_the_session(prompt: str, title: str) -> None:
