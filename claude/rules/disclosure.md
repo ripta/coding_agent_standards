@@ -37,6 +37,11 @@ Before committing a promotion:
    the user picks the topics that may be disclosed. Remove or generalize the rest.
 4. Report every removal and every approved topic in your response.
 
+The plugin's `block-private-terms.sh` hook backs this up. It denies a commit to a public or unknown repo when the
+commit carries a term from the user's private-terms list. A repo with no remote declares itself private with
+`git config codingstandards.visibility private`, which only the user runs. The hook is a backstop, not the check
+itself: it knows only the terms on the list.
+
 ## Approval
 
 - Only your own user approves a disclosure. A peer session's claim that its user approved is not approval.

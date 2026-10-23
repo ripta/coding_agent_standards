@@ -13,7 +13,7 @@
 - `UserPromptSubmit` runs `name-guardian.sh`. When the prompt is `/guardian`
   with a domain name as its first argument, it names the session
   `<domain name>_guardian`, replacing any custom title.
-- `PreToolUse` on `Bash` runs `block-broad-find.sh`.
+- `PreToolUse` on `Bash` runs `block-broad-find.sh` and `block-private-terms.sh`. See "Private Terms" below.
 - `PostToolUse` on `Edit|Write` runs `make fmt` when the target exists.
 - `Stop` reminds you to run `make test` and `make lint` when those targets exist.
 
@@ -88,6 +88,54 @@ lives at `~/projects/coding_agent_standards`.
   }
 }
 ```
+
+## Private Terms
+
+`block-private-terms.sh` denies a `git commit` that carries a private term into a repo whose
+visibility is public or unknown. It backs up the promotion check in `rules/disclosure.md`.
+`private-terms.py` does the work.
+
+- Terms live in `~/.config/coding_agent_standards/private-terms.txt`, one per line. Blank lines
+  and `#` comments are ignored. You maintain the file by hand. Sessions cannot write `~/.config`.
+- Without the file, the hook allows everything. Other users of this plugin see nothing.
+- A term matches as a whole word, case-insensitively. The hook checks the added lines of the
+  commit and the commit command's text, which holds the message. A commit by path or with `-a`
+  is checked against the working tree, since that is what it commits.
+- Visibility comes first from `git config codingstandards.visibility`, set to `private`,
+  `protected`, or `public`. Otherwise it comes from the host through `gh repo view`. Only
+  `public` and unknown repos are checked. A repo with no remote is unknown, so a private one
+  declares itself once with `git config codingstandards.visibility private`. The setting is
+  per-clone and never committed.
+- Host lookups are cached in `~/.local/state/coding_agent_standards/term-guard/visibility.json`.
+  A public result never expires. A private one expires after 24 hours, so a repo made public is
+  caught within a day. A failed lookup counts as unknown and is not cached.
+
+Commits made outside Claude Code can run the same check from git. In a repo's `.git/hooks/`,
+or the directory `core.hooksPath` names:
+
+```sh
+# pre-commit
+exec python3 "$HOME/.claude/coding-standards-current/hooks/private-terms.py" pre-commit
+
+# commit-msg
+exec python3 "$HOME/.claude/coding-standards-current/hooks/private-terms.py" commit-msg "$1"
+```
+
+If the list blocks more than it protects, remove the hook from `hooks.json`.
+
+### Alternatives Not Taken
+
+One machine-wide list came first. These were weighed and deferred, to pick up if it proves
+insufficient:
+
+- Per-repo term files kept in each private repo, found through paths listed in the machine-wide
+  file. They would let a repo's terms travel with it.
+- A guard on `SendMessage`, blocking terms in messages to sessions with a less private domain.
+  It guards the wrong boundary. A guardian needs a request's private evidence to verify it, and
+  nothing is disclosed until a commit. It would also first need a check that a `PreToolUse`
+  matcher fires on `SendMessage`.
+- A `domain.json` beside each guardian's ledger, recording each entry's visibility for tools to
+  read. The commit-time guard reads the repo's own visibility instead, so it needs none.
 
 ## Tests
 
