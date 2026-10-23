@@ -1,6 +1,6 @@
 # Hooks
 
-`hooks.json` is loaded by the `coding-standards` plugin. It wires four events:
+`hooks.json` is loaded by the `coding-standards` plugin. It wires five events:
 
 - `SessionStart` runs `link-current.sh`. It points
   `~/.claude/coding-standards-current` at the installed plugin, so profiles
@@ -10,6 +10,9 @@
   project's proposals has passed, and nothing otherwise. Last, `check-setup.sh`
   creates `~/.local/state/coding_agent_standards/`, and checks that the
   machine and the project are set up. It prints nothing when they are.
+- `UserPromptSubmit` runs `name-guardian.sh`. When the prompt is `/guardian`
+  with a domain name as its first argument, it names the session
+  `<domain name>_guardian`, replacing any custom title.
 - `PreToolUse` on `Bash` runs `block-broad-find.sh`.
 - `PostToolUse` on `Edit|Write` runs `make fmt` when the target exists.
 - `Stop` reminds you to run `make test` and `make lint` when those targets exist.
