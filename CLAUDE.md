@@ -65,6 +65,7 @@ These imports mirror `profiles/baseline.md`. They use relative paths so they rea
 @claude/rules/shell-discipline.md
 @claude/rules/guardian-requests.md
 @claude/rules/research-limits.md
+@claude/rules/disclosure.md
 @practices/code-review.md
 @practices/makefile.md
 @claude/project-management/glossary.md

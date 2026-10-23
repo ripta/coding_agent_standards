@@ -78,7 +78,8 @@ Standards for planning and tracking work:
 
 Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
 
-- **Rules** (`rules/`) -- decision-making boundaries, work discipline, git workflow, commit/PR style, writing voice
+- **Rules** (`rules/`) -- decision-making boundaries, work discipline, git workflow, commit/PR style, writing voice,
+  disclosure when promoting content to a more visible repo
 - **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. At session
   start it keeps the plugin link that profiles import through, and names any passed revisit hook. The
   `block-broad-find`, `block-redirection`, and `cg-check` guard scripts ship alongside it, plus opt-in hooks for

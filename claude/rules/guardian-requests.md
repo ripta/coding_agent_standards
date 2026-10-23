@@ -16,6 +16,8 @@ in `project-management/guardian.md`. This rule is the requestor's side.
 - The first line is one sentence that names the defect and the file.
 - Give the evidence: where it is, by file and line, and the steps that reproduce it.
 - Say what it broke for you, and any workaround you already applied.
+- Name the repo the content comes from, and its visibility. See `disclosure.md`. The guardian removes or asks about
+  anything its domain's audience should not see.
 - Offer a fix. The guardian treats it as a suggestion.
 - Say whether you need a reply.
 

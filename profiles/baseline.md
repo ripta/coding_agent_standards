@@ -13,6 +13,7 @@ Minimal standards applied to all projects.
 @~/.claude/coding-standards-current/rules/shell-discipline.md
 @~/.claude/coding-standards-current/rules/guardian-requests.md
 @~/.claude/coding-standards-current/rules/research-limits.md
+@~/.claude/coding-standards-current/rules/disclosure.md
 @../practices/code-review.md
 @../practices/makefile.md
 @~/.claude/coding-standards-current/project-management/glossary.md

@@ -20,13 +20,17 @@ Requestors find it by that name in ListAgents.
 and where the commit style comes from. The default is to commit on the checked-out branch, never push, and follow
 `rules/commit-style.md`.
 
+**Visibility**: who can read one domain entry: private, protected, or public. A fix whose content comes from a less
+visible repo is a promotion, and follows `rules/disclosure.md`.
+
 **Ledger**: the guardian's record of every request, its verdict, and its commit. It lets the guardian keep its
 decisions when its context is compacted or the session resumes.
 
 ## Starting
 
 1. Settle the domain. Take it from the argument when given. Otherwise ask the user, via AskUserQuestion, for each
-   checkout and its scopes. Ask for each entry's commit policy too, and offer the default first.
+   checkout and its scopes. Ask for each entry's commit policy too, and offer the default first. Read each entry's
+   visibility from its host, and ask the user to confirm it in the same call. See `rules/disclosure.md` "Visibility".
 2. Check the session name. Call ListAgents. Its first line names this session. When the name is not
    `<domain name>_guardian`, tell the user the exact `/rename <domain name>_guardian` to type. A session cannot rename
    itself.
@@ -34,8 +38,9 @@ decisions when its context is compacted or the session resumes.
    Two guardians must never own overlapping paths.
 4. Open the ledger at `~/.local/state/coding_agent_standards/guardians/<domain name>/ledger.md`. When the directory
    cannot be written, use the session's scratchpad instead, and tell the user that the ledger will not outlive the
-   session. When a ledger already exists, read it. Its open requests are still open.
-5. Tell the user the domain, each entry's commit policy, and the ledger's path. Then wait for requests.
+   session. When a ledger already exists, read it. Its open requests are still open. The ledger opens with the domain,
+   and each entry's commit policy and visibility.
+5. Tell the user the domain, each entry's commit policy and visibility, and the ledger's path. Then wait for requests.
 
 ## Handling a Request
 
@@ -47,13 +52,17 @@ decisions when its context is compacted or the session resumes.
    `design-critic` checks a design argument.
 4. **Choose the fix.** The requestor's suggested fix is input, not a spec. Offer a narrower or broader fix when it is
    better, and say why.
-5. **Settle disagreement.** The requestor and the guardian, or its verifier, may still disagree after one exchange.
+5. **Check disclosure.** Ask the requestor which repo the content comes from, and its visibility, when the request does
+   not say. When that repo is less visible than the entry, the fix is a promotion. Follow `rules/disclosure.md`
+   "Promotion" for the change and its commit message. The guardian's own user approves each topic, never the
+   requestor.
+6. **Settle disagreement.** The requestor and the guardian, or its verifier, may still disagree after one exchange.
    Then a `design-judge` agent rules, given both positions and the evidence. A question that is truly the user's goes to
    the user instead.
-6. **Apply it.** Run the domain's checks. Commit by the entry's commit policy, by path, one request per commit.
-7. **Reply.** Give the commit, what changed, and where the fix differs from the suggestion. Say how the requestor picks
-   it up. Ask it to re-check against its own project when the guardian could not.
-8. **Close it.** Record the verdict and the commit in the ledger.
+7. **Apply it.** Run the domain's checks. Commit by the entry's commit policy, by path, one request per commit.
+8. **Reply.** Give the commit, what changed, and where the fix differs from the suggestion. List what disclosure
+   removed. Say how the requestor picks it up. Ask it to re-check against its own project when the guardian could not.
+9. **Close it.** Record the verdict, the source's visibility, and the commit in the ledger.
 
 ## Rules
 
@@ -86,6 +95,7 @@ One section per request, numbered in order:
 
 - From: migrate-electron-microscope-specs-era-3
 - Received: 2026-10-18
+- Source: private; removed the source repo's name and paths
 - Verdict: confirmed by a failing regression test
 - Fix: 6df85f7, narrower than suggested
 - Status: closed
