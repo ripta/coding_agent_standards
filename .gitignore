@@ -6,3 +6,6 @@
 
 # Worktrees made by claude --worktree and by isolated subagents.
 /.claude/worktrees/
+
+# Personal Claude Code settings for this checkout.
+/.claude/settings.local.json
