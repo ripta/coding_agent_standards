@@ -18,7 +18,10 @@ defer to a project-specific deviation when one exists.
 
 `${CLAUDE_PLUGIN_ROOT}/scripts/proposals.py` reads the queue and the
 proposals. Run it with `python3`, and pass `--proposals-dir` the proposals
-directory from step 1. Use it rather than parsing the files by hand.
+directory from step 1. Use it rather than parsing the files by hand. It
+resolves a dependency on another project's proposal through the
+`## Other proposals` entries in `queue.md`. When the user gives a
+`--proposals-for PREFIX=PATH` override, pass it to every call.
 
 Whenever a choice comes up, in the plan or during implementation, build the
 options by the "Choosing Options" section of
@@ -51,7 +54,12 @@ field.
    - A dependency, or the milestone's `live_after` entry, is not met and is
      not `awaiting deploy`. Name each one with its state and reason. A
      `blocked` one needs the user, and a `Replaced by` hint names what to wait
-     on instead
+     on instead. An `unresolved` one is held, not blocked: another project's
+     proposals cannot be found. Its reason names the prefix and the path it
+     tried. Say how to fix it: add or correct the prefix's entry under
+     `## Other proposals` in `queue.md`, or pass
+     `--proposals-for PREFIX=PATH` when the checkout sits elsewhere on this
+     machine. See `plans.md` "Other Projects' Proposals"
 
    When `ready_once_deployed` is true, the milestone waits only on
    deployments. Each is a `live_after` entry or a `(merge after deployed)`

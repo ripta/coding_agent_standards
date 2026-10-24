@@ -19,7 +19,9 @@ only source for the formats, and this skill does not carry its own copy. Always 
 when one exists.
 
 `${CLAUDE_SKILL_DIR}/../../scripts/proposals.py` reads the queue and the proposals. Run it with `python3` and
-`--proposals-dir <dir>`. Use it rather than parsing the files by hand.
+`--proposals-dir <dir>`. Use it rather than parsing the files by hand. It resolves another project's proposals through
+the `## Other proposals` entries in `queue.md`. Pass any `--proposals-for PREFIX=PATH` override the user gives to every
+call.
 
 ## Inputs
 
@@ -90,6 +92,19 @@ Do all of this before any question.
      `DONE` is met and needs no entry, unless it gets a `(merge after deployed)` gate in Step 3.
    - Anything else, or `accepted` with no queue rows: hold it for Step 3. A row that depends on it would be blocked.
 
+   A dependency whose prefix is not this project's lives in another project. Resolve it the way `plans.md` "Other
+   Projects' Proposals" describes:
+   - Find the prefix's entry under `## Other proposals` in `queue.md`, or the user's `--proposals-for` override. With
+     neither, look for the proposals directory that holds that prefix: another app's directory in this repo, a
+     submodule, or a sibling checkout. Record the path relative to the directory `queue.md` really sits in, past any
+     symlink. It becomes a new entry in Step 5. When you find no directory, or more than one, the path is a question
+     for Step 3.
+   - Read that project's proposal and its own `queue.md`. Apply the states above against them. "Queue rows" means rows
+     in that project's queue. An `accepted` dependency with no rows there is scheduled in that project, not this one.
+     Hold it for Step 3 as a blocked dependency.
+   - An existing entry that does not resolve is not yours to edit. Report it, and suggest `--proposals-for` when the
+     checkout sits elsewhere on this machine. The row would be held as `unresolved` until the entry resolves.
+
    Then check for deployment dependencies, per `plans.md` "Detecting Deployment Dependencies". Do not treat a
    separate repo, a consumer, a server, a release, a tag, or a module or version bump as a sign of one. Code
    availability is a plain dependency in every layout. Read the proposal's deploy units and its skew analysis, per
@@ -109,7 +124,8 @@ Do all of this before any question.
 In a batch, every stop in items 5 to 10 that concerns one proposal drops only that proposal, as in item 6.
 
 Report what you found in a few lines before asking anything. Name each plain dependency as plain, each `Live after`
-line, and each cross-unit contract that lacks a skew analysis.
+line, each cross-unit contract that lacks a skew analysis, and each dependency in another project with the entry it
+resolves through.
 
 ### Step 3: Ask once, up front
 
@@ -127,7 +143,9 @@ request or Step 2 already answered.
   from the skew analysis in the option. Only the user decides a row gate. Ask in one multi-select question within the
   same call. Skip it when Step 2 found no candidate.
 - **Blocked dependencies.** If a dependency is not `accepted` or `implemented`, or has no queue rows, ask whether to
-  schedule anyway. The new row would be blocked until the dependency is scheduled or settled.
+  schedule anyway. The new row would be blocked until the dependency is scheduled or settled. Fold in each other
+  project's path that Step 2 could not find, with one option per candidate directory and "Other" for a typed path. A
+  row whose entry the user declines is held as `unresolved`.
 - **Splitting.** Ask only when the user's request or a revived layout suggests more than one row, or when other work
   should be built between this proposal's milestones. Each split needs a note saying why. Rows split only along
   milestone boundaries.
@@ -149,6 +167,9 @@ gate. Do not write until the user approves.
 Insert each row at its approved position in `queue.md`. Never move, renumber, or edit an existing row. If the queue
 does not exist yet, create it with the heading, the table header, and the new rows.
 
+Add each new entry from Step 2 under `## Other proposals`, below the table, as `- OTHER: <path>`. Create the section
+when the queue has none. Never edit an existing entry.
+
 ### Step 6: Update the proposal
 
 Update each scheduled proposal:
@@ -163,7 +184,8 @@ Milestone numbers named by a queue row are now permanent. Say so in the report.
 ### Step 7: Verify
 
 Run `proposals.py check`, and `proposals.py row PROJ-NNN` for each proposal's first new row. Report each dependency's
-state from `row`. Fix any `check` finding this run caused.
+state from `row`. Fix any `check` finding this run caused. A dependency this run gave an entry must not come back
+`unresolved`.
 
 ### Step 8: Report
 
@@ -172,7 +194,8 @@ Summarize:
 - Each proposal scheduled, and where its rows went.
 - Each proposal dropped from the batch, and why.
 - Each new row, with its range, depends-on cell, and note.
-- Each dependency, with its state, and any that is blocked.
+- Each dependency, with its state, and any that is blocked or unresolved.
+- Each `## Other proposals` entry written, with the prefix and path, and each existing entry that does not resolve.
 - Each cross-unit contract that lacks a skew analysis, as a finding for `proposal-reviewer`.
 - Every file created or edited.
 - That the milestone numbers the rows name are now permanent.
@@ -185,7 +208,7 @@ Summarize:
 - Detect before asking, then ask once. The pick in Step 2, when no ID was given, comes before that. The layout
   confirmation in Step 4 is the only later checkpoint. Write nothing before the user approves it.
 - Recommend, never pick. Schedule only what the user named or picked.
-- Never move, split, or edit an existing queue row. Never renumber a milestone.
+- Never move, split, or edit an existing queue row or `## Other proposals` entry. Never renumber a milestone.
 - Treat any non-`accepted` proposal status as a hard stop for that proposal. Do not change it to make scheduling
   possible.
 - Treat any open design question as a hard stop for that proposal, and route the user to `proposal-reviewer`.

@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
 """Read era 3 proposals and the queue, and run the checks the standard defines.
 
-    python3 proposals.py check --proposals-dir DIR
-    python3 proposals.py row --proposals-dir DIR PROJ-NNN [MN]
+    python3 proposals.py check --proposals-dir DIR [--proposals-for PREFIX=PATH ...]
+    python3 proposals.py row --proposals-dir DIR [--proposals-for PREFIX=PATH ...] PROJ-NNN [MN]
     python3 proposals.py freeze --proposals-dir DIR [--row-commit SHA ...]
     python3 proposals.py hooks --proposals-dir DIR [--passed] [--today YYYY-MM-DD]
-    python3 proposals.py progress --proposals-dir DIR [--json] [--today YYYY-MM-DD]
+    python3 proposals.py progress --proposals-dir DIR [--proposals-for PREFIX=PATH ...] [--json]
+        [--today YYYY-MM-DD]
     python3 proposals.py notice --proposals-dir DIR [--today YYYY-MM-DD]
-    python3 proposals.py next --proposals-dir DIR [--count N] [--hold PROJ-NNN ...]
-    python3 proposals.py candidates --proposals-dir DIR
+    python3 proposals.py next --proposals-dir DIR [--proposals-for PREFIX=PATH ...] [--count N]
+        [--hold PROJ-NNN ...]
+    python3 proposals.py candidates --proposals-dir DIR [--proposals-for PREFIX=PATH ...]
 
 The rules live in project-management/proposals.md and plans.md. `check` reports
 milestone status and hook structure the standard rejects. `row` finds the queue
@@ -23,6 +25,12 @@ rows, with the hooks.
 
 DIR is the proposals directory, which may sit in a symlinked specs repo. Results
 are JSON on stdout. Errors go to stderr with exit status 1.
+
+A dependency on another project's proposal resolves through the `## Other proposals`
+entries in DIR/queue.md. `--proposals-for PREFIX=PATH` adds or overrides one entry for a
+single run, with PATH relative to the current directory. A dependency whose prefix has no
+entry, or whose entry does not lead to that project's proposals, is `unresolved`. It holds
+the row and never blocks it.
 """
 
 import argparse
@@ -311,6 +319,151 @@ def load_queue(proposals_dir: Path) -> list[Row]:
     return rows
 
 
+# -- other projects -------------------------------------------------------
+
+
+OTHER_PROPOSALS = "Other proposals"
+OTHER_BULLET = re.compile(r"^\s*[-*]\s")
+OTHER_ENTRY = re.compile(r"^\s*[-*]\s+([A-Z0-9]*[A-Z][A-Z0-9]*):\s+`?([^`]+?)`?\s*$")
+PREFIX = re.compile(r"^[A-Z0-9]*[A-Z][A-Z0-9]*$")
+
+
+def _prefix(proposal_id: str) -> str:
+    return proposal_id.rsplit("-", 1)[0]
+
+
+@dataclass
+class Location:
+    """Where another project's proposals live, and the queue.md line or flag that says so."""
+
+    prefix: str
+    path: Path
+    source: str
+    file: Path | None = None
+
+
+def load_locations(proposals_dir: Path) -> dict[str, Location]:
+    """Read the `## Other proposals` entries in queue.md, keyed by prefix.
+
+    A relative path resolves against the directory queue.md really sits in. When the specs
+    directory is a symlink, `..` climbs from the link's target, so every checkout that links
+    the same specs repo resolves an entry to the same place.
+    """
+    path = proposals_dir / "queue.md"
+    if not path.is_file():
+        return {}
+    lines = path.read_text().splitlines()
+    start, end = _sections(lines).get(OTHER_PROPOSALS, (0, 0))
+    base = proposals_dir.resolve()
+    found: dict[str, Location] = {}
+    for i in range(start + 1, end):
+        if not OTHER_BULLET.match(lines[i]):
+            continue
+        m = OTHER_ENTRY.match(lines[i])
+        if not m:
+            raise ProposalError(
+                f"{path}:{i + 1}: cannot read {lines[i].strip()!r}; write - PREFIX: path/to/proposals"
+            )
+        prefix, written = m.groups()
+        if prefix in found:
+            raise ProposalError(f"{path}:{i + 1}: {prefix} is listed twice under ## {OTHER_PROPOSALS}")
+        found[prefix] = Location(prefix, (base / written).resolve(), f"queue.md line {i + 1}", path)
+    return found
+
+
+def parse_overrides(values: list[str]) -> dict[str, Location]:
+    """Read `--proposals-for PREFIX=PATH` flags. A relative PATH resolves against the current directory."""
+    found: dict[str, Location] = {}
+    for raw in values:
+        prefix, sep, written = raw.partition("=")
+        if not sep or not PREFIX.match(prefix) or not written:
+            raise ProposalError(
+                f"--proposals-for {raw!r}: write PREFIX=PATH, as in OTHER=../other/docs/proposals"
+            )
+        if prefix in found:
+            raise ProposalError(f"--proposals-for names {prefix} twice")
+        found[prefix] = Location(prefix, Path(written).resolve(), "--proposals-for")
+    return found
+
+
+@dataclass
+class Project:
+    """One proposals directory: its proposals and its queue rows."""
+
+    proposals_dir: Path
+    proposals: dict[str, Proposal]
+    rows: list[Row]
+
+
+def _load_other(location: Location) -> Project | str:
+    """Load the project an entry names, or say why it cannot be loaded.
+
+    A sibling's queue is read only for its rows, so its own entries are never followed.
+    """
+    where = f"the {location.prefix} entry ({location.source}) points at {location.path}"
+    if not location.path.is_dir():
+        return f"{where}, which is not a directory"
+    try:
+        proposals = load_proposals(location.path)
+        rows = load_queue(location.path) if (location.path / "queue.md").is_file() else []
+    except ProposalError as err:
+        return f"{where}, which cannot be read: {err}"
+    if not any(_prefix(pid) == location.prefix for pid in proposals):
+        return f"{where}, which holds no {location.prefix} proposals"
+    return Project(location.path, proposals, rows)
+
+
+class Workspace:
+    """This project's proposals and queue, plus the other projects its entries name.
+
+    An ID found in this project is local, whatever its prefix. Any other ID resolves through
+    the entry for its prefix. An ID missing from a prefix this project uses, with no entry,
+    does not exist. Every other ID is unresolved.
+    """
+
+    def __init__(self, local: Project, locations: dict[str, Location]) -> None:
+        self.local = local
+        self.locations = locations
+        self.prefixes = {_prefix(pid) for pid in local.proposals}
+        self.prefixes |= {_prefix(row.proposal) for row in local.rows}
+        self._others: dict[str, Project | str] = {}
+
+    def other(self, prefix: str) -> Project | str:
+        if prefix not in self._others:
+            self._others[prefix] = _load_other(self.locations[prefix])
+        return self._others[prefix]
+
+    def find(self, proposal_id: str) -> tuple[Project | None, str]:
+        """Return the project that should hold an ID, or None with the reason it is unresolved."""
+        if proposal_id in self.local.proposals:
+            return self.local, ""
+        prefix = _prefix(proposal_id)
+        if prefix in self.locations:
+            other = self.other(prefix)
+            return (other, "") if isinstance(other, Project) else (None, other)
+        if prefix in self.prefixes:
+            return self.local, ""
+        return None, (
+            f"no proposals directory is listed for {prefix}. Add `- {prefix}: <path>` under "
+            f"`## {OTHER_PROPOSALS}` in queue.md, or pass --proposals-for {prefix}=<path>"
+        )
+
+    def where(self, project: Project) -> str:
+        """A suffix naming another project's directory in a reason. Local reasons need none."""
+        return "" if project is self.local else f" in {project.proposals_dir}"
+
+
+def workspace(
+    proposals_dir: Path, overrides: dict[str, Location] | None = None, queue: bool = True
+) -> Workspace:
+    """Load this project and its entries. With `queue` false, a missing queue.md reads as no rows."""
+    proposals = load_proposals(proposals_dir)
+    has_queue = (proposals_dir / "queue.md").is_file()
+    rows = load_queue(proposals_dir) if queue or has_queue else []
+    locations = {**load_locations(proposals_dir), **(overrides or {})}
+    return Workspace(Project(proposals_dir, proposals, rows), locations)
+
+
 # -- check ----------------------------------------------------------------
 
 
@@ -334,11 +487,13 @@ def _index_statuses(proposals_dir: Path) -> dict[str, tuple[Path, str]]:
     return statuses
 
 
-def check(proposals_dir: Path) -> list[dict[str, Any]]:
-    proposals = load_proposals(proposals_dir)
+def check(proposals_dir: Path, overrides: dict[str, Location] | None = None) -> list[dict[str, Any]]:
     # Without a queue nothing is scheduled yet, so the checks that need one are skipped. A
     # queue that exists but cannot be read is an error, not an empty queue.
-    rows = load_queue(proposals_dir) if (proposals_dir / "queue.md").is_file() else None
+    has_queue = (proposals_dir / "queue.md").is_file()
+    ws = workspace(proposals_dir, overrides, queue=False)
+    proposals = ws.local.proposals
+    rows = ws.local.rows if has_queue else None
     findings: list[dict[str, Any]] = []
 
     def report(proposal: Proposal, problem: str, milestone: int | None = None) -> None:
@@ -346,8 +501,18 @@ def check(proposals_dir: Path) -> list[dict[str, Any]]:
             {"proposal": proposal.id, "milestone": milestone, "file": str(proposal.path), "problem": problem}
         )
 
-    def queued(pid: str, number: int) -> bool:
-        return rows is None or any(row.names(pid, number) for row in rows)
+    def queued(project: Project, pid: str, number: int) -> bool:
+        if project is ws.local and rows is None:
+            return True
+        return any(row.names(pid, number) for row in project.rows)
+
+    for location in ws.locations.values():
+        other = ws.other(location.prefix)
+        if isinstance(other, str):
+            findings.append({
+                "proposal": None, "milestone": None, "file": str(location.file) if location.file else None,
+                "problem": f"## {OTHER_PROPOSALS}: {other}",
+            })
 
     for pid, (index, listed) in _index_statuses(proposals_dir).items():
         p = proposals.get(pid)
@@ -376,29 +541,37 @@ def check(proposals_dir: Path) -> list[dict[str, Any]]:
             if m.status == "DROPPED" and not any("Decision Log" in line for line in m.as_built):
                 report(p, "DROPPED milestone does not link its Decision Log entry", m.number)
             target = m.replaced_by
-            if target is not None and target[1] is not None:
-                other = proposals.get(target[0])
+            project, unresolved = ws.find(target[0]) if target is not None else (None, "")
+            if target is not None and project is None:
+                ref = target[0] + (f" M{target[1]}" if target[1] is not None else "")
+                report(p, f"Replaced by names {ref}, which is unresolved: {unresolved}", m.number)
+            elif target is not None and target[1] is not None:
+                other = project.proposals.get(target[0])
                 replacement = other.milestones.get(target[1]) if other else None
                 ref = f"{target[0]} M{target[1]}"
                 if replacement is None:
-                    report(p, f"Replaced by names {ref}, which does not exist", m.number)
+                    report(p, f"Replaced by names {ref}, which does not exist{ws.where(project)}", m.number)
                 elif replacement.status == "DROPPED":
                     report(p, f"Replaced by names {ref}, which is itself DROPPED", m.number)
-                elif not queued(*target):
-                    report(p, f"Replaced by names {ref}, which no queue row names", m.number)
-            elif target is not None and target[0] not in proposals:
-                report(p, f"Replaced by names {target[0]}, which does not exist", m.number)
+                elif not queued(project, *target):
+                    report(p, f"Replaced by names {ref}, which no queue row names{ws.where(project)}", m.number)
+            elif target is not None and target[0] not in project.proposals:
+                report(p, f"Replaced by names {target[0]}, which does not exist{ws.where(project)}", m.number)
 
             live = m.live_after
+            project, unresolved = ws.find(live.proposal) if live is not None else (None, "")
             if m.live_after_text is not None and live is None:
                 report(p, f"cannot read **Live after:** {m.live_after_text!r}; write PROJ-NNN MN deployed", m.number)
+            elif live is not None and m.status not in FINISHED and project is None:
+                report(p, f"Live after names {live.ref}, which is unresolved: {unresolved}", m.number)
             elif live is not None and m.status not in FINISHED:
-                other = proposals.get(live.proposal)
+                other = project.proposals.get(live.proposal)
                 awaited = other.milestones.get(live.milestone) if other and live.milestone else None
                 if other is None:
-                    report(p, f"Live after names {live.proposal}, which does not exist", m.number)
+                    missing = f"{live.proposal}, which does not exist{ws.where(project)}"
+                    report(p, f"Live after names {missing}", m.number)
                 elif live.milestone is not None and awaited is None and not other.history:
-                    report(p, f"Live after names {live.ref}, which does not exist", m.number)
+                    report(p, f"Live after names {live.ref}, which does not exist{ws.where(project)}", m.number)
                 elif awaited is not None and awaited.status == "DROPPED":
                     report(p, f"Live after names {live.ref}, which is DROPPED", m.number)
         statuses = [m.status for m in p.milestones.values()]
@@ -411,12 +584,13 @@ def check(proposals_dir: Path) -> list[dict[str, Any]]:
         if p.status == "implemented" and not (all_finished and done):
             report(p, "implemented, but not every milestone is finished with at least one DONE")
     if rows is not None:
-        findings += _queue_findings(rows, proposals)
+        findings += _queue_findings(ws)
     return findings
 
 
-def _queue_findings(rows: list[Row], proposals: dict[str, Proposal]) -> list[dict[str, Any]]:
+def _queue_findings(ws: Workspace) -> list[dict[str, Any]]:
     """Report the queue rules in plans.md "The Queue File" that hold mechanically."""
+    rows, proposals = ws.local.rows, ws.local.proposals
     findings: list[dict[str, Any]] = []
 
     def report(row: Row, problem: str) -> None:
@@ -451,6 +625,9 @@ def _queue_findings(rows: list[Row], proposals: dict[str, Proposal]) -> list[dic
         if not row.note and sum(1 for r in rows if r.proposal == row.proposal) > 1:
             report(row, f"{row.proposal} has more than one row, so each needs a note saying why")
         for dep in row.depends_on:
+            project, unresolved = ws.find(dep.proposal)
+            if project is None and not is_finished:
+                report(row, f"{dep} is unresolved: {unresolved}")
             if dep.legacy and not is_finished:
                 report(row, (
                     f"{dep} is the legacy row gate. Reclassify it as a **Live after:** {dep.ref} deployed line "
@@ -467,15 +644,23 @@ def _queue_findings(rows: list[Row], proposals: dict[str, Proposal]) -> list[dic
 AWAITING_DEPLOY = ("awaiting deploy", "ask the user whether it is live")
 
 
-def _dependency_state(dep: Dependency, proposals: dict[str, Proposal], rows: list[Row]) -> tuple[str, str]:
-    """Classify one dependency as met, unmet, awaiting deploy, or blocked, with the reason.
+def _dependency_state(dep: Dependency, ws: Workspace) -> tuple[str, str]:
+    """Classify one dependency as met, unmet, awaiting deploy, blocked, or unresolved, with the reason.
 
     A deployment never confirms itself. A deploy dependency whose code is finished stays
     `awaiting deploy` until the user says it is live.
+
+    A dependency on another project follows the same rules against that project's proposals
+    and queue. One that cannot be found there is `unresolved`: the fix is an entry or a flag,
+    so it holds the row rather than blocking it.
     """
+    project, unresolved = ws.find(dep.proposal)
+    if project is None:
+        return "unresolved", unresolved
+    proposals, rows, where = project.proposals, project.rows, ws.where(project)
     target = proposals.get(dep.proposal)
     if target is None:
-        return "blocked", f"{dep.proposal} does not exist"
+        return "blocked", f"{dep.proposal} does not exist{where}"
     if dep.milestone is None:
         if target.status == "implemented":
             return AWAITING_DEPLOY if dep.deployed else ("met", "implemented")
@@ -483,7 +668,7 @@ def _dependency_state(dep: Dependency, proposals: dict[str, Proposal], rows: lis
             return "blocked", f"{dep.proposal} is {target.status or 'missing a status'}"
         unfinished = [n for n, m in target.milestones.items() if m.status not in FINISHED]
         if not any(row.names(dep.proposal, n) for row in rows for n in unfinished):
-            return "blocked", f"{dep.proposal} has no queue row for its unfinished milestones"
+            return "blocked", f"{dep.proposal} has no queue row for its unfinished milestones{where}"
         return "unmet", f"{dep.proposal} is not implemented yet"
 
     if target.history and target.status == "implemented":
@@ -500,13 +685,15 @@ def _dependency_state(dep: Dependency, proposals: dict[str, Proposal], rows: lis
     if target.status not in ("accepted", "implemented"):
         return "blocked", f"{dep.proposal} is {target.status}"
     if not any(row.names(dep.proposal, dep.milestone) for row in rows):
-        return "blocked", f"{dep.proposal} M{dep.milestone} is in no queue row"
+        return "blocked", f"{dep.proposal} M{dep.milestone} is in no queue row{where}"
     return "unmet", f"{dep.proposal} M{dep.milestone} is {milestone.status}"
 
 
-def row_info(proposals_dir: Path, proposal_id: str, milestone: int | None) -> dict[str, Any]:
-    proposals = load_proposals(proposals_dir)
-    rows = load_queue(proposals_dir)
+def row_info(
+    proposals_dir: Path, proposal_id: str, milestone: int | None, overrides: dict[str, Location] | None = None
+) -> dict[str, Any]:
+    ws = workspace(proposals_dir, overrides)
+    proposals, rows = ws.local.proposals, ws.local.rows
     proposal = proposals.get(proposal_id)
     if proposal is None:
         raise ProposalError(f"no proposal {proposal_id} in {proposals_dir}")
@@ -536,12 +723,12 @@ def row_info(proposals_dir: Path, proposal_id: str, milestone: int | None) -> di
         raise ProposalError(f"{proposal_id} has no M{milestone}")
     deps = []
     for dep in target.depends_on:
-        state, reason = _dependency_state(dep, proposals, rows)
+        state, reason = _dependency_state(dep, ws)
         deps.append({"dependency": str(dep), "state": state, "reason": reason})
 
     live_after = None
     if entry.live_after is not None:
-        state, reason = _dependency_state(entry.live_after, proposals, rows)
+        state, reason = _dependency_state(entry.live_after, ws)
         live_after = {"dependency": str(entry.live_after), "state": state, "reason": reason}
 
     earlier = [row.label for row in own if row.index < target.index and not finished(row)]
@@ -845,16 +1032,15 @@ def hooks(proposals_dir: Path, today: str, passed_only: bool) -> list[dict[str, 
 # -- progress -------------------------------------------------------------
 
 
-def progress(proposals_dir: Path, today: str) -> dict[str, Any]:
+def progress(proposals_dir: Path, today: str, overrides: dict[str, Location] | None = None) -> dict[str, Any]:
     """Join each queue row with its milestones' status: what is done, ready, held, or awaits a deploy."""
-    proposals = load_proposals(proposals_dir)
-    rows = load_queue(proposals_dir)
+    ws = workspace(proposals_dir, overrides)
     report: dict[str, Any] = {
         "done": [], "ready": [], "held": [], "awaiting_deploy": [], "blocked": [],
         "hooks": hooks(proposals_dir, today, False),
     }
-    for row in rows:
-        entry, finished, blocked, held, awaiting = _classify(row, rows, proposals)
+    for row in ws.local.rows:
+        entry, finished, blocked, held, awaiting = _classify(row, ws)
         if finished:
             report["done"].append(entry)
         elif blocked:
@@ -878,15 +1064,14 @@ def _unfinished(row: Row, p: Proposal | None) -> bool:
     )
 
 
-def _classify(
-    row: Row, rows: list[Row], proposals: dict[str, Proposal]
-) -> tuple[dict[str, Any], bool, list[str], list[str], list[str]]:
+def _classify(row: Row, ws: Workspace) -> tuple[dict[str, Any], bool, list[str], list[str], list[str]]:
     """Summarize one row. Say whether it is finished, and what blocks, holds, or awaits a deploy.
 
     A `Live after` line on the row's next milestone decides for the row. One on a later
     milestone waits only for that milestone, so it is listed on the entry and leaves the row
     as it is.
     """
+    rows, proposals = ws.local.rows, ws.local.proposals
     p = proposals.get(row.proposal)
     numbers = range(row.first, row.last + 1)
     statuses = {n: p.milestones[n].status if p and n in p.milestones else None for n in numbers}
@@ -902,8 +1087,9 @@ def _classify(
     next_number = next(n for n, s in statuses.items() if s not in FINISHED)
     entry["next"] = f"{row.proposal} M{next_number}"
 
-    # Blocked reasons need the user. Held reasons clear once other work finishes. Awaiting
-    # reasons clear once the user says a deployment is live.
+    # Blocked reasons need the user. Held reasons clear once other work finishes, or once an
+    # unresolved dependency gets an entry. Awaiting reasons clear once the user says a deployment
+    # is live.
     blocked, held, awaiting = [], [], []
     if p is None:
         blocked.append(f"{row.proposal} does not exist")
@@ -923,7 +1109,7 @@ def _classify(
             waits.append((n, m.live_after))
 
     for n, dep in waits:
-        state, reason = _dependency_state(dep, proposals, rows)
+        state, reason = _dependency_state(dep, ws)
         if n is not None:
             live_after.append({
                 "milestone": f"{row.proposal} M{n}", "dependency": str(dep), "state": state, "reason": reason,
@@ -995,7 +1181,9 @@ def notice(proposals_dir: Path, today: str) -> str:
 # -- next -----------------------------------------------------------------
 
 
-def next_rows(proposals_dir: Path, count: int, holds: list[str]) -> dict[str, Any]:
+def next_rows(
+    proposals_dir: Path, count: int, holds: list[str], overrides: dict[str, Location] | None = None
+) -> dict[str, Any]:
     """Pick the first `count` unfinished rows, in queue order, that a run can take.
 
     A row qualifies when nothing blocks it. Every row or milestone it waits on
@@ -1004,12 +1192,13 @@ def next_rows(proposals_dir: Path, count: int, holds: list[str]) -> dict[str, An
 
     A row that awaits only a deployment qualifies. Its entry lists what awaits one, so the
     plan can ask the user whether each is live. A run cannot deploy, so a deployment whose
-    code is not finished yet skips the row.
+    code is not finished yet skips the row. So does an unresolved dependency, and an unmet one in
+    another project, since a run builds only this project's rows.
     """
     if count < 1:
         raise ProposalError(f"--count {count} is not a positive number")
-    proposals = load_proposals(proposals_dir)
-    rows = load_queue(proposals_dir)
+    ws = workspace(proposals_dir, overrides)
+    proposals, rows = ws.local.proposals, ws.local.rows
     picked: list[Row] = []
     report: dict[str, Any] = {"run": [], "skipped": []}
 
@@ -1019,7 +1208,7 @@ def next_rows(proposals_dir: Path, count: int, holds: list[str]) -> dict[str, An
     for row in rows:
         if len(picked) == count:
             break
-        entry, finished, blocked, _, awaiting = _classify(row, rows, proposals)
+        entry, finished, blocked, _, awaiting = _classify(row, ws)
         if finished:
             continue
         if awaiting:
@@ -1038,11 +1227,18 @@ def next_rows(proposals_dir: Path, count: int, holds: list[str]) -> dict[str, An
         )
         live = upcoming.live_after if upcoming else None
         for dep in row.depends_on + ([live] if live else []):
-            state, reason = _dependency_state(dep, proposals, rows)
+            state, reason = _dependency_state(dep, ws)
+            if state == "unresolved":
+                reasons.append(f"{dep}: {reason}")
+                continue
             if state != "unmet":
                 continue
             if dep.deployed:
                 reasons.append(f"{dep}: {reason}, and a run cannot deploy it")
+                continue
+            project, _ = ws.find(dep.proposal)
+            if project is not ws.local:
+                reasons.append(f"{dep}: {reason}, and another project builds it")
                 continue
             target = proposals[dep.proposal]
             needed = [dep.milestone] if dep.milestone else [
@@ -1128,14 +1324,20 @@ def _base_status(status: str) -> str:
     return status.split(maxsplit=1)[0].lower() if status.strip() else ""
 
 
-def candidates(proposals_dir: Path) -> dict[str, list[dict[str, Any]]]:
+def candidates(
+    proposals_dir: Path, overrides: dict[str, Location] | None = None
+) -> dict[str, list[dict[str, Any]]]:
     """Sort the accepted proposals that have unscheduled milestones into tiers, per plans.md.
 
     The tiers are ready, waiting, and not_schedulable. Within a tier the order is the
     recommendation: most unblocked first, then bug fixes, then the oldest.
+
+    A Dependencies section is prose, and may cite ADRs or tickets, so an ID whose prefix has no
+    entry is passed over as before. One whose entry does not resolve, or that another project
+    has yet to schedule, makes the candidate not schedulable from here.
     """
-    proposals = load_proposals(proposals_dir)
-    rows = load_queue(proposals_dir) if (proposals_dir / "queue.md").is_file() else []
+    ws = workspace(proposals_dir, overrides, queue=False)
+    proposals, rows = ws.local.proposals, ws.local.rows
     status = {pid: _base_status(p.status) for pid, p in proposals.items()}
     facts = {pid: _facts(p.path) for pid, p in proposals.items() if status[pid] not in NOT_LIVE}
     bugs_dir = proposals_dir.parent / "bugs"
@@ -1176,12 +1378,24 @@ def candidates(proposals_dir: Path) -> dict[str, list[dict[str, Any]]]:
         if scheduled and min(unscheduled) < max(scheduled):
             reasons.append("an unscheduled milestone sits between scheduled ones")
         for dep in f.dependencies:
-            if dep not in proposals or dep == pid or status[dep] == "implemented":
+            if dep == pid:
                 continue
-            if status[dep] != "accepted":
-                reasons.append(f"depends on {dep}, which is {proposals[dep].status or 'missing a status'}")
-            elif not any(row.proposal == dep for row in rows):
-                waits_on.append(dep)
+            project, unresolved = ws.find(dep)
+            if project is None:
+                if _prefix(dep) in ws.locations:
+                    reasons.append(f"depends on {dep}, which is unresolved: {unresolved}")
+                continue
+            target = project.proposals.get(dep)
+            if target is None or _base_status(target.status) == "implemented":
+                continue
+            if _base_status(target.status) != "accepted":
+                reasons.append(f"depends on {dep}, which is {target.status or 'missing a status'}")
+            elif not any(row.proposal == dep for row in project.rows):
+                if project is ws.local:
+                    waits_on.append(dep)
+                else:
+                    where = ws.where(project)
+                    reasons.append(f"depends on {dep}, which has no queue row{where}. Schedule it there")
         entry = {
             "proposal": pid,
             "title": f.title,
@@ -1213,6 +1427,12 @@ def main(argv: list[str]) -> int:
     for name in ("check", "row", "freeze", "hooks", "progress", "notice", "next", "candidates"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--proposals-dir", type=Path, required=True)
+        if name in ("check", "row", "progress", "next", "candidates"):
+            cmd.add_argument(
+                "--proposals-for", action="append", default=[], metavar="PREFIX=PATH",
+                help="where another project's proposals live, overriding queue.md; PATH is relative to the "
+                "current directory",
+            )
         if name == "row":
             cmd.add_argument("proposal")
             cmd.add_argument("milestone", nargs="?")
@@ -1231,12 +1451,13 @@ def main(argv: list[str]) -> int:
     try:
         if getattr(args, "today", None) is not None and not ISO_DATE.match(args.today):
             raise ProposalError(f"--today {args.today!r} is not YYYY-MM-DD")
+        overrides = parse_overrides(getattr(args, "proposals_for", []))
         if args.command == "check":
-            result: Any = check(args.proposals_dir)
+            result: Any = check(args.proposals_dir, overrides)
         elif args.command == "next":
-            result = next_rows(args.proposals_dir, args.count, args.hold)
+            result = next_rows(args.proposals_dir, args.count, args.hold, overrides)
         elif args.command == "candidates":
-            result = candidates(args.proposals_dir)
+            result = candidates(args.proposals_dir, overrides)
         elif args.command == "hooks":
             result = hooks(args.proposals_dir, args.today, args.passed)
         elif args.command in ("progress", "notice"):
@@ -1244,7 +1465,7 @@ def main(argv: list[str]) -> int:
             if args.command == "notice":
                 text = notice(args.proposals_dir, args.today)
             else:
-                report = progress(args.proposals_dir, args.today)
+                report = progress(args.proposals_dir, args.today, overrides)
                 text = json.dumps(report, indent=2) if args.json else render_progress(report)
             if text:
                 print(text)
@@ -1256,7 +1477,7 @@ def main(argv: list[str]) -> int:
                 if not m:
                     raise ProposalError(f"cannot read milestone {args.milestone!r}; write it as M3")
                 milestone = int(m.group(1))
-            result = row_info(args.proposals_dir, args.proposal, milestone)
+            result = row_info(args.proposals_dir, args.proposal, milestone, overrides)
         else:
             result = freeze(args.proposals_dir, args.row_commit)
     except ProposalError as err:

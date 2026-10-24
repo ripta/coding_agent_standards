@@ -15,7 +15,8 @@ You keep a project's proposals, proposal index, and queue in sync after mileston
 to a project-specific deviation when one exists.
 
 `${CLAUDE_SKILL_DIR}/../../scripts/proposals.py` reads the queue and the proposals. Run it with `python3` and
-`--proposals-dir <dir>`. Use it rather than parsing the files by hand.
+`--proposals-dir <dir>`. Use it rather than parsing the files by hand. Pass any `--proposals-for PREFIX=PATH` override
+the user gives to every call.
 
 ## Workflow
 
@@ -39,7 +40,8 @@ Run `proposals.py check`. Sort its findings:
   these.
 - **Everything else.** Report it, and leave it alone. That includes an `implemented` proposal with unfinished
   milestones, an unknown milestone status, a `DROPPED` milestone with no Decision Log link, a bad `Replaced by` or
-  `Live after` line, a legacy `(deployed)` gate, and every hook fault. Each needs the user, or the work that owns the
+  `Live after` line, a legacy `(deployed)` gate, every hook fault, an `## Other proposals` entry that does not resolve,
+  and an unresolved reference to another project's proposal. Each needs the user, or the work that owns the
   milestone.
 
 If the check finds nothing and the queue needs no move in Step 5, tell the user and skip to Step 6.

@@ -607,6 +607,204 @@ def test_row_names_replacement_for_dropped_dependency(tmp_path: Path) -> None:
     assert "wait on PROJ-002 M2" in dep["reason"]
 
 
+# -- other projects ---------------------------------------------------------
+
+
+def _other_setup(
+    root: Path, dependency: str = "OTHER-001 M1", other: str = "NOT STARTED", other_rows: tuple[str, ...] = (),
+    entry: str | None = "- OTHER: ../other", live_after: str | None = None,
+) -> Path:
+    """Write a local project whose row depends on a sibling project's proposal, and return the local directory."""
+    local, sibling = root / "local", root / "other"
+    local.mkdir()
+    sibling.mkdir()
+    _write(local, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED", live_after=live_after)))
+    _queue(local, f"| PROJ-001 M1 | {dependency} | |")
+    if entry is not None:
+        queue = local / "queue.md"
+        queue.write_text(queue.read_text() + f"\n## Other proposals\n\n{entry}\n")
+    text = _proposal("accepted", _milestone(1, other, "- See Decision Log.") + _milestone(2, "NOT STARTED"))
+    _write(sibling, "OTHER-001-b.md", text.replace("PROJ-001", "OTHER-001"))
+    if other_rows:
+        _queue(sibling, *other_rows)
+    return local
+
+
+@pytest.mark.parametrize(
+    "dependency, other, other_rows, state, reason",
+    [
+        ("OTHER-001 M1", "DONE", ("| OTHER-001 M1 | None | |",), "met", "DONE"),
+        ("OTHER-001 M1", "IN PROGRESS", ("| OTHER-001 M1-M2 | None | |",), "unmet", "OTHER-001 M1 is IN PROGRESS"),
+        ("OTHER-001 M1 (merge after deployed)", "DONE", ("| OTHER-001 M1 | None | |",), "awaiting deploy",
+         "whether it is live"),
+        ("OTHER-001 M1", "NOT STARTED", (), "blocked", "OTHER-001 M1 is in no queue row in "),
+        ("OTHER-001 M2", "DONE", ("| OTHER-001 M1 | None | |",), "blocked", "OTHER-001 M2 is in no queue row in "),
+        ("OTHER-001", "DONE", (), "blocked", "has no queue row for its unfinished milestones in "),
+        ("OTHER-009 M1", "DONE", (), "blocked", "OTHER-009 does not exist in "),
+    ],
+)
+def test_row_resolves_a_dependency_in_another_project(
+    tmp_path: Path, dependency: str, other: str, other_rows: tuple[str, ...], state: str, reason: str
+) -> None:
+    local = _other_setup(tmp_path, dependency, other, other_rows)
+    [dep] = proposals.row_info(local, "PROJ-001", 1)["dependencies"]
+    assert (dep["state"], reason in dep["reason"]) == (state, True)
+    if state == "blocked":
+        assert str((tmp_path / "other").resolve()) in dep["reason"]
+
+
+def test_a_dependency_on_an_unlisted_prefix_is_unresolved_and_held(tmp_path: Path) -> None:
+    local = _other_setup(tmp_path, other="DONE", entry=None)
+    [dep] = proposals.row_info(local, "PROJ-001", 1)["dependencies"]
+    assert dep["state"] == "unresolved"
+    assert "no proposals directory is listed for OTHER" in dep["reason"]
+    assert "`- OTHER: <path>`" in dep["reason"]
+    assert "--proposals-for OTHER=<path>" in dep["reason"]
+
+    report = proposals.progress(local, "2026-10-17")
+    assert report["blocked"] == report["ready"] == []
+    [held] = report["held"]
+    assert held["held"][0].startswith("OTHER-001 M1: no proposals directory is listed for OTHER")
+
+    report = proposals.next_rows(local, 1, [])
+    assert report["run"] == []
+    [skipped] = report["skipped"]
+    assert any("no proposals directory is listed for OTHER" in r for r in skipped["reasons"])
+
+
+@pytest.mark.parametrize(
+    "entry, fault",
+    [
+        ("- OTHER: ../missing", "which is not a directory"),
+        ("- OTHER: ../local", "which holds no OTHER proposals"),
+    ],
+)
+def test_an_entry_that_does_not_lead_to_the_proposals_is_unresolved(tmp_path: Path, entry: str, fault: str) -> None:
+    local = _other_setup(tmp_path, other="DONE", entry=entry)
+    [dep] = proposals.row_info(local, "PROJ-001", 1)["dependencies"]
+    assert dep["state"] == "unresolved"
+    assert dep["reason"].startswith("the OTHER entry (queue.md line ")
+    assert fault in dep["reason"]
+    assert str(tmp_path.resolve() / entry.split("../")[1]) in dep["reason"]
+    assert [e["row"] for e in proposals.progress(local, "2026-10-17")["held"]] == ["PROJ-001 M1"]
+
+
+def test_an_unreadable_queue_in_another_project_is_unresolved_not_an_error(tmp_path: Path) -> None:
+    local = _other_setup(tmp_path, other="DONE", other_rows=("| OTHER-001 M1 | None |",))
+    [dep] = proposals.row_info(local, "PROJ-001", 1)["dependencies"]
+    assert dep["state"] == "unresolved"
+    assert "which cannot be read" in dep["reason"]
+    assert "3 cells" in dep["reason"]
+
+
+def test_a_flag_overrides_an_entry_relative_to_the_current_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    local = _other_setup(tmp_path, other="DONE", other_rows=("| OTHER-001 M1 | None | |",), entry="- OTHER: ../moved")
+    monkeypatch.chdir(tmp_path)
+    assert proposals.main(["row", "--proposals-dir", str(local), "PROJ-001", "M1"]) == 0
+    assert json.loads(capsys.readouterr().out)["dependencies"][0]["state"] == "unresolved"
+    assert proposals.main(["row", "--proposals-dir", str(local), "--proposals-for", "OTHER=other", "PROJ-001"]) == 0
+    info = json.loads(capsys.readouterr().out)
+    assert (info["dependencies"][0]["state"], info["ready"]) == ("met", True)
+
+
+def test_a_flag_adds_an_entry_for_every_resolving_command(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    local = _other_setup(tmp_path, other="DONE", other_rows=("| OTHER-001 M1 | None | |",), entry=None)
+    flag = ["--proposals-for", f"OTHER={tmp_path / 'other'}"]
+    assert proposals.main(["progress", "--proposals-dir", str(local), "--json", *flag]) == 0
+    assert [e["row"] for e in json.loads(capsys.readouterr().out)["ready"]] == ["PROJ-001 M1"]
+    assert proposals.main(["next", "--proposals-dir", str(local), *flag]) == 0
+    assert [e["row"] for e in json.loads(capsys.readouterr().out)["run"]] == ["PROJ-001 M1"]
+    assert proposals.main(["check", "--proposals-dir", str(local), *flag]) == 0
+    assert json.loads(capsys.readouterr().out) == []
+    assert proposals.main(["candidates", "--proposals-dir", str(local), *flag]) == 0
+    capsys.readouterr()
+
+
+@pytest.mark.parametrize("flag", ["OTHER", "other=x", "OTHER="])
+def test_a_malformed_flag_is_an_error(tmp_path: Path, flag: str, capsys: pytest.CaptureFixture[str]) -> None:
+    local = _other_setup(tmp_path)
+    assert proposals.main(["check", "--proposals-dir", str(local), "--proposals-for", flag]) == 1
+    assert "write PREFIX=PATH" in capsys.readouterr().err
+
+
+def test_a_malformed_entry_is_an_error(tmp_path: Path) -> None:
+    local = _other_setup(tmp_path, entry="- OTHER ../other")
+    with pytest.raises(proposals.ProposalError, match="cannot read '- OTHER ../other'"):
+        proposals.progress(local, "2026-10-17")
+
+
+def test_an_entry_resolves_from_where_a_symlinked_queue_really_sits(tmp_path: Path) -> None:
+    specs = tmp_path / "specs"
+    specs.mkdir()
+    _other_setup(specs, other="DONE", other_rows=("| OTHER-001 M1 | None | |",))
+    checkout = tmp_path / "app"
+    checkout.mkdir()
+    (checkout / "spec").symlink_to(specs / "local")
+    [dep] = proposals.row_info(checkout / "spec", "PROJ-001", 1)["dependencies"]
+    assert dep["state"] == "met"
+
+
+def test_next_skips_a_row_whose_dependency_another_project_builds(tmp_path: Path) -> None:
+    local = _other_setup(tmp_path, other="IN PROGRESS", other_rows=("| OTHER-001 M1 | None | |",))
+    [skipped] = proposals.next_rows(local, 1, [])["skipped"]
+    assert skipped["reasons"] == ["OTHER-001 M1: OTHER-001 M1 is IN PROGRESS, and another project builds it"]
+
+
+def test_row_resolves_a_live_after_line_in_another_project(tmp_path: Path) -> None:
+    local = _other_setup(tmp_path, "None", "DONE", ("| OTHER-001 M1 | None | |",), live_after="OTHER-001 M1 deployed")
+    info = proposals.row_info(local, "PROJ-001", 1)
+    assert info["live_after"]["state"] == "awaiting deploy"
+    assert (info["ready"], info["ready_once_deployed"]) == (False, True)
+
+
+def test_check_reports_unresolved_entries_and_references(tmp_path: Path) -> None:
+    local = _other_setup(tmp_path, "APP-001 M1", "DROPPED", ("| OTHER-001 M2 | None | |",),
+                         entry="- OTHER: ../other\n- LIB: ../lib", live_after="OTHER-001 M1 deployed")
+    text = _proposal("accepted", _milestone(1, "DROPPED", "- See Decision Log.\n\nReplaced by: OTHER-001 M1")
+                     + _milestone(2, "DROPPED", "- See Decision Log.\n\nReplaced by: LIB-001 M1")
+                     + _milestone(3, "NOT STARTED"))
+    _write(local, "PROJ-002-b.md", text.replace("PROJ-001", "PROJ-002"))
+    findings = proposals.check(local)
+    problems = [f["problem"] for f in findings]
+    [entry] = [f for f in findings if f["proposal"] is None]
+    assert entry["file"] == str(local / "queue.md")
+    assert entry["problem"].startswith("## Other proposals: the LIB entry (queue.md line ")
+    assert "which is not a directory" in entry["problem"]
+    assert any(p.startswith("queue row PROJ-001 M1: APP-001 M1 is unresolved: no proposals directory is listed for APP")
+               for p in problems)
+    assert "Live after names OTHER-001 M1, which is DROPPED" in problems
+    assert "Replaced by names OTHER-001 M1, which is itself DROPPED" in problems
+    assert any(p.startswith("Replaced by names LIB-001 M1, which is unresolved: the LIB entry") for p in problems)
+
+
+def test_check_looks_for_a_replacement_in_the_other_project_queue(tmp_path: Path) -> None:
+    local = _other_setup(tmp_path, "None", "DONE", ("| OTHER-001 M1 | None | |",))
+    text = _proposal("accepted", _milestone(1, "DROPPED", "- See Decision Log.\n\nReplaced by: OTHER-001 M2")
+                     + _milestone(2, "NOT STARTED"))
+    _write(local, "PROJ-002-b.md", text.replace("PROJ-001", "PROJ-002"))
+    problems = _problems(local)
+    assert any(p.startswith("Replaced by names OTHER-001 M2, which no queue row names in ") for p in problems)
+    _queue(tmp_path / "other", "| OTHER-001 M1-M2 | None | |")
+    assert not any("OTHER-001" in p for p in _problems(local))
+
+
+def test_candidates_resolve_dependencies_in_another_project(tmp_path: Path) -> None:
+    local = _other_setup(tmp_path, other="DONE", entry="- OTHER: ../other\n- LIB: ../lib")
+    implemented = _proposal("implemented", _milestone(1, "DONE", "- Done.")).replace("PROJ-001", "OTHER-002")
+    _write(tmp_path / "other", "OTHER-002-c.md", implemented)
+    _candidate(local, "PROJ-002", deps="- OTHER-002")
+    _candidate(local, "PROJ-003", deps="- OTHER-001")
+    _candidate(local, "PROJ-004", deps="- LIB-001")
+    _candidate(local, "PROJ-005", deps="- ADR-0019 (not a proposal)")
+    report = proposals.candidates(local)
+    assert _tier(report, "ready") == ["PROJ-002", "PROJ-005"]
+    reasons = {e["proposal"]: e["reasons"] for e in report["not_schedulable"]}
+    assert reasons["PROJ-003"][0].startswith("depends on OTHER-001, which has no queue row in ")
+    assert reasons["PROJ-004"][0].startswith("depends on LIB-001, which is unresolved: the LIB entry")
+
+
 # -- freeze -----------------------------------------------------------------
 
 

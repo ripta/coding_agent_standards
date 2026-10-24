@@ -7,6 +7,8 @@ Documents reference each other using these patterns:
 - Proposals list dependencies under `## Dependencies` as a bullet list: `- PROJ-001`
 - Proposals list ADRs and other references under `## References` as a bullet list: `- ADR-01: decision explanation`
 - Queue rows name milestone ranges: `PROJ-003 M1-M4`
+- A reference to another project's proposal keeps that project's prefix: `OTHER-007 M2`. The queue's
+  `## Other proposals` section says where that project's proposals live. See `plans.md` "Other Projects' Proposals"
 - ADRs list the originating proposal under `## References`: `- PROJ-001 (originating proposal, if any)`
 
 ## Referring to Milestones

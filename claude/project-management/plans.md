@@ -66,7 +66,8 @@ picked in. `scripts/proposals.py candidates` in the plugin computes the tiers an
 
 ## The Queue File
 
-The queue is `queue.md`, beside the proposal index in the proposals directory. It holds one table:
+The queue is `queue.md`, beside the proposal index in the proposals directory. It holds one table. An optional
+`## Other proposals` section below the table names where other projects' proposals live:
 
 ```markdown
 # Queue
@@ -77,6 +78,11 @@ The queue is `queue.md`, beside the proposal index in the proposals directory. I
 | PROJ-003 M1-M2 | PROJ-001 M4 | Needs the parser M4 adds. Split at M2: M3-M5 waits on the PROJ-002 rollout |
 | PROJ-002 M1-M3 | None | |
 | PROJ-003 M3-M5 | PROJ-002 M3 (merge after deployed) | Split from M1-M2: M3 drops the v1 field the deployed PROJ-002 reader still reads |
+| PROJ-004 M1-M2 | OTHER-007 M2 | Needs the export endpoint another app adds |
+
+## Other proposals
+
+- OTHER: ../../other-app/docs/proposals
 ```
 
 The queue carries no status column. Status is read from the milestones. `queue.md` records order. It is not a progress
@@ -88,27 +94,64 @@ The queue follows these rules:
   top of the file always records the order work was built in
 - **Splits.** When other work is built between milestones of one row, the row splits at that point. Every row of a
   proposal that has more than one row carries a note saying why
-- **Depends-on.** The cell holds scheduling dependencies only. It names `PROJ-NNN` or `PROJ-NNN MN`, or `None`. An
-  entry may carry the `(merge after deployed)` row gate. Design dependencies stay in the proposal's Dependencies
-  section. See `tracking.md` "Dependency Direction". A dependency's reason goes in the row's note
+- **Depends-on.** The cell holds scheduling dependencies only. It names `PROJ-NNN` or `PROJ-NNN MN`, or `None`. The
+  proposal it names may live in another project. See "Other Projects' Proposals". An entry may carry the
+  `(merge after deployed)` row gate. Design dependencies stay in the proposal's Dependencies section. See
+  `tracking.md` "Dependency Direction". A dependency's reason goes in the row's note
 - **Met.** A `PROJ-NNN MN` dependency is met when that milestone is `DONE`. A `PROJ-NNN` dependency is met when the
   proposal is `implemented`. A `(merge after deployed)` dependency also needs that work live in production, and only
-  the user says when it is. Until then it is awaiting deploy. See "Deployment Dependencies"
+  the user says when it is. Until then it is awaiting deploy. See "Deployment Dependencies". A dependency in another
+  project is met by that project's milestones and proposal status, the same way
 - **Blocked.** A dependency on a `DROPPED` milestone, or on a proposal that will not be built, blocks the row. The tools
   surface it to the user. They also surface a dependency on a milestone that no queue row names, or on a proposal that
   is not `accepted` or `implemented`. They never hold such a row silently. When a dropped milestone carries a
-  `Replaced by` line, they name the replacement as what to wait on instead. A dependency awaiting deploy is never
-  blocked
+  `Replaced by` line, they name the replacement as what to wait on instead. For a dependency in another project, the
+  queue row they look for is in that project's queue. A dependency awaiting deploy is never blocked, and neither is an
+  unresolved one
 - **Readiness.** A row is ready when its dependencies are met and every earlier row of the same proposal is finished.
   A queue row is the unit `/work-queue` runs, reviews over its commit range, and holds or blocks as a whole. Its
   milestone range is its identifier. A milestone with a `**Live after:**` line also waits for that deployment. Only
-  that milestone waits, so the milestones before it in the row still run
+  that milestone waits, so the milestones before it in the row still run. An unresolved dependency holds the row
+  until its project's proposals can be found
 - **Progress.** A read-only report joins each row with its milestones' status. It prints what is done, what is next,
-  what is held, and what awaits a deploy. It also lists every revisit hook. `scripts/proposals.py progress` in the
-  plugin prints it. A notice at session start names any hook whose date has passed
+  what is held, and what awaits a deploy. Held rows include those with an unresolved dependency, with the fix. It also
+  lists every revisit hook. `scripts/proposals.py progress` in the plugin prints it. A notice at session start names
+  any hook whose date has passed
 
 A milestone of an `implemented` proposal from an earlier era counts as met for a plain dependency on it. See
 `proposals.md` "History from Earlier Eras".
+
+### Other Projects' Proposals
+
+A depends-on cell, a `**Live after:**` line, or a `Replaced by` line may name a proposal that lives in another
+project's proposals directory. The queue says where. A `## Other proposals` section below the table maps each of those
+prefixes to a proposals directory, one bullet per prefix. The example above has one entry. There is no separate config
+file.
+
+A relative path resolves against the directory `queue.md` sits in. When the specs directory is a symlink, the path
+starts from the link's target, not from the link. Every checkout that links the same specs repo then resolves an entry
+to the same place. The one entry form covers every repository layout:
+
+- In a monorepo with one app per directory, the entry points at the other app's proposals directory.
+- In a monorepo whose parts are submodules, the entry points into the submodule's checkout. It resolves once the
+  submodule is checked out.
+- In a polyrepo, the entry points at a sibling checkout, such as `../../../other-repo/docs/proposals`.
+- A hybrid mixes these, with one entry per prefix.
+
+A sibling checkout may sit at another relative path on some machine. There, pass `--proposals-for OTHER=<path>` to
+`scripts/proposals.py` instead of editing the entry. The flag adds an entry or overrides one for that run. A relative
+path on the flag resolves against the current directory.
+
+An ID found in this project's own proposals directory is local, whatever its prefix. Any other ID resolves through the
+entry for its prefix. A dependency resolved that way follows the Met, Blocked, and Readiness rules above, against the
+other project's proposals and its own `queue.md`. Only this project's queue is read for entries. The other project's
+entries are never followed.
+
+A missing ID whose prefix this project uses, and that has no entry, does not exist. It blocks the row. A dependency is
+unresolved when its prefix has no entry and this project uses no such prefix. It is also unresolved when its entry
+leads to a missing directory, or to one that holds no proposals with that prefix. An unresolved dependency holds its
+row. It is never blocked, since the fix is an entry or a flag, not a decision about the work. `scripts/proposals.py
+check` reports each entry that does not resolve, and each unresolved reference.
 
 ## Deployment Dependencies
 

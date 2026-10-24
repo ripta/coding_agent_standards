@@ -28,6 +28,8 @@ project-specific deviation when one exists.
 
 `${CLAUDE_PLUGIN_ROOT}/scripts/proposals.py` reads the queue and the
 proposals, as in `/work-on`. Use it rather than parsing the files by hand.
+Pass any `--proposals-for PREFIX=PATH` override the user gives to every call
+in the run.
 
 ## What the user authorizes by approving the plan
 
@@ -95,10 +97,16 @@ create or switch branches. Never act on an edit this run did not make.
      never in-run, since the run cannot deploy.
    - Blocked: its state is `blocked`. It needs the user, so it is a question in
      item 7. Never hold it silently.
+   - Unresolved: its state is `unresolved`. Another project's proposals cannot
+     be found, so the row is held. It is not a question. The plan names the
+     fix from its reason: an entry for the prefix under `## Other proposals`
+     in `queue.md`, or a `--proposals-for PREFIX=PATH` flag when the checkout
+     sits elsewhere on this machine. See `plans.md` "Other Projects'
+     Proposals".
    - Unmet: anything else.
 
-   A row is held when the notes hold it, when it has an unmet or blocked
-   dependency, when an earlier row of its proposal is held, or when it depends
+   A row is held when the notes hold it, when it has an unmet, blocked, or
+   unresolved dependency, when an earlier row of its proposal is held, or when it depends
    on a held row. A row gate the user says is not live holds its row too. A
    held row stays in the plan, but no milestone of it runs. Holding a row
    never blocks the other rows. A dependency cycle among rows in the run is a
@@ -146,7 +154,8 @@ create or switch branches. Never act on an edit this run did not make.
    - The run: every milestone in its expected run order, with its row and a
      one-line description
    - Each row's dependencies, and how each is met
-   - Each held row, with the reason it is held
+   - Each held row, with the reason it is held, and the fix for each
+     unresolved dependency
    - Each row `next` skipped, with its reasons
    - A short implementation approach for each milestone, and the files it
      touches
