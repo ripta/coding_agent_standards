@@ -50,7 +50,7 @@ Why this change is needed.
 
 ## Design Decisions (Settled)
 
-Decisions made with rationale.
+Decisions made with rationale. A contract that crosses deploy units states its skew behavior. See "Version Skew".
 
 ## Design Decisions (Open)
 
@@ -275,6 +275,28 @@ Every deferred question must move from the Open section to the Settled section a
 hook captured both in the settled entry and in the Decision Log. A hook with a condition or a date is written as a
 `**Revisit:**` line. See "Revisit Hooks".
 
+## Version Skew
+
+A proposal that changes a contract crossing deploy units states its skew behavior as a settled decision. See
+`glossary.md` for deploy units. Such contracts include APIs, wire formats, events, shared stored data, and prompts or
+payloads one unit sends another.
+
+The analysis covers both directions and names the units on each side:
+
+- Old to new: the deployed version of one unit talks to the new version of the other
+- New to old: the new version of one unit talks to the deployed version of the other
+
+A unit that rolls out gradually is also skewed against its own previous version. When the change alters a format that
+replicas share or that the unit persists, the analysis covers old and new replicas of that unit too.
+
+Each side must tolerate any version of the other. A deploy order, such as "the service lands first, in its own deploy",
+is not a substitute. Rollouts stall, roll back, and overlap. An order the design depends on does not survive them.
+
+A proposal may rely on an ordering only when the analysis shows a failing direction that cannot be made tolerant.
+Removing a compatibility path or API version that a deployed unit still calls is one example. Dropping a column the
+deployed version still reads is another. The proposal then names that failing direction. `plans.md` "Deployment
+Dependencies" defines the queue gate for it.
+
 ## Risks
 
 Every proposal carries a Risks section describing what could go wrong with the design — not implementation bugs, but
@@ -287,6 +309,8 @@ design-level exposure: wrong assumptions, one-way doors, blast radius, failure m
   API contracts, wire formats, or data backfills — must appear as risks unless the design itself removes the
   irreversibility (e.g., a down-migration, versioned contract, or feature flag), in which case the settled decision
   notes that.
+- An ordering that the version-skew analysis cannot avoid is a one-way-door risk. The risk entry names the failing
+  direction. See "Version Skew".
 - "None identified" is acceptable only with a one-sentence reason (e.g., purely additive tooling with no consumers).
 - A risk rated high likelihood and high impact blocks advancing the proposal to `accepted` until it is mitigated or
   explicitly accepted, with the acceptance recorded in the Decision Log.

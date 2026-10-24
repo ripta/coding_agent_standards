@@ -82,6 +82,12 @@ The proposal must say what shipped. Check the work's proposal edits:
   `corrections_logged` is above zero, judge whether each text hunk is a
   correction of fact whose Decision Log entry gives the prior meaning. Such a
   hunk is not a finding.
+- **Version skew.** When the diff changes a contract that crosses deploy
+  units, the proposal must carry the skew analysis that `proposals.md`
+  "Version Skew" requires, in both directions. A missing analysis is a
+  finding. So is a deploy order, a deploy gate, or "lands first, in its own
+  deploy" in the proposal with no analysis naming a failing direction. The
+  fix to suggest is the skew analysis. These findings are `verify-first`.
 
 A finding on a hunk with origin `other` or `unknown` has disposition `user`.
 The work under review did not make it. Never ask the caller to revert it.
@@ -217,6 +223,6 @@ clean -- say so plainly. For each finding:
   wrong-result path.
 - **disposition**: `fix-directly` (comment, style, plan-gap, ADR format,
   amendments and frozen edits the work made), `verify-first` (PLAUSIBLE
-  correctness/security, shortcuts the plan did not approve, and ADRs that fail
-  the bar or change an accepted decision), or `user` (an edit the work did not
-  make).
+  correctness/security, shortcuts the plan did not approve, missing skew
+  analysis, and ADRs that fail the bar or change an accepted decision), or
+  `user` (an edit the work did not make).

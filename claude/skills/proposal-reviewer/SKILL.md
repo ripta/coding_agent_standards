@@ -328,7 +328,8 @@ Before wrap-up, interrogate the proposal's Risks section against the "Risks" sec
    acceptance. "None identified" carries a stated reason. A risk with neither mitigation nor acceptance is really an
    open question — move it to Design Decisions (Open) and resolve it via Step 5.
 2. **One-way doors**: Scan the settled decisions for irreversible choices — schema or data migrations, published API
-   contracts, wire formats, data backfills — that are not listed as risks and not defused by the design itself.
+   contracts, wire formats, data backfills — that are not listed as risks and not defused by the design itself. Check
+   each contract that crosses deploy units, and each deploy order, against "Version Skew" in the same file.
 3. **Unstated exposure**: Check for risks implied but not recorded: dependencies on other in-flight proposals whose
    design could still shift (cross-reference the Dependencies and Impacts sections), and open questions whose eventual
    resolution could invalidate a recorded mitigation.

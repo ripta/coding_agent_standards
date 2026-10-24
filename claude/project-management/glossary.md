@@ -29,6 +29,13 @@ range. The unit `/work-queue` runs and reviews as a whole.
 accepting a proposal is not scheduling it. Scheduling happens only when the user
 asks for it.
 
+**Deploy unit** — the set of components that reach production together, in one
+artifact or one atomic switch. Repo layout does not decide it. Two apps in one
+monorepo that deploy separately are two units. Repos or submodules built into
+one artifact are one unit. A coordinated release of separately running
+processes is still several units. A rolling or staged rollout runs their old and
+new versions side by side.
+
 **Revisit hook** — a `**Revisit:**` line that says when to look at deferred work
 again: a condition, an on-or-after date with its anchor, or both.
 

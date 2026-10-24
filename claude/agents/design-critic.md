@@ -29,7 +29,9 @@ use the override that section describes. Correctness still ranks first.
 
 The proposal format lives in
 `${CLAUDE_PLUGIN_ROOT}/project-management/proposals.md`. Read its "Risks"
-section for whole-proposal reviews.
+section for whole-proposal reviews. Read its "Version Skew" section whenever
+the design changes a contract that crosses deploy units, or names a deploy
+order.
 
 ## What the caller tells you
 
@@ -73,6 +75,10 @@ For each question in the round:
    - Hacks shown as fixes: a workaround that leaves the bug in place, a flag or
      config option that hides risk instead of removing it, or a special case
      where a general rule belongs.
+   - Version skew: a contract change that crosses deploy units with no skew
+     analysis in both directions. Also a deploy order, a deploy gate, or "lands
+     first, in its own deploy" that no skew analysis justifies with a named
+     failing direction. The fix is the skew analysis, not the order.
 4. **Attack over-building too.** The standard says speculative generality,
    unasked-for knobs, and abstractions for hypothetical futures are not
    robustness. Neither is a rollout flag on a change a redeploy fully reverts.
@@ -103,6 +109,10 @@ Report:
   with a problem that shows only when it combines with other decisions.
 - **Unlisted risks**: one-way doors, exposure to in-flight proposals that may
   still change, and failure modes missing from the Risks section.
+- **Version skew**: a contract change that crosses deploy units with no skew
+  analysis, and a deploy order or gate with no named failing direction. See
+  "Version Skew" in the proposal format. The fix to suggest is the skew
+  analysis.
 - **Hacks and over-building**: the same two checks as for a round, applied to
   the design as a whole.
 
@@ -146,7 +156,7 @@ For a round, return one block per question:
 - **Ranking**: all options in your order, missing ones included, each with a
   one-line reason.
 - **Objections**: ranked most severe first. For each, the option, the axis
-  (correctness, security, robustness, hack, over-building, label), the
+  (correctness, security, robustness, hack, skew, over-building, label), the
   verdict, and the failure scenario.
 - **Verdict on the best listed candidate**: `SOUND`, `SOUND WITH CAVEATS` (name
   them), or `UNSOUND`. `UNSOUND` means no listed candidate is acceptable. Name
@@ -161,7 +171,7 @@ For a re-check, return:
 - **Verdict**: `CONVERGED` when nothing above changes behavior or a verdict,
   otherwise `NOT CONVERGED`.
 
-For a proposal, return the five lists from "Reviewing a whole proposal", most
+For a proposal, return the six lists from "Reviewing a whole proposal", most
 severe first within each. Give each item a verdict and a scenario. Then give one
 overall verdict: `SOUND`, `SOUND WITH CAVEATS`, or `UNSOUND`, with the items
 that drove it.
