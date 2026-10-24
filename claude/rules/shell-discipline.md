@@ -18,6 +18,10 @@
 Sometimes a command cannot run inside the session. The user then runs it,
 either with `! <command>` in the prompt or in a separate terminal.
 
+An approved `/work-queue` plan replaces this section for its run. The run
+runs such commands itself, through the permission prompt. See that command's
+"What the user authorizes by approving the plan".
+
 - A single self-contained command can be handed over as-is.
 - When the work needs several commands, specific arguments, or a specific
   working directory, write a wrapper script instead. Do not ask the user to

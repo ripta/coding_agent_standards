@@ -83,6 +83,7 @@ field.
      approach fixes it fully. Picking an approach is a choice, even when only
      one seems obvious. If a more complete approach exists, name what this one
      leaves undone. Then ask the user to choose before you call ExitPlanMode.
+     Under `/work-queue`, plan the complete approach as a best guess instead.
      Count any investment the touched code needs, as defined in
      `decision-making.md`
    - A breakdown into smaller tasks, where that makes implementation easier and

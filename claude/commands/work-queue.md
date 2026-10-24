@@ -46,7 +46,18 @@ run. It overrides these rules for this run only:
   milestones or between rows.
 - The rule to ask before deciding an ambiguity. Make the best guess the
   proposals and design documents support, and record it in the session
-  report.
+  report. This includes the rule in `/work-on` step 6 to ask the user to
+  choose when a more complete approach exists. Plan the complete approach.
+- The rule to hand the user commands to run, in
+  `${CLAUDE_PLUGIN_ROOT}/rules/shell-discipline.md` "Commands the User Runs".
+  The run runs every command itself. That includes commands that need the
+  user's credentials, such as a fixture re-record that reads a token. Run
+  those with the sandbox disabled, through the permission prompt. The plan
+  names each one, so approving it covers them. When a run fails, diagnose and
+  fix the cause before running it again. Do not call a failure transient
+  without evidence. When the permission check still denies a command, tell
+  the user in one line what it needs, and keep working on what does not
+  depend on it.
 - The rule to leave unfinished work in the tree. Stash a blocked milestone's
   unfinished work by path, as section 5 describes, and list every stash in
   the final report.
@@ -116,6 +127,15 @@ create or switch branches. Never act on an edit this run did not make.
    holds only its milestone and the milestones after it in the row. The
    milestones before it still run. Mark the held ones HELD.
 
+   These are the only ways a row or milestone is held. A check only the user
+   can perform never holds one. Examples are a live trial, a test in the
+   user's browser, or the user's ruling on a trial's outcome. Build everything
+   up to that check. When the rest of the milestone's checks pass, mark it
+   `DONE` and say in its As built block which check is left to the user. When
+   the proposal makes that check a condition of `DONE`, split it into a new
+   milestone by amendment, as section 2 step 4 describes. Then run everything
+   before it.
+
 4. Read the design documents and ADRs the proposals cite. Explore the codebase
    enough to plan every milestone. Use Explore agents for this, so the
    coordinator keeps their conclusions and not the file dumps. Detailed
@@ -146,9 +166,15 @@ create or switch branches. Never act on an edit this run did not make.
    - The session report directory, when item 6 could not resolve it.
    - An ambiguity that only the user can settle: a contradiction between the
      proposal and the code or an ADR, or a choice the documents do not
-     constrain at all and that would be costly to reverse.
+     constrain at all and that would be costly to reverse. A guess is costly
+     to reverse only when it reaches users before the user can review it. The
+     run never pushes, so its own commits are not costly to reverse.
 
-   Everything else becomes a best guess in the plan.
+   This list is closed. Everything else becomes a best guess in the plan.
+   Never offer to hold, pause, or skip work, or to hand a step to the user,
+   as an option. Needing the user's credentials, browser, or live check is
+   not a question. Item 3 and "What the user authorizes by approving the
+   plan" cover them.
 
 8. Write the plan:
    - The run: every milestone in its expected run order, with its row and a
@@ -157,6 +183,9 @@ create or switch branches. Never act on an edit this run did not make.
    - Each held row, with the reason it is held, and the fix for each
      unresolved dependency
    - Each row `next` skipped, with its reasons
+   - Each command that needs the user's credentials, and the milestone that
+     runs it
+   - Each check left to the user, and the milestone it belongs to
    - A short implementation approach for each milestone, and the files it
      touches
    - The local checks every milestone runs
