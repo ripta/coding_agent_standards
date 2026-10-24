@@ -51,6 +51,19 @@ ln -s /actual/path/to/coding_agent_standards ~/coding-standards
 
 The plugin's SessionStart hook, `claude/hooks/check-setup.sh`, checks that the machine and the project are set up.
 
+## Repository Layouts
+
+These standards serve projects in several layouts:
+
+- a monorepo with one app per directory
+- a monorepo whose parts are git submodules
+- a polyrepo, one repo per component
+- hybrids of these
+
+Check every standard, skill, and script against each layout before changing it. Do not assume a fixed directory
+layout or a committed config file. Do not treat "same repo" as "ships together". Components in one repo may deploy
+independently. Components in separate repos may ship together.
+
 ## Standards for This Repo
 
 These imports mirror `profiles/baseline.md`. They use relative paths so they read the working tree. The profile's
