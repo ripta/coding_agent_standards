@@ -23,5 +23,9 @@
 - Integrate a worktree's branch before removing the worktree. Confirm it with `git branch --merged <target>`
 - Remove a worktree with plain `git worktree remove`, and its branch with `git branch -d`. Both refuse when work would
   be lost. Never add `--force`, and never use `-D`, unless the user explicitly requests it
+- A branch integrated by cherry-pick is not merged, so `git branch --merged` omits it and `git branch -d` refuses it.
+  Confirm it with `git cherry <target> <branch>` instead. When every commit shows `-`, its work is on the target. Clean
+  up without asking: remove the worktree with plain `git worktree remove`, then delete the branch with `git branch -D`.
+  A commit that shows `+` is not on the target, so keep the branch and tell the user
 - At an exit prompt, choose to keep a worktree that still holds work. Removing it deletes that work along with the
   directory and branch
