@@ -23,6 +23,9 @@ rows, with the hooks.
 `next` picks the next N rows a `/work-queue` run can take, in queue order.
 `candidates` recommends accepted proposals to schedule, in tiers.
 
+The queue is DIR/queue.md, which holds unfinished rows, and DIR/history.md, which holds
+finished rows in the order they were built. Every command reads both as one queue.
+
 DIR is the proposals directory, which may sit in a symlinked specs repo. Results
 are JSON on stdout. Errors go to stderr with exit status 1.
 
@@ -73,6 +76,8 @@ LINK_TARGET = re.compile(r"\]\([^)]*\)")
 AUDIT_ENTRY = re.compile(r"\brevisit\b", re.IGNORECASE)
 CORRECTION_ENTRY = re.compile(r"\bcorrection of fact\b", re.IGNORECASE)
 UNCOMMITTED = "0" * 40
+QUEUE_FILE = "queue.md"
+HISTORY_FILE = "history.md"
 
 
 class ProposalError(Exception):
@@ -273,6 +278,7 @@ class Row:
     last: int
     depends_on: list[Dependency]
     note: str
+    source: str = QUEUE_FILE
 
     @property
     def label(self) -> str:
@@ -288,10 +294,25 @@ def _cells(line: str) -> list[str]:
     return [cell.strip() for cell in line.strip().strip("|").split("|")]
 
 
+def has_queue(proposals_dir: Path) -> bool:
+    return (proposals_dir / QUEUE_FILE).is_file() or (proposals_dir / HISTORY_FILE).is_file()
+
+
 def load_queue(proposals_dir: Path) -> list[Row]:
-    path = proposals_dir / "queue.md"
+    """Read history.md's finished rows, then queue.md's unfinished ones, as one queue.
+
+    History comes first, so the merged list is in build order, and a row's index still
+    compares it with every row of the same proposal.
+    """
+    path = proposals_dir / QUEUE_FILE
     if not path.is_file():
         raise ProposalError(f"{path} does not exist. Scheduling a proposal creates it.")
+    history = proposals_dir / HISTORY_FILE
+    rows = _load_rows(history, 0) if history.is_file() else []
+    return rows + _load_rows(path, len(rows))
+
+
+def _load_rows(path: Path, start: int) -> list[Row]:
     rows: list[Row] = []
     for number, line in enumerate(path.read_text().splitlines(), start=1):
         if not line.lstrip().startswith("|"):
@@ -315,7 +336,7 @@ def load_queue(proposals_dir: Path) -> list[Row]:
                 raise ProposalError(f"{path}:{number}: cannot read dependency {raw!r}")
             number = int(d.group(2)) if d.group(2) else None
             deps.append(Dependency(d.group(1), number, bool(d.group(3)), legacy=d.group(3) == "deployed"))
-        rows.append(Row(len(rows), m.group(1), first, last, deps, cells[2]))
+        rows.append(Row(start + len(rows), m.group(1), first, last, deps, cells[2], path.name))
     return rows
 
 
@@ -405,7 +426,7 @@ def _load_other(location: Location) -> Project | str:
         return f"{where}, which is not a directory"
     try:
         proposals = load_proposals(location.path)
-        rows = load_queue(location.path) if (location.path / "queue.md").is_file() else []
+        rows = load_queue(location.path) if has_queue(location.path) else []
     except ProposalError as err:
         return f"{where}, which cannot be read: {err}"
     if not any(_prefix(pid) == location.prefix for pid in proposals):
@@ -456,10 +477,9 @@ class Workspace:
 def workspace(
     proposals_dir: Path, overrides: dict[str, Location] | None = None, queue: bool = True
 ) -> Workspace:
-    """Load this project and its entries. With `queue` false, a missing queue.md reads as no rows."""
+    """Load this project and its entries. With `queue` false, a missing queue reads as no rows."""
     proposals = load_proposals(proposals_dir)
-    has_queue = (proposals_dir / "queue.md").is_file()
-    rows = load_queue(proposals_dir) if queue or has_queue else []
+    rows = load_queue(proposals_dir) if queue or has_queue(proposals_dir) else []
     locations = {**load_locations(proposals_dir), **(overrides or {})}
     return Workspace(Project(proposals_dir, proposals, rows), locations)
 
@@ -490,10 +510,9 @@ def _index_statuses(proposals_dir: Path) -> dict[str, tuple[Path, str]]:
 def check(proposals_dir: Path, overrides: dict[str, Location] | None = None) -> list[dict[str, Any]]:
     # Without a queue nothing is scheduled yet, so the checks that need one are skipped. A
     # queue that exists but cannot be read is an error, not an empty queue.
-    has_queue = (proposals_dir / "queue.md").is_file()
     ws = workspace(proposals_dir, overrides, queue=False)
     proposals = ws.local.proposals
-    rows = ws.local.rows if has_queue else None
+    rows = ws.local.rows if has_queue(proposals_dir) else None
     findings: list[dict[str, Any]] = []
 
     def report(proposal: Proposal, problem: str, milestone: int | None = None) -> None:
@@ -538,6 +557,10 @@ def check(proposals_dir: Path, overrides: dict[str, Location] | None = None) -> 
                 report(p, f"milestone status {m.status!r} is not one of {sorted(MILESTONE_STATUSES)}", m.number)
             if m.status in FINISHED and not m.as_built:
                 report(p, f"{m.status} milestone has no As built block", m.number)
+            # A DROPPED milestone may never have been scheduled, but DONE work always was. A DONE
+            # milestone in no row most likely lost its row on the way to history.md.
+            if m.status == "DONE" and not queued(ws.local, p.id, m.number):
+                report(p, f"DONE milestone is in no queue row. Its finished row belongs in {HISTORY_FILE}", m.number)
             if m.status == "DROPPED" and not any("Decision Log" in line for line in m.as_built):
                 report(p, "DROPPED milestone does not link its Decision Log entry", m.number)
             target = m.replaced_by
@@ -593,11 +616,14 @@ def _queue_findings(ws: Workspace) -> list[dict[str, Any]]:
     rows, proposals = ws.local.rows, ws.local.proposals
     findings: list[dict[str, Any]] = []
 
+    def where(row: Row) -> str:
+        return "" if row.source == QUEUE_FILE else f" in {row.source}"
+
     def report(row: Row, problem: str) -> None:
         p = proposals.get(row.proposal)
         findings.append({
             "proposal": row.proposal, "milestone": None, "file": str(p.path) if p else None,
-            "problem": f"queue row {row.label}: {problem}",
+            "problem": f"queue row {row.label}{where(row)}: {problem}",
         })
 
     def finished(row: Row) -> bool:
@@ -607,19 +633,21 @@ def _queue_findings(ws: Workspace) -> list[dict[str, Any]]:
             for n in range(row.first, row.last + 1)
         )
 
-    seen: dict[tuple[str, int], str] = {}
-    unfinished_above = None
+    # Keyed on the row itself, not its label. A row copied into history.md and left in queue.md
+    # has the same label in both files.
+    seen: dict[tuple[str, int], Row] = {}
     for row in rows:
         for n in range(row.first, row.last + 1):
-            other = seen.setdefault((row.proposal, n), row.label)
-            if other != row.label:
-                report(row, f"{row.proposal} M{n} is also in row {other}")
+            other = seen.setdefault((row.proposal, n), row)
+            if other is not row:
+                report(row, f"{row.proposal} M{n} is also in row {other.label}{where(other)}")
         p = proposals.get(row.proposal)
         is_finished = finished(row)
-        if is_finished and unfinished_above is not None:
-            report(row, f"finished, but sits below the unfinished row {unfinished_above}")
+        if is_finished and row.source == QUEUE_FILE:
+            report(row, f"finished, so it moves to the end of {HISTORY_FILE}")
+        if not is_finished and row.source == HISTORY_FILE and p is not None:
+            report(row, f"unfinished, so it belongs in {QUEUE_FILE}")
         if not is_finished:
-            unfinished_above = unfinished_above or row.label
             if p is not None and p.status != "accepted":
                 report(row, f"unfinished, but {row.proposal} is {p.status}. See plans.md \"Stopping a Proposal\"")
         if not row.note and sum(1 for r in rows if r.proposal == row.proposal) > 1:

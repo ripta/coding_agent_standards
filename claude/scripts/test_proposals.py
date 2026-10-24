@@ -360,9 +360,53 @@ def test_check_reports_queue_rules(tmp_path: Path) -> None:
            "| PROJ-001 M2-M3 | None | Split again |", "| PROJ-002 M1 | None | |")
     problems = _problems(tmp_path)
     assert any("PROJ-001 M2 is also in row PROJ-001 M2" in p for p in problems)
-    assert any("PROJ-001 M2: finished, but sits below the unfinished row PROJ-001 M1" in p for p in problems)
+    assert any("PROJ-001 M2: finished, so it moves to the end of history.md" in p for p in problems)
     assert any("queue row PROJ-001 M1: PROJ-001 has more than one row" in p for p in problems)
     assert any("unfinished, but PROJ-002 is deferred" in p for p in problems)
+
+
+def _history(directory: Path, *rows: str) -> None:
+    body = "\n".join(rows)
+    _write(directory, "history.md", f"# History\n\n| Milestones | Depends on | Note |\n|---|---|---|\n{body}\n")
+
+
+def test_history_rows_come_before_queue_rows(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "DONE", "- Done.")
+                                                 + _milestone(2, "NOT STARTED")))
+    _history(tmp_path, "| PROJ-001 M1 | None | Split: M2 waits |")
+    _queue(tmp_path, "| PROJ-001 M2 | PROJ-001 M1 | Split from M1 |")
+    rows = proposals.load_queue(tmp_path)
+    assert [(r.label, r.index, r.source) for r in rows] == [
+        ("PROJ-001 M1", 0, "history.md"), ("PROJ-001 M2", 1, "queue.md"),
+    ]
+    assert _problems(tmp_path) == []
+    assert proposals.row_info(tmp_path, "PROJ-001", None)["ready"] is True
+
+
+def test_check_reports_rows_in_the_wrong_file(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "DONE", "- Done.")
+                                                 + _milestone(2, "NOT STARTED")))
+    _history(tmp_path, "| PROJ-001 M1 | None | Split |", "| PROJ-001 M2 | None | Split |")
+    _queue(tmp_path, "| PROJ-001 M1 | None | Split |")
+    problems = _problems(tmp_path)
+    assert any("queue row PROJ-001 M1: PROJ-001 M1 is also in row PROJ-001 M1 in history.md" in p for p in problems)
+    assert any("queue row PROJ-001 M2 in history.md: unfinished, so it belongs in queue.md" in p for p in problems)
+
+
+def test_check_reports_done_milestone_in_no_row(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "DONE", "- Done.")
+                                                 + _milestone(2, "DROPPED", "- See Decision Log.")
+                                                 + _milestone(3, "NOT STARTED")))
+    _queue(tmp_path, "| PROJ-001 M3 | None | |")
+    problems = [f for f in proposals.check(tmp_path) if "in no queue row" in f["problem"]]
+    assert [f["milestone"] for f in problems] == [1]
+
+
+def test_check_refuses_history_without_a_queue(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "DONE", "- Done.")))
+    _history(tmp_path, "| PROJ-001 M1 | None | |")
+    with pytest.raises(proposals.ProposalError, match="queue.md does not exist"):
+        proposals.check(tmp_path)
 
 
 def test_check_compares_the_index(tmp_path: Path) -> None:
@@ -555,7 +599,8 @@ def test_check_asks_to_reclassify_each_legacy_deployed_gate(tmp_path: Path) -> N
     _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", milestones))
     other = _proposal("implemented", _milestone(1, "DONE", "- Done."))
     _write(tmp_path, "PROJ-002-b.md", other.replace("PROJ-001", "PROJ-002"))
-    _queue(tmp_path, "| PROJ-002 M1 | None | |", "| PROJ-001 M1 | PROJ-002 M1 (deployed) | Split: a |",
+    _history(tmp_path, "| PROJ-002 M1 | None | |")
+    _queue(tmp_path, "| PROJ-001 M1 | PROJ-002 M1 (deployed) | Split: a |",
            "| PROJ-001 M2 | PROJ-002 M1 (merge after deployed) | Split: b |")
     [problem] = _problems(tmp_path)
     assert problem.startswith("queue row PROJ-001 M1: PROJ-002 M1 (deployed) is the legacy row gate")

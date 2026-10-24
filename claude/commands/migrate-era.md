@@ -27,8 +27,8 @@ memory.
    vocabulary, and what to retire. Ask them together where you can.
 
 4. Write the plan: every file to create or edit, every proposal's new
-   milestones with their statuses, every amendment, the full `queue.md`, and
-   everything to retire. Call ExitPlanMode. That approval is the only gate.
+   milestones with their statuses, every amendment, the full `queue.md` and
+   `history.md`, and everything to retire. Call ExitPlanMode. That approval is the only gate.
 
 5. Apply the plan. Then follow the guide's Step 8, and report what the checks
    say.

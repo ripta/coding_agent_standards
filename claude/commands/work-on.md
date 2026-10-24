@@ -157,8 +157,8 @@ field.
     Once the review passes, finish the proposal:
     - When `row` reported this as the proposal's last unfinished milestone, set
       the proposal to `implemented` and update the proposal index
-    - When it was the last milestone in its row, move the row above every
-      unfinished row in `queue.md`
+    - When it was the last milestone in its row, move the row from `queue.md`
+      to the end of `history.md`, creating it if needed
     - Run `proposals.py check` once more
 
 13. Summarize the work as a commit message, following

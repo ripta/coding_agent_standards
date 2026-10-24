@@ -412,7 +412,7 @@ When the last milestone of a row in the run is committed:
 
 3. Only now finish the row, per `plans.md` "Working a Milestone". A proposal
    whose milestones are all finished becomes `implemented`, and the proposal
-   index says so. The row moves above every unfinished row in `queue.md`. Run
+   index says so. The row moves from `queue.md` to the end of `history.md`. Run
    `proposals.py check`, and fix what it reports. Commit these edits by path,
    and record the specs commit. Writing `implemented` before the review's
    fixes land would freeze the proposal before its last amendment.
@@ -451,8 +451,8 @@ The first row report of the run also carries the run state, near the top: the
 base commits, each row's specs commits, every milestone with its run status,
 and each held or blocked row with its reason. Update it whenever a status
 changes. Later row reports link to it. After a context compaction, re-read it,
-the session reports, the proposals, and `queue.md` to find where the run
-stands, then continue. A run resumed in a new session does the same. The run's
+the session reports, the proposals, `queue.md`, and `history.md` to find
+where the run stands, then continue. A run resumed in a new session does the same. The run's
 reports are still its own to amend, even once committed.
 
 The report directory may sit inside the code repo or the specs repo, e.g. at

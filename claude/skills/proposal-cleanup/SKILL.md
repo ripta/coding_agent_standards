@@ -3,7 +3,7 @@ name: proposal-cleanup
 description: |
   Reconcile a project's proposals, proposal index, and queue after milestones
   finish. Marks proposals implemented when every milestone is finished, syncs
-  the index, moves finished queue rows to the top, and reports drift it may not
+  the index, moves finished queue rows to history.md, and reports drift it may not
   fix. Also trims the proposal dependency graph and prunes captured ideas, when
   the project has them.
 model: sonnet
@@ -23,9 +23,9 @@ the user gives to every call.
 ### Step 1: Locate the Proposals Directory
 
 Find the proposals directory by checking common locations (`spec/proposals/`, `docs/proposals/`, `proposals/`). It
-holds the index and `queue.md`. The index is `index.md` or `README.md`, per the "Index File Name" section of
-`${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. If the directory holds both, stop before editing anything.
-Tell the user to consolidate the two into one file first.
+holds the index, `queue.md`, and `history.md` once a row has finished. The index is `index.md` or `README.md`, per the
+"Index File Name" section of `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. If the directory holds both
+indexes, stop before editing anything. Tell the user to consolidate the two into one file first.
 
 Run `python3 ${CLAUDE_SKILL_DIR}/../../scripts/detect_era.py --specs-dir <specs dir>`. If it reports an era other
 than 3, or `partial`, the project has not finished migrating to era 3. Stop and tell the user to migrate first, with
@@ -38,11 +38,12 @@ Run `proposals.py check`. Sort its findings:
 - **Finished, not marked.** "every milestone is finished, so the proposal should be implemented". Step 3 fixes these.
 - **Index drift.** "index.md lists ..., but the proposal says ...". The proposal is the source of truth. Step 4 fixes
   these.
+- **Finished row in `queue.md`.** "finished, so it moves to the end of history.md". Step 5 fixes these.
 - **Everything else.** Report it, and leave it alone. That includes an `implemented` proposal with unfinished
   milestones, an unknown milestone status, a `DROPPED` milestone with no Decision Log link, a bad `Replaced by` or
-  `Live after` line, a legacy `(deployed)` gate, every hook fault, an `## Other proposals` entry that does not resolve,
-  and an unresolved reference to another project's proposal. Each needs the user, or the work that owns the
-  milestone.
+  `Live after` line, a legacy `(deployed)` gate, an unfinished row in `history.md`, a milestone in two rows, a `DONE`
+  milestone in no row, every hook fault, an `## Other proposals` entry that does not resolve, and an unresolved
+  reference to another project's proposal. Each needs the user, or the work that owns the milestone.
 
 If the check finds nothing and the queue needs no move in Step 5, tell the user and skip to Step 6.
 
@@ -64,9 +65,16 @@ a proposal to match its index row.
 ### Step 5: Move Finished Queue Rows
 
 A queue row is finished when every milestone it names is `DONE` or `DROPPED`. Under the Order rule in `plans.md` "The
-Queue File", every finished row sits above every unfinished row. The finished block is the rows above the first
-unfinished row. Move each finished row below that point to the end of the finished block, in its current relative
-order. Never edit a row's cells.
+Queue File", finished rows live in `history.md` and unfinished rows in `queue.md`. Move each finished row out of
+`queue.md` to the end of `history.md`, in its current relative order. Never edit a row's cells.
+
+When `history.md` does not exist yet, create it beside `queue.md` with a `# History` heading and the same table header
+as `queue.md`. A project that kept its finished rows at the top of `queue.md`, as the standard once asked, migrates
+this way. Its whole finished block moves in one run.
+
+Move each row in one edit pair: append it to `history.md`, then delete it from `queue.md`. Run `proposals.py check`
+after the moves. A row in both files, or a `DONE` milestone in neither, that the first check did not report means one
+of this run's moves went wrong. Fix it before Step 6.
 
 Then look for rows the queue should no longer hold. An unfinished row of a proposal that is `deferred`, `retracted`,
 `superseded`, or `rejected` means the proposal stopped without the steps in `plans.md` "Stopping a Proposal". Report
@@ -93,7 +101,7 @@ Run `proposals.py check` again, and `proposals.py hooks --passed`. Summarize:
 
 - Which proposals were moved to `implemented`
 - Which index rows were corrected
-- Which queue rows were moved
+- Which queue rows were moved to `history.md`, and whether this run created it
 - Every finding left for the user, and why
 - Each revisit hook whose date has passed. Its audit needs the user: act, extend with a reason, or abandon
 - Which proposals and edges were removed from the dependency graph, if Step 6 ran
@@ -106,5 +114,6 @@ Run `proposals.py check` again, and `proposals.py hooks --passed`. Summarize:
 - Never mark a proposal `implemented` unless every milestone is `DONE` or `DROPPED` and at least one is `DONE`.
 - Never tick a milestone check. Checks are never ticked.
 - Never pick a revisit audit's outcome, and never move a hook's date. Only the user does.
-- Never remove a queue row, and never edit a row's cells. Moving a finished row up is the only queue edit.
+- Never remove a queue row, and never edit a row's cells. Moving a finished row to `history.md` is the only queue
+  edit. Never move a row out of `history.md`.
 - If a proposal file a queue row names does not exist, leave that row alone and note it in the report.

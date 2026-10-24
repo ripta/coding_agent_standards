@@ -89,9 +89,9 @@ directory. This keeps individual repos uncluttered while maintaining a single so
 `docs/` are symlinks, then it means the documents live in the project repository and are committed directly there.
 
 Proposals live in their own subdirectory under this specs directory: `spec/proposals/` (or the `docs/` equivalent). It
-holds the proposals, the proposal index, and `queue.md`. This is why the proposal-related skills and commands look for
-`spec/proposals/` and `docs/proposals/` as common locations — they're checking for this directory. A `spec/phases/`
-directory is history from an earlier era. See `eras.md`.
+holds the proposals, the proposal index, `queue.md`, and `history.md`. This is why the proposal-related skills and
+commands look for `spec/proposals/` and `docs/proposals/` as common locations — they're checking for this directory. A
+`spec/phases/` directory is history from an earlier era. See `eras.md`.
 
 ADRs are usually named `spec/adrs/`, although legacy projects have no fixed subdirectory name; place them alongside any
 existing ADRs, or ask where they should live if none exist yet.

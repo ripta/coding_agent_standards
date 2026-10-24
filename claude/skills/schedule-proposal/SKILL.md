@@ -50,8 +50,9 @@ Do all of this before any question.
    <specs dir>`. If it reports era 0, 1, 2, `mixed`, or `partial`, the project has not finished migrating to era 3.
    Stop and tell the user to migrate first, with `/migrate-era`. Era 3, or no era at all for a project with no
    scheduled work yet, may go on.
-2. **Queue.** Read `queue.md` in the proposals directory. If it does not exist, this is the project's first scheduled
-   work. Step 5 creates it in the form `plans.md` "The Queue File" gives.
+2. **Queue.** Read `queue.md` in the proposals directory, and `history.md` when it exists. Together they are the
+   queue, and "queue row" below means a row in either file. If `queue.md` does not exist, this is the project's first
+   scheduled work. Step 5 creates it in the form `plans.md` "The Queue File" gives.
 3. **Recommend, when no ID was given.** Run `proposals.py candidates`. Show its tiers, as `plans.md` "Choosing What to
    Schedule" describes, in its order. For each candidate, give its unscheduled milestones, what it unblocks, the open
    bugs it cites, its `**Created:**` date, and a one-line reason drawn from its `motivation`. Name what each waiting
@@ -99,9 +100,9 @@ Do all of this before any question.
      submodule, or a sibling checkout. Record the path relative to the directory `queue.md` really sits in, past any
      symlink. It becomes a new entry in Step 5. When you find no directory, or more than one, the path is a question
      for Step 3.
-   - Read that project's proposal and its own `queue.md`. Apply the states above against them. "Queue rows" means rows
-     in that project's queue. An `accepted` dependency with no rows there is scheduled in that project, not this one.
-     Hold it for Step 3 as a blocked dependency.
+   - Read that project's proposal and its own `queue.md` and `history.md`. Apply the states above against them.
+     "Queue rows" means rows in that project's queue. An `accepted` dependency with no rows there is scheduled in that
+     project, not this one. Hold it for Step 3 as a blocked dependency.
    - An existing entry that does not resolve is not yours to edit. Report it, and suggest `--proposals-for` when the
      checkout sits elsewhere on this machine. The row would be held as `unresolved` until the entry resolves.
 
@@ -117,9 +118,9 @@ Do all of this before any question.
      question and no depends-on marker.
 
    Every other entry is a plain dependency.
-10. **Positions.** Note where new rows can go. Finished rows sit at the top of the queue and never move. A new row
-    goes at the end of the queue, or before any unfinished row. A row must not go above a row it depends on, or above
-    an earlier row of the same proposal.
+10. **Positions.** Note where new rows can go. A new row goes in `queue.md`, at the end or before any unfinished row.
+    A finished row still in `queue.md`, from before `history.md` existed, is not a position. A row must not go above a
+    row it depends on, or above an earlier row of the same proposal.
 
 In a batch, every stop in items 5 to 10 that concerns one proposal drops only that proposal, as in item 6.
 
@@ -164,8 +165,8 @@ gate. Do not write until the user approves.
 
 ### Step 5: Write the queue rows
 
-Insert each row at its approved position in `queue.md`. Never move, renumber, or edit an existing row. If the queue
-does not exist yet, create it with the heading, the table header, and the new rows.
+Insert each row at its approved position in `queue.md`. Never move, renumber, or edit an existing row, and never edit
+`history.md`. If `queue.md` does not exist yet, create it with the heading, the table header, and the new rows.
 
 Add each new entry from Step 2 under `## Other proposals`, below the table, as `- OTHER: <path>`. Create the section
 when the queue has none. Never edit an existing entry.

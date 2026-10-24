@@ -19,7 +19,8 @@ implementation found: bugs fixed along the way, residuals, measurements, and
 scope narrowed.
 
 **Queue** — the ordered list of work a project will build, in `queue.md` beside
-the proposal index. Its order is the build order. Finished rows sit at the top.
+the proposal index. Its order is the build order. Finished rows move to
+`history.md` beside it, which records the order work was built in.
 
 **Queue row** — one contiguous range of one proposal's milestones, such as
 `PROJ-004 M3-M5`, with its scheduling dependencies and a note. Named by its

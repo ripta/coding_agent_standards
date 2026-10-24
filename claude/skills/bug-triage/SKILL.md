@@ -85,8 +85,8 @@ single AskUserQuestion call.
 
 1. Set the file's status to `fixed` with today's date, such as `**Status:** fixed 2026-05-25`. Add or fill a `Fixed:`
    line with the date.
-2. Identify what fixed it, best-effort. Scan `git log`, `queue.md`, and the proposal index for the responsible
-   change. Record a commit hash and subject only if you can identify it confidently. Do not guess.
+2. Identify what fixed it, best-effort. Scan `git log`, `history.md`, `queue.md`, and the proposal index for the
+   responsible change. Record a commit hash and subject only if you can identify it confidently. Do not guess.
 3. Set the index row's Status to `fixed`.
 
 ### STILL A BUG: estimate, then offer

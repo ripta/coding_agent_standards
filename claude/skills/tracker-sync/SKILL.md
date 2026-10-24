@@ -122,8 +122,8 @@ Read evidence at `head`. If the checkout is not the default branch at `head`,
 read through `git show <head>:<path>` and `git grep <pattern> <head>` rather
 than the working tree.
 
-- The mapping's proposal index and `queue.md` (`docs/proposals/` or the
-  project's equivalent), and every proposal among `changed_files`. A milestone's
+- The mapping's proposal index, `queue.md`, and `history.md`
+  (`docs/proposals/` or the project's equivalent), and every proposal among `changed_files`. A milestone's
   status and As built block say what landed.
 - Where each open ticket is cited in the mapping's docs: grep for its key.
 - The commits in range whose `refs` name a ticket in the group.

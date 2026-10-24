@@ -96,10 +96,11 @@ correction of fact or a new proposal is needed.
 
 ## Step 6: Build the queue
 
-Create `queue.md` beside the proposal index, in the form `plans.md` "The Queue File" gives.
+Create `queue.md` and `history.md` beside the proposal index, in the form `plans.md` "The Queue File" gives.
 
-- **Finished rows.** For each live proposal with milestones already `DONE`, add finished rows for them first, in the
-  order their phases were built. These record the build order so far.
+- **Finished rows.** For each live proposal with milestones already `DONE`, add finished rows for them to `history.md`,
+  in the order their phases were built. These record the build order so far. Skip `history.md` when nothing is
+  finished yet.
 - **Unfinished rows.** Add one row for each live or pending phase's unfinished milestones, in the order the project
   would have built them: phase number for era 1 and era 2, and plan order for era 0. A phase that implements only part
   of a proposal becomes a row for just that range.

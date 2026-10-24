@@ -153,7 +153,8 @@ Known weak points:
 Era 3 retired phase documents and the phase index. A proposal milestone carries
 its own status, its checks, and an As built block of what implementation found.
 One queue, `queue.md` beside the proposal index, records the order work is
-built in. Each queue row names a range of one proposal's milestones. Work is
+built in. Finished rows move to `history.md` beside it. Each queue row names a
+range of one proposal's milestones. Work is
 named by its milestone ID, such as `PROJ-004 M3-M5`.
 
 Era 3 also added these rules:

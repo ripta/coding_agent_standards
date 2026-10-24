@@ -35,8 +35,9 @@ Stop if there are no unmerged commits.
 
 ## Chunk Boundary Heuristics
 
-1. **Primary**: map commits to the project's queue rows. Read `queue.md` and
-   the proposals it names, as described in `plans.md`; they usually live in
+1. **Primary**: map commits to the project's queue rows. Read `queue.md`,
+   `history.md`, and the proposals they name, as described in `plans.md`.
+   Merged work usually sits in `history.md`. These files usually live in
    `spec/proposals/` or `docs/proposals/`. Match each commit to a row by the
    milestone checks and As built blocks it fulfills. One queue row of work is
    one chunk.

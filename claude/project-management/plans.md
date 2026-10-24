@@ -11,9 +11,10 @@ Phase documents and the phase index belong to earlier eras. A project that still
 
 - A queue row names one contiguous range of one proposal's milestones, such as `PROJ-004 M3-M5`. A milestone appears in
   at most one row
-- Unfinished rows belong only to `accepted` proposals. Finished rows stay, whatever the proposal's status becomes
-- A milestone's ID is permanent once any queue row names it. Rework, or work split out of a milestone, becomes a new
-  milestone with the next free number
+- Unfinished rows belong only to `accepted` proposals. Finished rows stay in `history.md`, whatever the proposal's
+  status becomes. See "The Queue File"
+- A milestone's ID is permanent once any queue row names it, in `queue.md` or `history.md`. Rework, or work split out
+  of a milestone, becomes a new milestone with the next free number
 - Milestones are units of implementation work only. Design work (a design spike, an ADR, a research write-up) is not a
   milestone. Record its result in the proposal's Design Decisions, the ADR, or the research document
 - Refactoring is part of the work. If a feature would be substantially cleaner after restructuring nearby code, include
@@ -66,16 +67,18 @@ picked in. `scripts/proposals.py candidates` in the plugin computes the tiers an
 
 ## The Queue File
 
-The queue is `queue.md`, beside the proposal index in the proposals directory. It holds one table. An optional
-`## Other proposals` section below the table names where other projects' proposals live:
+The queue lives in two files beside the proposal index in the proposals directory. `queue.md` holds the unfinished
+rows, in the order they will be built. `history.md` holds the finished rows, in the order they were built. Read
+together, history first, they are one queue. Every rule here that says "a queue row" means a row in either file.
+
+`queue.md` holds one table. An optional `## Other proposals` section below the table names where other projects'
+proposals live:
 
 ```markdown
 # Queue
 
 | Milestones | Depends on | Note |
 |------------|------------|------|
-| PROJ-001 M1-M4 | None | |
-| PROJ-003 M1-M2 | PROJ-001 M4 | Needs the parser M4 adds. Split at M2: M3-M5 waits on the PROJ-002 rollout |
 | PROJ-002 M1-M3 | None | |
 | PROJ-003 M3-M5 | PROJ-002 M3 (merge after deployed) | Split from M1-M2: M3 drops the v1 field the deployed PROJ-002 reader still reads |
 | PROJ-004 M1-M2 | OTHER-007 M2 | Needs the export endpoint another app adds |
@@ -85,13 +88,28 @@ The queue is `queue.md`, beside the proposal index in the proposals directory. I
 - OTHER: ../../other-app/docs/proposals
 ```
 
-The queue carries no status column. Status is read from the milestones. `queue.md` records order. It is not a progress
-view.
+`history.md` holds one table with the same columns, and nothing else:
+
+```markdown
+# History
+
+| Milestones | Depends on | Note |
+|------------|------------|------|
+| PROJ-001 M1-M4 | None | |
+| PROJ-003 M1-M2 | PROJ-001 M4 | Needs the parser M4 adds. Split at M2: M3-M5 waits on the PROJ-002 rollout |
+```
+
+`queue.md` exists once anything is scheduled, even when every row has moved to `history.md`. `history.md` is created
+when the first row finishes.
+
+The queue carries no status column. Status is read from the milestones. The two files record order. They are not a
+progress view.
 
 The queue follows these rules:
 
-- **Order.** When a row's milestones all finish, the row moves above every unfinished row. Finished rows stay, so the
-  top of the file always records the order work was built in
+- **Order.** When a row's milestones all finish, the row moves from `queue.md` to the end of `history.md`, with its
+  cells unchanged. Rows in `history.md` never move again, so it always records the order work was built in. `queue.md`
+  holds only unfinished rows, and `history.md` only finished ones
 - **Splits.** When other work is built between milestones of one row, the row splits at that point. Every row of a
   proposal that has more than one row carries a note saying why
 - **Depends-on.** The cell holds scheduling dependencies only. It names `PROJ-NNN` or `PROJ-NNN MN`, or `None`. The
@@ -144,8 +162,8 @@ path on the flag resolves against the current directory.
 
 An ID found in this project's own proposals directory is local, whatever its prefix. Any other ID resolves through the
 entry for its prefix. A dependency resolved that way follows the Met, Blocked, and Readiness rules above, against the
-other project's proposals and its own `queue.md`. Only this project's queue is read for entries. The other project's
-entries are never followed.
+other project's proposals and its own `queue.md` and `history.md`. Only this project's queue is read for entries. The
+other project's entries are never followed.
 
 A missing ID whose prefix this project uses, and that has no entry, does not exist. It blocks the row. A dependency is
 unresolved when its prefix has no entry and this project uses no such prefix. It is also unresolved when its entry
@@ -250,21 +268,21 @@ Updating the proposal is part of the work, not an afterthought:
 - When a milestone finishes, set its status to `DONE` and write its As built block
 - When the last milestone finishes, set the proposal to `implemented` and update the proposal index. See
   `proposals.md` "Milestone Status"
-- When a row's milestones all finish, move the row above every unfinished row
+- When a row's milestones all finish, move the row to the end of `history.md`
 
 A queue row inherits a proposal's `**Tradeoffs:** expedient` line. See `proposals.md` "Rules".
 
 ## Stopping a Proposal
 
 When a proposal with unfinished rows becomes `deferred`, `retracted`, `superseded`, or `rejected`, its unfinished rows
-are removed from the queue. Finished rows stay. The status change goes through these steps, in order:
+are removed from `queue.md`. Finished rows stay in `history.md`. The status change goes through these steps, in order:
 
 1. **In-progress milestones.** The user settles an `IN PROGRESS` milestone first. For a terminal status, it becomes
    `DROPPED`. Its As built block records what code already landed, and whether it was reverted. For `deferred`, it goes
    back to `NOT STARTED` with the same note. Or it narrows to what landed and becomes `DONE`, as an amendment, and the
    rest becomes a new milestone. Uncommitted or stashed work is named in the note
 2. **Partly finished rows.** A row with some milestones finished splits at its last finished milestone. The finished
-   part stays as a finished row and moves up under Order. Only the unfinished part is removed
+   part stays as a finished row and moves to `history.md` under Order. Only the unfinished part is removed
 3. **Milestones.** For `retracted`, `superseded`, and `rejected`, the unfinished milestones become `DROPPED`. Each links
    the Decision Log entry that records the status change. A `superseded` proposal's milestones carry a `Replaced by`
    line where the replacing proposal has matching work. For `deferred`, they stay `NOT STARTED`. Dropping is terminal,
