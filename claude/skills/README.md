@@ -61,6 +61,6 @@ Conventions:
 
 - One subdirectory per skill, command, or tool, named after it.
 - Never put state under `~/.config/coding_agent_standards/`. The sandbox blocks all of `~/.config`, since it holds
-  credentials.
+  credentials. `scripts/setup_permissions.py` carves this one directory back out for reading only.
 - Sandboxed sessions can write here only once the user's settings allow it. `scripts/setup_permissions.py` adds that
   allowance. Read state defensively, and fall back to the session's scratchpad when the directory cannot be written.

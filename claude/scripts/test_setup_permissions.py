@@ -12,12 +12,14 @@ import setup_permissions
 
 ALLOW = setup_permissions.MANAGED[("permissions", "allow")]
 WRITE = setup_permissions.MANAGED[("sandbox", "filesystem", "allowWrite")]
+READ = setup_permissions.MANAGED[("sandbox", "filesystem", "allowRead")]
+FILESYSTEM = {"allowWrite": WRITE, "allowRead": READ}
 
 
 def test_an_empty_file_gets_every_managed_entry() -> None:
     new, changes = setup_permissions.plan({})
-    assert new == {"permissions": {"allow": ALLOW}, "sandbox": {"filesystem": {"allowWrite": WRITE}}}
-    assert len(changes) == len(ALLOW) + len(WRITE)
+    assert new == {"permissions": {"allow": ALLOW}, "sandbox": {"filesystem": FILESYSTEM}}
+    assert len(changes) == len(ALLOW) + len(WRITE) + len(READ)
 
 
 def test_other_keys_and_entries_are_kept_in_order() -> None:
@@ -30,7 +32,7 @@ def test_other_keys_and_entries_are_kept_in_order() -> None:
     assert new["theme"] == "light"
     assert new["permissions"]["allow"] == ["Read", "Bash(ls:*)", *ALLOW]
     assert new["permissions"]["deny"] == ["Read(~/.aws/**)"]
-    assert new["sandbox"] == {"enabled": True, "filesystem": {"allowWrite": WRITE}}
+    assert new["sandbox"] == {"enabled": True, "filesystem": FILESYSTEM}
     assert old["permissions"]["allow"] == ["Read", "Bash(ls:*)"]
 
 
@@ -136,7 +138,7 @@ def test_check_reports_and_never_writes(tmp_path: Path, capsys: pytest.CaptureFi
     path.write_text('{"theme": "light"}\n')
     assert setup_permissions.main(["--settings", str(path), "--check"]) == 1
     assert path.read_text() == '{"theme": "light"}\n'
-    assert f"needs {len(ALLOW) + len(WRITE)} change(s)" in capsys.readouterr().out
+    assert f"needs {len(ALLOW) + len(WRITE) + len(READ)} change(s)" in capsys.readouterr().out
 
 
 def test_check_exits_3_when_only_cleanup_is_pending(tmp_path: Path) -> None:

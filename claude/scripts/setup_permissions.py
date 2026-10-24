@@ -33,12 +33,20 @@ STATE_DIR = "~/.local/state/coding_agent_standards"
 # nitipan keeps its own state directory, so it works without the standards installed. Its
 # CLI runs under the sandbox when a session calls it through Bash.
 NITIPAN_STATE_DIR = "~/.local/state/nitipan"
+# Skill preference files and the private-terms list. The sandbox denies reading all of
+# ~/.config, since it holds credentials, so this one directory is carved back out.
+CONFIG_DIR = "~/.config/coding_agent_standards"
 
 # Each key is a path into the settings JSON. Entries are added in this order after any the
 # file already has.
 MANAGED: dict[tuple[str, ...], list[str]] = {
-    ("permissions", "allow"): [f"Edit({STATE_DIR}/**)", f"Edit({NITIPAN_STATE_DIR}/**)"],
+    ("permissions", "allow"): [
+        f"Edit({STATE_DIR}/**)",
+        f"Edit({NITIPAN_STATE_DIR}/**)",
+        f"Read({CONFIG_DIR}/**)",
+    ],
     ("sandbox", "filesystem", "allowWrite"): [STATE_DIR, NITIPAN_STATE_DIR],
+    ("sandbox", "filesystem", "allowRead"): [CONFIG_DIR],
 }
 
 # Entries an earlier version of MANAGED added, and that no version needs any more. Move an
