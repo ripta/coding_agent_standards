@@ -116,6 +116,10 @@ A milestone is a subsection of the Milestones section. Its heading is `### MN: T
 then an optional one-line goal. Then come plain bullets, each phrased as a check. The bullets are the milestone's
 acceptance criteria. There is no separate description and no separate checklist.
 
+A milestone whose checks read production state that another deploy unit's deployment produces carries a
+`**Live after:** PROJ-NNN MN deployed` line, directly after its `**Status:**` line. Only that milestone waits for the
+deployment. See `plans.md` "Live Checks".
+
 The bullets are never ticked. A ticked box would be a second record of progress beside the milestone's status.
 
 Rationale goes in Design Decisions or in the goal line, not in a bullet. A measurement or decision-revisit milestone
@@ -255,7 +259,8 @@ longer live means `implemented`, `rejected`, `superseded`, or `retracted`. An er
 does not count as the era 3 form, though it uses the same status words. See `eras.md`.
 
 The check and the tools skip history. A milestone of an `implemented` history proposal counts as met for a plain
-dependency on it. A `(deployed)` dependency on it stays unmet until the user confirms the deployment.
+dependency on it. A `(merge after deployed)` gate or a `Live after` line that names it awaits deploy until the user says
+the deployment is live. See `plans.md` "Deployment Dependencies".
 
 ## Deferring Decisions
 

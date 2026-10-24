@@ -44,7 +44,8 @@ design. Rows split and reorder. Proposal and milestone IDs are permanent.
 Each artifact type uses inline markdown metadata (not YAML frontmatter), but the fields differ by type:
 
 - Proposals: `**Status:**`, `**Created:**`, `**Updated:**`, and `**Revisit:**` when deferred
-- Proposal milestones: `**Status:**`, under the milestone's heading
+- Proposal milestones: `**Status:**`, under the milestone's heading, and `**Live after:**` on the line after it when
+  the milestone's checks need another deploy unit's deployment
 - ADRs: `**Status:**`, `**Date:**`
 
 The colon goes inside the bold, in every artifact type and every field.

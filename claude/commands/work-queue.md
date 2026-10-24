@@ -82,21 +82,31 @@ create or switch branches. Never act on an edit this run did not make.
    proposal, and check its status. Where `/work-on` says to stop on a
    finished milestone, drop it from the run and note that instead.
 
-3. Classify each row's dependencies from the `row` output. Each is one of:
-   - Met: its state is `met`. A `confirm` dependency is met only once the user
-     confirms the deployment in item 7.
+3. Classify each row's dependencies from the `row` output, and each
+   milestone's `live_after` entry. The `next` output lists both kinds under a
+   row's `awaiting_deploy`, and every `Live after` line under `live_after`.
+   Run `proposals.py row` on a later milestone to read its entry. Each is one
+   of:
+   - Met: its state is `met`.
+   - Awaiting deploy: its state is `awaiting deploy`. Its code is finished,
+     and only the user can say the deploy is live. It is a question in item 7.
    - In-run: its state is `unmet`, and every milestone it waits on is in this
-     run. The row waits for the run to finish them. A `(deployed)` dependency
-     is never in-run, since the run cannot deploy.
+     run. The row waits for the run to finish them. A deploy dependency is
+     never in-run, since the run cannot deploy.
    - Blocked: its state is `blocked`. It needs the user, so it is a question in
      item 7. Never hold it silently.
    - Unmet: anything else.
 
    A row is held when the notes hold it, when it has an unmet or blocked
    dependency, when an earlier row of its proposal is held, or when it depends
-   on a held row. A held row stays in the plan, but no milestone of it runs.
-   Holding a row never blocks the other rows. A dependency cycle among rows in
-   the run is a blocker.
+   on a held row. A row gate the user says is not live holds its row too. A
+   held row stays in the plan, but no milestone of it runs. Holding a row
+   never blocks the other rows. A dependency cycle among rows in the run is a
+   blocker.
+
+   A `live_after` entry that is unmet, or that the user says is not live,
+   holds only its milestone and the milestones after it in the row. The
+   milestones before it still run. Mark the held ones HELD.
 
 4. Read the design documents and ADRs the proposals cite. Explore the codebase
    enough to plan every milestone. Use Explore agents for this, so the
@@ -120,8 +130,11 @@ create or switch branches. Never act on an edit this run did not make.
    - Each `blocked` dependency from item 3, with its reason. Name a
      `Replaced by` hint when there is one.
    - A dependency cycle from item 3.
-   - Whether each `confirm` dependency from item 3 runs in production. A "no"
-     holds the row that depends on it.
+   - Whether each `awaiting deploy` entry from item 3 is live. Ask once per
+     deployment, even when several entries wait on it. A yes lets the work
+     run. A no on a row gate holds its row. A no on a `Live after` line holds
+     only that milestone and the ones after it in the row, as item 3 says.
+     See `plans.md` "Awaiting Deploy".
    - The session report directory, when item 6 could not resolve it.
    - An ambiguity that only the user can settle: a contradiction between the
      proposal and the code or an ADR, or a choice the documents do not

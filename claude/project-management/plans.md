@@ -76,7 +76,7 @@ The queue is `queue.md`, beside the proposal index in the proposals directory. I
 | PROJ-001 M1-M4 | None | |
 | PROJ-003 M1-M2 | PROJ-001 M4 | Needs the parser M4 adds. Split at M2: M3-M5 waits on the PROJ-002 rollout |
 | PROJ-002 M1-M3 | None | |
-| PROJ-003 M3-M5 | PROJ-002 M3 (deployed) | Split from M1-M2: waits on the PROJ-002 rollout |
+| PROJ-003 M3-M5 | PROJ-002 M3 (merge after deployed) | Split from M1-M2: M3 drops the v1 field the deployed PROJ-002 reader still reads |
 ```
 
 The queue carries no status column. Status is read from the milestones. `queue.md` records order. It is not a progress
@@ -88,51 +88,108 @@ The queue follows these rules:
   top of the file always records the order work was built in
 - **Splits.** When other work is built between milestones of one row, the row splits at that point. Every row of a
   proposal that has more than one row carries a note saying why
-- **Depends-on.** The cell holds scheduling dependencies only. It names `PROJ-NNN` or `PROJ-NNN MN`, or `None`. Design
-  dependencies stay in the proposal's Dependencies section. See `tracking.md` "Dependency Direction". A dependency's
-  reason goes in the row's note
+- **Depends-on.** The cell holds scheduling dependencies only. It names `PROJ-NNN` or `PROJ-NNN MN`, or `None`. An
+  entry may carry the `(merge after deployed)` row gate. Design dependencies stay in the proposal's Dependencies
+  section. See `tracking.md` "Dependency Direction". A dependency's reason goes in the row's note
 - **Met.** A `PROJ-NNN MN` dependency is met when that milestone is `DONE`. A `PROJ-NNN` dependency is met when the
-  proposal is `implemented`. A `(deployed)` dependency is also met only once it runs in production. See "Deployment
-  Dependencies"
+  proposal is `implemented`. A `(merge after deployed)` dependency also needs that work live in production, and only
+  the user says when it is. Until then it is awaiting deploy. See "Deployment Dependencies"
 - **Blocked.** A dependency on a `DROPPED` milestone, or on a proposal that will not be built, blocks the row. The tools
   surface it to the user. They also surface a dependency on a milestone that no queue row names, or on a proposal that
   is not `accepted` or `implemented`. They never hold such a row silently. When a dropped milestone carries a
-  `Replaced by` line, they name the replacement as what to wait on instead
+  `Replaced by` line, they name the replacement as what to wait on instead. A dependency awaiting deploy is never
+  blocked
 - **Readiness.** A row is ready when its dependencies are met and every earlier row of the same proposal is finished.
   A queue row is the unit `/work-queue` runs, reviews over its commit range, and holds or blocks as a whole. Its
-  milestone range is its identifier
+  milestone range is its identifier. A milestone with a `**Live after:**` line also waits for that deployment. Only
+  that milestone waits, so the milestones before it in the row still run
 - **Progress.** A read-only report joins each row with its milestones' status. It prints what is done, what is next,
-  and what is held, and lists every revisit hook. `scripts/proposals.py progress` in the plugin prints it. A notice
-  at session start names any hook whose date has passed
+  what is held, and what awaits a deploy. It also lists every revisit hook. `scripts/proposals.py progress` in the
+  plugin prints it. A notice at session start names any hook whose date has passed
 
 A milestone of an `implemented` proposal from an earlier era counts as met for a plain dependency on it. See
 `proposals.md` "History from Earlier Eras".
 
 ## Deployment Dependencies
 
-A plain dependency is a code dependency. Write `PROJ-NNN MN (deployed)` or `PROJ-NNN (deployed)` when the row also needs
-that work running in production first.
-
-A deployment dependency crosses a boundary the dependent row cannot satisfy by itself. The dependency's code must be
-live somewhere the dependent row does not control. These are the boundaries:
-
-- Another repo. The dependent work lives in a different repo and consumes the dependency through a tagged release or a
-  module bump.
-- A running process. The dependent row's tests or verification run against a deployed server or consumer that
-  exercises the dependency.
-- A datastore. The dependent row reads tables, data, or backfilled rows that only the dependency's deployed migration
-  produces.
-- Adopted consumers. The dependent row removes a compatibility path, flag, or old API version. Consumers must first
-  migrate off it, so the dependency must ship and be adopted.
-
-Signals that a boundary exists include a release, a tag, a `go.mod` or version bump, a consumer, a deployed server, a
-migration, a backfill, a flag removal, or a separate repo. When both rows are code in one repo, and the dependent row
-only builds and tests against the dependency's merged changes, the dependency is code-only. A coordinated downstream
-release does not change that. It belongs to the consumer repo's queue.
-
-Tooling looks for these signals before it asks about a deployment. With no signal, it writes a plain dependency and says
-the dependency is code-only. With a signal, it asks the user and names the signal. Only the user can confirm a
+A plain dependency is a code dependency. It is met once the work it names is merged. That holds in every repository
+layout. Code reaches the dependent work as merged changes in one repo, as a submodule pointer bump, or as a tag or
+module bump across repos. A release that a milestone cuts is part of that milestone's `DONE`. None of these waits on a
 deployment.
+
+A deployment matters only between deploy units, which `glossary.md` defines. Two components in one repo may be
+separate deploy units. Two repos may be one. Key every deployment question on deploy units, never on repos and never on
+client and server roles.
+
+Work can need another deploy unit's deployment in two ways. Each has its own marker.
+
+### Live Checks
+
+Some milestones have checks that read production state another deploy unit's deployment produces. Such a milestone
+carries a `**Live after:**` line, on the line after its `**Status:**` line:
+
+```markdown
+### M4: Verify the backfill
+
+**Status:** NOT STARTED
+**Live after:** PROJ-002 M3 deployed
+```
+
+Write `PROJ-NNN deployed` when the whole proposal must be live. The line lives in the proposal, not in the queue. Only
+that milestone waits for the deployment. The milestones before it in its row run as usual.
+
+Not every check against production needs the line:
+
+- A check written to record what it observes needs none. That includes a check that may record "not seen yet".
+- A re-measure on recorded or hand-built input needs none.
+
+A milestone may hold both implementation checks and checks that need the deployment. Split the live checks into a
+milestone of their own. The implementation then lands without waiting for the deploy. A tool cannot read what a check
+means, so reviews enforce this split. `scripts/proposals.py check` does not.
+
+### Row Gates
+
+A row gate holds a whole row until another deploy unit's deployment is live. The row's code must not merge before then.
+Write it in the depends-on cell as `PROJ-NNN MN (merge after deployed)` or `PROJ-NNN (merge after deployed)`.
+
+A row gate needs the proposal's skew analysis. See `proposals.md` "Version Skew". The analysis must name a failing
+direction that the design cannot make tolerant. Removing a compatibility path that a deployed unit still calls is one
+example. Dropping a column that the deployed version still reads is another. Without such a direction, the dependency
+is a `Live after` line or a plain dependency.
+
+### Awaiting Deploy
+
+A deployment never confirms itself. A `Live after` line or a row gate whose code is finished is awaiting deploy until
+the user says the deployment is live. Tooling reports it in its own bucket. It is never blocked.
+
+`/work-on` and `/work-queue` ask the user once whether the deploy is live, with their other front-loaded questions. A
+yes lets the work run. A no holds only the work that waits. For a `Live after` line, that is the milestone and the
+milestones after it in its row. For a row gate, it is the row.
+
+When the code the deployment needs is not finished yet, the waiting work is held instead. A run cannot deploy, so it
+cannot finish that code and use the deployment in the same run.
+
+### Legacy `(deployed)`
+
+`(deployed)` is the earlier spelling of the row gate. A depends-on cell that carries it still parses, and tools treat it
+as `(merge after deployed)`. `scripts/proposals.py check` reports each one. Reclassify it as one of these:
+
+- A `Live after` line on the milestone whose checks need the deployment
+- A `(merge after deployed)` row gate, backed by a skew analysis
+- A plain dependency
+
+### Detecting Deployment Dependencies
+
+Repo and role signals do not imply a deployment. A separate repo, a consumer, a server, a release, a tag, or a module
+or version bump says nothing about deployment on its own. Tooling reads the proposal's deploy units and its skew
+analysis instead:
+
+- A contract that crosses deploy units, with a skew analysis that names a failing direction, raises a question. The
+  user decides whether the row needs a row gate.
+- A contract that crosses deploy units with no skew analysis is a finding for proposal review. Tooling reports it, and
+  asks no deploy question.
+- Tooling notes each `Live after` line it finds. A `Live after` line needs no question at scheduling time.
+- Every other dependency is plain.
 
 ## Working a Milestone
 

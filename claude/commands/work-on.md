@@ -48,10 +48,18 @@ field.
      work directly. Flag the conflict and ask before going further
    - An earlier row of the proposal, or an earlier milestone in this row, is
      unfinished. Name it
-   - A dependency is not met. Name each one with its state and reason. A
+   - A dependency, or the milestone's `live_after` entry, is not met and is
+     not `awaiting deploy`. Name each one with its state and reason. A
      `blocked` one needs the user, and a `Replaced by` hint names what to wait
-     on instead. A `confirm` one is a `(deployed)` dependency: ask the user
-     whether it runs in production
+     on instead
+
+   When `ready_once_deployed` is true, the milestone waits only on
+   deployments. Each is a `live_after` entry or a `(merge after deployed)`
+   dependency in state `awaiting deploy`. A deployment never confirms itself,
+   so ask the user whether each deploy is live. Ask in the same
+   AskUserQuestion call as the plan's other questions in step 6. A yes lets
+   the milestone run. A no holds only this milestone: stop, and tell the user
+   it waits on that deploy. See `plans.md` "Awaiting Deploy".
 
 4. Read the proposal. Its Design Decisions carry the design. The milestone's
    bullets are its checks. Read the design documents and ADRs it cites.

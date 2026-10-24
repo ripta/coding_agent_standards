@@ -87,19 +87,29 @@ Do all of this before any question.
    - `implemented`: the dependency is met. It needs no depends-on entry.
    - `accepted` with queue rows: it becomes a depends-on entry. Name the milestone this work needs, as `PROJ-NNN MN`,
      when the proposal's text says which. Otherwise name the proposal, `PROJ-NNN`. A named milestone that is already
-     `DONE` is met and needs no entry, unless it is a `(deployed)` dependency.
+     `DONE` is met and needs no entry, unless it gets a `(merge after deployed)` gate in Step 3.
    - Anything else, or `accepted` with no queue rows: hold it for Step 3. A row that depends on it would be blocked.
 
-   Then check each depends-on entry for a deployment boundary. Search the proposal's Dependencies, Milestones, and
-   Risks for the boundary signals listed in `plans.md` "Deployment Dependencies". Record each entry that has a signal,
-   and quote the signal. Every other entry is code-only.
+   Then check for deployment dependencies, per `plans.md` "Detecting Deployment Dependencies". Do not treat a
+   separate repo, a consumer, a server, a release, a tag, or a module or version bump as a sign of one. Code
+   availability is a plain dependency in every layout. Read the proposal's deploy units and its skew analysis, per
+   `proposals.md` "Version Skew":
+   - A contract that crosses deploy units, with a skew analysis that names a failing direction that cannot be made
+     tolerant: record the entry, and quote the failing direction. It is a row gate candidate for Step 3.
+   - A contract that crosses deploy units with no skew analysis: record it as a finding for `proposal-reviewer`. Do
+     not ask a deploy question about it.
+   - A milestone with a `**Live after:**` line: note it. Only that milestone waits for the deployment, so it needs no
+     question and no depends-on marker.
+
+   Every other entry is a plain dependency.
 10. **Positions.** Note where new rows can go. Finished rows sit at the top of the queue and never move. A new row
     goes at the end of the queue, or before any unfinished row. A row must not go above a row it depends on, or above
     an earlier row of the same proposal.
 
 In a batch, every stop in items 5 to 10 that concerns one proposal drops only that proposal, as in item 6.
 
-Report what you found in a few lines before asking anything. Name each code-only dependency as code-only.
+Report what you found in a few lines before asking anything. Name each plain dependency as plain, each `Live after`
+line, and each cross-unit contract that lacks a skew analysis.
 
 ### Step 3: Ask once, up front
 
@@ -112,9 +122,10 @@ request or Step 2 already answered.
   the next few rows, and let the user name another in "Other". Ask it once for a batch. The batch's rows go together,
   in batch order, at the chosen position. A user who picked the batch in Step 2 already asked for it, so this question
   then confirms only the position.
-- **Deployed.** Ask only about depends-on entries that Step 2 found a boundary signal for. For each one, ask whether
-  this work needs it running in production, and name the signal in the option. Only the user can confirm a deployment.
-  Ask in one multi-select question within the same call. Skip it when no entry has a signal.
+- **Row gate.** Ask only about the row gate candidates Step 2 found. For each one, ask whether this row must not merge
+  until that work is deployed, which makes the entry `PROJ-NNN MN (merge after deployed)`. Quote the failing direction
+  from the skew analysis in the option. Only the user decides a row gate. Ask in one multi-select question within the
+  same call. Skip it when Step 2 found no candidate.
 - **Blocked dependencies.** If a dependency is not `accepted` or `implemented`, or has no queue rows, ask whether to
   schedule anyway. The new row would be blocked until the dependency is scheduled or settled.
 - **Splitting.** Ask only when the user's request or a revived layout suggests more than one row, or when other work
@@ -162,6 +173,7 @@ Summarize:
 - Each proposal dropped from the batch, and why.
 - Each new row, with its range, depends-on cell, and note.
 - Each dependency, with its state, and any that is blocked.
+- Each cross-unit contract that lacks a skew analysis, as a finding for `proposal-reviewer`.
 - Every file created or edited.
 - That the milestone numbers the rows name are now permanent.
 
@@ -177,6 +189,7 @@ Summarize:
 - Treat any non-`accepted` proposal status as a hard stop for that proposal. Do not change it to make scheduling
   possible.
 - Treat any open design question as a hard stop for that proposal, and route the user to `proposal-reviewer`.
-- A depends-on cell names `PROJ-NNN` or `PROJ-NNN MN`. Only the user decides `(deployed)`. Ask only when Step 2 found
-  a boundary signal.
+- A depends-on cell names `PROJ-NNN` or `PROJ-NNN MN`. Only the user decides `(merge after deployed)`. Ask only when
+  Step 2 found a cross-unit contract whose skew analysis names a failing direction. Never write the legacy
+  `(deployed)` marker.
 - Use the status values from `tracking.md`. Milestones are `NOT STARTED`, `IN PROGRESS`, `DONE`, or `DROPPED`.

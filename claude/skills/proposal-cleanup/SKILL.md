@@ -38,8 +38,9 @@ Run `proposals.py check`. Sort its findings:
 - **Index drift.** "index.md lists ..., but the proposal says ...". The proposal is the source of truth. Step 4 fixes
   these.
 - **Everything else.** Report it, and leave it alone. That includes an `implemented` proposal with unfinished
-  milestones, an unknown milestone status, a `DROPPED` milestone with no Decision Log link, a bad `Replaced by` line,
-  and every hook fault. Each needs the user, or the work that owns the milestone.
+  milestones, an unknown milestone status, a `DROPPED` milestone with no Decision Log link, a bad `Replaced by` or
+  `Live after` line, a legacy `(deployed)` gate, and every hook fault. Each needs the user, or the work that owns the
+  milestone.
 
 If the check finds nothing and the queue needs no move in Step 5, tell the user and skip to Step 6.
 

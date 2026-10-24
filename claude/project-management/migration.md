@@ -104,7 +104,10 @@ Create `queue.md` beside the proposal index, in the form `plans.md` "The Queue F
   would have built them: phase number for era 1 and era 2, and plan order for era 0. A phase that implements only part
   of a proposal becomes a row for just that range.
 - **Depends-on.** Translate each phase-level dependency to `PROJ-NNN` or `PROJ-NNN MN`, using the mapping from Step 2.
-  Drop each one that is already met. Keep `(deployed)` where the phase had it.
+  Drop each one that is already met. Reclassify each deployment gate the phase had, per `plans.md` "Deployment
+  Dependencies". A gate for checks that read production state becomes a `**Live after:**` line on the milestone that
+  holds those checks. A gate the proposal's skew analysis backs with a failing direction becomes
+  `(merge after deployed)`. Any other gate becomes a plain dependency. Ask the user when the phase does not say which.
 - **Notes.** Carry the reasons behind splits and interruptions, and dependency reasons held only in a phase, into each
   row's note. Every row of a proposal with more than one row needs a note saying why.
 

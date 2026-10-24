@@ -38,8 +38,9 @@ Keys carry a version.
 """
 
 
-def _milestone(n: int, status: str, as_built: str | None = None) -> str:
-    text = f"### M{n}: Step {n}\n\n**Status:** {status}\n\n- Check {n}\n\n"
+def _milestone(n: int, status: str, as_built: str | None = None, live_after: str | None = None) -> str:
+    live = f"**Live after:** {live_after}\n" if live_after is not None else ""
+    text = f"### M{n}: Step {n}\n\n**Status:** {status}\n{live}\n- Check {n}\n\n"
     if as_built is not None:
         text += f"**As built:**\n\n{as_built}\n\n"
     return text
@@ -197,7 +198,8 @@ def test_progress_sorts_rows_into_done_ready_and_held(tmp_path: Path) -> None:
     [
         ("accepted", "| PROJ-001 M1-M2 | None | |", "blocked", "PROJ-001 has no M2"),
         ("deferred", "| PROJ-001 M1 | None | |", "blocked", "PROJ-001 is deferred"),
-        ("accepted", "| PROJ-001 M1 | PROJ-002 M1 (deployed) | |", "blocked", "confirm it runs in production"),
+        ("accepted", "| PROJ-001 M1 | PROJ-002 M1 (deployed) | |", "awaiting_deploy", "whether it is live"),
+        ("accepted", "| PROJ-001 M1 | PROJ-002 M1 (merge after deployed) | |", "awaiting_deploy", "whether it is live"),
         ("accepted", "| PROJ-001 M1 | PROJ-002 M9 | |", "blocked", "has no M9"),
     ],
 )
@@ -420,7 +422,9 @@ def test_row_not_ready_behind_earlier_milestone_or_row(tmp_path: Path) -> None:
     "dependency, other_status, other_milestone, state",
     [
         ("PROJ-002 M1", "accepted", "DONE", "met"),
-        ("PROJ-002 M1 (deployed)", "accepted", "DONE", "confirm"),
+        ("PROJ-002 M1 (deployed)", "accepted", "DONE", "awaiting deploy"),
+        ("PROJ-002 M1 (merge after deployed)", "accepted", "DONE", "awaiting deploy"),
+        ("PROJ-002 M1 (merge after deployed)", "accepted", "IN PROGRESS", "unmet"),
         ("PROJ-002 M1", "accepted", "IN PROGRESS", "unmet"),
         ("PROJ-002 M1", "accepted", "DROPPED", "blocked"),
         ("PROJ-002 M1", "deferred", "NOT STARTED", "blocked"),
@@ -438,6 +442,126 @@ def test_row_classifies_dependencies(
     info = proposals.row_info(tmp_path, "PROJ-001", 1)
     assert info["dependencies"][0]["state"] == state
     assert info["ready"] is (state == "met")
+    assert info["ready_once_deployed"] is (state == "awaiting deploy")
+
+
+def _live_setup(directory: Path, other_status: str = "DONE") -> None:
+    milestones = (_milestone(1, "NOT STARTED") + _milestone(2, "NOT STARTED", live_after="PROJ-002 M1 deployed")
+                  + _milestone(3, "NOT STARTED"))
+    _write(directory, "PROJ-001-a.md", _proposal("accepted", milestones))
+    other = _proposal("accepted", _milestone(1, other_status, "- Done."))
+    _write(directory, "PROJ-002-b.md", other.replace("PROJ-001", "PROJ-002"))
+    _queue(directory, "| PROJ-002 M1 | None | |", "| PROJ-001 M1-M3 | None | |")
+
+
+def test_row_reports_live_after_only_on_its_milestone(tmp_path: Path) -> None:
+    _live_setup(tmp_path)
+    first = proposals.row_info(tmp_path, "PROJ-001", 1)
+    assert first["live_after"] is None
+    assert first["ready"] is True
+
+    path = tmp_path / "PROJ-001-a.md"
+    path.write_text(path.read_text().replace("**Status:** NOT STARTED\n\n- Check 1", "**Status:** DONE\n\n- Check 1"))
+    live = proposals.row_info(tmp_path, "PROJ-001", None)
+    assert live["milestone"] == 2
+    assert live["live_after"] == {
+        "dependency": "PROJ-002 M1 deployed", "state": "awaiting deploy", "reason": "ask the user whether it is live",
+    }
+    assert (live["ready"], live["ready_once_deployed"]) == (False, True)
+
+
+def test_progress_runs_earlier_milestones_before_a_live_check(tmp_path: Path) -> None:
+    _live_setup(tmp_path)
+    report = proposals.progress(tmp_path, "2026-10-17")
+    [ready] = report["ready"]
+    assert ready["row"] == "PROJ-001 M1-M3"
+    assert [w["milestone"] for w in ready["live_after"]] == ["PROJ-001 M2"]
+    assert report["awaiting_deploy"] == []
+    assert "PROJ-001 M2 live after PROJ-002 M1 deployed: awaiting deploy" in proposals.render_progress(report)
+
+
+def test_progress_puts_a_live_check_whose_deploy_is_unconfirmed_in_its_own_bucket(tmp_path: Path) -> None:
+    _live_setup(tmp_path)
+    path = tmp_path / "PROJ-001-a.md"
+    path.write_text(path.read_text().replace("**Status:** NOT STARTED\n\n- Check 1", "**Status:** DONE\n\n- Check 1"))
+    report = proposals.progress(tmp_path, "2026-10-17")
+    [entry] = report["awaiting_deploy"]
+    assert entry["next"] == "PROJ-001 M2"
+    assert entry["awaiting_deploy"] == ["PROJ-001 M2 live after PROJ-002 M1 deployed: ask the user whether it is live"]
+    assert report["blocked"] == report["held"] == []
+    assert "Awaiting deploy, the user says when it is live\n  PROJ-001 M1-M3" in proposals.render_progress(report)
+
+
+def test_progress_holds_a_live_check_whose_code_is_unfinished(tmp_path: Path) -> None:
+    _live_setup(tmp_path, other_status="IN PROGRESS")
+    path = tmp_path / "PROJ-001-a.md"
+    path.write_text(path.read_text().replace("**Status:** NOT STARTED\n\n- Check 1", "**Status:** DONE\n\n- Check 1"))
+    [held] = proposals.progress(tmp_path, "2026-10-17")["held"]
+    assert held["held"] == ["PROJ-001 M2 live after PROJ-002 M1 deployed: PROJ-002 M1 is IN PROGRESS"]
+
+
+def test_next_takes_rows_that_await_a_deploy_and_lists_them(tmp_path: Path) -> None:
+    _live_setup(tmp_path)
+    path = tmp_path / "PROJ-001-a.md"
+    path.write_text(path.read_text().replace("**Status:** NOT STARTED\n\n- Check 1", "**Status:** DONE\n\n- Check 1"))
+    [entry] = proposals.next_rows(tmp_path, 1, [])["run"]
+    assert entry["row"] == "PROJ-001 M1-M3"
+    assert entry["awaiting_deploy"] == ["PROJ-001 M2 live after PROJ-002 M1 deployed: ask the user whether it is live"]
+
+
+def test_next_skips_a_live_check_whose_code_a_run_cannot_deploy(tmp_path: Path) -> None:
+    _live_setup(tmp_path, other_status="NOT STARTED")
+    path = tmp_path / "PROJ-001-a.md"
+    path.write_text(path.read_text().replace("**Status:** NOT STARTED\n\n- Check 1", "**Status:** DONE\n\n- Check 1"))
+    report = proposals.next_rows(tmp_path, 2, [])
+    assert [e["row"] for e in report["run"]] == ["PROJ-002 M1"]
+    [skipped] = report["skipped"]
+    assert any("a run cannot deploy it" in r for r in skipped["reasons"])
+
+
+def test_next_takes_a_row_gate_whose_code_is_done_and_lists_it(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")))
+    other = _proposal("accepted", _milestone(1, "DONE", "- Done.") + _milestone(2, "NOT STARTED"))
+    _write(tmp_path, "PROJ-002-b.md", other.replace("PROJ-001", "PROJ-002"))
+    _queue(tmp_path, "| PROJ-002 M1 | None | |", "| PROJ-001 M1 | PROJ-002 M1 (merge after deployed) | |")
+    [entry] = proposals.next_rows(tmp_path, 1, [])["run"]
+    assert entry["row"] == "PROJ-001 M1"
+    assert entry["awaiting_deploy"] == ["PROJ-002 M1 (merge after deployed): ask the user whether it is live"]
+
+
+@pytest.mark.parametrize(
+    "live_after, expected",
+    [
+        ("PROJ-002 M1 deployed", None),
+        ("PROJ-002 deployed", None),
+        ("PROJ-002 M1", "cannot read **Live after:**"),
+        ("PROJ-009 M1 deployed", "PROJ-009, which does not exist"),
+        ("PROJ-002 M7 deployed", "PROJ-002 M7, which does not exist"),
+        ("PROJ-002 M2 deployed", "PROJ-002 M2, which is DROPPED"),
+    ],
+)
+def test_check_validates_live_after(tmp_path: Path, live_after: str, expected: str | None) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED", live_after=live_after)))
+    other = (_milestone(1, "DONE", "- Done.") + _milestone(2, "DROPPED", "- See Decision Log.")
+             + _milestone(3, "NOT STARTED"))
+    _write(tmp_path, "PROJ-002-b.md", _proposal("accepted", other).replace("PROJ-001", "PROJ-002"))
+    _queue(tmp_path, "| PROJ-002 M1-M3 | None | |", "| PROJ-001 M1 | None | |")
+    problems = [p for p in _problems(tmp_path) if "PROJ-001" in p or "Live after" in p]
+    assert any(expected in p for p in problems) if expected else problems == []
+
+
+def test_check_asks_to_reclassify_each_legacy_deployed_gate(tmp_path: Path) -> None:
+    milestones = _milestone(1, "NOT STARTED") + _milestone(2, "NOT STARTED")
+    _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", milestones))
+    other = _proposal("implemented", _milestone(1, "DONE", "- Done."))
+    _write(tmp_path, "PROJ-002-b.md", other.replace("PROJ-001", "PROJ-002"))
+    _queue(tmp_path, "| PROJ-002 M1 | None | |", "| PROJ-001 M1 | PROJ-002 M1 (deployed) | Split: a |",
+           "| PROJ-001 M2 | PROJ-002 M1 (merge after deployed) | Split: b |")
+    [problem] = _problems(tmp_path)
+    assert problem.startswith("queue row PROJ-001 M1: PROJ-002 M1 (deployed) is the legacy row gate")
+    assert "**Live after:** PROJ-002 M1 deployed" in problem
+    assert "PROJ-002 M1 (merge after deployed)" in problem
+    assert "plain dependency" in problem
 
 
 def test_row_blocks_dependency_on_unscheduled_milestone(tmp_path: Path) -> None:

@@ -15,7 +15,8 @@ milestone status and hook structure the standard rejects. `row` finds the queue
 row that names a milestone, or a proposal's next unfinished one, and says
 whether it is ready. `freeze` reports edits to implemented proposals that the
 freeze does not allow. `hooks` lists every revisit hook, passed dates first.
-`progress` reports the queue as done, ready, and held rows, with the hooks.
+`progress` reports the queue as done, ready, held, awaiting-deploy, and blocked
+rows, with the hooks.
 `notice` prints one line when any hook has passed, and nothing otherwise.
 `next` picks the next N rows a `/work-queue` run can take, in queue order.
 `candidates` recommends accepted proposals to schedule, in tiers.
@@ -47,7 +48,16 @@ MILESTONE_HEADING = re.compile(r"^###\s+M(\d+):")
 REPLACED_BY = re.compile(r"^\s*(?:-\s*)?Replaced by:\s*([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)(?:\s+M(\d+))?\s*$")
 AS_BUILT = "**As built:**"
 ROW_RANGE = re.compile(r"^([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)\s+M(\d+)(?:-M(\d+))?$")
-DEPENDENCY = re.compile(r"^([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)(?:\s+M(\d+))?(\s+\(deployed\))?$")
+# A `(merge after deployed)` marker gates the whole row on another deploy unit's deployment.
+# `(deployed)` is its legacy spelling. It still gates the row, and the check asks for it to be
+# reclassified.
+DEPENDENCY = re.compile(
+    r"^([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)(?:\s+M(\d+))?(?:\s+\((deployed|merge after deployed)\))?$"
+)
+# A milestone whose checks read production state that another deploy unit's deployment
+# produces. Only that milestone waits for the deployment, not its row.
+LIVE_AFTER = re.compile(r"^\*\*Live after:\*\*\s*(.*?)\s*$")
+LIVE_AFTER_TARGET = re.compile(r"^([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)(?:\s+M(\d+))?\s+deployed$")
 META_LINE = re.compile(r"^\*\*(Status|Updated|Revisit):\*\*", re.IGNORECASE)
 PARTIAL_SUPERSESSION = re.compile(r"Superseded in part by [A-Z0-9]*[A-Z][A-Z0-9]*-\d+; see Decision Log\.")
 FROZEN_STATUSES = {"implemented", "superseded"}
@@ -131,10 +141,32 @@ def hook_faults(hook: Hook) -> list[str]:
 
 
 @dataclass
+class Dependency:
+    proposal: str
+    milestone: int | None
+    deployed: bool
+    legacy: bool = False
+    live: bool = False
+
+    @property
+    def ref(self) -> str:
+        return self.proposal + (f" M{self.milestone}" if self.milestone else "")
+
+    def __str__(self) -> str:
+        if self.live:
+            return self.ref + " deployed"
+        if self.deployed:
+            return self.ref + (" (deployed)" if self.legacy else " (merge after deployed)")
+        return self.ref
+
+
+@dataclass
 class Milestone:
     number: int
     status: str | None
     as_built: list[str] = field(default_factory=list)
+    live_after: Dependency | None = None
+    live_after_text: str | None = None
 
     @property
     def replaced_by(self) -> tuple[str, int | None] | None:
@@ -198,6 +230,14 @@ def parse_proposal(path: Path, text: str | None = None) -> Proposal:
         if line.strip() == AS_BUILT:
             in_as_built = True
             continue
+        live = LIVE_AFTER.match(line) if not in_as_built else None
+        if live:
+            current.live_after_text = live.group(1)
+            target = LIVE_AFTER_TARGET.match(live.group(1))
+            if target:
+                number = int(target.group(2)) if target.group(2) else None
+                current.live_after = Dependency(target.group(1), number, True, live=True)
+            continue
         if in_as_built:
             current.as_built.append(line)
 
@@ -215,17 +255,6 @@ def load_proposals(proposals_dir: Path) -> dict[str, Proposal]:
             proposal = parse_proposal(path)
             proposals[proposal.id] = proposal
     return proposals
-
-
-@dataclass
-class Dependency:
-    proposal: str
-    milestone: int | None
-    deployed: bool
-
-    def __str__(self) -> str:
-        ref = self.proposal + (f" M{self.milestone}" if self.milestone else "")
-        return ref + (" (deployed)" if self.deployed else "")
 
 
 @dataclass
@@ -276,7 +305,8 @@ def load_queue(proposals_dir: Path) -> list[Row]:
             d = DEPENDENCY.match(raw)
             if not d:
                 raise ProposalError(f"{path}:{number}: cannot read dependency {raw!r}")
-            deps.append(Dependency(d.group(1), int(d.group(2)) if d.group(2) else None, bool(d.group(3))))
+            number = int(d.group(2)) if d.group(2) else None
+            deps.append(Dependency(d.group(1), number, bool(d.group(3)), legacy=d.group(3) == "deployed"))
         rows.append(Row(len(rows), m.group(1), first, last, deps, cells[2]))
     return rows
 
@@ -358,6 +388,19 @@ def check(proposals_dir: Path) -> list[dict[str, Any]]:
                     report(p, f"Replaced by names {ref}, which no queue row names", m.number)
             elif target is not None and target[0] not in proposals:
                 report(p, f"Replaced by names {target[0]}, which does not exist", m.number)
+
+            live = m.live_after
+            if m.live_after_text is not None and live is None:
+                report(p, f"cannot read **Live after:** {m.live_after_text!r}; write PROJ-NNN MN deployed", m.number)
+            elif live is not None and m.status not in FINISHED:
+                other = proposals.get(live.proposal)
+                awaited = other.milestones.get(live.milestone) if other and live.milestone else None
+                if other is None:
+                    report(p, f"Live after names {live.proposal}, which does not exist", m.number)
+                elif live.milestone is not None and awaited is None and not other.history:
+                    report(p, f"Live after names {live.ref}, which does not exist", m.number)
+                elif awaited is not None and awaited.status == "DROPPED":
+                    report(p, f"Live after names {live.ref}, which is DROPPED", m.number)
         statuses = [m.status for m in p.milestones.values()]
         done = "DONE" in statuses
         all_finished = bool(statuses) and all(s in FINISHED for s in statuses)
@@ -407,20 +450,35 @@ def _queue_findings(rows: list[Row], proposals: dict[str, Proposal]) -> list[dic
                 report(row, f"unfinished, but {row.proposal} is {p.status}. See plans.md \"Stopping a Proposal\"")
         if not row.note and sum(1 for r in rows if r.proposal == row.proposal) > 1:
             report(row, f"{row.proposal} has more than one row, so each needs a note saying why")
+        for dep in row.depends_on:
+            if dep.legacy and not is_finished:
+                report(row, (
+                    f"{dep} is the legacy row gate. Reclassify it as a **Live after:** {dep.ref} deployed line "
+                    f"on the milestone whose checks need the deployment, as {dep.ref} (merge after deployed) "
+                    "when the proposal's skew analysis names a failing direction, or as a plain dependency. "
+                    "See plans.md \"Deployment Dependencies\""
+                ))
     return findings
 
 
 # -- row ------------------------------------------------------------------
 
 
+AWAITING_DEPLOY = ("awaiting deploy", "ask the user whether it is live")
+
+
 def _dependency_state(dep: Dependency, proposals: dict[str, Proposal], rows: list[Row]) -> tuple[str, str]:
-    """Classify one dependency as met, unmet, confirm, or blocked, with the reason."""
+    """Classify one dependency as met, unmet, awaiting deploy, or blocked, with the reason.
+
+    A deployment never confirms itself. A deploy dependency whose code is finished stays
+    `awaiting deploy` until the user says it is live.
+    """
     target = proposals.get(dep.proposal)
     if target is None:
         return "blocked", f"{dep.proposal} does not exist"
     if dep.milestone is None:
         if target.status == "implemented":
-            return ("confirm", "confirm it runs in production") if dep.deployed else ("met", "implemented")
+            return AWAITING_DEPLOY if dep.deployed else ("met", "implemented")
         if target.status != "accepted":
             return "blocked", f"{dep.proposal} is {target.status or 'missing a status'}"
         unfinished = [n for n, m in target.milestones.items() if m.status not in FINISHED]
@@ -429,12 +487,12 @@ def _dependency_state(dep: Dependency, proposals: dict[str, Proposal], rows: lis
         return "unmet", f"{dep.proposal} is not implemented yet"
 
     if target.history and target.status == "implemented":
-        return ("confirm", "confirm it runs in production") if dep.deployed else ("met", "implemented history")
+        return AWAITING_DEPLOY if dep.deployed else ("met", "implemented history")
     milestone = target.milestones.get(dep.milestone)
     if milestone is None:
         return "blocked", f"{dep.proposal} has no M{dep.milestone}"
     if milestone.status == "DONE":
-        return ("confirm", "confirm it runs in production") if dep.deployed else ("met", "DONE")
+        return AWAITING_DEPLOY if dep.deployed else ("met", "DONE")
     if milestone.status == "DROPPED":
         replacement = milestone.replaced_by
         hint = f"; wait on {replacement[0]}" + (f" M{replacement[1]}" if replacement[1] else "") if replacement else ""
@@ -480,18 +538,23 @@ def row_info(proposals_dir: Path, proposal_id: str, milestone: int | None) -> di
     for dep in target.depends_on:
         state, reason = _dependency_state(dep, proposals, rows)
         deps.append({"dependency": str(dep), "state": state, "reason": reason})
+
+    live_after = None
+    if entry.live_after is not None:
+        state, reason = _dependency_state(entry.live_after, proposals, rows)
+        live_after = {"dependency": str(entry.live_after), "state": state, "reason": reason}
+
     earlier = [row.label for row in own if row.index < target.index and not finished(row)]
     pending_before = [
         f"{proposal_id} M{n}" for n in range(target.first, milestone)
         if proposal.milestones.get(n) is None or proposal.milestones[n].status not in FINISHED
     ]
-    ready = (
-        proposal.status == "accepted"
-        and entry.status not in FINISHED
-        and not earlier
-        and not pending_before
-        and all(d["state"] == "met" for d in deps)
-    )
+    waits = deps + ([live_after] if live_after else [])
+    runnable = proposal.status == "accepted" and entry.status not in FINISHED and not earlier and not pending_before
+    ready = runnable and all(d["state"] == "met" for d in waits)
+    # Only the user can say a deployment is live, so a milestone that waits on nothing else is
+    # ready once the user says yes.
+    ready_once_deployed = runnable and not ready and all(d["state"] in ("met", "awaiting deploy") for d in waits)
     return {
         "proposal": proposal_id,
         "proposal_status": proposal.status,
@@ -505,9 +568,11 @@ def row_info(proposals_dir: Path, proposal_id: str, milestone: int | None) -> di
             m.status in FINISHED for n, m in proposal.milestones.items() if n != milestone
         ),
         "dependencies": deps,
+        "live_after": live_after,
         "earlier_rows_unfinished": earlier,
         "earlier_milestones_in_row_unfinished": pending_before,
         "ready": ready,
+        "ready_once_deployed": ready_once_deployed,
     }
 
 
@@ -781,22 +846,26 @@ def hooks(proposals_dir: Path, today: str, passed_only: bool) -> list[dict[str, 
 
 
 def progress(proposals_dir: Path, today: str) -> dict[str, Any]:
-    """Join each queue row with its milestones' status: what is done, what is ready, what is held."""
+    """Join each queue row with its milestones' status: what is done, ready, held, or awaits a deploy."""
     proposals = load_proposals(proposals_dir)
     rows = load_queue(proposals_dir)
     report: dict[str, Any] = {
-        "done": [], "ready": [], "held": [], "blocked": [], "hooks": hooks(proposals_dir, today, False),
+        "done": [], "ready": [], "held": [], "awaiting_deploy": [], "blocked": [],
+        "hooks": hooks(proposals_dir, today, False),
     }
     for row in rows:
-        entry, finished, blocked, held = _classify(row, rows, proposals)
+        entry, finished, blocked, held, awaiting = _classify(row, rows, proposals)
         if finished:
             report["done"].append(entry)
         elif blocked:
-            entry["blocked"] = blocked + held
+            entry["blocked"] = blocked + held + awaiting
             report["blocked"].append(entry)
         elif held:
-            entry["held"] = held
+            entry["held"] = held + awaiting
             report["held"].append(entry)
+        elif awaiting:
+            entry["awaiting_deploy"] = awaiting
+            report["awaiting_deploy"].append(entry)
         else:
             report["ready"].append(entry)
     return report
@@ -811,8 +880,13 @@ def _unfinished(row: Row, p: Proposal | None) -> bool:
 
 def _classify(
     row: Row, rows: list[Row], proposals: dict[str, Proposal]
-) -> tuple[dict[str, Any], bool, list[str], list[str]]:
-    """Summarize one row. Say whether it is finished, and what blocks or holds it."""
+) -> tuple[dict[str, Any], bool, list[str], list[str], list[str]]:
+    """Summarize one row. Say whether it is finished, and what blocks, holds, or awaits a deploy.
+
+    A `Live after` line on the row's next milestone decides for the row. One on a later
+    milestone waits only for that milestone, so it is listed on the entry and leaves the row
+    as it is.
+    """
     p = proposals.get(row.proposal)
     numbers = range(row.first, row.last + 1)
     statuses = {n: p.milestones[n].status if p and n in p.milestones else None for n in numbers}
@@ -824,10 +898,13 @@ def _classify(
         "total": len(statuses),
     }
     if all(s in FINISHED for s in statuses.values()):
-        return entry, True, [], []
-    entry["next"] = next(f"{row.proposal} M{n}" for n, s in statuses.items() if s not in FINISHED)
-    # Blocked reasons need the user. Held reasons clear once other work finishes.
-    blocked, held = [], []
+        return entry, True, [], [], []
+    next_number = next(n for n, s in statuses.items() if s not in FINISHED)
+    entry["next"] = f"{row.proposal} M{next_number}"
+
+    # Blocked reasons need the user. Held reasons clear once other work finishes. Awaiting
+    # reasons clear once the user says a deployment is live.
+    blocked, held, awaiting = [], [], []
     if p is None:
         blocked.append(f"{row.proposal} does not exist")
     else:
@@ -837,14 +914,33 @@ def _classify(
     for earlier in rows[: row.index]:
         if earlier.proposal == row.proposal and _unfinished(earlier, p):
             held.append(f"waits on its earlier row {earlier.label}")
-    for dep in row.depends_on:
+
+    waits = [(None, dep) for dep in row.depends_on]
+    live_after = []
+    for n in numbers:
+        m = p.milestones.get(n) if p else None
+        if m is not None and m.live_after is not None and m.status not in FINISHED:
+            waits.append((n, m.live_after))
+
+    for n, dep in waits:
         state, reason = _dependency_state(dep, proposals, rows)
-        # A deployment never confirms itself, so a "confirm" dependency needs the user too.
-        if state in ("blocked", "confirm"):
-            blocked.append(f"{dep}: {reason}")
+        if n is not None:
+            live_after.append({
+                "milestone": f"{row.proposal} M{n}", "dependency": str(dep), "state": state, "reason": reason,
+            })
+            if n != next_number:
+                continue
+        label = f"{row.proposal} M{n} live after {dep}" if n is not None else str(dep)
+        if state == "blocked":
+            blocked.append(f"{label}: {reason}")
+        elif state == "awaiting deploy":
+            awaiting.append(f"{label}: {reason}")
         elif state != "met":
-            held.append(f"{dep}: {reason}")
-    return entry, False, blocked, held
+            held.append(f"{label}: {reason}")
+
+    if live_after:
+        entry["live_after"] = live_after
+    return entry, False, blocked, held, awaiting
 
 
 def render_progress(report: dict[str, Any]) -> str:
@@ -855,8 +951,17 @@ def render_progress(report: dict[str, Any]) -> str:
     lines = ["Done"]
     lines += [f"  {e['row']}  {tally(e)}" for e in report["done"]] or ["  (none)"]
     lines.append("Ready, in queue order")
-    lines += [f"  {e['row']}  {tally(e)}, next {e['next']}" for e in report["ready"]] or ["  (none)"]
-    for title, key in (("Held, until other work finishes", "held"), ("Blocked, needs the user", "blocked")):
+    for e in report["ready"]:
+        lines.append(f"  {e['row']}  {tally(e)}, next {e['next']}")
+        lines += [f"    - {w['milestone']} live after {w['dependency']}: {w['state']}" for w in e.get("live_after", [])]
+    if not report["ready"]:
+        lines.append("  (none)")
+    sections = (
+        ("Held, until other work finishes", "held"),
+        ("Awaiting deploy, the user says when it is live", "awaiting_deploy"),
+        ("Blocked, needs the user", "blocked"),
+    )
+    for title, key in sections:
         lines.append(title)
         for e in report[key]:
             lines.append(f"  {e['row']}  {tally(e)}, next {e['next']}")
@@ -896,6 +1001,10 @@ def next_rows(proposals_dir: Path, count: int, holds: list[str]) -> dict[str, An
     A row qualifies when nothing blocks it. Every row or milestone it waits on
     must be finished or already picked. A row the run cannot take is skipped and
     listed with its reasons, so the plan can say what it passed over.
+
+    A row that awaits only a deployment qualifies. Its entry lists what awaits one, so the
+    plan can ask the user whether each is live. A run cannot deploy, so a deployment whose
+    code is not finished yet skips the row.
     """
     if count < 1:
         raise ProposalError(f"--count {count} is not a positive number")
@@ -910,9 +1019,11 @@ def next_rows(proposals_dir: Path, count: int, holds: list[str]) -> dict[str, An
     for row in rows:
         if len(picked) == count:
             break
-        entry, finished, blocked, _ = _classify(row, rows, proposals)
+        entry, finished, blocked, _, awaiting = _classify(row, rows, proposals)
         if finished:
             continue
+        if awaiting:
+            entry["awaiting_deploy"] = awaiting
         reasons = list(blocked)
         if row.proposal in holds:
             reasons.append("held by the run's notes")
@@ -920,7 +1031,13 @@ def next_rows(proposals_dir: Path, count: int, holds: list[str]) -> dict[str, An
         for earlier in rows[: row.index]:
             if earlier.proposal == row.proposal and _unfinished(earlier, p) and earlier not in picked:
                 reasons.append(f"waits on its earlier row {earlier.label}, which is not in the run")
-        for dep in row.depends_on:
+        upcoming = next(
+            (p.milestones.get(n) for n in range(row.first, row.last + 1)
+             if p and (p.milestones.get(n) is None or p.milestones[n].status not in FINISHED)),
+            None,
+        )
+        live = upcoming.live_after if upcoming else None
+        for dep in row.depends_on + ([live] if live else []):
             state, reason = _dependency_state(dep, proposals, rows)
             if state != "unmet":
                 continue
