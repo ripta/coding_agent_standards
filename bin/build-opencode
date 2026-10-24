@@ -141,11 +141,19 @@ perl -0pi -e '
 # and the wrapped command is the translated /work-on.
 SRC="$SRC" OUT="$OUT" perl -0pi -e '
   s{Start by calling the EnterPlanMode tool.*?plan mode\.\n\n}{Plan before you change anything. Do not edit files or commit until the user\napproves the plan at the end of section 1.\n\n}s;
-  s{## 1\. Plan mode: build the queue}{## 1. Plan: build the queue};
+  s{## 1\. Plan mode:}{## 1. Plan:};
   s{before calling\s+ExitPlanMode}{before asking\n   for plan approval}s;
   s{Call ExitPlanMode\. That approval}{Present the plan and ask the user to approve it with the question tool. That\napproval}s;
   s{right after\s+ExitPlanMode\.}{right after\nthe plan is approved.}s;
+  s{Its\s+plan mode and plan approval}{Its\nplanning and plan approval}s;
+  s{Do not schedule in plan mode\.\s+Plan mode\s+cannot write, and scheduling}{Do not schedule while planning. The plan holds\nedits until it is approved, and scheduling}s;
+  s{call ExitPlanMode with a plan that implements nothing\.}{present a plan that implements nothing, and ask the user to approve it with\nthe question tool.}s;
+  s{Approving it only leaves plan mode, so\s+`/schedule-proposal` can write\.}{Approving it only lets `/schedule-proposal`\nwrite.}s;
+  s{call EnterPlanMode and start section 1 again}{start section 1 again}s;
+  s{Do not re-enter plan mode, and do not present a}{Do not plan again, and do not present a}s;
   s{with SendMessage,\s+so it keeps its context\.}{through the\n   subagent tool, passing its sessionID, so it keeps its context.}s;
+  s{once with SendMessage\.}{once through the subagent tool, passing its\n   sessionID.}s;
+  s{stop it with TaskStop\.\s+Stopping an agent also kills every background command it started\.\s+Never\s+stop one}{abandon it.\n   Never abandon one}s;
   s{[ \t]*<!-- Workaround for bugs/20261005.*?\n\n}{}s;
   s{\Q$ENV{SRC}\E/commands/work-on\.md}{$ENV{OUT}/commands/work-on.md}g;
 ' "$OUT/commands/work-queue.md"
@@ -154,7 +162,7 @@ SRC="$SRC" OUT="$OUT" perl -0pi -e '
 # equivalent.
 perl -ni -e 'print unless /Workaround for bugs\/20261005|SendMessage/' "$OUT/agents/implementer.md"
 
-leftovers="$(grep -rnE 'CLAUDE_[A-Z_]+|EnterPlanMode|ExitPlanMode|SendMessage|AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:' \
+leftovers="$(grep -rnE 'CLAUDE_[A-Z_]+|EnterPlanMode|ExitPlanMode|SendMessage|TaskStop|[Pp]lan mode|AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:' \
   --include='*.md' "$OUT" || true)"
 if [ -n "$leftovers" ]; then
   echo "error: Claude-only references survived translation:" >&2
