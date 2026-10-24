@@ -5,6 +5,11 @@
 - Validate that the solution actually solves the stated problem, not just that it's technically possible
 - Verify existing code is actually wrong before "fixing" it; trace through the logic to confirm the bug rather than
   shuffling code around
+- Write a fix's regression test before the fix, and run it on the unfixed code. It must fail there, for the reason the
+  bug describes. A test that passes before the fix does not cover the bug
+- When it passes, find out why before moving on. Either the test misses the bug, or the diagnosis is wrong. Until that
+  is settled, record the diagnosis as unresolved, not as fact. This holds even when a review marked it confirmed
+- When the failure cannot be reproduced in a test, say so. Record that the test pins the fix, not the bug
 
 ## During Implementation
 

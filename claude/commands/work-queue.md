@@ -444,7 +444,9 @@ The report records, per milestone:
 - Every best guess: the ambiguity, the choice made, the document it rests on,
   and what would change if the guess is wrong
 - Each review finding, and its disposition: fixed, dismissed with the reason,
-  deferred, or left for the user
+  deferred, or left for the user. When the implementer's Traces report a
+  finding as not confirmed, record its diagnosis as unresolved, here and in any
+  Decision Log entry, whatever verdict the reviewer gave
 - Any deviation from the proposal, and anything left open
 
 The first row report of the run also carries the run state, near the top: the

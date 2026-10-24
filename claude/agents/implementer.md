@@ -72,6 +72,11 @@ The coordinator may send review findings back to you. Fix each finding it marks
 as fix. Trace each finding it marks as trace first, and fix it only if the trace
 confirms it. Re-run the local checks, then report again.
 
+A fix that adds a regression test follows "Before Implementing" in
+`${CLAUDE_PLUGIN_ROOT}/rules/work-discipline.md`. Run the test before applying
+the fix, and confirm it fails. When it passes on the unfixed code, report the
+finding under Traces as not confirmed, whatever verdict the reviewer gave.
+
 After a row or final review, the coordinator spawns you with a commit range
 and the milestones it covers, instead of one milestone. Skip the Work section.
 Read the proposals for context, then treat the findings as a fix round. A fix
@@ -106,5 +111,6 @@ Report to the coordinator:
 - **Proposal edits**: the milestone status, As built block, and amendments you
   wrote
 - **Other edits seen**: any edit to another proposal that you left alone
-- **Traces**: for a fix round, each traced finding and whether it was confirmed
+- **Traces**: for a fix round, each traced finding and whether it was confirmed,
+  and each finding whose regression test passed before the fix
 - **Blocker**: the blocker and what is left unfinished, when you stopped early
