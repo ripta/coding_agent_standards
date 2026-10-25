@@ -1,6 +1,6 @@
 # Hooks
 
-`hooks.json` is loaded by the `coding-standards` plugin. It wires five events:
+`hooks.json` is loaded by the `coding-standards` plugin. It wires six events:
 
 - `SessionStart` runs `link-current.sh`. It points
   `~/.claude/coding-standards-current` at the installed plugin, so profiles
@@ -13,6 +13,9 @@
 - `UserPromptSubmit` runs `name-guardian.sh`. When the prompt is `/guardian`
   with a domain name as its first argument, it names the session
   `<domain name>_guardian`, replacing any custom title.
+- `SessionEnd` runs `guardian-session-end.sh`. When the session was a
+  guardian that ran its start hooks, it runs that guardian's stop hooks,
+  detached. See "Hooks" in `project-management/guardian.md`.
 - `PreToolUse` on `Bash` runs `block-broad-find.sh` and `block-private-terms.sh`. See "Private Terms" below.
 - `PostToolUse` on `Edit|Write` runs `make fmt` when the target exists.
 - `Stop` reminds you to run `make test` and `make lint` when those targets exist.

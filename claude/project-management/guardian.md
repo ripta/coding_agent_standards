@@ -41,7 +41,19 @@ decisions when its context is compacted or the session resumes.
    cannot be written, use the session's scratchpad instead, and tell the user that the ledger will not outlive the
    session. When a ledger already exists, read it. Its open requests are still open. The ledger opens with the domain,
    and each entry's commit policy and visibility.
-5. Tell the user the domain, each entry's commit policy and visibility, and the ledger's path. Then wait for requests.
+5. Run the start hooks. See "Hooks". Pass the domain on stdin with a heredoc:
+
+   ```sh
+   python3 <plugin root>/scripts/guardian_hooks.py start <domain name> <<'EOF'
+   {"entries": [{"checkout": "/abs/path/to/checkout", "scopes": ["claude/"]}]}
+   EOF
+   ```
+
+   The plugin root is the directory that holds this file's `project-management/`. An entry with no scopes covers the
+   whole checkout. The script prints one result per hook. Report each hook that
+   failed to the user, and carry on.
+6. Tell the user the domain, each entry's commit policy and visibility, the ledger's path, and which hooks ran. Then
+   wait for requests.
 
 ## Handling a Request
 
@@ -102,7 +114,30 @@ One section per request, numbered in order:
 - Status: closed
 ```
 
+## Hooks
+
+Hooks let a machine add optional steps to every guardian it runs, such as registering with a discovery or lease tool.
+The protocol never requires one. A machine with no hooks runs none.
+
+A hook is an executable file in `~/.config/coding_agent_standards/guardian-hooks/<event>/`. Hooks run in name order.
+Files that start with a dot, and files that are not executable, are skipped. Each hook gets one JSON object on stdin:
+`event`, `domain_name`, `session_name`, and `entries`, each entry with its `checkout` and `scopes`. A hook that applies
+only to some domains checks `domain_name` itself.
+
+There are two events. More may be added when a hook needs one.
+
+- `start` runs at the end of Starting, once the domain, the name, and the ledger are settled. The plugin's
+  `scripts/guardian_hooks.py` runs it, and records the session's ID and the domain beside the ledger.
+- `stop` runs when the guardian's session ends. The plugin's `guardian-session-end.sh` SessionEnd hook runs it from
+  that record. The stop hooks run detached, since SessionEnd allows only a moment. Their output goes to `stop.log`
+  beside the ledger.
+
+A failing hook never stops the guardian. The guardian reports it to the user. SessionEnd may not run after a crash or a
+kill, so a resource a start hook takes, such as a lease, must also expire on its own.
+
 ## Discovery Today
 
 A guardian is found by its session name. Nothing else stops two guardians from claiming overlapping paths, so the user
-checks for overlaps. A lease tool will claim domains and detect overlaps later. It lives in its own repo.
+checks for overlaps. A lease tool will claim domains and detect overlaps later. It lives in its own repo. nitipan is
+one such tool, still experimental. It would join through a `start` hook that advertises the guardian's name and takes a
+lease on its domain, and a `stop` hook that releases the lease.
