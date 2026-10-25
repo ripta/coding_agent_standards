@@ -7,13 +7,18 @@ one. See "What Earns an ADR".
 
 ```
 proposed → accepted → superseded / deprecated
+    ↓          ↓
+retracted  retracted
 ```
 
 - **proposed**: Written, but not yet in effect. An ADR from a proposal stays proposed until that proposal is accepted.
-  Whoever accepts the proposal flips its proposed ADRs to accepted
+  Whoever accepts the proposal flips its proposed ADRs to accepted. When the proposal is rejected or retracted, its
+  proposed ADRs become retracted
 - **accepted**: In effect
 - **superseded**: Replaced by a newer ADR (link to replacement)
-- **deprecated**: No longer applicable
+- **deprecated**: No longer applicable. The decision was right, and has stopped applying
+- **retracted**: Void. The decision was never in effect, or was wrong when written. Give the reason under the status
+  line. Only the user retracts an accepted ADR, and a retraction covers only the ADRs the user names
 
 A proposed ADR still records a settled decision. A decision that may still shift is never written as a proposed ADR. It
 stays in the proposal as a candidate that waits. See "Recording ADR Candidates".
@@ -53,7 +58,7 @@ What other options did we evaluate?
   such as `ADR-0001`, keeps it. Match the padding of existing ADR files
 - File naming: `ADR-NN-short-description.md` (kebab-case)
 - Numbers are permanent and never reused
-- Old ADRs stay in the repo marked as superseded, not deleted
+- Old ADRs stay in the repo marked as superseded, deprecated, or retracted, not deleted
 
 ## Load-Bearing ADRs
 
@@ -122,6 +127,12 @@ An ADR records a choice that has been made, and why. It holds nothing about the 
 A consequence may name work the decision makes necessary, such as "every client must migrate to v2". That is a fact
 about the decision. Tracking that work belongs elsewhere. Link to the proposal under References instead.
 
+A decision against an approach is a decision too. It earns an ADR by the same three tests. The usual case is rejecting
+a widely recommended practice: it would make the design more robust, and the project decides its tradeoff is not worth
+it here. The ADR keeps later work from adding it back without reading why. Its status is accepted, and its Decision
+names what is rejected and where the rejection holds. Most decisions not to do something do not pass the tests, and
+stay in the proposal that made them.
+
 ### Record
 
 An accepted ADR should not need to change. Write it only once the decision is settled and well-defined: its scope is
@@ -129,8 +140,8 @@ clear, and nothing it depends on is still being measured or designed. A decision
 one waiting on a benchmark or on an in-flight proposal, is not ready. Keep it in the proposal until it settles.
 
 An accepted ADR takes minor edits only: fixing a typo or a broken link, adding a reference, clarifying wording without
-changing what it means, and updating its status when it is superseded or deprecated. Anything that changes what was
-decided, its scope, or its consequences is a new decision. Write a new ADR that supersedes the old one.
+changing what it means, and updating its status when it is superseded, deprecated, or retracted. Anything that changes
+what was decided, its scope, or its consequences is a new decision. Write a new ADR that supersedes the old one.
 
 ## Recording ADR Candidates
 

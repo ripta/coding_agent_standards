@@ -189,10 +189,10 @@ Check every ADR file the change adds or edits:
   being measured or designed. Name the test it fails.
 - **An accepted ADR takes minor edits only.** Read its status at the base of
   the change, not after it. When it was accepted there, compare the two
-  versions. A typo, a link, a reference, a status change to superseded or
-  deprecated, or wording that keeps the meaning is fine. A change to what it
-  decides, its scope, or its consequences is a finding. It needs a new ADR
-  that supersedes this one.
+  versions. A typo, a link, a reference, a status change to superseded,
+  deprecated, or retracted, or wording that keeps the meaning is fine. A
+  change to what it decides, its scope, or its consequences is a finding. It
+  needs a new ADR that supersedes this one.
 - **A superseding ADR closes the loop.** The old ADR's status says
   superseded and links the new one. The new one names the old under
   References. The ADR index, when there is one, agrees.

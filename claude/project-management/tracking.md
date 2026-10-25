@@ -59,15 +59,16 @@ is deliberate, not drift.
 
 - Proposals: lowercase words — `draft`, `designing`, `accepted`,
   `implemented`, `deferred`, `rejected`, `superseded`, `retracted`
-- ADRs: lowercase words — `proposed`, `accepted`, `superseded`, `deprecated`
+- ADRs: lowercase words — `proposed`, `accepted`, `superseded`, `deprecated`,
+  `retracted`
 - Proposal milestones: uppercase — `NOT STARTED`, `IN PROGRESS`, `DONE`,
   `DROPPED`
 
 Each vocabulary is closed. A value outside it is an error, not a synonym. A
 check reports it. See `proposals.md` "Milestone Status".
 
-Proposals and ADRs share `accepted` and `superseded`. Name the artifact
-alongside those. Earlier eras used other values, such as `scheduled` for
+Proposals and ADRs share `accepted`, `superseded`, and `retracted`. Name the
+artifact alongside those. Earlier eras used other values, such as `scheduled` for
 proposals and `PLANNED` and `COMPLETE` for phases. See `eras.md`.
 
 ## Numbering Padding
