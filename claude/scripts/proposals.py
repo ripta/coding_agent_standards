@@ -88,6 +88,9 @@ class ProposalError(Exception):
 
 
 REVISIT_LINE = re.compile(r"^\s*(?:-\s*)?\*\*Revisit:\*\*\s*(.*?)\s*$")
+# A line that starts something new, and so ends a hook that wraps: a heading, a bold field such
+# as the header's next metadata line, or a list item.
+HOOK_STOP = re.compile(r"^\s*(?:#|\*\*[^*]+:\*\*|(?:[-*+]|\d+\.)\s)")
 # The anchor runs to the last ")", so it may hold parentheses of its own. Trailing punctuation
 # after it ends the sentence, not the date.
 HOOK_DATE = re.compile(r"\bon or after\s+(.+?)(?:\s*\((.*)\))?[\s.;,]*$", re.IGNORECASE)
@@ -104,8 +107,16 @@ class Hook:
     anchor: str | None
 
 
-def hook_lines(lines: list[str]) -> dict[int, str]:
-    """Map each revisit hook's line index to where it sits: the header or a settled decision.
+def _hook_end(lines: list[str], start: int) -> int:
+    """Return the index past a hook's last line. A hook wraps until a blank line, heading, field, or list item."""
+    end = start + 1
+    while end < len(lines) and lines[end].strip() and not HOOK_STOP.match(lines[end]):
+        end += 1
+    return end
+
+
+def hook_spans(lines: list[str]) -> dict[int, tuple[int, str]]:
+    """Map each revisit hook's first line index to its end and where it sits: the header or a settled decision.
 
     Only those two places hold live hooks. A Decision Log copy is history, and its date is
     never replaced, so it is not a hook.
@@ -118,16 +129,16 @@ def hook_lines(lines: list[str]) -> dict[int, str]:
         if not REVISIT_LINE.match(line):
             continue
         if i < header_end:
-            found[i] = "header"
+            found[i] = (_hook_end(lines, i), "header")
         elif settled[0] < i < settled[1]:
-            found[i] = "settled"
+            found[i] = (_hook_end(lines, i), "settled")
     return found
 
 
 def parse_hooks(lines: list[str]) -> list[Hook]:
     hooks = []
-    for i, location in hook_lines(lines).items():
-        text = REVISIT_LINE.match(lines[i]).group(1)
+    for i, (end, location) in hook_spans(lines).items():
+        text = " ".join([REVISIT_LINE.match(lines[i]).group(1), *(line.strip() for line in lines[i + 1 : end])]).strip()
         when = anchor = None
         condition = text
         m = HOOK_DATE.search(text)
@@ -849,7 +860,7 @@ def _regions(lines: list[str]) -> list[str]:
     log_start, log_end = spans.get("Decision Log", (0, 0))
     for i in range(log_start + 1, log_end):
         labels[i] = "decision-log"
-    hooks = hook_lines(lines)
+    hooks = {i for start, (end, _) in hook_spans(lines).items() for i in range(start, end)}
     in_as_built = False
     for i, line in enumerate(lines):
         if line.startswith("#"):

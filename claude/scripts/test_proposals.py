@@ -172,6 +172,15 @@ def test_hooks_flags_a_passed_hook_that_ends_a_sentence(tmp_path: Path) -> None:
     assert (hook["date"], hook["anchor"]) == ("2026-01-01", "two releases (beta)")
 
 
+def test_hooks_read_a_hook_that_wraps(tmp_path: Path) -> None:
+    text = _hooked("deferred", "when the parser streams;\non or after 2026-01-01 (two releases out)")
+    text = text.replace("(two releases out)", "(two releases out)\n**Tradeoffs:** expedient — a reason")
+    _write(tmp_path, "PROJ-001-a.md", text)
+    [hook] = proposals.hooks(tmp_path, "2026-10-17", passed_only=True)
+    assert (hook["condition"], hook["date"], hook["anchor"]) == ("when the parser streams", "2026-01-01", "two releases out")
+    assert _problems(tmp_path) == []
+
+
 def test_progress_sorts_rows_into_done_ready_and_held(tmp_path: Path) -> None:
     _write(tmp_path, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "DONE", "- Done.")
                                                  + _milestone(2, "DROPPED", "- See Decision Log.")
@@ -1012,6 +1021,23 @@ def test_freeze_allows_an_audited_settled_hook(specs: Path) -> None:
     path.write_text(audited)
     assert proposals.freeze(directory, []) == []
     path.write_text(audited.replace("\n\n**Revisit:** on or after 2027-06-01 (x)", ""))
+    assert proposals.freeze(directory, []) == []
+
+
+def test_freeze_allows_an_audited_removal_of_a_wrapped_hook(specs: Path) -> None:
+    directory = specs / "proj" / "proposals"
+    hook = "Keys carry a version.\n\n**Revisit:** when the parser streams; when the\nlexer handles `user` names\n\nMore text."
+    accepted = _proposal("accepted", _milestone(1, "IN PROGRESS")).replace("Keys carry a version.", hook)
+    path = _write(directory, "PROJ-001-a.md", accepted)
+    _commit(specs, "accepted")
+    hooked = FROZEN.replace("Keys carry a version.", hook)
+    path.write_text(hooked)
+    _commit(specs, "flip")
+    removed = hooked.replace("\n\n**Revisit:** when the parser streams; when the\nlexer handles `user` names", "")
+    path.write_text(removed)
+    [result] = proposals.freeze(directory, [])
+    assert "without a revisit audit" in result["hunks"][0]["kind"]
+    path.write_text(removed.replace("- 2026-10-01: Created.\n", "- 2026-10-01: Created.\n- 2027-01-02: Revisit audit: act.\n"))
     assert proposals.freeze(directory, []) == []
 
 

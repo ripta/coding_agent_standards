@@ -226,7 +226,7 @@ in the plugin runs it.
 
 ## Revisit Hooks
 
-A revisit hook says when to look at deferred work again. It is one line:
+A revisit hook says when to look at deferred work again. It is one paragraph, which may wrap:
 
 ```markdown
 **Revisit:** when the parser handles streaming input; on or after 2027-01-15 (two releases after PROJ-012 ships)
