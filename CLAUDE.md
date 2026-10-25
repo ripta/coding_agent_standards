@@ -64,6 +64,12 @@ Check every standard, skill, and script against each layout before changing it. 
 layout or a committed config file. Do not treat "same repo" as "ships together". Components in one repo may deploy
 independently. Components in separate repos may ship together.
 
+## Checks
+
+Run `make ci` before reporting work done. `make help` lists the narrower targets. `tests/test_standards.py` checks
+facts one file states about another, such as quoted paths, script subcommands, and shared vocabularies. When a check
+fails, fix the prose or the code it points at. Change the check only when the rule it encodes changed.
+
 ## Standards for This Repo
 
 These imports mirror `profiles/baseline.md`. They use relative paths so they read the working tree. The profile's

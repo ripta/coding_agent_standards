@@ -1,14 +1,18 @@
 version: 1
 allow:
   - prefix: [./rumdl/lint-markdown]
+  - prefix: [claude, plugin, test]
+  - prefix: [claude, plugin, validate]
   - prefix: [du]
   - prefix: [ls]
   - prefix: [mv]
+  - prefix: [node, claude/skills/architecture-exploration/workflow.test.mjs]
   - prefix: [pnpm]
   - prefix: [python3]
   - prefix: [rumdl]
   - prefix: [sed]
   - prefix: [uv, run]
+  - prefix: [uvx, --with, pyyaml, pytest]
   - prefix: [uvx, pytest]
   - prefix: [vale]
   - prefix: [which]

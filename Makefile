@@ -1,0 +1,58 @@
+SHELL := bash -o pipefail
+.DEFAULT_GOAL := help
+.DELETE_ON_ERROR:
+.SUFFIXES:
+MAKEFLAGS += --warn-undefined-variables
+
+# Directories pytest collects. Listed explicitly so agent worktrees under .claude/ stay out.
+PYTEST_PATHS ?= claude tests
+
+.PHONY: help
+help: ## Show this help
+	@awk 'BEGIN { FS = ":.*## " } \
+		/^##@ / { printf "\n%s\n", substr($$0, 5) } \
+		/^[a-zA-Z0-9_.\/-]+:([^=]|$$).*## / { printf "  %-24s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
+
+##@ Test
+
+.PHONY: test
+test: test-python test-js test-plugin ## Run every test suite
+
+.PHONY: test-python
+test-python: ## Run the pytest suites, including the standards checker
+	uvx --with pyyaml pytest -q $(PYTEST_PATHS)
+
+.PHONY: test-js
+test-js: ## Run the architecture-exploration workflow tests
+	node claude/skills/architecture-exploration/workflow.test.mjs
+
+# Needs the claude CLI. Validates the plugin manifest and runs the hooks module's tests.
+.PHONY: test-plugin
+test-plugin: ## Validate the coding-standards plugin and run its module tests
+	@command -v claude >/dev/null || { echo "claude not found; install Claude Code"; exit 1; }
+	claude plugin validate claude
+	claude plugin test claude
+
+##@ Lint
+
+.PHONY: lint
+lint: lint-md lint-prose ## Run the markdown and prose linters
+
+.PHONY: lint-md
+lint-md: ## Lint all markdown with rumdl
+	./rumdl/lint-markdown --all
+
+# Vale reports warnings without failing, and only on files changed against main. The full
+# tree carries a backlog, so `vale/lint-prose --all` is a report, never a gate.
+.PHONY: lint-prose
+lint-prose: ## Lint prose and comments changed against main with Vale
+	./vale/lint-prose
+
+.PHONY: fmt
+fmt: ## Fix markdown lint findings in place
+	./rumdl/lint-markdown --all --fix
+
+##@ CI
+
+.PHONY: ci
+ci: lint test ## Run every check, read-only
