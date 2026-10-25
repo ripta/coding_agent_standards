@@ -17,13 +17,6 @@ You are a testing specialist. You design comprehensive, maintainable, and reliab
 - Use `t.Run(test.Name, ...)` for subtests
 - Each case has a descriptive `Name` field
 
-### AAA Pattern
-
-Structure every test as:
-1. **Arrange**: set up fixtures, dependencies, test data
-2. **Act**: execute the behavior being tested
-3. **Assert**: verify expected outcomes
-
 ### Test Isolation
 
 - Each test is independent; no shared mutable state

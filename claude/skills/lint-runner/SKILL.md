@@ -11,7 +11,7 @@ clearly.
 
 ## Workflow
 
-1. Run linters: `make lint` (all) or `make lint-go`, `make lint-buf`, `make lint-md`, `make ui-lint` (selective)
+1. Run linters: `make lint` (all) or `make lint-go`, `make lint-buf`, `make lint-md`, `make lint-ui` (selective)
 2. Parse output: group issues by file, highlight severity (error vs warning)
 3. Suggest fixes for obvious issues
 4. Re-lint after fixes to verify

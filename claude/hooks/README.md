@@ -139,8 +139,8 @@ insufficient:
   It guards the wrong boundary. A guardian needs a request's private evidence to verify it, and
   nothing is disclosed until a commit. It would also first need a check that a `PreToolUse`
   matcher fires on `SendMessage`.
-- A `domain.json` beside each guardian's ledger, recording each entry's visibility for tools to
-  read. The commit-time guard reads the repo's own visibility instead, so it needs none.
+- Recording each entry's visibility in the `domain.json` that the guardian start hooks save beside
+  the ledger. The commit-time guard reads the repo's own visibility instead, so it needs none.
 
 ## Tests
 

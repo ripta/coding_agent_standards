@@ -31,7 +31,7 @@ and to audit a Makefile against the standards below when asked.
 ## Rules
 
 - Always suggest Makefile targets, never direct tool invocation
-- Explain target dependencies when relevant (e.g., `make ci` runs `fmt-check`, `lint`, and `test`)
+- Explain target dependencies when relevant (e.g., `make ci` runs `fmt-check`, `lint`, `check`, and `test`)
 - If a target doesn't exist, suggest the closest match or how to add one
 
 ## Auditing a Makefile

@@ -21,7 +21,7 @@ fix formatting issues.
 - Always use Makefile targets; never call formatters directly (no raw `go fmt`, `prettier`, `cargo fmt`, `zig fmt`)
 - Formatting is idempotent and non-destructive (style only, not logic)
 - If `git diff` shows changes after `make fmt`, the code was not properly formatted
-- For selective formatting, look for language-specific targets: `make fmt-go`, `make fmt-md`, `make ui-fmt`, etc.
+- For selective formatting, look for language-specific targets: `make fmt-go`, `make fmt-md`, `make fmt-ui`, etc.
 
 ## Output
 

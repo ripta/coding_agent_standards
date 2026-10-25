@@ -60,7 +60,7 @@ Statuses:
 - Superseded in full: skip it. Check its replacement instead.
 - Superseded in part: the replaced part no longer governs. The rest still does.
   Read the superseding ADR to tell which part is which.
-- Deprecated, rejected, or retracted: skip it. It has no replacement.
+- Deprecated or retracted: skip it. It has no replacement.
 - Proposed: not in effect. Tag a clash with it `ADVISORY`.
 
 The index and the file can disagree. An index row may say "superseded in part"
