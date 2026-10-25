@@ -9,3 +9,6 @@
 
 # Personal Claude Code settings for this checkout.
 /.claude/settings.local.json
+
+# Python bytecode from running the tests.
+__pycache__/
