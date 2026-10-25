@@ -9,4 +9,5 @@ allow:
   - prefix: [rumdl]
   - prefix: [sed]
   - prefix: [uv, run]
+  - prefix: [uvx, pytest]
   - prefix: [which]
