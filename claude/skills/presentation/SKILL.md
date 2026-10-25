@@ -203,6 +203,6 @@ More than one plausible set of sources is an ambiguity for Step 3. Finding nothi
   limit to pass `check.py`
 - Draw diagrams in d2. Use Mermaid only for the chart kinds `style.md` lists, and only when `mmdc` exists
 - Write only inside the new deck directory, plus the preference file. Never overwrite an existing deck. Do not commit
-  the deck unless the user asks
+  the deck unless the user asks, or the project's rules allow commits on the user's behalf. Never push
 - Run `check.py` and fix its errors before reporting. A missing `d2` or `mmdc` is the exception: report the install
   command and keep the diagram. Hand the user the commands to see the deck, since you cannot render it yourself

@@ -34,5 +34,6 @@ memory.
    say.
 
 6. Summarize the migration as a commit message for each repo it touched,
-   following `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Do not commit on
-   behalf of the user.
+   following `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Do not commit
+   unless the user asks, or the project's rules allow commits on the user's
+   behalf. Never push.

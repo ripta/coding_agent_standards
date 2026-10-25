@@ -302,7 +302,8 @@ reviewer only if the first found structural problems.
 Give the user the absolute path, the resolved target, the page's spine in one
 sentence, the tab and section outline, the claim tally (confirmed, corrected,
 dropped), and anything you could not verify or resolve. If the output directory
-is a git repo, do not commit or push unless asked.
+is a git repo, do not commit unless asked, or unless the project's rules allow
+commits on the user's behalf. Do not push unless asked.
 
 ## Rules
 

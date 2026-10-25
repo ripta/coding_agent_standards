@@ -225,8 +225,9 @@ anything left for the user.
 - Never close a ticket whose completion criteria are not all met at `head`.
   A commit that mentions a ticket is a lead, not evidence.
 - Every verdict cites evidence. A verdict you cannot cite is **No change**.
-- Never commit, stage, push, pull, or switch branches. Repository edits stay
-  uncommitted for the user.
+- Never stage, push, pull, or switch branches. Do not commit unless the user
+  asks, or the project's rules allow commits on the user's behalf. Otherwise
+  repository edits stay uncommitted for the user.
 - Assign every ticket the skill touches to the tracker's configured
   `assignee`, and touch no ticket that was not approved.
 - Description edits preserve all existing text except the approved change.

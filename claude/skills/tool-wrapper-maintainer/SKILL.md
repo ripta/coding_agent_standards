@@ -76,4 +76,5 @@ exec "${CACHE_BIN}" "$@"
 - Always verify SHA256 for GLOOBIN tools
 - Keep `.cache/` in `.gitignore`
 - Test before considering the work done
-- Stop and yield to the user when finished; do not commit
+- Stop and yield to the user when finished. Do not commit unless the user asks, or the project's rules allow commits on
+  the user's behalf. Never push

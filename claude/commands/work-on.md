@@ -166,4 +166,5 @@ field.
     the conversation; do not run `git diff`. Before emitting it, check the
     message against `commit-style.md`, including Forbidden Openers. When the
     specs live in a separate repo, say that the proposal edits there need
-    their own commit. Do not commit on behalf of the user.
+    their own commit. Do not commit unless the user asks, or the project's
+    rules allow commits on the user's behalf. Never push.
