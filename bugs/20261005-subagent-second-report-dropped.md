@@ -4,8 +4,8 @@
 
 **Component:** Claude Code harness (SubagentHandback, SendMessage, task notifications). Not this repo's code.
 
-**Reproduces on:** Claude Code 2.1.284. Reported upstream with `/feedback`, receipt
-`260e8f59-b601-4b81-b896-e7cf15d01045`.
+**Reproduces on:** Claude Code 2.1.284 and 2.1.310 (re-checked 2026-10-25 with the repro below). Reported upstream
+with `/feedback`, receipt `260e8f59-b601-4b81-b896-e7cf15d01045`.
 
 ## Observed behavior
 
