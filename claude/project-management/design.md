@@ -167,6 +167,9 @@ Each item names the invariant, not the format or mechanism that implements it. L
 to its invariant before listing it, per "Architecture" above. Several such candidates may lift to one invariant. List
 that invariant once.
 
+An item that rests on a decision tagged `addition` says so, and names the addition. An ADR turns an addition into a
+rule for all later work. See `proposals.md` "Decision Log Tags".
+
 Each item shows how it passes every test, in a short phrase per test:
 
 - **Architecture**: the criterion it meets, and the concrete thing that meets it

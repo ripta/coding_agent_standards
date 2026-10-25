@@ -21,7 +21,7 @@ Use the AskUserQuestion tool for structured questions when encountering:
 - Naming conventions not already covered by standards
 - Trade-offs between competing approaches
 - Changing semantics of existing code
-- Adding capabilities not explicitly requested
+- Adding capabilities not explicitly requested. See "Scope Additions"
 - Any choice where multiple valid options exist
 
 ## When to Ask
@@ -77,7 +77,8 @@ correct or easier to change correctly:
 
 To tell the two apart, ask what the work serves. Investment serves the problem in front of you and the code that
 already exists. Speculation serves a requirement nobody has stated. When you cannot name a current caller, bug, or
-failure mode that the work protects against, it is speculation.
+failure mode that the work protects against, it is speculation. Naming one does not settle scope. See "Scope
+Additions".
 
 Match safety mechanisms to risk and reversibility. When reverting and redeploying fully undoes a change, that is its
 rollback path; implement it directly, without feature flags, config options, or staged rollouts. Reserve that machinery
@@ -102,7 +103,32 @@ When building the option list:
   follow-up cleanup it leaves behind. A forgone investment counts too
 - **List the complete option first.** Mark it as recommended unless the previous rule gave a reason not to
 - **Raising an option is not expanding scope.** Offering the larger fix as an option is not the silent expansion that
-  `work-discipline.md` forbids. Do not implement it without asking, and do not leave it off the list
+  `work-discipline.md` forbids. Do not implement it without asking, and do not leave it off the list. Label it when it
+  adds scope. See "Scope Additions"
+
+### Scope Additions
+
+Scope is the problem the user stated, plus what the user has approved since. A proposal's scope is its Summary and
+Motivation, the settled decisions the user chose or kept, and its out-of-scope statements. The complete option is
+complete within that scope.
+
+A scope addition brings in a requirement, component, contract, or cross-cutting concern that the scope does not hold.
+A finding can be real and still be an addition. A gap in a neighboring system is one example: the requested change
+exposes it but does not create it. The failure mode justifies raising the addition. It does not put the addition in
+scope.
+
+Work that serves an addition belongs to that addition. An addition the user has not kept does not widen the scope, so
+the decisions, milestones, and risks built on it are part of it too.
+
+An addition is not forbidden. It is labeled, so the user always sees it:
+
+- An option that adds scope says so in its description, and names what it would bring in
+- An open question about an addition lists "no addition" among its candidates. It asks whether before it asks how
+- The Decision Log entry that settles an addition carries the `addition` tag. See `proposals.md` "Decision Log Tags"
+- Removing or narrowing an explicit out-of-scope statement is an addition
+
+Approving a direction is not approving a design. When the user picks a direction, only the direction is settled. Each
+mechanism under it is its own decision.
 
 ### Overriding the Default
 

@@ -198,9 +198,15 @@ Check every ADR file the change adds or edits:
   References. The ADR index, when there is one, agrees.
 - **The format matches** "ADR Document Format" and the project's existing
   ADRs.
+- **Each clause traces to a settled decision.** Read the originating
+  proposal's settled decisions and Decision Log. A clause in the Decision or
+  Consequences with no settled decision behind it is a finding. A clause that
+  records a decision tagged `addition` is a finding too, so the user sees the
+  addition become a rule. See `proposals.md` "Decision Log Tags".
 
-A failed test or a meaning-changing edit is `verify-first`. Only the user can
-decide to drop an ADR or to split one. A format or linking gap is
+A failed test, a meaning-changing edit, or a clause with no decision behind it
+is `verify-first`. A clause that records an addition is `user`. Only the user
+can decide to drop an ADR or to split one. A format or linking gap is
 `fix-directly`.
 
 When the caller did not ask for an ADR review and the change touches ADR
@@ -227,5 +233,6 @@ clean -- say so plainly. For each finding:
 - **disposition**: `fix-directly` (comment, style, plan-gap, ADR format,
   amendments and frozen edits the work made), `verify-first` (PLAUSIBLE
   correctness/security, shortcuts the plan did not approve, missing skew
-  analysis, and ADRs that fail the bar or change an accepted decision), or
-  `user` (an edit the work did not make).
+  analysis, ADRs that fail the bar or change an accepted decision, and ADR
+  clauses with no decision behind them), or `user` (an edit the work did not
+  make, or an ADR clause that records an addition).

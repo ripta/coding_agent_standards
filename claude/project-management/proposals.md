@@ -197,6 +197,18 @@ prior meaning without relying on git history, which does not follow a spec moved
 Amending a decision that an accepted ADR records needs a new ADR that supersedes it. An accepted ADR takes minor edits
 only, so editing the proposal alone would leave the two disagreeing. See `design.md` "Record".
 
+## Decision Log Tags
+
+A Decision Log entry for a decision an agent settled without asking carries the tag its tool defines, such as
+`proposal-reviewer`'s `(autonomous)`. An untagged entry means the user chose that decision, at the level of detail the
+entry records. A mechanism written under a direction the user picked is a decision of its own, not the user's. See
+`rules/decision-making.md` "Scope Additions".
+
+An entry that settles a scope addition also carries `addition`, whoever settled it: `(addition)`, or
+`(autonomous, addition)`. Removing or narrowing an explicit out-of-scope statement is an addition.
+
+Tags let a reader, and every check, tell what the user chose from what was chosen for them.
+
 ## Implemented Proposals Are Frozen
 
 Once a proposal is `implemented`, only these edits are allowed:

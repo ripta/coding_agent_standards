@@ -62,6 +62,9 @@ The question **converges** when all of these hold after a pass:
 - No objection to it that you kept was new this pass
 - No option joined the list after the critic ranked it. An option the critic itself proposed counts as ranked
 
+Convergence shows that you and the critic agree. It does not show that the user wanted the result. An addition the
+critic labeled stays labeled when it converges.
+
 Most questions converge on the first pass. Run a second pass only when something changed that the critic has not seen:
 an option added after it ranked, or a kept objection that changed the recommendation.
 
@@ -153,8 +156,9 @@ For each question:
 - Any dissent left standing: the critic's reason for its top option when that is not the recommendation, and your
   one-line answer to it
 - A record line: one sentence naming the winner and the reason
+- Whether the recommendation adds scope, per "Scope Additions" in `rules/decision-making.md`, and what it brings in
 
-For the proposal loop: the passes run, the fixes made, and any fix left un-checked.
+For the proposal loop: the passes run, the fixes made, any fix left un-checked, and every addition the critic listed.
 
 The caller shows the dissent to the user. It never hides it.
 

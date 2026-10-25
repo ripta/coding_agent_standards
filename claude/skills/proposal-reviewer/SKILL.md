@@ -87,6 +87,7 @@ working state: the ledgers, and which decisions were reopened. On resume:
 - Each `(autonomous...)` entry after the last `Review gate` entry has not been reviewed. The next review gate includes
   them, with the contested ones flagged as before
 - Run Steps 6 and 7 in full. Their earlier passes are lost with the ledger
+- The baseline is the last `Review start` entry. Do not record a new one
 
 ### Step 2: Status Check
 
@@ -114,6 +115,11 @@ Before engaging the user on any questions:
 5. Find the Decision Log's ADR candidates marked `Undecided` or `Waits on`, per "Recording ADR Candidates" in
    `${CLAUDE_SKILL_DIR}/../../project-management/design.md`. Treat each as a noted decision for Step 8. For one that
    waits, check whether its hook has fired
+6. Record the baseline. Count the proposal's milestones, settled decisions, risks, and `**Live after:**` lines and row
+   gates. Note its out-of-scope statements. For a redesign, note the parts the user asked to redesign, in their words.
+   Add a Decision Log entry: `- YYYY-MM-DD: Review start: <counts>; <what the user asked for>`. Name the proposal's
+   commit when it is in git. The review's closing summary compares against this entry, and a resumed review reads it
+   back
 
 ### Step 4: Triage Open Questions
 
@@ -270,6 +276,10 @@ In autonomous mode, mark each Decision Log entry so the user can audit it later.
 decision, `(autonomous, judge)` for one the judge ruled on, and `(autonomous, provisional)` for one taken on a `USER'S
 CALL` lean. Put any dissent left standing in the settled entry's rationale, with the one-line answer to it.
 
+In every mode, an entry that settles a scope addition carries `addition`, such as `(addition)` or
+`(autonomous, addition)`. Use the critic's Additions list and "Scope Additions" in `decision-making.md`. See
+`proposals.md` "Decision Log Tags".
+
 Write the answers to the file before doing anything else, so progress survives interruption.
 
 Note each decision that earns an ADR by the "What Earns an ADR" section of
@@ -345,7 +355,8 @@ Decision Log entry per the standard. In autonomous mode, decide these instead, a
 
 ### Step 8: Wrap-Up
 
-When the user stops or all questions are resolved (and the coherence and risk reviews are complete):
+When the user stops or all questions are resolved (and the coherence and risk reviews are complete), show the closing
+summary first. See "The Closing Summary". Skip it when the review gate has just shown it.
 
 - **All resolved**: Ask via AskUserQuestion if the proposal should advance to `accepted`. If yes, update the status. Do
   not offer `accepted` while the Risks section is missing or non-compliant, or while a high-likelihood/high-impact risk
@@ -402,8 +413,6 @@ Once every ADR is written, spawn the `reviewer` agent (`coding-standards:reviewe
 review of the new files only. Give it their paths and no milestone. Fix format and linking findings directly. Tell the
 user about any ADR it says fails the bar, and ask whether to keep it. Do not review ADRs at any earlier point.
 
-Present a one-line summary of each decision made this session.
-
 List any ADRs created with their file paths.
 
 ## Autonomous Mode
@@ -435,27 +444,27 @@ Nothing else is relaxed. These stay with the user, and go to the gate:
   together
 - **Step 6, gaps**: add a gap as an open question and resolve it through Step 5. Defer it instead only when it cannot
   be settled before implementation, such as when it waits on a measurement. Record the deferral with a concrete revisit
-  hook, per the "Deferring Decisions" standard
+  hook, per the "Deferring Decisions" standard. A gap that adds scope is decided like any other. Its question lists
+  "no addition" as a candidate, and its entry carries `addition`
 - **Step 6, weak decisions**: reopen each one the critic showed fails the standard, and run it through Step 5 again. A
   decision reopens once per review. If the next coherence pass flags it again, keep it and carry it to the gate
 - **Step 6, repeat**: run the proposal loop to convergence. Carry to the gate any fix the loop left un-checked, and any
   finding still open when its pass budget ran out
 - **Step 7**: rate each risk on the evidence. When the evidence does not settle a rating, take the higher one and say
   so in the risk's entry. Mitigate where the design allows it. Accept a risk only when no mitigation exists and it is
-  not high-likelihood and high-impact. Record each with a Decision Log entry marked `(autonomous)`
+  not high-likelihood and high-impact. Record each with a Decision Log entry marked `(autonomous)`. A mitigation that
+  adds scope is marked `(autonomous, addition)`
 
 ### The Review Gate
 
-When Step 7 is done, show a summary before asking. List each decision made this review, one line each, with how it was
-reached. Flag the contested ones: every judge ruling, every provisional decision, and every decision with dissent left
-standing.
+When Step 7 is done, show the closing summary before asking. See "The Closing Summary".
 
 Then ask in one AskUserQuestion call, or successive calls of up to four questions:
 
 1. Each `USER'S CALL`, first, with its options. Put the judge's lean in its description, unmarked
-2. Which contested decisions to reopen, as multiSelect questions of two to four decisions each. With a single contested
-   decision, ask "Reopen <decision>?" as yes or no instead. With none, skip this. The user names any other decision to
-   reopen through "Other"
+2. Which red-flagged additions and contested decisions to reopen, as multiSelect questions of two to four each. With a
+   single one, ask "Reopen <decision>?" as yes or no instead. With none, skip this. The user names any other decision
+   to reopen through "Other"
 3. Each gated item from "What the user authorizes by choosing it" that the review produced, except `accepted` and ADRs
 
 Record every answer at once. Add a Decision Log entry for the gate itself: `- YYYY-MM-DD: Review gate: <kept all, or
@@ -467,6 +476,26 @@ what is new.
 Ask the `accepted` and ADR questions from Step 8 last, in their own call, once a gate call returns with nothing
 reopened and nothing changed. Never offer `accepted` in the same call as a reopen question. A reopen would change the
 design after it was accepted.
+
+## The Closing Summary
+
+The review gate and the wrap-up both open with this summary. Its job is to put every red flag where the user cannot
+miss it. A long summary buries them, so keep it short, and never list every decision.
+
+1. **Red flags**, first, one line each. Each is a category, never a size threshold:
+   - Each addition, with what it brought in: milestones, risks, deploy dependencies, ADR clauses. Take them from the
+     `addition` tags and from the critic's Additions lists, since a decision written before the review may carry no
+     tag. Group the decisions that serve one new concern under that concern
+   - Each out-of-scope statement removed or narrowed
+   - Each new `**Live after:**` line or row gate
+   - Growth during Steps 6 and 7. Those steps check the design. When their passes keep adding decisions or milestones,
+     the review is growing the design, not settling it. Name what each pass added
+
+   With none, write "No red flags" on one line.
+2. **Size**, one line: milestones, settled decisions, and risks, from the "Review start" entry to now.
+3. **Contested**, one line each: every judge ruling, every provisional decision, and every decision with dissent left
+   standing. Autonomous mode only.
+4. **Everything else**, one line: how many other decisions were made, and that the Decision Log holds them.
 
 ## Rules
 

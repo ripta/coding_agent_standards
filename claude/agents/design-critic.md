@@ -88,6 +88,11 @@ For each question in the round:
    can name the current caller, bug, or failure mode it protects against.
 5. **Check the labels.** Every option short of the complete fix must say what
    it leaves undone. Name the ones that do not.
+6. **Label additions.** Read "Scope Additions" in the same standard. Name
+   each option, your missing ones included, that adds scope, and what it
+   would bring in. An addition is not a flaw. Rank completeness within the
+   scope, as the standard defines it. A question about an addition that offers no "no addition" candidate is
+   missing one.
 
 ## Reviewing a whole proposal
 
@@ -115,6 +120,11 @@ Report:
   analysis.
 - **Hacks and over-building**: the same two checks as for a round, applied to
   the design as a whole.
+- **Additions**: each settled decision, milestone, risk, and out-of-scope
+  removal that adds scope, with what it brought in. Read the Decision Log
+  tags, but report an addition whether or not it is tagged. An addition is
+  not a defect, so it does not change the overall verdict. It is listed so
+  the user sees it.
 
 ## Re-checking changes
 
@@ -128,6 +138,8 @@ Do not review the rest of the proposal again.
   When a defect would reverse a recorded decision, label it `REVERSAL` and say
   what new evidence in the code supports it. A reversal with no new evidence is
   taste.
+- Name each change that adds scope. A fix that answers a finding by bringing
+  in a new component is an addition, even when the finding was real.
 
 ## Calibration
 
@@ -161,6 +173,8 @@ For a round, return one block per question:
 - **Verdict on the best listed candidate**: `SOUND`, `SOUND WITH CAVEATS` (name
   them), or `UNSOUND`. `UNSOUND` means no listed candidate is acceptable. Name
   the missing option that should be chosen instead, and say why.
+- **Additions**: each option that adds scope, with what it would bring in.
+  Write "None" when no option does.
 
 For a re-check, return:
 
@@ -168,10 +182,12 @@ For a re-check, return:
   second.
 - **New defects**: most severe first, each with its verdict, its scenario, and
   `REVERSAL` where it applies.
+- **Additions**: each change that adds scope, with what it brought in. Write
+  "None" when no change does. Additions do not affect the verdict.
 - **Verdict**: `CONVERGED` when nothing above changes behavior or a verdict,
   otherwise `NOT CONVERGED`.
 
-For a proposal, return the six lists from "Reviewing a whole proposal", most
+For a proposal, return the seven lists from "Reviewing a whole proposal", most
 severe first within each. Give each item a verdict and a scenario. Then give one
 overall verdict: `SOUND`, `SOUND WITH CAVEATS`, or `UNSOUND`, with the items
 that drove it.
