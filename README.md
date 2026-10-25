@@ -122,12 +122,16 @@ Note the distinction between `.claude/` and `claude/`:
 
 ### Codex Configuration
 
-`codex/` holds skills that only run under Codex, packaged as a Codex plugin. A skill lands here when it depends on
+`codex/` holds skills and integration code that only run under Codex. A skill lands here when it depends on
 something Codex has and Claude Code does not. `expand-lore-wiki` is the current example. It calls Codex's built-in
 `imagegen` skill, and Claude Code has no image generation to port it to.
 
 Codex skills carry an `agents/openai.yaml` next to `SKILL.md`. That file holds the display name and short description
 Codex shows in its own UI, and Claude Code ignores it.
+
+Codex setup scripts live in `codex/scripts/`, and startup hooks live in `codex/hooks/`, matching the layout under
+`claude/`. Their tests live beside them. The generated shared-standards plugin packages these integration files;
+the separate Codex-only skills plugin does not register the baseline hooks.
 
 To build the portable subset of the Claude plugin for Codex, run:
 
@@ -166,6 +170,7 @@ bin/install-codex
 The installer registers the generated marketplace, installs a snapshot into Codex's plugin cache, and creates
 `~/.codex/coding-standards-current` pointing at that snapshot. It appends a baseline instruction to
 `~/.codex/AGENTS.md`, preserving existing content. Repeating it does not duplicate that instruction.
+When a nonempty `AGENTS.override.md` is present, setup updates that active global instruction file instead.
 It honors `CODEX_HOME` when set. The installed baseline does not depend on this checkout remaining available.
 
 Start a new thread after installation. Review and trust the plugin's `SessionStart` hook in Codex so subsequent
@@ -190,7 +195,8 @@ Keep the whole bundle together when distributing it so its relative references r
 
 The baseline applies to the project where Codex is working, including monorepos, submodules, and separate repos.
 It preserves existing spec locations and does not assume that components ship together.
-The only bundled hook maintains the stable link. Claude enforcement hooks and orchestration commands are not enabled.
+The startup hook maintains the stable link and checks setup. Claude enforcement hooks and orchestration commands
+are not enabled.
 
 ### Profiles
 
@@ -380,13 +386,38 @@ can adopt them without a burn-down first. See `rumdl/README.md` and `vale/README
 
 ### Setup Validation
 
-The plugin checks setup at every session start, through `claude/hooks/check-setup.sh`. It prints nothing when all is
+The Claude plugin checks setup at every session start, through `claude/hooks/check-setup.sh`. It prints nothing when all is
 well. Otherwise it names what is missing:
 
 - Settings entries that `setup_permissions.py` adds
 - A project with no standards import in `CLAUDE.md` or `CLAUDE.local.md`
 - A worktree missing the main checkout's `CLAUDE.local.md`
 - A project whose standards import is not yet approved
+
+The generated Codex plugin follows the same pattern. `codex/hooks/check-setup.py` refreshes the installed link and
+checks the baseline reference in global or project instructions. It prints nothing when setup is complete.
+Otherwise it names the missing setup and the installed script that repairs it. Startup does not edit `AGENTS.md`.
+
+Check Codex setup without changing anything:
+
+```sh
+python3 ~/.codex/coding-standards-current/scripts/setup.py --check
+```
+
+Apply setup from the installed plugin, without rebuilding or having a source checkout:
+
+```sh
+python3 ~/.codex/coding-standards-current/scripts/setup.py
+```
+
+The setup script repairs the stable link and adds the global baseline reference while preserving existing instructions.
+For project-only adoption, keep the reference in the project's `AGENTS.md` and use `--check`.
+If the stable link is missing, run `scripts/setup.py` from the installed plugin path reported by `codex plugin add`.
+Use the corresponding path under `CODEX_HOME` when that variable is set.
+Setup does not modify Codex permissions or grant hook trust; trust review remains in Codex.
+
+Run the Codex integration tests with `python3 -m unittest discover -s codex/scripts` and
+`python3 -m unittest discover -s codex/hooks`. Build tests run with `python3 -m unittest discover -s tests`.
 
 ### Non-standard Paths
 

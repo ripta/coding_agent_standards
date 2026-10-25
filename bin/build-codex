@@ -113,6 +113,27 @@ def convert_skill(text, name, command=False):
     return result
 
 
+def version_plugin():
+    manifests = ("plugin.json", ".codex-plugin/plugin.json")
+    digest = hashlib.sha256()
+    for path in sorted(OUTPUT.rglob("*")):
+        if not path.is_file():
+            continue
+        relative = path.relative_to(OUTPUT).as_posix()
+        contents = path.read_bytes()
+        if relative in manifests:
+            manifest = json.loads(contents)
+            manifest["version"] = "0.1.0"
+            contents = (json.dumps(manifest, indent=2) + "\n").encode()
+        digest.update(relative.encode() + b"\0" + contents + b"\0")
+    version = "0.1.0+codex." + digest.hexdigest()[:16]
+    for relative in manifests:
+        path = OUTPUT / relative
+        manifest = json.loads(path.read_text())
+        manifest["version"] = version
+        path.write_text(json.dumps(manifest, indent=2) + "\n")
+
+
 def main():
     if len(sys.argv) != 1:
         raise ValueError("usage: bin/build-codex")
@@ -156,34 +177,28 @@ def main():
     tracking.write_text(tracking.read_text().replace("claude/rules/", "rules/"))
     (OUTPUT / "scripts").mkdir()
     shutil.copy2(SOURCE / "scripts" / "proposals.py", OUTPUT / "scripts" / "proposals.py")
+    shutil.copy2(REPO / "codex" / "scripts" / "setup.py", OUTPUT / "scripts" / "setup.py")
     write_baseline(baseline)
     (OUTPUT / "hooks").mkdir()
-    shutil.copy2(REPO / "bin" / "codex-link-current.py", OUTPUT / "hooks" / "link-current.py")
+    for name in ("link-current.py", "check-setup.py"):
+        shutil.copy2(REPO / "codex" / "hooks" / name, OUTPUT / "hooks" / name)
     (OUTPUT / "hooks" / "hooks.json").write_text(json.dumps({
         "hooks": {"SessionStart": [{"hooks": [{
             "type": "command",
-            "command": 'python3 "${PLUGIN_ROOT}/hooks/link-current.py"',
-            "statusMessage": "Updating coding standards reference",
+            "command": 'python3 "${PLUGIN_ROOT}/hooks/check-setup.py"',
+            "statusMessage": "Checking coding standards setup",
         }]}]},
     }, indent=2) + "\n")
-    # Codex caches by version. Include content in the version so rebuilding changed standards
-    # installs a new snapshot without modifying the files used by existing sessions.
-    digest = hashlib.sha256()
-    for path in sorted(OUTPUT.rglob("*")):
-        if path.is_file():
-            digest.update(path.relative_to(OUTPUT).as_posix().encode() + b"\0")
-            digest.update(path.read_bytes() + b"\0")
-    version = "0.1.0+codex." + digest.hexdigest()[:16]
     (OUTPUT / "plugin.json").write_text(json.dumps({
         "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
         "name": "coding-standards-portable",
-        "version": version,
+        "version": "0.1.0",
         "description": "Portable coding standards workflows adapted for Codex",
     }, indent=2) + "\n")
     (OUTPUT / ".codex-plugin").mkdir()
     (OUTPUT / ".codex-plugin" / "plugin.json").write_text(json.dumps({
         "name": "coding-standards-portable",
-        "version": version,
+        "version": "0.1.0",
         "description": "Shared coding standards and baseline adapted for Codex",
         "author": {"name": "Ripta Pasay"},
         "skills": "./skills/",
@@ -207,12 +222,17 @@ def main():
         "~/.codex/coding-standards-current/baseline.md.\n"
         "The trusted SessionStart hook maintains that link to the installed snapshot.\n"
         "Plugin installation alone does not activate the baseline.\n\n"
+        "Run scripts/setup.py from the installed snapshot to enable the baseline,\n"
+        "or pass --check to report missing setup without changing files.\n"
+        "The startup hook checks setup without editing global or project instructions.\n\n"
         "Included skills: " + ", ".join(converted) + ".\n\n"
         "Commands are explicit-only skills. Claude agents, hooks, mods, settings,\n"
         "and Codex-only skills are not included. Reference documents do not\n"
         "register agents or enable Claude integrations. Model and tool restrictions\n"
         "from Claude frontmatter are not enforced; Codex session permissions apply.\n"
     )
+    # Codex caches by version, so all installed files must participate in its identity.
+    version_plugin()
     print(f"Built {OUTPUT} ({len(converted)} skills)")
 
 

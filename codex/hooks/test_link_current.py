@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 
-SCRIPT = Path(__file__).resolve().parents[1] / "bin" / "codex-link-current.py"
+SCRIPT = Path(__file__).with_name("link-current.py")
 LINK_CURRENT = runpy.run_path(str(SCRIPT))["link_current"]
 
 
