@@ -416,6 +416,21 @@ If the stable link is missing, run `scripts/setup.py` from the installed plugin 
 Use the corresponding path under `CODEX_HOME` when that variable is set.
 Setup does not modify Codex permissions or grant hook trust; trust review remains in Codex.
 
+Verify discovery and trust through Codex's runtime, rather than calling the hook script directly:
+
+```sh
+python3 ~/.codex/coding-standards-current/scripts/verify_hooks.py
+```
+
+This starts a temporary app-server process and queries `hooks/list`. It does not run a model turn or change trust.
+It fails when the installed startup hook is missing, disabled, or awaiting trust. Open `/hooks` in Codex CLI to
+review and trust the standards hook, then rerun verification. Hook trust is tied to the current definition.
+See the [official hook trust documentation](https://learn.chatgpt.com/docs/hooks#review-and-trust-hooks).
+
+The generated package uses only `.codex-plugin/plugin.json`, with an explicit hook path. Codex CLI 0.164.0 loads
+the skills but omits this plugin's hooks when a root `plugin.json` is also present. The build tests install an
+isolated package and query the actual runtime so that a successful file build cannot hide this discovery failure.
+
 Run the Codex integration tests with `python3 -m unittest discover -s codex/scripts` and
 `python3 -m unittest discover -s codex/hooks`. Build tests run with `python3 -m unittest discover -s tests`.
 

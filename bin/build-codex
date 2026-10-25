@@ -114,7 +114,7 @@ def convert_skill(text, name, command=False):
 
 
 def version_plugin():
-    manifests = ("plugin.json", ".codex-plugin/plugin.json")
+    manifests = (".codex-plugin/plugin.json",)
     digest = hashlib.sha256()
     for path in sorted(OUTPUT.rglob("*")):
         if not path.is_file():
@@ -178,6 +178,7 @@ def main():
     (OUTPUT / "scripts").mkdir()
     shutil.copy2(SOURCE / "scripts" / "proposals.py", OUTPUT / "scripts" / "proposals.py")
     shutil.copy2(REPO / "codex" / "scripts" / "setup.py", OUTPUT / "scripts" / "setup.py")
+    shutil.copy2(REPO / "codex" / "scripts" / "verify_hooks.py", OUTPUT / "scripts" / "verify_hooks.py")
     write_baseline(baseline)
     (OUTPUT / "hooks").mkdir()
     for name in ("link-current.py", "check-setup.py"):
@@ -189,12 +190,6 @@ def main():
             "statusMessage": "Checking coding standards setup",
         }]}]},
     }, indent=2) + "\n")
-    (OUTPUT / "plugin.json").write_text(json.dumps({
-        "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-        "name": "coding-standards-portable",
-        "version": "0.1.0",
-        "description": "Portable coding standards workflows adapted for Codex",
-    }, indent=2) + "\n")
     (OUTPUT / ".codex-plugin").mkdir()
     (OUTPUT / ".codex-plugin" / "plugin.json").write_text(json.dumps({
         "name": "coding-standards-portable",
@@ -202,6 +197,7 @@ def main():
         "description": "Shared coding standards and baseline adapted for Codex",
         "author": {"name": "Ripta Pasay"},
         "skills": "./skills/",
+        "hooks": "./hooks/hooks.json",
     }, indent=2) + "\n")
     marketplace = OUTPUT / ".agents" / "plugins"
     marketplace.mkdir(parents=True)

@@ -1,5 +1,9 @@
 import json
+import os
 import runpy
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -51,7 +55,8 @@ class BaselineBuildTests(unittest.TestCase):
             output = Path(temporary) / "bundle"
             with patch.dict(self.namespace, OUTPUT=output), patch("sys.argv", [str(BUILD)]):
                 self.builder["main"]()
-                manifest = output / "plugin.json"
+                manifest = output / ".codex-plugin" / "plugin.json"
+                self.assertFalse((output / "plugin.json").exists())
                 original = json.loads(manifest.read_text())["version"]
                 self.builder["version_plugin"]()
                 self.assertEqual(json.loads(manifest.read_text())["version"], original)
@@ -65,9 +70,31 @@ class BaselineBuildTests(unittest.TestCase):
                 manifest.write_text(json.dumps(metadata, indent=2) + "\n")
                 self.builder["version_plugin"]()
                 self.assertNotEqual(json.loads(manifest.read_text())["version"], updated)
-                compatibility = output / ".codex-plugin" / "plugin.json"
-                self.assertEqual(json.loads(manifest.read_text())["version"],
-                                 json.loads(compatibility.read_text())["version"])
+
+    @unittest.skipUnless(shutil.which("codex"), "Codex CLI is required for runtime discovery")
+    def test_installed_startup_hook_is_discovered_by_codex(self):
+        with tempfile.TemporaryDirectory(prefix="codex runtime ") as temporary:
+            output = Path(temporary) / "bundle"
+            with patch.dict(self.namespace, OUTPUT=output), patch("sys.argv", [str(BUILD)]):
+                self.builder["main"]()
+            home = Path(temporary) / "home"
+            home.mkdir()
+            env = dict(os.environ, CODEX_HOME=str(home))
+            subprocess.run(["codex", "plugin", "marketplace", "add", str(output)],
+                           env=env, capture_output=True, text=True, check=True, timeout=30)
+            installation = subprocess.run([
+                "codex", "plugin", "add", "coding-standards-portable@coding-standards-portable", "--json",
+            ], env=env, capture_output=True, text=True, check=True, timeout=30)
+            installed = Path(json.loads(installation.stdout)["installedPath"])
+            verification = subprocess.run([
+                sys.executable, str(installed / "scripts" / "verify_hooks.py"), "--json",
+            ], env=env, capture_output=True, text=True, timeout=30)
+            self.assertEqual(verification.returncode, 1, verification.stdout + verification.stderr)
+            hooks = json.loads(verification.stdout)
+            self.assertEqual(len(hooks), 1, verification.stderr)
+            self.assertTrue(hooks[0]["enabled"])
+            self.assertEqual(hooks[0]["trustStatus"], "untrusted")
+            self.assertIn("review and trust", verification.stderr)
 
 
 if __name__ == "__main__":
