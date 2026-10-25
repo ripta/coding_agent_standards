@@ -30,7 +30,7 @@ working directory. Outside a git repo, a relative `default_dir` doesn't exist.
 The directory may sit behind a symlink into another repo, e.g. `./spec`
 linking to a separate specs repo. Git does not follow such a link, so run
 every git command on the report in the repo that owns its real path. Find the
-real path with `cd <dir> && pwd -P`, and the owning repo with
+real path with `realpath <dir>`, and the owning repo with
 `git -C <real path> rev-parse --show-toplevel`. Give that repo paths relative
 to its own root.
 

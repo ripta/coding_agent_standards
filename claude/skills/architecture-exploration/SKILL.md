@@ -86,8 +86,9 @@ is one agent per section (§§2–6 of Step 6); size only changes whether a heav
 section is *sharded*, not the number of sections. Measure cheaply — these are
 read-only and piggyback on the classify pass:
 
-- **`N_files`** — `git ls-files -- <scope> | wc -l`. Tracked files only; excludes
-  the gitignored vendor/build noise that a raw `find` would inflate.
+- **`N_files`** — the line count of `git ls-files -- <scope>`. Tracked files
+  only; excludes the gitignored vendor/build noise that a raw `find` would
+  inflate.
 - **`N_units`** — count of the natural partition unit for the detected type, via
   one targeted grep (you know the framework by now): route/handler registrations
   (backend), route entries + top-level components (frontend), command definitions
