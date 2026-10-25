@@ -306,7 +306,7 @@ return, so the claims reaching its synthesis agent are already confirmed and
 line-corrected. In that mode do not re-verify, and treat the supplied line
 numbers as correct.
 
-Citation paths MUST be relative to the citation base (the directory containing
+Citation paths must be relative to the citation base (the directory containing
 this document), so the links resolve when the document is opened. Never emit an
 absolute path or one beginning with `/` or `~`, and never leak a symlinked or
 machine-specific prefix. If a subagent or tool reports an absolute path, strip
