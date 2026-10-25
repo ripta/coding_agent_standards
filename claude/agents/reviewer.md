@@ -147,7 +147,7 @@ lintable:
 Calibration (minimal examples for points 1 and 3; the real before/after these come
 from is the standard):
 
-```
+```text
 // point 1 -- dense block vs formatted
 // bad:
 /// Remove a completed task before it is reaped early at scope exit. Runs on the

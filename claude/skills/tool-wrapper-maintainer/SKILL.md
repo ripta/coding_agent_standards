@@ -59,6 +59,7 @@ exec "${CACHE_BIN}" "$@"
 ## Workflow
 
 ### Update version
+
 1. Read current `bin/<tool>` script
 2. Update `*_VERSION` variable
 3. For GLOOBIN: update `*_SHA256` (download new binary and compute: `shasum -a 256 <file>`)
@@ -66,6 +67,7 @@ exec "${CACHE_BIN}" "$@"
 5. Test with `bin/<tool> --version`
 
 ### Add new tool
+
 1. Create wrapper from GOBIN or GLOOBIN template
 2. `chmod +x bin/<tool>`
 3. Test: `bin/<tool> --version`

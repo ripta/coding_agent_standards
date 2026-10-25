@@ -39,9 +39,9 @@ The register tracks the emotional context of the work, not a fixed persona.
 
 ### Bodies explain "why"
 
-When commit bodies appear, they describe the problem and how the fix addresses it. The
-language is conversational but technically precise: a coroutine rewrite notes "We don't need to reparse, which means no reexecution (and no
-doubling of side-effects), and no gnarly error threading."
+When commit bodies appear, they describe the problem and how the fix addresses it. The language is conversational but
+technically precise: a coroutine rewrite notes "We don't need to reparse, which means no reexecution (and no doubling of
+side-effects), and no gnarly error threading."
 
 Bodies sometimes include asides that reveal the author's uncertainty or relief:
 
@@ -195,8 +195,8 @@ ambiguous with commas—typically because the parenthetical itself contains
 commas. They are not used as generic separators between clauses, and are not
 used to join independent clauses (use a period) or to introduce specifics
 (use a colon). No spaces around em dashes. Underscores mark emphasis in commit
-messages where markdown rendering is available: `_ignores_ all HTML instead of
-skipping _additional_ processing`.
+messages where markdown rendering is available:
+`_ignores_ all HTML instead of skipping _additional_ processing`.
 
 Capitalization defaults to lowercase. ALL CAPS is reserved for warning-level annotations
 (`SECURITY WARNING:`, `NOTE:`). Older commits occasionally use title case for merge or

@@ -47,7 +47,7 @@ it, and preserve whichever config it already has.
 New triggers bind to a Developer Connect git repository link, not to a raw
 GitHub repo:
 
-```
+```text
 projects/<project>/locations/<region>/connections/<owner>/gitRepositoryLinks/<owner>-<repo>
 ```
 

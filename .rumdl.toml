@@ -47,3 +47,4 @@ reflow = true
 "**/SKILL.md" = ["MD041"]
 "claude/agents/*.md" = ["MD041"]
 "claude/commands/*.md" = ["MD041"]
+".opencode/commands/*.md" = ["MD041"]

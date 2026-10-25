@@ -391,10 +391,10 @@ Read the answers this way:
 - `None` picked with a candidate contradicts itself. Ask that question again
 
 Record every candidate's outcome in the Decision Log, per "Recording ADR Candidates" in
-`${CLAUDE_SKILL_DIR}/../../project-management/design.md`. A candidate the user picks is `Written as ADR-NN`. One the user
-leaves unpicked is `Declined`. One that fails only Record `Waits on` a concrete hook. A candidate already in the log that
-now fails another test is `Declined`, with the test it fails. Record these even when none is asked about. A candidate
-that was noted and dropped leaves no entry unless it was already in the log.
+`${CLAUDE_SKILL_DIR}/../../project-management/design.md`. A candidate the user picks is `Written as ADR-NN`. One the
+user leaves unpicked is `Declined`. One that fails only Record `Waits on` a concrete hook. A candidate already in the
+log that now fails another test is `Declined`, with the test it fails. Record these even when none is asked about. A
+candidate that was noted and dropped leaves no entry unless it was already in the log.
 
 For each decision the user picks, read `${CLAUDE_SKILL_DIR}/../../project-management/design.md` and create an ADR
 following its "ADR Document Format" section. That file is the only source for the format; this skill does not carry its

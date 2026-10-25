@@ -2,7 +2,7 @@
 
 ## Project Structure (macOS App)
 
-```
+```text
 Sources/
   <AppName>/
     App.swift                # @main entry point
@@ -68,13 +68,17 @@ Makefile                     # Build targets wrapping xcodebuild / swift build
 ## Integrating Go/C Libraries
 
 - Wrap the `.a` archive or `.xcframework` as an SPM binary target:
+
   ```swift
   .binaryTarget(name: "MyLib", path: "Frameworks/MyLib.xcframework")
   ```
+
 - Or as a system library target with a module map for `.a` + `.h`:
+
   ```swift
   .systemLibrary(name: "CMyLib", path: "Sources/CMyLib")
   ```
+
   with a `module.modulemap` that exposes the C header
 - Import in Swift code: `import MyLib` or `import CMyLib`
 - C functions appear as global Swift functions; call them directly

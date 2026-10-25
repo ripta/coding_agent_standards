@@ -46,11 +46,24 @@ If `$ARGUMENTS` is a number, that is the PR number. Otherwise:
    `~/.config/coding_agent_standards/cloudbuild.json`. If it is absent, ask the
    user.
 3. Find the Cloud Build build ID. Try these approaches in order:
-   - `gcloud builds list --region=<region> --filter="substitutions.COMMIT_SHA=<sha>" --limit=1 --format="value(id)"`
-   - If that returns nothing, try:
-     `gcloud builds list --region=<region> --filter="substitutions.SHORT_SHA=<short_sha>" --limit=1 --format="value(id)"`
-   - If still nothing, try:
-     `gcloud builds list --region=<region> --filter="substitutions.BRANCH_NAME=<branch>" --sort-by="~createTime" --limit=1 --format="value(id)"`
+   - By commit SHA:
+
+     ```sh
+     gcloud builds list --region=<region> --filter="substitutions.COMMIT_SHA=<sha>" --limit=1 --format="value(id)"
+     ```
+
+   - If that returns nothing, by short SHA:
+
+     ```sh
+     gcloud builds list --region=<region> --filter="substitutions.SHORT_SHA=<short_sha>" --limit=1 --format="value(id)"
+     ```
+
+   - If still nothing, by branch:
+
+     ```sh
+     gcloud builds list --region=<region> --filter="substitutions.BRANCH_NAME=<branch>" --sort-by="~createTime" --limit=1 --format="value(id)"
+     ```
+
 4. Download the full build log by running
    `gcloud builds log <build-id> --region=<region>` through `cg_run`. The run's
    captured stdout file is the log.

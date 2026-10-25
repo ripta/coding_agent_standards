@@ -364,8 +364,9 @@ Two differences from the Claude Code plugin are worth knowing:
 - Codex requires strict semver in `version` and caches by it. There is no commit-SHA equivalent. Iterating locally means
   rewriting the version to `0.1.0+codex.<token>` and re-running `codex plugin add`. The generated plugin does this
   automatically with a content hash; `bin/install-codex` rebuilds and installs changed content.
-- Codex supports trusted lifecycle hooks for manually installed desktop plugins. Hook-containing plugins cannot
-  enter the public plugin directory. See the [official hook packaging documentation](https://developers.openai.com/plugins/build/plugins#bundled-mcp-servers-and-lifecycle-hooks).
+- Codex supports trusted lifecycle hooks for manually installed desktop plugins. Hook-containing plugins cannot enter
+  the public plugin directory. See the
+  [official hook packaging documentation](https://developers.openai.com/plugins/build/plugins#bundled-mcp-servers-and-lifecycle-hooks).
 
 ### Linting
 
@@ -386,8 +387,8 @@ can adopt them without a burn-down first. See `rumdl/README.md` and `vale/README
 
 ### Setup Validation
 
-The Claude plugin checks setup at every session start, through `claude/hooks/check-setup.sh`. It prints nothing when all is
-well. Otherwise it names what is missing:
+The Claude plugin checks setup at every session start, through `claude/hooks/check-setup.sh`. It prints nothing when all
+is well. Otherwise it names what is missing:
 
 - Settings entries that `setup_permissions.py` adds
 - A project with no standards import in `CLAUDE.md` or `CLAUDE.local.md`

@@ -5,7 +5,7 @@ one. See "What Earns an ADR".
 
 ## Lifecycle
 
-```
+```text
 proposed → accepted → superseded / deprecated
     ↓          ↓
 retracted  retracted
