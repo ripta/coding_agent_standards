@@ -75,6 +75,8 @@ decisions when its context is compacted or the session resumes.
 7. **Apply it.** Run the domain's checks. Commit by the entry's commit policy, by path, one request per commit.
 8. **Reply.** Give the commit, what changed, and where the fix differs from the suggestion. List what disclosure
    removed. Say how the requestor picks it up. Ask it to re-check against its own project when the guardian could not.
+   When the requestor's session is gone, drop the reply. Never send it to another session, which would only confuse
+   that session. Tell the user the session is gone and could not be answered.
 9. **Close it.** Record the verdict, the source's visibility, and the commit in the ledger.
 
 ## Rules
