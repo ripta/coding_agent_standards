@@ -2,7 +2,7 @@
 """Run a guardian's optional hooks for one event.
 
     python3 guardian_hooks.py start DOMAIN_NAME < domain.json
-    python3 guardian_hooks.py stop DOMAIN_NAME
+    python3 guardian_hooks.py stop DOMAIN_NAME [--detach]
 
 Hooks are executables in ~/.config/coding_agent_standards/guardian-hooks/<event>/. They run
 in name order. Files that start with a dot, and files that are not executable, are skipped. A
@@ -12,7 +12,9 @@ missing directory means no hooks, which is the usual case.
 and saves it beside the ledger as domain.json. It also records the domain name under the
 session's ID, from CLAUDE_CODE_SESSION_ID, in guardians/by-session/. SessionEnd input carries
 the session ID but no title, so guardian-session-end.sh finds the domain there and runs `stop`.
-`stop` reads the saved domain.json. Each hook gets the event, the domain name, the session name,
+`stop` reads the saved domain.json. `--detach` runs it in a new session and returns at once,
+with its output in stop.log beside the ledger. The host may kill the SessionEnd hook's process
+group when its budget runs out, and a new session leaves that group. Each hook gets the event, the domain name, the session name,
 and the entries as one JSON object on stdin.
 
 A failing hook never stops the guardian. The result is JSON on stdout, one item per hook with
@@ -110,12 +112,38 @@ def run_hooks(event: str, domain_name: str, entries: list[dict[str, Any]]) -> li
     return results
 
 
+def detach_stop(domain_name: str) -> int:
+    log = guardians_dir() / domain_name / "stop.log"
+    try:
+        log.parent.mkdir(parents=True, exist_ok=True)
+        with open(log, "w", encoding="utf-8") as out:
+            subprocess.Popen(
+                [sys.executable, __file__, "stop", domain_name],
+                stdin=subprocess.DEVNULL,
+                stdout=out,
+                stderr=out,
+                start_new_session=True,
+            )
+    except OSError as e:
+        print(f"guardian_hooks: {e}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 3 or argv[1] not in EVENTS or not re.fullmatch(DOMAIN_NAME, argv[2]):
+    detach = argv[3:] == ["--detach"]
+    if detach:
+        argv = argv[:3]
+
+    usage_ok = len(argv) == 3 and argv[1] in EVENTS and re.fullmatch(DOMAIN_NAME, argv[2])
+    if not usage_ok or (detach and argv[1] != "stop"):
         print(__doc__.strip(), file=sys.stderr)
         return 1
 
     event, domain_name = argv[1], argv[2]
+    if detach:
+        return detach_stop(domain_name)
+
     saved = guardians_dir() / domain_name / "domain.json"
     try:
         if event == "start":

@@ -127,7 +127,8 @@ only to some domains checks `domain_name` itself.
 There are two events. More may be added when a hook needs one.
 
 - `start` runs at the end of Starting, once the domain, the name, and the ledger are settled. The plugin's
-  `scripts/guardian_hooks.py` runs it, and records the session's ID and the domain beside the ledger.
+  `scripts/guardian_hooks.py` runs it. It saves the domain as `domain.json` beside the ledger, and records the domain
+  name under the session's ID in `guardians/by-session/`.
 - `stop` runs when the guardian's session ends. The plugin's `guardian-session-end.sh` SessionEnd hook runs it from
   that record. The stop hooks run detached, since SessionEnd allows only a moment. Their output goes to `stop.log`
   beside the ledger.

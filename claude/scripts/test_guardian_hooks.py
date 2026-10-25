@@ -2,6 +2,7 @@
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -23,9 +24,19 @@ def run(home: Path, *args: str, stdin: str = "", session_id: str = "") -> subpro
 
 
 def end_session(home: Path, session_id: str) -> None:
+    """Run the SessionEnd hook in its own process group, then kill that group as a host may."""
     payload = json.dumps({"hook_event_name": "SessionEnd", "session_id": session_id, "reason": "other"})
     env = dict(os.environ, HOME=str(home))
-    subprocess.run([SESSION_END], input=payload, capture_output=True, text=True, env=env, check=True)
+    proc = subprocess.Popen(
+        [SESSION_END], stdin=subprocess.PIPE, text=True, env=env, start_new_session=True
+    )
+    proc.communicate(payload)
+    assert proc.returncode == 0
+
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
 
 
 def wait_for(path: Path) -> str:
@@ -134,11 +145,12 @@ def test_usage_errors(tmp_path: Path) -> None:
     assert run(tmp_path, "begin", "cas").returncode == 1
     assert run(tmp_path, "start").returncode == 1
     assert run(tmp_path, "start", "../x", stdin=json.dumps(DOMAIN)).returncode == 1
+    assert run(tmp_path, "start", "cas", "--detach", stdin=json.dumps(DOMAIN)).returncode == 1
 
 
 def test_session_end_runs_the_stop_hooks_for_the_session_that_started(tmp_path: Path) -> None:
     out = tmp_path / "released"
-    add_hook(tmp_path, "stop", "release", f"cat > {out}")
+    add_hook(tmp_path, "stop", "release", f"sleep 1; cat > {out}")
     run(tmp_path, "start", "cas", stdin=json.dumps(DOMAIN), session_id=SESSION_ID)
     record = tmp_path / ".local" / "state" / "coding_agent_standards" / "guardians" / "by-session" / SESSION_ID
     assert record.read_text() == "cas\n"

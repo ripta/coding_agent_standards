@@ -4,7 +4,7 @@
 # exits at once for them.
 #
 # SessionEnd gets a 1.5s budget, and a plugin hook's timeout cannot raise it. The stop hooks run
-# detached instead, with their output in stop.log beside the ledger. A crash or kill may skip
+# detached in a new session instead, with their output in stop.log beside the ledger. A crash or kill may skip
 # SessionEnd, so a stop hook can never be the only thing that releases a held resource.
 
 INPUT=$(cat)
@@ -26,6 +26,5 @@ if [[ ! "$DOMAIN" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
 fi
 
 SCRIPT="$(cd "$(dirname "$0")/.." && pwd)/scripts/guardian_hooks.py"
-mkdir -p "$GUARDIANS/$DOMAIN"
-nohup python3 "$SCRIPT" stop "$DOMAIN" </dev/null >"$GUARDIANS/$DOMAIN/stop.log" 2>&1 &
+python3 "$SCRIPT" stop "$DOMAIN" --detach
 exit 0
