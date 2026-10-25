@@ -112,15 +112,15 @@ Measured findings per repo, full tree, with this exact config:
 
 | tier | repo | findings | note |
 |---|---|---|---|
-| 1 | hotpod | 5 | Go only, smoke test |
-| 1 | electron_microscope | 32 | Go + TS + protobuf, real validation |
-| 2 | sprout-n-shelve | 48 | TypeScript |
-| 2 | zaz | 107 | Rust, heavily commented |
-| 3 | rt | 198 | |
-| 3 | mochi | 273 | |
-| 3 | worldwiki-au | 898 | worst comment divergence in the set |
-| 3 | elastane | 1,235 | largest backlog |
-| 4 | 1z | markdown only | Zig comments not lintable |
+| 1 | small Go service | 5 | smoke test |
+| 1 | Go + TS + protobuf app | 32 | real validation |
+| 2 | TypeScript app | 48 | |
+| 2 | Rust tool | 107 | heavily commented |
+| 3 | project | 198 | |
+| 3 | project | 273 | |
+| 3 | project | 898 | worst comment divergence in the set |
+| 3 | project | 1,235 | largest backlog |
+| 4 | Zig interpreter | markdown only | Zig comments not lintable |
 
 Tier 1 is small enough to fix tree-wide in an afternoon. Tiers 2 and 3 are
 diff-scoped. By the end of tier 2 the config has been proven against Go,
