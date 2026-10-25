@@ -12,6 +12,9 @@
 - When committing, name the paths in the commit itself: `git commit -- <paths>`. Staging by path and then running a
   bare `git commit` also commits whatever else is staged. Another session sharing the checkout may have staged its own
   files. Never use `git add -A`, `git add .`, or `git commit -a`
+- When committing is allowed, check `git status` before reporting work done. Commit every file your own work left, or
+  add an ignore line for a generated artifact such as `__pycache__/`. Leave files you did not make alone. Another
+  session sharing the checkout may still be working on them
 
 ## Destructive Operations
 
