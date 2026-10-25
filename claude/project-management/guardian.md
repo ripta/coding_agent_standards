@@ -55,6 +55,12 @@ decisions when its context is compacted or the session resumes.
 6. Tell the user the domain, each entry's commit policy and visibility, the ledger's path, and which hooks ran. Then
    wait for requests.
 
+A guardian session that comes back by resume, `/clear`, or fork re-runs every step above before it handles a request.
+Leaving the session ran its stop hooks, so the start hooks must run again. A fork also claims its parent's name, so the
+rival check must run. The plugin's `guardian-session-start.sh` SessionStart hook tells the session to do this. It
+finds a guardian by its `<domain name>_guardian` title. A session that cannot re-run Starting is not resumed. Its user
+starts a fresh one with `/guardian <domain name>`.
+
 ## Handling a Request
 
 1. **Log it.** Add the request to the ledger with its sender, date, and a one-line summary.

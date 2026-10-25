@@ -10,6 +10,8 @@
   project's proposals has passed, and nothing otherwise. Last, `check-setup.sh`
   creates `~/.local/state/coding_agent_standards/`, and checks that the
   machine and the project are set up. It prints nothing when they are.
+  `guardian-session-start.sh` tells a `<domain name>_guardian` session that
+  comes back by resume, `/clear`, or fork to re-run its Starting steps.
 - `UserPromptSubmit` runs `name-guardian.sh`. When the prompt is `/guardian`
   with a domain name as its first argument, it names the session
   `<domain name>_guardian`, replacing any custom title.
