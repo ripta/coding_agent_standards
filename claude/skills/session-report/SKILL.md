@@ -41,7 +41,8 @@ Precedence:
 2. Otherwise `default_dir` from the preference file.
 3. If the file is missing or `default_dir` doesn't exist on disk, ask the user
    for the directory and verify it exists. Then write the preference file
-   (create the parent directory if needed). Exception: when `default_dir` is
+   with the Write tool, which creates the parent directory. Bash cannot write
+   there. Exception: when `default_dir` is
    relative, use the answer for this report only. Leave the file alone, since
    the relative default still serves other repos.
 

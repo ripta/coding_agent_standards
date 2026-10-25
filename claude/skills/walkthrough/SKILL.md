@@ -93,7 +93,8 @@ the skill's only question round. Everything after it runs unattended until the
 page is written.
 
 When the directory came from that call, verify it, then write the preference
-file. Create `~/.config/coding_agent_standards/` if needed.
+file with the Write tool, which creates `~/.config/coding_agent_standards/` if
+needed. Bash cannot write there.
 
 Filename: `YYYYMMDD-<slug>.html`, today's date, kebab-case slug naming the
 subject. Name the subject, not the activity —

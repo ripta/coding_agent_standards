@@ -35,6 +35,10 @@ STATE_DIR = "~/.local/state/coding_agent_standards"
 NITIPAN_STATE_DIR = "~/.local/state/nitipan"
 # Skill preference files and the private-terms list. The sandbox denies reading all of
 # ~/.config, since it holds credentials, so this one directory is carved back out.
+#
+# Sessions may write the preference files, which are JSON, through the Write and Edit tools.
+# The glob leaves out private-terms.txt, so changing that list still needs the user's approval.
+# Bash stays unable to write anywhere under ~/.config.
 CONFIG_DIR = "~/.config/coding_agent_standards"
 
 # Each key is a path into the settings JSON. Entries are added in this order after any the
@@ -44,6 +48,7 @@ MANAGED: dict[tuple[str, ...], list[str]] = {
         f"Edit({STATE_DIR}/**)",
         f"Edit({NITIPAN_STATE_DIR}/**)",
         f"Read({CONFIG_DIR}/**)",
+        f"Edit({CONFIG_DIR}/*.json)",
     ],
     ("sandbox", "filesystem", "allowWrite"): [STATE_DIR, NITIPAN_STATE_DIR],
     ("sandbox", "filesystem", "allowRead"): [CONFIG_DIR],

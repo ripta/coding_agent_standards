@@ -101,7 +101,9 @@ visibility is public or unknown. It backs up the promotion check in `rules/discl
 `private-terms.py` does the work.
 
 - Terms live in `~/.config/coding_agent_standards/private-terms.txt`, one per line. Blank lines
-  and `#` comments are ignored. You maintain the file by hand. Sessions cannot write `~/.config`.
+  and `#` comments are ignored. You maintain the file by hand. Sessions may write only the `*.json`
+  preference files beside it, through the Write and Edit tools. Changing this list needs your
+  approval.
 - Without the file, the hook allows everything. Other users of this plugin see nothing.
 - A term matches as a whole word, case-insensitively. The hook checks the added lines of the
   commit and the commit command's text, which holds the message. A commit by path or with `-a`
