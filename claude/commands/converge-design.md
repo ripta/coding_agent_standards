@@ -1,6 +1,6 @@
 ---
 description: Iterate a design question with the design critic until it converges, then ask
-argument-hint: [design question or description] [proposal path]
+argument-hint: "[design question or description] [proposal path]"
 model: opus
 allowed-tools: Agent, AskUserQuestion, Bash, Read, Glob, Grep, WebSearch, WebFetch
 ---

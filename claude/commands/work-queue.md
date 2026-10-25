@@ -1,6 +1,6 @@
 ---
 description: Plan a run of queue rows up front, then implement and commit their milestones one at a time
-argument-hint: [next [N] | all | <PROJ-NNN>[ M<n>[-M<m>]] ...] [notes]
+argument-hint: "[next [N] | all | <PROJ-NNN>[ M<n>[-M<m>]] ...] [notes]"
 model: opus
 ---
 
