@@ -180,7 +180,10 @@ Read its "What Earns an ADR" section and its "ADR Document Format" section.
 Check every ADR file the change adds or edits:
 
 - **A new ADR must pass all three tests.** It is architecture: it cuts across
-  the system, is hard to reverse, or departs from the past. It is a decision:
+  the system, is hard to reverse, or departs from the past. It states an
+  invariant or constraint, not a format, syntax, mapping, derivation, or
+  storage layout. An ADR that a new instance or a format change would force to
+  change fails this test. It is a decision:
   it holds no plans, migration steps, target dates, follow-ups, status, or
   open questions. It is ready to be a record: nothing it rests on is still
   being measured or designed. Name the test it fails.

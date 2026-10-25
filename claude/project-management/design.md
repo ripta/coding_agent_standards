@@ -84,20 +84,37 @@ The decision is significant and foundational. At least one of these holds:
 
 - **It cuts across the system.** Other components, services, or future work must follow it, such as "every outbound
   event goes through the outbox"
-- **It is hard to reverse.** It fixes a schema, a wire format, a published contract, or stored data in a way a redeploy
-  cannot undo
+- **It is hard to reverse.** It commits a schema, a wire format, a published contract, or stored data to a property a
+  redeploy cannot undo, such as "stored events stay readable by every later version"
 - **It departs from the past.** It replaces an approach the project used before, or an earlier ADR, so the next person
   who finds the old pattern needs to know it is gone
 
 Being hard, debated, or important to one proposal does not pass this test. Neither does a decision that shapes only one
 component's internals. Those stay in the proposal or the design doc that made them.
 
+Architecture is the invariant or constraint, never the implementation. A format, syntax, mapping, derivation, storage
+layout, or mechanism is never itself an ADR, even when it is hard to reverse. When such a choice is hard to reverse, the
+candidate is the invariant it serves. The concrete form stays in the proposal.
+
+The ADR also states the rule that any change breaking the invariant must follow, such as how a breaking migration keeps
+old and new readers working. That rule is a constraint, so it belongs. The migration's steps and their order are a plan,
+so the Decision test keeps them out.
+
+To tell the two apart, ask what would force the ADR to change. Adding another instance of the same kind must not.
+Changing the concrete format must not. When either would, the candidate is implementation. Lift it to the invariant
+behind it before weighing it.
+
+For example, a name syntax that callers store is implementation. The ADR behind it says that identities shared across
+machines carry stable identifiers. It also says how a migration that breaks an identifier must proceed. A new kind of
+identity, or a new syntax, leaves that ADR unchanged.
+
 ### Decision
 
 An ADR records a choice that has been made, and why. It holds nothing about the future. Keep these out:
 
 - Future work, follow-up tasks, ideas, and TODO lists. Put them in a proposal
-- Plans, migration steps, schedules, and target dates. Put the plan in a proposal and the order in the queue
+- Plans, migration steps, schedules, and target dates. Put the plan in a proposal and the order in the queue. A rule
+  every breaking migration must follow is a constraint, not a plan. It belongs, per "Architecture" above
 - Bugs and known issues. Put them in the project's bugs directory or issue tracker
 - Implementation status or progress. Proposal milestones hold that
 - Open questions. Resolve them before the ADR is accepted
@@ -124,10 +141,10 @@ from one nobody weighed. A decision with no candidate entry did not pass the bar
 Each candidate gets one entry. It names the Architecture criterion it meets and ends with its outcome:
 
 ```markdown
-- 2026-10-17: ADR candidate (hard to reverse): events carry a schema version. Written as ADR-07.
+- 2026-10-17: ADR candidate (hard to reverse): stored events stay readable by every later version. Written as ADR-07.
 - 2026-10-17: ADR candidate (cuts across the system): retries go through the shared client. Declined: its README covers it.
 - 2026-10-17: ADR candidate (departs from the past): drop the cache layer. Waits on the PROJ-012 M3 benchmark.
-- 2026-10-17: ADR candidate (hard to reverse): sessions keyed by account ID. Undecided. Found in PROJ-007 M2.
+- 2026-10-17: ADR candidate (hard to reverse): a session belongs to exactly one account. Undecided. Found in PROJ-007 M2.
 ```
 
 - **Written as ADR-NN**: the ADR exists. The proposal's References lists it too
@@ -146,6 +163,10 @@ instead. Without a session report, the run lists them in its final response.
 A list of ADR candidates shown to the user holds only candidates that pass all three tests. A candidate that fails any
 test stays off the list. Its outcome goes in the Decision Log instead.
 
+Each item names the invariant, not the format or mechanism that implements it. Lift an implementation-level candidate
+to its invariant before listing it, per "Architecture" above. Several such candidates may lift to one invariant. List
+that invariant once.
+
 Each item shows how it passes every test, in a short phrase per test:
 
 - **Architecture**: the criterion it meets, and the concrete thing that meets it
@@ -153,8 +174,9 @@ Each item shows how it passes every test, in a short phrase per test:
 - **Record**: why it will not shift
 
 ```markdown
-- Events carry a schema version. Architecture: hard to reverse, it fixes the wire format. Decision: a version field
-  over content negotiation. Record: nothing it depends on is still in design.
+- Stored events stay readable by every later version. Architecture: hard to reverse, events persist across deploys.
+  Decision: readers accept every past event shape, over rewriting stored events. Record: nothing it depends on is still
+  in design.
 ```
 
 An item that does not show all three tests has not been shown to pass. Treat it as passing none, and leave it off.
