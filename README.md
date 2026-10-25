@@ -150,6 +150,48 @@ tool allowlists are removed; Codex session permissions apply. The builder reject
 untranslated Claude dependencies in skill instructions. Reference documents are supporting material, not automatically
 loaded project rules. Install the generated directory as a local plugin in a client that supports local plugins.
 
+#### Baseline standards in Codex
+
+The same build generates `dist/codex/baseline.md` from the imports in `profiles/baseline.md`.
+It lists all baseline documents in their original order and supplies Codex-specific tool adaptations.
+The bundle includes the proposal checker referenced by the project management standards; it requires Python 3.10+.
+Edit the shared sources and rebuild to update it.
+
+To build, install, and enable the baseline for your local projects, run:
+
+```sh
+bin/install-codex
+```
+
+The installer registers the generated marketplace, installs a snapshot into Codex's plugin cache, and creates
+`~/.codex/coding-standards-current` pointing at that snapshot. It appends a baseline instruction to
+`~/.codex/AGENTS.md`, preserving existing content. Repeating it does not duplicate that instruction.
+It honors `CODEX_HOME` when set. The installed baseline does not depend on this checkout remaining available.
+
+Start a new thread after installation. Review and trust the plugin's `SessionStart` hook in Codex so subsequent
+sessions refresh the link after plugin updates. The installer creates the initial link without requiring the hook.
+The hook refuses to replace a regular file or directory at the link path and refuses to link a working tree.
+
+For project-only adoption, build and install the plugin using the commands below, then put this in the project's
+existing `AGENTS.md` instead of running the installer:
+
+```markdown
+Read and follow `~/.codex/coding-standards-current/baseline.md`,
+including every document it lists, before working on this project.
+```
+
+Keep existing instructions in that file. With a custom `CODEX_HOME`, use its absolute path instead of `~/.codex`.
+Trust the startup hook before starting the thread that uses the baseline.
+
+This uses an explicit read instruction rather than Claude's `@import` syntax.
+[Codex loads AGENTS.md from its global and project instruction locations](https://developers.openai.com/cookbook/examples/gpt-5/codex_prompting_guide#using-agentsmd).
+Installing the plugin alone does not activate this baseline; the instruction in `AGENTS.md` does.
+Keep the whole bundle together when distributing it so its relative references resolve.
+
+The baseline applies to the project where Codex is working, including monorepos, submodules, and separate repos.
+It preserves existing spec locations and does not assume that components ship together.
+The only bundled hook maintains the stable link. Claude enforcement hooks and orchestration commands are not enabled.
+
 ### Profiles
 
 Composable profiles that bundle the right standards for a given project type. Each profile imports a baseline plus
@@ -299,11 +341,25 @@ Validate against Codex's ingestion contract before pushing a manifest change:
 python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py codex
 ```
 
+The generated shared-standards plugin has its own marketplace inside `dist/codex/`. `bin/install-codex` handles
+installation and global baseline setup together. To install only the plugin after building:
+
+```sh
+codex plugin marketplace add ~/projects/coding_agent_standards/dist/codex
+codex plugin add coding-standards-portable@coding-standards-portable
+```
+
+This marketplace travels with the generated bundle. A recipient can register an unpacked bundle instead of cloning
+this repository. The source bundle is needed again for updates, but sessions read the installed snapshot.
+The root marketplace continues to expose only the separately authored Codex skills.
+
 Two differences from the Claude Code plugin are worth knowing:
 
 - Codex requires strict semver in `version` and caches by it. There is no commit-SHA equivalent. Iterating locally means
-  rewriting the version to `0.1.0+codex.<token>` and re-running `codex plugin add`.
-- Codex rejects a `hooks` field in `plugin.json`, so `claude/hooks/` has no counterpart on this side.
+  rewriting the version to `0.1.0+codex.<token>` and re-running `codex plugin add`. The generated plugin does this
+  automatically with a content hash; `bin/install-codex` rebuilds and installs changed content.
+- Codex supports trusted lifecycle hooks for manually installed desktop plugins. Hook-containing plugins cannot
+  enter the public plugin directory. See the [official hook packaging documentation](https://developers.openai.com/plugins/build/plugins#bundled-mcp-servers-and-lifecycle-hooks).
 
 ### Linting
 

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build a standalone Codex plugin in dist/codex; never install user config."""
 
+import hashlib
 import json
 import re
 import shutil
@@ -20,6 +21,63 @@ UNSUPPORTED = re.compile(
     r"CLAUDE_[A-Z_]+|\$ARGUMENTS|EnterPlanMode|ExitPlanMode|SendMessage|"
     r"AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:"
 )
+
+
+def baseline_paths():
+    paths = []
+    for line in (REPO / "profiles" / "baseline.md").read_text().splitlines():
+        if not line.startswith("@"):
+            continue
+        if line.startswith("@~/.claude/coding-standards-current/"):
+            relative = line.removeprefix("@~/.claude/coding-standards-current/")
+            source = SOURCE / relative
+        elif line.startswith("@../practices/"):
+            relative = line.removeprefix("@../")
+            source = REPO / relative
+        else:
+            raise ValueError(f"unsupported baseline import: {line}")
+        if ".." in Path(relative).parts or not source.is_file():
+            raise ValueError(f"invalid baseline import: {line}")
+        paths.append(relative)
+    if not paths:
+        raise ValueError("baseline profile has no imports")
+    return paths
+
+
+def write_baseline(paths):
+    for relative in paths:
+        target = OUTPUT / relative
+        text = target.read_text().replace("AskUserQuestion", "available user-question")
+        text = text.replace(" (up to 4 questions)", "")
+        text = text.replace("call with `multiSelect`", "call allowing multiple selections")
+        text = text.replace("Call ListAgents and look for", "Use available session discovery to look for")
+        target.write_text(text)
+    (OUTPUT / "baseline.md").write_text(
+        "# Coding standards baseline for Codex\n\n"
+        "Generated from profiles/baseline.md by bin/build-codex. Do not edit this copy.\n\n"
+        "Read and follow every document below before working on the project. Resolve these paths\n"
+        "relative to this file, regardless of the project's working directory. These are instructions,\n"
+        "not optional background reading. If a document is missing, report it before proceeding.\n\n"
+        + "".join(f"- [{path}]({path})\n" for path in paths)
+        + "\n## Codex adaptations\n\n"
+        "Apply these adaptations when reading the shared standards:\n\n"
+        "- Use the available user-question tool within its limits. If unavailable, ask in chat.\n"
+        "  For multiple selections, let the user name each approved item in text.\n"
+        "- Use the session's shell execution tool when cg_run and cg_run_many are unavailable.\n"
+        "  Use its output limits and inspect any truncated output needed for the task.\n"
+        "  Follow the session's approval mechanism for commands requiring permission.\n"
+        "  A command the user runs outside the session runs in their terminal.\n"
+        "- Discover and contact guardians only when the session exposes those capabilities and\n"
+        "  authorizes contact. Otherwise report the external defect to the user. Do not spawn a\n"
+        "  guardian or assume that listing child agents discovers other sessions.\n"
+        "- References to Claude commands, skills, hooks, and the Workflow tool describe their\n"
+        "  original integration. This baseline does not install or invoke those integrations.\n"
+        "  Their approval exceptions apply only when that workflow is actually available and approved.\n"
+        "  No disclosure hook or session-start notice is enabled by reading these standards.\n"
+        "- Resolve bundled reference paths against this directory. Project paths belong to the\n"
+        "  project being worked on. Run scripts/proposals.py with Python 3.10+ from this bundle when needed.\n"
+        "  Preserve existing spec locations, including external directories and symlinks.\n"
+    )
 
 
 def convert_skill(text, name, command=False):
@@ -58,6 +116,7 @@ def convert_skill(text, name, command=False):
 def main():
     if len(sys.argv) != 1:
         raise ValueError("usage: bin/build-codex")
+    baseline = baseline_paths()
     # Prepare and validate translations before replacing the previous build.
     converted = {}
     for name in (*SKILLS, *COMMANDS):
@@ -95,15 +154,59 @@ def main():
     shutil.copytree(REPO / "rumdl", OUTPUT / "rumdl")
     tracking = OUTPUT / "project-management" / "tracking.md"
     tracking.write_text(tracking.read_text().replace("claude/rules/", "rules/"))
+    (OUTPUT / "scripts").mkdir()
+    shutil.copy2(SOURCE / "scripts" / "proposals.py", OUTPUT / "scripts" / "proposals.py")
+    write_baseline(baseline)
+    (OUTPUT / "hooks").mkdir()
+    shutil.copy2(REPO / "bin" / "codex-link-current.py", OUTPUT / "hooks" / "link-current.py")
+    (OUTPUT / "hooks" / "hooks.json").write_text(json.dumps({
+        "hooks": {"SessionStart": [{"hooks": [{
+            "type": "command",
+            "command": 'python3 "${PLUGIN_ROOT}/hooks/link-current.py"',
+            "statusMessage": "Updating coding standards reference",
+        }]}]},
+    }, indent=2) + "\n")
+    # Codex caches by version. Include content in the version so rebuilding changed standards
+    # installs a new snapshot without modifying the files used by existing sessions.
+    digest = hashlib.sha256()
+    for path in sorted(OUTPUT.rglob("*")):
+        if path.is_file():
+            digest.update(path.relative_to(OUTPUT).as_posix().encode() + b"\0")
+            digest.update(path.read_bytes() + b"\0")
+    version = "0.1.0+codex." + digest.hexdigest()[:16]
     (OUTPUT / "plugin.json").write_text(json.dumps({
         "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
         "name": "coding-standards-portable",
-        "version": "0.1.0",
+        "version": version,
         "description": "Portable coding standards workflows adapted for Codex",
+    }, indent=2) + "\n")
+    (OUTPUT / ".codex-plugin").mkdir()
+    (OUTPUT / ".codex-plugin" / "plugin.json").write_text(json.dumps({
+        "name": "coding-standards-portable",
+        "version": version,
+        "description": "Shared coding standards and baseline adapted for Codex",
+        "author": {"name": "Ripta Pasay"},
+        "skills": "./skills/",
+    }, indent=2) + "\n")
+    marketplace = OUTPUT / ".agents" / "plugins"
+    marketplace.mkdir(parents=True)
+    (marketplace / "marketplace.json").write_text(json.dumps({
+        "name": "coding-standards-portable",
+        "interface": {"displayName": "Portable Coding Standards"},
+        "plugins": [{
+            "name": "coding-standards-portable",
+            "source": {"source": "local", "path": "."},
+            "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+            "category": "Productivity",
+        }],
     }, indent=2) + "\n")
     (OUTPUT / "README.md").write_text(
         "# Generated Codex plugin\n\n"
         "Built by bin/build-codex. Edit claude/ and rebuild.\n\n"
+        "For baseline standards, instruct Codex in your AGENTS.md to read and follow\n"
+        "~/.codex/coding-standards-current/baseline.md.\n"
+        "The trusted SessionStart hook maintains that link to the installed snapshot.\n"
+        "Plugin installation alone does not activate the baseline.\n\n"
         "Included skills: " + ", ".join(converted) + ".\n\n"
         "Commands are explicit-only skills. Claude agents, hooks, mods, settings,\n"
         "and Codex-only skills are not included. Reference documents do not\n"
