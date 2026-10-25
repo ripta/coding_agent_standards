@@ -43,13 +43,6 @@ Common causes:
 - **Resource leaks**: ensure cleanup with `t.Cleanup()` or `defer`
 - **Race conditions**: run with `-race` flag (Go), isolate concurrent access
 
-## Coverage
-
-- Critical paths: 90%+
-- Business logic: 80%+
-- Overall: 70%+
-- Exclude generated code from metrics
-
 ## Rules
 
 - Run tests via Makefile: `make test`
