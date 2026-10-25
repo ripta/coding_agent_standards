@@ -2,6 +2,7 @@
 
 Minimal standards applied to all projects.
 
+@~/.claude/coding-standards-current/rules/precedence.md
 @~/.claude/coding-standards-current/rules/decision-making.md
 @~/.claude/coding-standards-current/rules/work-discipline.md
 @~/.claude/coding-standards-current/rules/response-style.md

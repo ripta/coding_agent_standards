@@ -69,6 +69,7 @@ independently. Components in separate repos may ship together.
 These imports mirror `profiles/baseline.md`. They use relative paths so they read the working tree. The profile's
 `~/.claude/coding-standards-current/` paths would read the installed plugin, which lags behind edits made here.
 
+@claude/rules/precedence.md
 @claude/rules/decision-making.md
 @claude/rules/work-discipline.md
 @claude/rules/response-style.md

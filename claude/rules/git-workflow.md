@@ -5,6 +5,8 @@
 - Do not run `git commit`, `git add`, or `git push` unless the user explicitly asks.
   The user reviews every change and commits it themselves, so when work is complete,
   stop and yield control
+- A project's own instructions may authorize committing without being asked. That grant overrides the bullet above,
+  per `precedence.md`. It covers commits only, never pushes
 - Exception: when a commit you made breaks `commit-style.md` and has not been pushed, reword it without asking. Keep
   its tree, author, and date unchanged. This never covers pushed commits or other people's commits
 - When committing, name the paths in the commit itself: `git commit -- <paths>`. Staging by path and then running a
