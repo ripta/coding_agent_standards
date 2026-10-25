@@ -75,6 +75,7 @@ FROZEN_STATUSES = {"implemented", "superseded"}
 LINK_TARGET = re.compile(r"\]\([^)]*\)")
 AUDIT_ENTRY = re.compile(r"\brevisit\b", re.IGNORECASE)
 CORRECTION_ENTRY = re.compile(r"\bcorrection of fact\b", re.IGNORECASE)
+SUPERSESSION_ENTRY = re.compile(r"\bsuperseded (?:in part )?by [A-Z0-9]*[A-Z][A-Z0-9]*-\d+", re.IGNORECASE)
 UNCOMMITTED = "0" * 40
 QUEUE_FILE = "queue.md"
 HISTORY_FILE = "history.md"
@@ -991,7 +992,10 @@ def freeze(proposals_dir: Path, row_commits: list[str]) -> list[dict[str, Any]]:
                 entries = _entries(new[j1:j2])
                 audits += sum(1 for e in entries if AUDIT_ENTRY.search(e))
                 corrections += sum(1 for e in entries if CORRECTION_ENTRY.search(e))
-                log_inserts[n] = all(AUDIT_ENTRY.search(e) or CORRECTION_ENTRY.search(e) for e in entries)
+                log_inserts[n] = all(
+                    AUDIT_ENTRY.search(e) or CORRECTION_ENTRY.search(e) or SUPERSESSION_ENTRY.search(e)
+                    for e in entries
+                )
 
         hunks = []
         for n, (tag, i1, i2, j1, j2) in enumerate(opcodes):
@@ -1003,7 +1007,10 @@ def freeze(proposals_dir: Path, row_commits: list[str]) -> list[dict[str, Any]]:
             if n in log_inserts:
                 if log_inserts[n]:
                     continue
-                kind = "decision-log entry that records neither a revisit audit nor a correction of fact"
+                kind = (
+                    "decision-log entry that records neither a revisit audit, a correction of fact, "
+                    "nor a supersession"
+                )
             elif "status" in labels:
                 if labels <= {"status", "meta"} and _status_allowed(old_part, new_part):
                     continue

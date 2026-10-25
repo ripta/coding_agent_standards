@@ -217,6 +217,8 @@ Once a proposal is `implemented`, only these edits are allowed:
 - Correcting a wrong claim about what shipped
 - Links and references
 - A "Superseded in part by PROJ-NNN; see Decision Log" marker on a replaced decision or milestone
+- Decision Log entries that record a supersession. Each says "superseded by PROJ-NNN" or "superseded in part by
+  PROJ-NNN", naming the superseding proposal
 - Decision Log entries that record a revisit-hook audit, and replacing the hook's date after that audit
 - Status changes the lifecycle allows from `implemented`, such as to `superseded`
 - The `**Updated:**` date

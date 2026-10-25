@@ -992,6 +992,30 @@ def test_freeze_accepts_only_the_exact_marker(specs: Path, replacement: str) -> 
     assert result["hunks"]
 
 
+def test_freeze_allows_the_entry_a_partial_supersession_marker_points_to(specs: Path) -> None:
+    directory, path = _freeze_setup(specs)
+    text = FROZEN.replace("Keys carry a version.", "Keys carry a version. Superseded in part by PROJ-009; see Decision Log.")
+    entry = "- 2026-11-01: Cache keys superseded in part by PROJ-009, which drops the version.\n"
+    path.write_text(text.replace("- 2026-10-01: Created.\n", "- 2026-10-01: Created.\n" + entry))
+    assert proposals.freeze(directory, []) == []
+
+
+def test_freeze_allows_the_entry_for_a_superseded_status(specs: Path) -> None:
+    directory, path = _freeze_setup(specs)
+    text = FROZEN.replace("**Status:** implemented", "**Status:** superseded")
+    entry = "- 2026-11-01: Superseded by PROJ-009, which replaces the cache.\n"
+    path.write_text(text.replace("- 2026-10-01: Created.\n", "- 2026-10-01: Created.\n" + entry))
+    assert proposals.freeze(directory, []) == []
+
+
+def test_freeze_reports_a_superseded_entry_that_names_no_proposal(specs: Path) -> None:
+    directory, path = _freeze_setup(specs)
+    entry = "- 2026-11-01: The cache superseded the old lookup table.\n"
+    path.write_text(FROZEN.replace("- 2026-10-01: Created.\n", "- 2026-10-01: Created.\n" + entry))
+    [result] = proposals.freeze(directory, [])
+    assert "nor a supersession" in result["hunks"][0]["kind"]
+
+
 def test_freeze_needs_an_audit_for_a_revisit_change(specs: Path) -> None:
     directory, path = _freeze_setup(specs)
     hooked = FROZEN.replace("**Updated:** 2026-10-01", "**Updated:** 2026-10-01\n**Revisit:** on or after 2027-01-01 (x)")
