@@ -30,12 +30,12 @@ the links you provide, not on the page.
 Read these before writing any HTML. They live in this skill's directory
 (`${CLAUDE_SKILL_DIR}`, or beside this file if that variable is unset).
 
-- `template.html` — the page scaffold. Design tokens for both themes, the theme
+- `template.html`: the page scaffold. Design tokens for both themes, the theme
   toggle, tabs, callouts, code markers, and the CDN loads. Start every page
   from a copy of it.
-- `components.md` — the diagram families and the interactive-element catalog,
+- `components.md`: the diagram families and the interactive-element catalog,
   with copy-paste snippets. Pick from here before inventing a widget.
-- `check.py` — mechanical self-containment and link checks. Run it before the
+- `check.py`: mechanical self-containment and link checks. Run it before the
   review.
 
 ## Workflow
@@ -44,7 +44,7 @@ Read these before writing any HTML. They live in this skill's directory
 
 The argument is a concept, a feature, a changeset, a commit, a diff, a branch,
 or a PR. Classify it, then resolve it to concrete evidence. All git use is
-**read-only** — never check out, switch, branch, worktree, push, or pull.
+**read-only**. Never check out, switch, branch, worktree, push, or pull.
 
 | Argument looks like | Resolve with |
 | --- | --- |
@@ -53,7 +53,7 @@ or a PR. Classify it, then resolve it to concrete evidence. All git use is
 | `a..b`, `a...b` | `git diff <range>` and `git log --oneline <range>` |
 | Nothing, "my changes", "working tree" | `git status --short` and `git diff HEAD` |
 | A branch `git rev-parse --verify` resolves | `git merge-base <default> <branch>`, then `git diff <base>...<branch>` and `git log --oneline <base>..<branch>` |
-| Anything else | A feature or concept — locate it in the repo by search |
+| Anything else | A feature or concept: locate it in the repo by search |
 
 Find the default branch with `git symbolic-ref --quiet
 refs/remotes/origin/HEAD`, falling back to `main` then `master`. If `gh` is
@@ -97,7 +97,7 @@ file with the Write tool, which creates `~/.config/coding_agent_standards/` if
 needed. Bash cannot write there.
 
 Filename: `YYYYMMDD-<slug>.html`, today's date, kebab-case slug naming the
-subject. Name the subject, not the activity —
+subject. Name the subject, not the activity:
 `20260911-retry-budget-rewrite.html`, not `20260911-explaining-a-pr.html`. On a
 filename collision, extend the slug. Never overwrite an existing page.
 
@@ -111,7 +111,7 @@ in one message.** Cap the fan-out at six. Give each the same brief, then its
 own beat:
 
 > You are gathering raw material for one section of an explainer page about
-> `<target>`. This is strictly read-only — do not modify any file. Your
+> `<target>`. This is strictly read-only. Do not modify any file. Your
 > deliverable is evidence, not prose. For every claim, return the exact
 > `file:line` plus a verbatim snippet of a few lines proving it. Paths must be
 > relative to the repository root. Prefer reading code over docs when they
@@ -120,19 +120,19 @@ own beat:
 
 The beats, adapted to the target:
 
-- **Before** — how the code worked prior to the change. This is what makes the
+- **Before**: how the code worked prior to the change. This is what makes the
   change legible. For a concept or feature, this is the problem it solves.
-- **Blast radius** — every caller, subclass, test, and config touched by or
+- **Blast radius**: every caller, subclass, test, and config touched by or
   depending on the changed surface.
-- **Background** — the abstractions a newcomer needs before the change makes
+- **Background**: the abstractions a newcomer needs before the change makes
   sense. Name the types, the invariants, and the vocabulary. This feeds the
   beginner track.
-- **Supporting documents** — READMEs, ADRs, design docs, proposals
+- **Supporting documents**: READMEs, ADRs, design docs, proposals
   (`spec/proposals/` and similar), the commit or PR body, linked issues. Return
   titles and paths.
-- **History** — `git log` on the touched files, prior attempts, reverts, and
+- **History**: `git log` on the touched files, prior attempts, reverts, and
   the commits that set this one up.
-- **External** — when the target leans on a library, protocol, or published
+- **External**: when the target leans on a library, protocol, or published
   algorithm, fetch the upstream documentation. Use `WebSearch` and `WebFetch`.
 
 Also establish the link base. If `git remote get-url origin` is a GitHub
@@ -170,16 +170,16 @@ Then:
 
 Three categories bypass code verification, and each has its own bar:
 
-- **External claims** — verify against the fetched document, not from memory.
-- **Intuition, analogy, and framing** — authorial. They need no verification.
+- **External claims**: verify against the fetched document, not from memory.
+- **Intuition, analogy, and framing**: authorial. They need no verification.
   They must be recognizable as your framing rather than as fact.
-- **Mock data** — invented examples for figures. Label them as illustrative.
+- **Mock data**: invented examples for figures. Label them as illustrative.
   Never present fabricated numbers as measurements.
 
 ### Step 5: Plan the page
 
 Decide, then report the plan to the user in a few lines before writing. This is
-a checkpoint, not a gate — proceed unless the user objects.
+a checkpoint, not a gate. Proceed unless the user objects.
 
 **The spine.** One sentence naming the essential idea. Everything on the page
 either serves that sentence or is cut. Then the arc: the problem, the old
@@ -187,12 +187,12 @@ model, the pivot, the new model, the consequences.
 
 **The tabs.** The template ships four. Rename or drop them to fit.
 
-- *Essentials* — the spine, the key diagram, the intuition. Five minutes.
-- *Background* — the beginner track, sequestered here so it never interrupts
+- *Essentials*: the spine, the key diagram, the intuition. Five minutes.
+- *Background*: the beginner track, sequestered here so it never interrupts
   the main line. Assume nothing. Define the vocabulary, the types, and the
   surrounding system.
-- *Code tour* — the high-level walkthrough, grouped by idea.
-- *Deep dive* — edge cases, alternatives considered, and the links out.
+- *Code tour*: the high-level walkthrough, grouped by idea.
+- *Deep dive*: edge cases, alternatives considered, and the links out.
 
 **The diagrams.** Pick two or three families from `components.md` and reuse
 them for the whole page. A page with six diagram styles reads as six pages. Put
@@ -221,7 +221,7 @@ Hard constraints:
   no TypeScript, no bundler syntax, no ES module imports of local paths.
 - **CDN only for libraries**, over `https`, from cdnjs or jsDelivr. Pin an
   exact version. Never `latest` or `@next`. The template already loads Mermaid,
-  D3, and Chart.js — delete the ones the page does not use.
+  D3, and Chart.js. Delete the ones the page does not use.
 - **Theme toggle.** System preference by default, a visible toggle, the choice
   persisted in `localStorage`. The template implements this. Keep its hooks
   intact.
@@ -249,7 +249,7 @@ Content rules:
   "line 47". Wire each marker to its note; the template's marker JS does this.
 - **Use callouts** for definitions, key concepts, intuition, edge cases,
   warnings, and further reading. The template styles all six. Do not put
-  ordinary prose in a callout — a page of boxes has no emphasis left.
+  ordinary prose in a callout. A page of boxes has no emphasis left.
 - **Link everything.** Every claim about code links to the source. Every
   referenced doc, ADR, proposal, issue, and PR is linked by title. External
   links get `target="_blank" rel="noopener noreferrer"`.
@@ -273,7 +273,7 @@ python3 "${CLAUDE_SKILL_DIR}/check.py" <path to the written page>
 Fix every error it reports. Judge the warnings and fix the ones that matter.
 
 Then spawn one `general-purpose` reviewer with `model: sonnet`. Fast is the
-point — this is a readability pass, not a security audit. Brief it:
+point. This is a readability pass, not a security audit. Brief it:
 
 > Review the HTML explainer page at `<path>` for usability and content. Read
 > the file. Do not edit it. Report findings ranked most-important first, each
@@ -287,7 +287,7 @@ point — this is a readability pass, not a security audit. Brief it:
 > heading structure navigable? Are the code markers wired to their notes?
 >
 > Content: does the page lead with intuition rather than mechanism? Is the
-> spine — the one essential idea — stated plainly and early? Are the code
+> spine, the one essential idea, stated plainly and early? Are the code
 > groups organized by idea? Is invented example data labelled as illustrative?
 > Are there links for digging deeper? Is the prose concise, one idea per
 > sentence?

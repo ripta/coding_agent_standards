@@ -13,14 +13,14 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 
 # Session report
 
-Turn what this session established into a report a stranger can read cold —
+Turn what this session established into a report a stranger can read cold
 and verify, validate, or reproduce months later. The report is a synthesis,
 never a transcript.
 
 ## 1. Resolve the target directory
 
 Preference file: `~/.config/coding_agent_standards/session-report.json`, shape
-`{"default_dir": "/abs/path"}`. It is machine-local state — never edit it into
+`{"default_dir": "/abs/path"}`. It is machine-local state. Never edit it into
 this skill, never commit it anywhere.
 
 `default_dir` may be relative, e.g. `./spec/reports`. A relative path resolves
@@ -112,8 +112,8 @@ Non-negotiable qualities, in addition to whatever the README specifies:
 
 - **Self-contained.** No assumed session context: expand every codename,
   acronym, and internal system name on first use; absolute dates only (never
-  "today"/"last week"); state which environment — cluster, tier, AWS account,
-  region — every observation came from.
+  "today"/"last week"); state which environment—cluster, tier, AWS account,
+  region—every observation came from.
 - **Verifiable.** Every factual claim carries its evidence: the exact command
   or query run (verbatim, copy-pasteable) and the relevant slice of its
   output; file paths with line numbers; URLs to builds, dashboards, tickets,
@@ -122,10 +122,10 @@ Non-negotiable qualities, in addition to whatever the README specifies:
   profiles), query time ranges, and enough of the causal chain that each step
   follows from recorded evidence rather than assertion.
 - **Honest about certainty.** Separate confirmed findings from hypotheses from
-  open questions — three distinct buckets, never blended.
+  open questions. They are three distinct buckets, never blended.
 - **Decision-ready.** If remediation or next steps exist, list the options
-  with trade-offs and precedents; record decisions impersonally (what and why
-  — never who).
+  with trade-offs and precedents; record decisions impersonally (what and why,
+  never who).
 - **Bounded.** A `TL;DR` up top; a `Status` section at the bottom stating
   exactly what was changed versus analysis-only, and what remains open.
 

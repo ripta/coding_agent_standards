@@ -17,11 +17,11 @@ proposals following the project's proposal format.
 
 Do all of this before any question. Most answers are already on disk.
 
-1. **Research directory** — take it from the user's request if given. Otherwise look for likely candidates (`research/`,
+1. **Research directory**: take it from the user's request if given. Otherwise look for likely candidates (`research/`,
    `docs/research/`, `spec/research/`).
-2. **Proposals directory** — look for an existing one (`spec/proposals/`, `docs/proposals/`, `proposals/`).
-3. **Prefix** — derive it from existing proposal filenames (e.g. `PROJ-001-*.md` → `PROJ`).
-4. **Number** — scan existing proposal filenames for the next sequential value.
+2. **Proposals directory**: look for an existing one (`spec/proposals/`, `docs/proposals/`, `proposals/`).
+3. **Prefix**: derive it from existing proposal filenames (e.g. `PROJ-001-*.md` → `PROJ`).
+4. **Number**: scan existing proposal filenames for the next sequential value.
 
 Items 2 through 4 do not depend on the research documents. Detect them before you read a single one.
 
@@ -31,9 +31,9 @@ Report what you found in a few lines before asking anything.
 
 Make a single AskUserQuestion call covering everything Step 1 left unresolved:
 
-- **Research directory** — only when the request gave none and detection found none.
-- **Proposals directory** — only when none exists. Offer the common locations as options.
-- **Prefix** — only when there are no existing proposals to derive it from. Propose one based on the project name (e.g.
+- **Research directory**: only when the request gave none and detection found none.
+- **Proposals directory**: only when none exists. Offer the common locations as options.
+- **Prefix**: only when there are no existing proposals to derive it from. Propose one based on the project name (e.g.
   `PROJ`, `SVC`, `API`).
 
 Skip any question detection already answered. If detection answered everything, ask nothing.
@@ -79,7 +79,7 @@ Rules for drafting:
 - Cross-reference related proposals via the Dependencies section
 - Write milestones as `### MN: Title` subsections numbered from 1, each with `**Status:** NOT STARTED` and plain
   bullets phrased as checks, per the standard's "Milestones" section
-- Capture cross-proposal impact per `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` — note the impacted
+- Capture cross-proposal impact per `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`. Note the impacted
   proposal and the specific section(s) it cares about, omitting the Impacts section entries when there are none
 - File naming: `PREFIX-NNN-short-description.md` (kebab-case)
 

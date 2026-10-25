@@ -129,7 +129,7 @@ themes, costs nothing to keep current, and shows only what changed.
 
 ### 6. Hand-authored SVG
 
-For layered architectures, timelines, and memory layouts — anything Mermaid
+For layered architectures, timelines, memory layouts, and anything else Mermaid
 lays out badly. Use the template's utility classes (`.fill-accent`,
 `.stroke-border`, `svg text.dim`) so the figure re-themes for free. **Never
 hardcode a hex color in an SVG.**
@@ -156,7 +156,7 @@ hardcode a hex color in an SVG.**
 
 D3 follows the same rule: set `fill: var(--accent)` through a class, never
 `.attr('fill', '#2f6feb')`. Reach for D3 only when the figure is data-bound or
-needs layout math — force graphs, trees, custom scales. A static shape is
+needs layout math: force graphs, trees, custom scales. A static shape is
 cheaper as handwritten SVG.
 
 ---
@@ -275,7 +275,8 @@ and it resizes the chart when its tab is first opened.
 ### 5. Live input to output
 
 A tiny pure function the reader can feed. Ideal for parsers, encoders, slug
-generators, validators — anything where "just show me" beats a paragraph.
+generators, validators, and anything else where "just show me" beats a
+paragraph.
 
 ```html
 <div class="controls">

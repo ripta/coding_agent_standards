@@ -57,11 +57,11 @@ The colon goes inside the bold, in every artifact type and every field.
 Each artifact type has its own status values. The casing differs by type. This
 is deliberate, not drift.
 
-- Proposals: lowercase words — `draft`, `designing`, `accepted`,
+- Proposals use lowercase words: `draft`, `designing`, `accepted`,
   `implemented`, `deferred`, `rejected`, `superseded`, `retracted`
-- ADRs: lowercase words — `proposed`, `accepted`, `superseded`, `deprecated`,
+- ADRs use lowercase words: `proposed`, `accepted`, `superseded`, `deprecated`,
   `retracted`
-- Proposal milestones: uppercase — `NOT STARTED`, `IN PROGRESS`, `DONE`,
+- Proposal milestones use uppercase: `NOT STARTED`, `IN PROGRESS`, `DONE`,
   `DROPPED`
 
 Each vocabulary is closed. A value outside it is an error, not a synonym. A
@@ -75,9 +75,9 @@ proposals and `PLANNED` and `COMPLETE` for phases. See `eras.md`.
 
 Padding width differs by artifact type. This is deliberate, not an oversight:
 
-- ADRs: 2-digit (`ADR-01`) — architectural decisions are comparatively rare per project.
-- Proposals: 3-digit (`PROJ-001`) — proposal volume is typically higher over a project's lifetime.
-- Milestones: unpadded (`PROJ-004 M12`) — milestones are referenced in prose and queue rows, not sorted as filenames.
+- ADRs: 2-digit (`ADR-01`). Architectural decisions are comparatively rare per project.
+- Proposals: 3-digit (`PROJ-001`). Proposal volume is typically higher over a project's lifetime.
+- Milestones: unpadded (`PROJ-004 M12`). Milestones are referenced in prose and queue rows, not sorted as filenames.
 
 Keep each artifact type's padding fixed once established; do not repad existing files. These widths are defaults for a
 new project. A project that started with another width, such as `ADR-0001`, keeps it, and tools match the existing
@@ -91,7 +91,7 @@ directory. This keeps individual repos uncluttered while maintaining a single so
 
 Proposals live in their own subdirectory under this specs directory: `spec/proposals/` (or the `docs/` equivalent). It
 holds the proposals, the proposal index, `queue.md`, and `history.md`. This is why the proposal-related skills and
-commands look for `spec/proposals/` and `docs/proposals/` as common locations — they're checking for this directory. A
+commands look for `spec/proposals/` and `docs/proposals/` as common locations. They're checking for this directory. A
 `spec/phases/` directory is history from an earlier era. See `eras.md`.
 
 ADRs are usually named `spec/adrs/`, although legacy projects have no fixed subdirectory name; place them alongside any

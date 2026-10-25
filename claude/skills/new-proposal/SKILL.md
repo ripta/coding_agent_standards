@@ -26,7 +26,7 @@ project-specific deviation when one exists (see Step 1).
    proposal from memory.
 2. Check the current project for deviations from the standard. Look in the project's `CLAUDE.md`, `AGENTS.md`, `README`,
    and any local proposals doc, and inspect an existing proposal in the proposals directory if one exists. A real
-   example beats the template — match the headings, numbering, and prose style the project actually uses. If a project
+   example beats the template. Match the headings, numbering, and prose style the project actually uses. If a project
    convention conflicts with the canonical format, follow the project.
 
 ### Step 2: Get the Description
@@ -42,20 +42,20 @@ subject. Every other question waits for the single call in Step 4.
 
 Do all of this before any question. Most answers are already on disk.
 
-1. **Directory** — find the proposals directory by checking common locations (`spec/proposals/`, `docs/proposals/`,
+1. **Directory**: find the proposals directory by checking common locations (`spec/proposals/`, `docs/proposals/`,
    `proposals/`).
-2. **Prefix** — derive the project-specific token from existing proposal filenames (e.g. `HP-001-*.md` → `HP`). The
+2. **Prefix**: derive the project-specific token from existing proposal filenames (e.g. `HP-001-*.md` → `HP`). The
    prefix is fixed once chosen.
-3. **Number** — scan existing proposal filenames for the highest number and use the next sequential value. Numbers are
+3. **Number**: scan existing proposal filenames for the highest number and use the next sequential value. Numbers are
    permanent and never reused. Match the zero-padding of existing files (e.g. `001` vs `01`).
-4. **Index** — note whether the proposals directory already has an index, `index.md` or `README.md`. If it has both,
+4. **Index**: note whether the proposals directory already has an index, `index.md` or `README.md`. If it has both,
    stop and tell the user to consolidate them first, per the "Index File Name" section of
    `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`.
-5. **Codebase** — use Agent sub-tasks to scan for code, patterns, types, and conventions relevant to the proposal's
+5. **Codebase**: use Agent sub-tasks to scan for code, patterns, types, and conventions relevant to the proposal's
    domain, so the motivation and design are grounded in what exists.
-6. **Related proposals** — if the description references or depends on other proposals, read them to capture
+6. **Related proposals**: if the description references or depends on other proposals, read them to capture
    dependencies and cross-proposal impact.
-7. **ADRs** — spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the description. Cite
+7. **ADRs**: spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the description. Cite
    the ADRs it reports under Dependencies or Impacts. In the draft, list each conflict as an open design decision,
    unless the request already says the proposal supersedes that ADR.
 
@@ -75,7 +75,7 @@ Ask only from this set:
 - **Prefix.** Only when there are no existing proposals to derive it from. Propose a short, distinguishable prefix based
   on the project name (`PROJ` is permitted but discouraged when a more specific prefix fits).
 - **Index.** Only when this is the first proposal and no index exists. Ask whether to create one.
-- **Gaps.** The targeted follow-ups that fill real holes — motivation, scope, constraints, known design decisions,
+- **Gaps.** The targeted follow-ups that fill real holes: motivation, scope, constraints, known design decisions,
   dependencies. Ask only what you cannot reasonably infer; do not interrogate.
 
 Anything still undecided after this call becomes an open design question, not a guess. Four questions is the cap. When
@@ -111,7 +111,7 @@ Rules for drafting:
 - Write milestones as `### MN: Title` subsections, numbered from 1, per the standard's "Milestones" section. Give each
   a `**Status:** NOT STARTED` line and plain bullets phrased as checks. Never tick the bullets, and add no As built
   block until work starts.
-- Capture dependencies and cross-proposal impact per `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` — note
+- Capture dependencies and cross-proposal impact per `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`. Note
   the impacted proposal and the specific section(s) it cares about, and update the impacted proposals when warranted
   (prioritize this on large projects or proposal waves).
 
@@ -135,7 +135,7 @@ an open question, and the user settles it in `/proposal-reviewer`. Never invent 
 If an index already exists, add a row for the new proposal and keep it consistent.
 
 If this is the **first** proposal for the project, act on the index answer from Step 4. Create the index per the
-"Proposal Index" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` — a table with
+"Proposal Index" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`: a table with
 Proposal/Description/Status columns. Do not ask again here.
 
 ### Step 9: Report
@@ -153,7 +153,7 @@ Summarize:
 
 - Create exactly one proposal per invocation, in `draft` status.
 - Follow the format and rules in `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` exactly, unless the project
-  defines its own deviation — then follow the project.
+  defines its own deviation. Then follow the project.
 - Never invent decisions to fill gaps; unresolved questions go in Design Decisions (Open) with candidate options.
 - Detect before asking, then ask once. Directory, prefix, index, and design gaps share a single AskUserQuestion call in
   Step 4. The outline in Step 5 is the only later checkpoint, and it carries the choice to critique the draft.

@@ -17,7 +17,7 @@ relevant alias.
 ## File discovery
 
 zaz looks for `zaz.toml` first, then `zaz.json`, in the current working
-directory. Search is CWD-only — there is no walk up the directory tree.
+directory. Search is CWD-only. There is no walk up the directory tree.
 The first existing file wins. Override discovery with the global
 `--config` flag; when `--config`
 points at a file, the format is detected from the extension (`.toml` or

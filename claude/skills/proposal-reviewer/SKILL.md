@@ -107,7 +107,7 @@ Before engaging the user on any questions:
 
 1. Read the full proposal: motivation, settled decisions, risks, dependencies, milestones
 2. If the proposal references other proposals (in Dependencies or References), read those for context
-3. Use Agent sub-tasks to scan the codebase for code relevant to the proposal's domain — look for existing patterns,
+3. Use Agent sub-tasks to scan the codebase for code relevant to the proposal's domain. Look for existing patterns,
    types, interfaces, and conventions that will inform design choices. Scans are lookup work. Spawn `Explore` with
    `model: sonnet` for them
 4. Spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the proposal path. Each conflict it
@@ -123,14 +123,14 @@ Before engaging the user on any questions:
 
 ### Step 4: Triage Open Questions
 
-1. Parse the "Design Decisions (Open)" section — handle both sub-heading format (`### Question`) and bullet-list format
+1. Parse the "Design Decisions (Open)" section. Handle both sub-heading format (`### Question`) and bullet-list format
    (`- **Question**: ...`)
 2. If there are no open design questions (the section is empty or absent), ask the user if there are new items they want
    to discuss relating to the proposal using AskUserQuestion. If no new items, skip to Step 6. Steps 6 through 8 still
    run in full before `accepted` is offered. In autonomous mode, do not ask. Skip to Step 6.
 3. Present a numbered summary of all open questions, showing any candidate options already listed
 4. Flag questions that are related or dependent on each other
-5. Order the questions with the most foundational first — questions that other questions depend on, that affect the most
+5. Order the questions with the most foundational first: questions that other questions depend on, that affect the most
    components or interfaces, or that constrain the solution space for later decisions.
 6. Group the ordered questions into rounds. A question is eligible once every question it depends on is settled. A round
    is the first eligible questions in foundational order, up to four. Questions in the same round must not depend on
@@ -144,7 +144,7 @@ the first round and keep the rest in foundational order. The user can redirect o
 
 Work through the rounds from Step 4 until no open question remains.
 
-Questions added later — by the gap analysis in Step 6 or the risk review in Step 7 — join this loop. Place them in the
+Questions added later, by the gap analysis in Step 6 or the risk review in Step 7, join this loop. Place them in the
 existing order using the criteria in Step 4 #5, and group them into rounds by Step 4 #6.
 
 For each round, run #1 through #3 for every question in the round. Then run the critique (#4) once for the whole round,
@@ -259,7 +259,7 @@ If the user is unsure about a question, explain your recommendation in more deta
 follow-up, record the questions they did answer first. Then take up the unanswered one.
 
 When the user asks follow-up questions, do not continue pushing them toward a decision. Instead, dive deep into the
-topic — address their concerns thoroughly, provide full information, and clearly communicate any assumptions. Only
+topic. Address their concerns thoroughly, provide full information, and clearly communicate any assumptions. Only
 re-present the decision prompt after the user's concerns are fully addressed and the conversation naturally returns to
 the decision point. Then re-ask only the questions still unanswered, in one AskUserQuestion call.
 
@@ -312,10 +312,10 @@ In autonomous and converge modes, this review is the full pass of the proposal l
 the checks below are resolved and their fixes made, run its re-check passes until the proposal converges. Questions the
 checks add or reopen go through Step 5 before the next re-check pass.
 
-1. **Consistency check**: Read through all settled decisions together and verify they are internally consistent — no
+1. **Consistency check**: Read through all settled decisions together and verify they are internally consistent: no
    contradictions, no decisions that undermine each other's rationale, and no implicit assumptions that conflict.
 2. **Gap analysis**: Consider whether the combined decisions reveal new design questions that weren't visible when
-   questions were addressed individually — e.g., integration concerns, missing error handling paths, or undecided
+   questions were addressed individually, e.g., integration concerns, missing error handling paths, or undecided
    behavioral edge cases. For each gap, the user chooses whether to:
    - Add it as a new open question in the proposal (and loop back to Step 5 to resolve it)
    - Defer it per the "Deferring Decisions" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`:
@@ -336,9 +336,9 @@ Before wrap-up, interrogate the proposal's Risks section against the "Risks" sec
 
 1. **Compliance**: The section exists, each risk carries a likelihood, an impact, and a mitigation or explicit
    acceptance. "None identified" carries a stated reason. A risk with neither mitigation nor acceptance is really an
-   open question — move it to Design Decisions (Open) and resolve it via Step 5.
-2. **One-way doors**: Scan the settled decisions for irreversible choices — schema or data migrations, published API
-   contracts, wire formats, data backfills — that are not listed as risks and not defused by the design itself. Check
+   open question. Move it to Design Decisions (Open) and resolve it via Step 5.
+2. **One-way doors**: Scan the settled decisions for irreversible choices—schema or data migrations, published API
+   contracts, wire formats, data backfills—that are not listed as risks and not defused by the design itself. Check
    each contract that crosses deploy units, and each deploy order, against "Version Skew" in the same file.
 3. **Unstated exposure**: Check for risks implied but not recorded: dependencies on other in-flight proposals whose
    design could still shift (cross-reference the Dependencies and Impacts sections), and open questions whose eventual
@@ -539,4 +539,4 @@ miss it. A long summary buries them, so keep it short, and never list every deci
 - When moving a question to Settled, preserve the original question text and add the chosen option with rationale
   beneath it
 - When the user asks follow-up questions during discussion, prioritize fully addressing their concerns over advancing
-  toward a decision — do not prompt for a decision until the user's line of inquiry is resolved
+  toward a decision. Do not prompt for a decision until the user's line of inquiry is resolved

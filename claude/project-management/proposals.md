@@ -318,14 +318,14 @@ Dependencies" defines the queue gate for it.
 
 ## Risks
 
-Every proposal carries a Risks section describing what could go wrong with the design — not implementation bugs, but
+Every proposal carries a Risks section describing what could go wrong with the design, not implementation bugs, but
 design-level exposure: wrong assumptions, one-way doors, blast radius, failure modes nobody would notice.
 
 - Each risk states a **likelihood** and an **impact** (low/medium/high) and carries either a **mitigation** (how the
   risk is reduced or detected early) or an explicit **acceptance** with rationale. A risk with neither is an open design
   question and belongs in Design Decisions (Open) instead.
-- One-way-door decisions — hard or impossible to reverse after shipping, such as schema or data migrations, published
-  API contracts, wire formats, or data backfills — must appear as risks unless the design itself removes the
+- One-way-door decisions—hard or impossible to reverse after shipping, such as schema or data migrations, published
+  API contracts, wire formats, or data backfills—must appear as risks unless the design itself removes the
   irreversibility (e.g., a down-migration, versioned contract, or feature flag), in which case the settled decision
   notes that.
 - An ordering that the version-skew analysis cannot avoid is a one-way-door risk. The risk entry names the failing
@@ -342,8 +342,8 @@ When a design decision in one proposal would change later proposals, the first p
 has a decision that affects proposals B and C, A's text says so, and B and C are updated at the time A is decided,
 reviewed, or designed.
 
-The Dependencies section already captures one direction (Y depends on X). The reverse — that X knows Y cares about a
-specific part of X — is worth capturing too. Note the impacted proposal *and* the specific section(s) of this proposal
+The Dependencies section already captures one direction (Y depends on X). The reverse, that X knows Y cares about a
+specific part of X, is worth capturing too. Note the impacted proposal *and* the specific section(s) of this proposal
 it cares about, not the entirety (unless that's accurate).
 
 This is a recommended practice, not a strict requirement. Prioritize it on:

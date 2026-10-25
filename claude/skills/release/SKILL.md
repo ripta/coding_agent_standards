@@ -2,8 +2,8 @@
 name: release
 description: |
   Use this skill to cut a tagged git release. Auto-detects the project's tagging
-  scheme — month-based (vYYYY.M.N, where N is the Nth tag that month) or semver
-  (vX.Y.Z) — proposes the next tag (recommending a patch/minor/major bump for
+  scheme—month-based (vYYYY.M.N, where N is the Nth tag that month) or semver
+  (vX.Y.Z)—proposes the next tag (recommending a patch/minor/major bump for
   semver), drafts release notes from the commit delta, and creates an annotated
   tag after you approve. It stops after creating the tag locally; it does not push.
 model: sonnet
@@ -26,22 +26,22 @@ approval. You never push the tag or run any publishing tooling.
 
 3. Determine the scheme and next tag:
 
-   - **`@@NO_TAGS true`** — no tags exist, so there is nothing to detect. Pick a
+   - **`@@NO_TAGS true`**: no tags exist, so there is nothing to detect. Pick a
      starting scheme and carry it forward: month-based (first tag
      `v{YEAR}.{MONTH}.1`, using `@@YEAR`/`@@MONTH`) or semver (first tag
      `v0.1.0`, or `v1.0.0` for production-ready). Do not stop to ask. The choice
      goes to the user in step 6 alongside the notes, with the alternative named.
 
-   - **`@@SCHEME month`** — `@@NEXT_TAG` is already computed (next serial for the
+   - **`@@SCHEME month`**: `@@NEXT_TAG` is already computed (next serial for the
      current month, padding matched to existing tags). Use it as-is.
 
-   - **`@@SCHEME semver`** — recommend a bump by reading `@@GIT_LOG` against
+   - **`@@SCHEME semver`**: recommend a bump by reading `@@GIT_LOG` against
      semver philosophy, then map to the candidate:
-     - **major** (`@@NEXT_MAJOR`): backward-incompatible changes — removed or
-       changed public API/CLI/config, breaking behavior, or any commit marked
-       `BREAKING CHANGE` or a conventional-commit `type!:`.
-     - **minor** (`@@NEXT_MINOR`): new backward-compatible functionality —
-       `feat:` commits or added capabilities.
+     - **major** (`@@NEXT_MAJOR`): backward-incompatible changes, such as
+       removed or changed public API/CLI/config, breaking behavior, or any
+       commit marked `BREAKING CHANGE` or a conventional-commit `type!:`.
+     - **minor** (`@@NEXT_MINOR`): new backward-compatible functionality, such
+       as `feat:` commits or added capabilities.
      - **patch** (`@@NEXT_PATCH`): bug fixes, docs, refactors, dependency bumps,
        and other changes with no API surface impact.
      State your recommendation with a one-line justification, and list the other
@@ -62,7 +62,7 @@ approval. You never push the tag or run any publishing tooling.
      voice. To check tone, inspect a recent tag's message with
      `git tag -l -n99 <latest_tag>` (latest tag is in `@@LATEST_TAG`).
 
-6. **Checkpoint — approval required.** This is the skill's only interruption.
+6. **Checkpoint: approval required.** This is the skill's only interruption.
    Present all of it together:
    - The scheme, and how it was determined: detected from existing tags, or
      chosen because no tags exist.
@@ -85,7 +85,7 @@ approval. You never push the tag or run any publishing tooling.
 
 ## Rules
 
-- Never push tags or run release/publish tooling — tag creation is the last step.
+- Never push tags or run release/publish tooling. Tag creation is the last step.
 - Never create a tag before the user approves the name and notes.
 - Step 6 is the only checkpoint. Scheme, tag, and notes are approved together in
   one pass, not in separate rounds.

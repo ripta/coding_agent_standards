@@ -21,7 +21,7 @@ project-specific deviation when one exists.
 
 1. Find the proposals directory by checking common locations: `spec/proposals/`, `docs/proposals/`, `proposals/`. Use
    the first that exists and contains proposal files.
-2. If an index (`index.md` or `README.md`) exists in that directory, read it — its status table is the fastest way to
+2. If an index (`index.md` or `README.md`) exists in that directory, read it. Its status table is the fastest way to
    see every proposal and its status. If there is no index, enumerate the proposal files directly (`<PREFIX>-NNN-*.md`).
 
 ### Step 2: Select In-Flight Proposals
@@ -31,7 +31,7 @@ Collect every proposal whose status is **not** finalized or closed. Using the st
 
 `accepted`, `implemented`, `rejected`, `superseded`, `retracted`
 
-This leaves in-flight statuses where open questions still matter — typically `draft`, `designing`, and `deferred`. If
+This leaves in-flight statuses where open questions still matter: typically `draft`, `designing`, and `deferred`. If
 the project defines its own statuses, exclude the ones that mean "design is finalized" or "no longer active" and keep
 the rest. When in doubt, keep a proposal in scope.
 

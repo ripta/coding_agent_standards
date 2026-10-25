@@ -13,7 +13,7 @@ allowed-tools: Read, Glob, Grep, Bash, Write, Agent, Workflow
 You produce a deep technical reference document for a project's architecture by
 investigating its code. You write the result to `ARCHITECTURE.md` (overwriting
 if it exists) at the root of the explored scope. Apart from that one file, this
-is a strictly read-only exploration — do not modify any other files.
+is a strictly read-only exploration. Do not modify any other files.
 
 You act as an **orchestrator**: you classify the project yourself, then fan out
 the bulk of the discovery to parallel `Explore` subagents (one per section),
@@ -24,10 +24,10 @@ write.
 
 Discovery runs in one of three modes, sized in Step 3:
 
-- **inline** — tiny scope, no fan-out at all; you read the code yourself.
-- **fan-out** — the default; parallel `Explore` subagents, and you spot-verify a
+- **inline**: tiny scope, no fan-out at all; you read the code yourself.
+- **fan-out**: the default; parallel `Explore` subagents, and you spot-verify a
   sample of the citations they return.
-- **workflow** — large scope; hand the plan to `workflow.js`, which fans out the
+- **workflow**: large scope; hand the plan to `workflow.js`, which fans out the
   same sections, verifies **every** citation, then shards the writing itself.
   Spot-checking is a cost concession, not a design goal. Once the surface is
   large enough that a bad sample is likely, the workflow buys back the guarantee.
@@ -43,7 +43,7 @@ narrative entry point with a summary and a link for each.
 
 ### Step 1: Determine Scope
 
-If the skill was invoked with arguments, treat them as a scope restriction — a
+If the skill was invoked with arguments, treat them as a scope restriction: a
 directory, crate, subproject, package, or module. Confine all exploration,
 citations, and output to that scope, and write `ARCHITECTURE.md` at the scope
 root rather than the working directory.
@@ -55,10 +55,10 @@ Resolve the scope to a concrete path before continuing, and report it in Step 4.
 
 Then establish two paths used throughout:
 
-- **citation base** — the directory `ARCHITECTURE.md` is written to (the scope
+- **citation base**: the directory `ARCHITECTURE.md` is written to (the scope
   root, or the working directory for a whole-repo run). Every citation in the
   document is written relative to this directory.
-- **repository root** (`git rev-parse --show-toplevel`) — used only to express
+- **repository root** (`git rev-parse --show-toplevel`): used only to express
   the citation base in a relative, non-absolute form in the document's header
   note (see Step 6, section 1).
 
@@ -68,34 +68,34 @@ Inspect manifests (e.g. `package.json`, `go.mod`, `Cargo.toml`, `pyproject.toml`
 entrypoints, and the directory layout within scope to determine the project
 type(s):
 
-- **backend service** — exposes HTTP / RPC / GraphQL
-- **frontend app** — SPA or SSR rendering a UI
-- **CLI** — command-line tool
-- **library / SDK** — consumed as a dependency via its exported API
-- **full-stack** — more than one of the above
+- **backend service**: exposes HTTP / RPC / GraphQL
+- **frontend app**: SPA or SSR rendering a UI
+- **CLI**: command-line tool
+- **library / SDK**: consumed as a dependency via its exported API
+- **full-stack**: more than one of the above
 
 This classification drives which variant of each later section you emit. Prefer
 reading code over README/docs when they disagree. Do this yourself (don't
-delegate) — it's cheap and it gates the fan-out: the detected type(s) decide
+delegate). It's cheap and it gates the fan-out: the detected type(s) decide
 which section variants the discovery agents are briefed to gather.
 
 ### Step 3: Size & Plan the Fan-out
 
 Decide how many discovery agents to spawn and how to partition the work. The base
 is one agent per section (§§2–6 of Step 6); size only changes whether a heavy
-section is *sharded*, not the number of sections. Measure cheaply — these are
+section is *sharded*, not the number of sections. Measure cheaply. These are
 read-only and piggyback on the classify pass:
 
-- **`N_files`** — the line count of `git ls-files -- <scope>`. Tracked files
+- **`N_files`**: the line count of `git ls-files -- <scope>`. Tracked files
   only; excludes the gitignored vendor/build noise that a raw `find` would
   inflate.
-- **`N_units`** — count of the natural partition unit for the detected type, via
+- **`N_units`**: count of the natural partition unit for the detected type, via
   one targeted grep (you know the framework by now): route/handler registrations
   (backend), route entries + top-level components (frontend), command definitions
   (CLI), exported symbols or top-level modules (library).
-- **`N_dirs`** — significant top-level directories in scope.
+- **`N_dirs`**: significant top-level directories in scope.
 
-Apply these as **rough, tunable defaults** — not hard rules:
+Apply these as **rough, tunable defaults**, not hard rules:
 
 - `N_files` ≲ 25 → **skip the fan-out** and explore inline; the orchestration
   overhead outweighs the parallelism on a project this small.
@@ -111,17 +111,18 @@ Apply these as **rough, tunable defaults** — not hard rules:
 
 Two guardrails override the table:
 
-- **Shard along structural boundaries that tile cleanly** — per router file, per
-  command group, per top-level package — so the shards partition the surface
-  exhaustively with no gaps or overlap. Never shard by an arbitrary file range.
+- **Shard along structural boundaries that tile cleanly**: per router file, per
+  command group, per top-level package. That way the shards partition the
+  surface exhaustively with no gaps or overlap. Never shard by an arbitrary
+  file range.
 - **Cap the fan-out at ~10–12 agents in fan-out mode.** Beyond that, findings
-  reflood the synthesis context — the exact cost this delegation exists to avoid
-  — and the dedup work grows faster than the parallelism helps. This caps
-  *discovery* agents, because they are what feeds synthesis. Verifiers do not
-  count against it: their output is verdicts, not findings.
+  reflood the synthesis context, which is the exact cost this delegation exists
+  to avoid. The dedup work also grows faster than the parallelism helps. This
+  caps *discovery* agents, because they are what feeds synthesis. Verifiers do
+  not count against it: their output is verdicts, not findings.
 
 **Workflow mode relaxes that cap to ~16.** Nothing there reads all the findings
-at once — each part writer sees only its own section's evidence, and the one
+at once. Each part writer sees only its own section's evidence, and the one
 agent that sees everything gets claim sentences with the snippets stripped. Use
 the headroom: a section that returns more than ~110 claims produces roughly 25 KB
 in one generation, which is the top of the range that has been observed to
@@ -130,11 +131,11 @@ from one run as the sharding plan for the next.
 
 In workflow mode also tag each section for the document layout:
 
-- `mode: 'narrative'` — read start to finish, stays in `ARCHITECTURE.md`. Use it
+- `mode: 'narrative'`: read start to finish, stays in `ARCHITECTURE.md`. Use it
   for §1 Orientation, §5 Mental Model, and §6 Onboarding.
-- `mode: 'reference'` — looked up, not read, and eligible to move to its own
+- `mode: 'reference'`: looked up, not read, and eligible to move to its own
   file. Use it for §2 Public Surface Area, §3 Key Flows, and §4 Cross-cutting.
-- `group` — shards of one document section share a `group` title and each keep a
+- `group`: shards of one document section share a `group` title and each keep a
   distinct `key`. They render as one `##` heading with a `###` per shard.
 
 Carry the resulting agent list into Step 4 (to report) and Step 5a or 5b (to
@@ -147,7 +148,7 @@ Before fanning out, briefly tell the user the resolved scope, the citation base
 anchored to), the detected project type(s), the chosen mode and the measurements
 that selected it, the planned fan-out (agent count and how sections are
 partitioned), and a high-level outline of what you've discovered. Keep this
-short — it confirms direction before the full pass.
+short. It confirms direction before the full pass.
 
 Workflow mode spends materially more than fan-out mode. Report the mode and
 stop for the user's go-ahead before starting Step 5b. Do not launch it on the
@@ -164,12 +165,12 @@ Give every discovery agent the same **shared brief**, then its section-specific
 task:
 
 > You are gathering material for one section of an ARCHITECTURE.md. This is a
-> strictly read-only task — do not modify any files. Confine your exploration to
+> strictly read-only task. Do not modify any files. Confine your exploration to
 > the scope `<resolved scope path>`. The project is classified as
 > `<detected type(s)>`.
 >
 > Your deliverable IS the evidence, not prose. For every claim, return the exact
-> `file:line` plus a **verbatim** code snippet (a few lines) proving it — these
+> `file:line` plus a **verbatim** code snippet (a few lines) proving it. These
 > become citations I cannot re-derive, so paraphrase is useless to me. Express
 > every path **relative to `<citation base>`**; never return an absolute path or
 > one starting with `/` or `~`. Prefer reading code over README/docs when they
@@ -200,11 +201,11 @@ against the source, fixes the shared vocabulary, then writes the document one
 part at a time.
 
 Budget, for `S` sections and `C` verified claims: `S` discovery agents, about
-`C/30` verifiers, one spine agent, `S` part writers, and one assembler — so
-roughly `2S + C/30 + 2`. Verifiers cap at 32 per round. A 12-section plan over
-1,250 claims comes to about 58 agents. Most of that is verifiers on the fast
-model. Without `verifierAgent`, verifiers take about `C/80` at low effort
-instead. The spine agent runs on Sonnet and the assembler on Haiku. Part
+`C/30` verifiers, one spine agent, `S` part writers, and one assembler. That
+comes to roughly `2S + C/30 + 2`. Verifiers cap at 32 per round. A 12-section
+plan over 1,250 claims comes to about 58 agents. Most of that is verifiers on
+the fast model. Without `verifierAgent`, verifiers take about `C/80` at low
+effort instead. The spine agent runs on Sonnet and the assembler on Haiku. Part
 writers inherit the session model. Quote the number to the
 user when you ask for the go-ahead in Step 4.
 
@@ -233,7 +234,7 @@ Workflow({
 
 Contract notes, all of which the script enforces or depends on:
 
-- `citationBase` must be **absolute** — the discovery and verifier agents
+- `citationBase` must be **absolute**. The discovery and verifier agents
   resolve relative citations against it. The script rejects a relative value.
 - `citationBaseLabel` is the *same directory* written relative to the repository
   root. It is the only form that reaches the document, per Step 6 section 1.
@@ -253,7 +254,7 @@ Contract notes, all of which the script enforces or depends on:
 - Include §1 here. The "do the directory map yourself" shortcut in Step 5a has
   no equivalent mid-workflow.
 
-The script owns Step 6 in this mode — its part writers read this file for the
+The script owns Step 6 in this mode. Its part writers read this file for the
 format spec and write the document themselves. Do not write it yourself as well.
 It returns:
 
@@ -269,14 +270,14 @@ excluded from the document, but they mean different things and Step 7 reports
 them separately.
 
 On `wrote: false`, report the `reason` and stop. Do not fall back to Step 5a
-silently — a failed run usually means the plan or the scope was wrong, and
+silently. A failed run usually means the plan or the scope was wrong, and
 re-running the same plan by hand will fail the same way. If `partsDir` comes
 back non-null, the individual parts survived on disk; say so, because that is
 recoverable work.
 
 ### Step 6: Synthesize & Write ARCHITECTURE.md
 
-**Fan-out mode only** — in workflow mode the script's part writers do this, each
+**Fan-out mode only.** In workflow mode the script's part writers do this, each
 reading the section specs below for the format of its own part. The rules in this
 step bind both paths; only the executor differs.
 
@@ -286,11 +287,11 @@ citation-base note, and decides which sections land in sibling files. Writers
 receive their heading verbatim and the resolved link target for every other part,
 so they can cross-link to sections that have not been written yet.
 
-Assemble the agents' findings into the full document in one pass — well-structured
+Assemble the agents' findings into the full document in one pass: well-structured
 Markdown with a table of contents and the sections below. Ground every claim in
 actual code with `file:line` citations, using links of the form
 `[path/to/file.ext:42](path/to/file.ext#L42)`. If something is ambiguous or a
-subagent flagged it as a guess, carry that caveat through — never launder an
+subagent flagged it as a guess, carry that caveat through. Never launder an
 inference into a confident claim.
 
 **Spot-verify before committing citations.** The discovery agents locate code but
@@ -299,7 +300,7 @@ of the returned citations across different sections and confirm them yourself wi
 `Grep`/`Read`. If a sample is wrong, distrust that agent's batch and re-check its
 citations more broadly. Discard any claim you can't ground.
 
-Sampling is a concession to context cost — reading every cited file back into
+Sampling is a concession to context cost. Reading every cited file back into
 this context would undo the delegation. Workflow mode does not have that
 constraint: it verifies every citation in parallel subagents and only verdicts
 return, so the claims reaching its synthesis agent are already confirmed and
@@ -319,7 +320,7 @@ full-stack projects, cover each side.
 
 - A one-line note, near the top of the document, stating the citation base so
   readers know what every path is relative to. Express it relative to the
-  repository root — never as an absolute path. For a whole-repo run write "All
+  repository root, never as an absolute path. For a whole-repo run write "All
   paths are relative to the repository root."; when scoped, name the scope, e.g.
   "All paths are relative to `packages/api/`."
 - Language(s), framework(s), build/runtime tooling.
@@ -366,7 +367,7 @@ Cover the following where they apply; skip what's genuinely N/A:
 
 - Authentication & authorization model
 - Data model and persistence (schemas, migrations, ORMs)
-- State management — client and/or server (especially for frontends)
+- State management: client and/or server (especially for frontends)
 - Validation, serialization, error-handling conventions
 - Logging, metrics, tracing
 - Configuration, secrets, feature flags
@@ -403,7 +404,7 @@ questions you couldn't resolve from the code alone.
 In workflow mode, build that summary from the returned `outline` and
 `openQuestions` rather than re-reading the document. Also report:
 
-- **The citation tally** — confirmed, line-corrected, refuted, and unchecked.
+- **The citation tally**: confirmed, line-corrected, refuted, and unchecked.
   Keep the last two apart. A refuted citation was checked and found wrong; an
   unchecked one means a verifier died and nobody ever looked. Reporting the
   second as the first tells the user the document is thinner than it is *for the
@@ -421,8 +422,8 @@ In workflow mode, build that summary from the returned `outline` and
 - Read-only except for writing/overwriting `ARCHITECTURE.md` at the scope root.
   Workflow mode may also write `ARCHITECTURE-*.md` siblings beside it, and uses
   a `.architecture-parts/` scratch directory that it removes once assembly
-  succeeds — a scratch directory left behind means the run did not finish.
-  Discovery and verifier subagents are read-only — brief them as such.
+  succeeds. A scratch directory left behind means the run did not finish.
+  Discovery and verifier subagents are read-only. Brief them as such.
 - If arguments are given, confine exploration and output to that scope; with no
   arguments, cover the whole repository and write to the working directory. Pass
   the resolved scope to every subagent so none strays outside it.
@@ -432,7 +433,7 @@ In workflow mode, build that summary from the returned `outline` and
   citation). Every discovery agent returns `file:line` plus a verbatim snippet
   for each claim.
 - Size the mode in Step 3 and name it in the Step 4 report. Workflow mode needs
-  the user's go-ahead first — it costs materially more than fan-out mode.
+  the user's go-ahead first. It costs materially more than fan-out mode.
 - In workflow mode the script writes the document; do not also write it. Its
   citations are already fully verified; do not re-verify them. Report the
   confirmed / corrected / refuted / unchecked tally in Step 7, keeping refuted
@@ -444,7 +445,7 @@ In workflow mode, build that summary from the returned `outline` and
   same directory relative to the repository root, and only the label may appear
   in the document.
 - Ground every claim in code with `[path:line](path#L42)` citations. Paths must
-  be relative to the citation base (the directory containing the document) —
+  be relative to the citation base (the directory containing the document),
   never absolute, never starting with `/` or `~`, and never leaking a symlinked
   or machine-specific prefix. Flag guesses explicitly, and prefer reading code
   over README/docs when they disagree.

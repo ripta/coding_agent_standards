@@ -26,16 +26,16 @@ read it and confirm with the user before overwriting.
 
 Look for these files and directories in the project root:
 
-- `Cargo.toml` — Rust; check `[[bin]]` entries and workspace members for
+- `Cargo.toml`: Rust; check `[[bin]]` entries and workspace members for
   binary names; check `[workspace]` for monorepo layout
-- `go.mod`, `cmd/` subdirectory — Go; binary names come from `cmd/<name>/`
+- `go.mod`, `cmd/` subdirectory: Go; binary names come from `cmd/<name>/`
   subdirs; watch `**/*.go`, `go.mod`, `go.sum`
-- `package.json` — Node/TypeScript; check `"scripts"` for `"start"`,
+- `package.json`: Node/TypeScript; check `"scripts"` for `"start"`,
   `"dev"`, `"build"`, `"typecheck"`, `"lint"`; watch `src/**`
-- `pyproject.toml`, `setup.py`, `requirements.txt` — Python
-- `Makefile` — read targets; use them as task commands where appropriate
-- `Dockerfile`, `docker-compose.yml` — hints about what services run
-- Nested subdirectories that each contain one of the above — monorepo;
+- `pyproject.toml`, `setup.py`, `requirements.txt`: Python
+- `Makefile`: read targets; use them as task commands where appropriate
+- `Dockerfile`, `docker-compose.yml`: hints about what services run
+- Nested subdirectories that each contain one of the above: monorepo;
   create one group per service with `working_dir` set
 
 Read whichever of these exist. Don't guess at contents; read them.
@@ -87,7 +87,7 @@ and what daemon it keeps running.
   before frontend starts)
 - Keep `debounce` at the default (100ms) unless the scan reveals a clear
   reason to change it (e.g., `package.json` uses vite, which saves burst
-  files — 200ms is reasonable)
+  files, so 200ms is reasonable)
 - Use `no_pty = true` only for tools that don't need color or interactive
   output (CI-style commands, JSON-output daemons)
 - Name tasks and daemons from the command, not from the service name, so
