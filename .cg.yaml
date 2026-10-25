@@ -10,4 +10,5 @@ allow:
   - prefix: [sed]
   - prefix: [uv, run]
   - prefix: [uvx, pytest]
+  - prefix: [vale]
   - prefix: [which]
