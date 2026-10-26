@@ -106,7 +106,8 @@ A batch is ready when every batch in its `after` list has merged. For each ready
    so it cherry-picks only its own commits. A conflict here means the mainline moved under the plan. Resolve it when the
    resolution is mechanical. When it needs a judgement, show the user both sides, and keep landing the other batches
 4. Run `merge-fix-loop` Steps 3 through 5 for the batch: local checks, push, PR, confirm checks, turn on merging. The PR
-   title comes from the plan. Write each PR body from that batch's own diff, and name the batches it lands after
+   title comes from the plan. Write each PR body from that batch's own diff, and name the batches it lands after.
+   Every watch uses the run's watch state file, so no event is reported twice
 
 Then watch every open batch PR with one watcher: `pr_watch.py watch --pr N --pr M --state FILE --timeout T`, one
 `--pr` per open PR, and the run's watch state file. Act on each event as `merge-fix-loop` Step 6 describes, in that
