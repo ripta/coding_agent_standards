@@ -1,6 +1,7 @@
 version: 1
 allow:
   - prefix: [./rumdl/lint-markdown]
+  - prefix: [./vale/lint-prose]
   - prefix: [claude, plugin, test]
   - prefix: [claude, plugin, validate]
   - prefix: [du]
