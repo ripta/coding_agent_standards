@@ -442,10 +442,11 @@ Nothing else is relaxed. These stay with the user, and go to the gate:
 - **Step 5**: decide on the loop's recommendation and record it at once, marked as #7 describes. On a `USER'S CALL`,
   take the judge's lean as a provisional decision. Mark each question that depends on it, so the gate can reopen them
   together
-- **Step 6, gaps**: add a gap as an open question and resolve it through Step 5. Defer it instead only when it cannot
-  be settled before implementation, such as when it waits on a measurement. Record the deferral with a concrete revisit
-  hook, per the "Deferring Decisions" standard. A gap that adds scope is decided like any other. Its question lists
-  "no addition" as a candidate, and its entry carries `addition`
+- **Step 6, gaps**: add a design-level gap as an open question and resolve it through Step 5. Route an
+  implementation-level gap to a milestone check instead, per "Finding Levels" in `design-convergence.md`. Defer a
+  design-level gap only when it cannot be settled before implementation, such as when it waits on a measurement. Record
+  the deferral with a concrete revisit hook, per the "Deferring Decisions" standard. A gap that adds scope is decided
+  like any other. Its question lists "no addition" as a candidate, and its entry carries `addition`
 - **Step 6, weak decisions**: reopen each one the critic showed fails the standard, and run it through Step 5 again. A
   decision reopens once per review. If the next coherence pass flags it again, keep it and carry it to the gate
 - **Step 6, repeat**: run the proposal loop to convergence. Carry to the gate any fix the loop left un-checked, and any
@@ -495,7 +496,8 @@ miss it. A long summary buries them, so keep it short, and never list every deci
 2. **Size**, one line: milestones, settled decisions, and risks, from the "Review start" entry to now.
 3. **Contested**, one line each: every judge ruling, every provisional decision, and every decision with dissent left
    standing. Autonomous mode only.
-4. **Everything else**, one line: how many other decisions were made, and that the Decision Log holds them.
+4. **Everything else**, one line: how many other decisions were made, and that the Decision Log holds them. Add how
+   many findings were routed to milestone checks, and which milestones got them.
 
 ## Rules
 

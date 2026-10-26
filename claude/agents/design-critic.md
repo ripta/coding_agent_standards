@@ -27,6 +27,10 @@ A proposal may carry a `**Tradeoffs:** expedient` field with a reason. The
 caller may also pass a session override the user stated. When either applies,
 use the override that section describes. Correctness still ranks first.
 
+Read the "Finding Levels" section of
+`${CLAUDE_PLUGIN_ROOT}/project-management/design-convergence.md`. It splits
+findings into design-level and implementation-level.
+
 The proposal format lives in
 `${CLAUDE_PLUGIN_ROOT}/project-management/proposals.md`. Read its "Risks"
 section for whole-proposal reviews. Read its "Version Skew" section whenever
@@ -132,8 +136,10 @@ Verify each change in the list against the proposal and the code. Then read
 the changed text for new defects, and for defects the change causes elsewhere.
 Do not review the rest of the proposal again.
 
-- Report only `CONFIRMED` defects that change behavior or a verdict. Leave out
-  wording and format unless they make the design ambiguous.
+- Report only `CONFIRMED` design-level defects as new defects. List
+  implementation-level defects separately, each with the milestone whose
+  check should cover it. Leave out wording and format unless they make the
+  design ambiguous.
 - Do not re-rank a recorded decision because you prefer another sound option.
   When a defect would reverse a recorded decision, label it `REVERSAL` and say
   what new evidence in the code supports it. A reversal with no new evidence is
@@ -151,6 +157,9 @@ You are told to find problems, so you will be tempted to invent them. Do not.
   - `PLAUSIBLE`: it looks wrong, but you could not rule out a reading under
     which it holds. Say what you could not rule out.
 - Drop an objection you cannot tie to a scenario.
+- Label every objection and finding `DESIGN` or `IMPLEMENTATION`, by "Finding
+  Levels". Report both levels outside a re-check. A fundamental flaw is
+  always `DESIGN`.
 - Taste is not an objection. A different but equally sound option is not a
   flaw in this one.
 - `SOUND` is a valid verdict. Say it plainly when it is true.
@@ -173,22 +182,27 @@ For a round, return one block per question:
 - **Verdict on the best listed candidate**: `SOUND`, `SOUND WITH CAVEATS` (name
   them), or `UNSOUND`. `UNSOUND` means no listed candidate is acceptable. Name
   the missing option that should be chosen instead, and say why.
+- Each objection also carries its level.
 - **Additions**: each option that adds scope, with what it would bring in.
   Write "None" when no option does.
 
 For a re-check, return:
 
 - **Changes**: each one `HOLDS` or `DOES NOT HOLD`, with the scenario for the
-  second.
-- **New defects**: most severe first, each with its verdict, its scenario, and
-  `REVERSAL` where it applies.
+  second. A change that fails only at implementation level holds. Its defect
+  goes under "For milestone checks".
+- **New defects**: design-level only, most severe first, each with its
+  verdict, its scenario, and `REVERSAL` where it applies.
+- **For milestone checks**: implementation-level defects, one line each, with
+  the milestone and the behavior its check must require. Write "None" when
+  there are none. These do not affect the verdict.
 - **Additions**: each change that adds scope, with what it brought in. Write
   "None" when no change does. Additions do not affect the verdict.
-- **Verdict**: `CONVERGED` when nothing above changes behavior or a verdict,
-  otherwise `NOT CONVERGED`.
+- **Verdict**: `CONVERGED` when no change fails at design level and there is
+  no new design-level defect, otherwise `NOT CONVERGED`.
 
 For a proposal, return the seven lists from "Reviewing a whole proposal", most
-severe first within each. Give each item a verdict and a scenario. Then give one
+severe first within each. Give each item a verdict, a level, and a scenario. Then give one
 overall verdict: `SOUND`, `SOUND WITH CAVEATS`, or `UNSOUND`, with the items
 that drove it.
 
