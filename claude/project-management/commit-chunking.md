@@ -105,6 +105,11 @@ This process is stateless. It always diffs `<integration>` against
 Output only. This does not create branches or PRs, and does not modify the
 repository.
 
+The `land-branch` skill reuses the boundary heuristics above to cut batches, and
+then acts on its plan. It splits a range into independent streams first, and
+the chronological constraint holds within each stream. This scope binds
+`next-pr`, not that skill.
+
 ## Example
 
 One chunk, with a paragraph description. A few bullet points work equally well.
