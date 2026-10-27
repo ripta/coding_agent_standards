@@ -1,6 +1,6 @@
 # The format hook reformats the session's repo, not the edited file's
 
-**Status:** open
+**Status:** fixed
 
 **Component:** this repo's plugin. The `PostToolUse` hook on `Edit|Write` in `claude/hooks/hooks.json`, added in
 b938b61.
@@ -36,8 +36,8 @@ The hook runs `if make -n fmt >/dev/null 2>&1; then make fmt; fi`. It ignores wh
 ## First seen
 
 On 2026-10-27, in a session in `coding_agent_standards` that edited a script through the `spec` symlink. The working
-tree was clean except for `spec` before that edit, and held the 6 reformatted files after it. The session wrote its remaining files through Bash,
-to keep the hook from firing again.
+tree was clean except for `spec` before that edit, and held the 6 reformatted files after it. The session wrote its
+remaining files through Bash, to keep the hook from firing again.
 
 ## Repro
 
@@ -53,13 +53,16 @@ while an unfixable finding exists.
 **Fixed:** the tree stays clean. An edit inside a repo with a `fmt` target formats in that repo only, and a failing
 format step does not report a blocking error.
 
-## Suggested fix
+## Fix
 
-Read `tool_input.file_path` from the hook's stdin. Resolve the repo root with
-`git -C "$(dirname "$file")" rev-parse --show-toplevel`, and skip when the file is in no repo. Run `make -C "$root" fmt`
-there only when that repo has a `fmt` target. Whether to format only the edited file is a separate decision: `fmt`
-takes no file argument by the Makefile practice, so it needs a convention such as `make fmt FILES=...`.
+`claude/hooks/format-edited-file.sh` replaces the inline command. It resolves the edited file's directory with
+`pwd -P`, finds that repo's root, and runs `make fmt-select FILES=<path>` there. It does nothing when the file is in no
+repo, or the repo has no `fmt-select` target. It always exits 0, and shows a failed format to the agent as context.
+`practices/makefile.md` "Formatting Edited Files" defines the target. `claude/hooks/test_format_edited_file.py` runs the
+command `hooks.json` wires against each case above.
 
-## Workarounds in this repo
+This repo defines no `fmt-select`, so the hook leaves its markdown alone. rumdl's fix mode is not safe to run
+unattended here yet. See `20261027-rumdl-fix-rewrites-unflagged-text.md`.
 
-None. A session that must not touch unrelated files writes through Bash instead of `Edit` or `Write`.
+A session keeps running the hook from its installed plugin. Until the plugin updates, writing through Bash instead of
+`Edit` or `Write` avoids the old hook.

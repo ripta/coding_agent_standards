@@ -19,7 +19,9 @@
   guardian that ran its start hooks, it runs that guardian's stop hooks,
   detached. See "Hooks" in `project-management/guardian.md`.
 - `PreToolUse` on `Bash` runs `block-broad-find.sh` and `block-private-terms.sh`. See "Private Terms" below.
-- `PostToolUse` on `Edit|Write` runs `make fmt` when the target exists.
+- `PostToolUse` on `Edit|Write` runs `format-edited-file.sh`. It runs `make fmt-select FILES=<path>` on the edited
+  file, in the repo that holds it, when that repo has the target. See "Formatting Edited Files" in
+  `practices/makefile.md`.
 - `Stop` reminds you to run `make test` and `make lint` when those targets exist.
 
 It also loads one hooks module, `work-queue-progress.tsx`, under `modules`. It
