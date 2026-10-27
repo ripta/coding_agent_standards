@@ -61,8 +61,8 @@ repo, or the repo has no `fmt-select` target. It always exits 0, and shows a fai
 `practices/makefile.md` "Formatting Edited Files" defines the target. `claude/hooks/test_format_edited_file.py` runs the
 command `hooks.json` wires against each case above.
 
-This repo defines no `fmt-select`, so the hook leaves its markdown alone. rumdl's fix mode is not safe to run
-unattended here yet. See `20261027-rumdl-fix-rewrites-unflagged-text.md`.
+This repo's `fmt-select` formats markdown through `rumdl/lint-markdown`, which needs rumdl 0.3.0 or later. Older
+releases corrupt fenced examples and code spans. See `20261027-rumdl-fix-rewrites-unflagged-text.md`.
 
 A session keeps running the hook from its installed plugin. Until the plugin updates, writing through Bash instead of
 `Edit` or `Write` avoids the old hook.

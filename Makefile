@@ -7,6 +7,9 @@ MAKEFLAGS += --warn-undefined-variables
 # Directories pytest collects. Listed explicitly so agent worktrees under .claude/ stay out.
 PYTEST_PATHS ?= claude tests
 
+# Space-separated paths, relative to the repo root, for fmt-select. Empty formats nothing.
+FILES ?=
+
 .PHONY: help
 help: ## Show this help
 	@awk 'BEGIN { FS = ":.*## " } \
@@ -51,6 +54,11 @@ lint-prose: ## Lint prose and comments changed against main with Vale
 .PHONY: fmt
 fmt: ## Fix markdown lint findings in place
 	./rumdl/lint-markdown --all --fix
+
+# The plugin's format hook calls this after each edit. See "Formatting Edited Files" in practices/makefile.md.
+.PHONY: fmt-select
+fmt-select: ## Fix markdown lint findings in the named files only, e.g. make fmt-select FILES='README.md'
+	$(if $(FILES),./rumdl/lint-markdown --fix -- $(FILES))
 
 ##@ CI
 
