@@ -8,3 +8,4 @@ oldest open one.
 | Bug | Status | Summary |
 |---|---|---|
 | [20261005-subagent-second-report-dropped](20261005-subagent-second-report-dropped.md) | open | A subagent's second report is refused after a follow-up joins a run kept open by background work |
+| [20261027-fmt-hook-formats-wrong-repo](20261027-fmt-hook-formats-wrong-repo.md) | open | The format hook runs `make fmt` over the session's whole repo, whichever file was edited |
