@@ -9,13 +9,21 @@
 # Adopting the 120-column setting is cheap here in a way it is not for Vale:
 # MD013 carries a fix, so `lint-markdown --all --fix` clears the backlog in one
 # pass. Run that once at adoption, then leave the default diff scoping in place.
+#
+# Named files narrow a run to just those files. A project's fmt-select target
+# calls it that way.
+#
+# --fix runs `rumdl fmt`, not `rumdl check --fix`. Both apply the same fixes,
+# but `check --fix` also exits 1 while a finding it cannot fix remains. That
+# makes formatting look like a failed gate. Reporting what is left is lint's job.
 set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: lint-markdown [options]
+Usage: lint-markdown [options] [--] [FILE...]
 
   (no options)     lint files changed against the base ref
+  FILE...          lint only these files, skipping any that are not markdown
   --all            lint the whole tree (report only, not a gate)
   --fix            rewrite files in place instead of reporting
   --base <ref>     compare against an explicit ref
@@ -35,9 +43,33 @@ while [ $# -gt 0 ]; do
     --fix) FIX="--fix"; shift ;;
     --base) BASE="${2:?--base needs a ref}"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
-    *) echo "lint-markdown: unknown argument: $1" >&2; usage >&2; exit 2 ;;
+    --) shift; break ;;
+    -*) echo "lint-markdown: unknown argument: $1" >&2; usage >&2; exit 2 ;;
+    *) break ;;
   esac
 done
+
+if [ $# -gt 0 ] && [ "$MODE" != "diff" ]; then
+  echo "lint-markdown: named files cannot be combined with --all or --staged." >&2
+  exit 2
+fi
+
+# Named files are relative to the caller, so resolve them before the cd below.
+NAMED=()
+for f in "$@"; do
+  case "$f" in
+    *.md|*.markdown) ;;
+    *) continue ;;
+  esac
+  [ -f "$f" ] || continue
+  NAMED+=("$(cd "$(dirname "$f")" && pwd -P)/$(basename "$f")")
+done
+
+if [ -n "$FIX" ]; then
+  RUMDL=(rumdl fmt)
+else
+  RUMDL=(rumdl check)
+fi
 
 if ! command -v rumdl >/dev/null 2>&1; then
   echo "lint-markdown: rumdl not found. Install it with 'brew install rumdl'." >&2
@@ -62,8 +94,16 @@ if [ ! -f .rumdl.toml ]; then
   exit 2
 fi
 
+if [ $# -gt 0 ]; then
+  if [ ${#NAMED[@]} -eq 0 ]; then
+    echo "lint-markdown: no markdown files among the named paths."
+    exit 0
+  fi
+  exec "${RUMDL[@]}" "${NAMED[@]}"
+fi
+
 if [ "$MODE" = "all" ]; then
-  exec rumdl check . ${FIX:+"$FIX"}
+  exec "${RUMDL[@]}" .
 fi
 
 # --- Resolve the base ref ---
@@ -107,4 +147,4 @@ if [ ${#FILES[@]} -eq 0 ]; then
   exit 0
 fi
 
-exec rumdl check ${FIX:+"$FIX"} "${FILES[@]}"
+exec "${RUMDL[@]}" "${FILES[@]}"
