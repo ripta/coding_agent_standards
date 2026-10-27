@@ -152,10 +152,32 @@ Use these names when the project has the matching action. Do not invent synonyms
 Naming patterns for everything else:
 
 - `<verb>-<component>` for a component-specific variant: `test-rust`, `lint-ui`, `build-cli`.
-- `<verb>-select` for a run narrowed by a variable: `test-select TESTS='...'`.
+- `<verb>-select` for a run narrowed by a variable: `test-select TESTS='...'`, `fmt-select FILES='...'`.
 - `update-<thing>` to regenerate a committed file such as a snapshot, schema, or golden file.
 - `install-<tool>` to install an optional developer tool, named after the package: `install-cargo-sweep`.
 - `clean-<scope>` for a narrower clean than `clean`: `clean-incremental`, `clean-stale`.
+
+## Formatting Edited Files
+
+The plugin's format hook runs after each Edit or Write. It calls `make fmt-select FILES='<path>'` in the repo that
+holds the edited file. A project opts in by adding the target. Without it, the hook does nothing.
+
+- `FILES` holds space-separated paths relative to the repo root. The hook skips a path that contains whitespace.
+- `fmt-select` formats only the files named. Whole-tree formatting is `fmt`. A hook that ran `fmt` would rewrite files
+  that nobody edited, including another session's work in the same checkout.
+- An empty `FILES` formats nothing. `fmt` already names the whole-tree action, so `fmt-select` never falls back to it.
+- It skips a named file that none of its formatters handle.
+- It exits 0 once it has fixed what it can. Findings it cannot fix are for `lint` to report. It exits nonzero only when
+  a file cannot be formatted at all, such as on a parse error. The hook shows that output to the agent.
+
+```make
+# Space-separated paths, relative to the repo root, for fmt-select. Empty formats nothing.
+FILES ?=
+
+.PHONY: fmt-select
+fmt-select: ## Format only the named files, e.g. make fmt-select FILES='cmd/app/main.go'
+	$(if $(filter %.go,$(FILES)),gofmt -w $(filter %.go,$(FILES)))
+```
 
 ## Aggregate Targets
 

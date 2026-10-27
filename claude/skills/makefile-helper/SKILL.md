@@ -67,7 +67,8 @@ Items 3 through 9 apply to the top-level Makefile and every file it includes.
 6. **Target vocabulary.** Standard names are `help`, `install`, `build`, `dev`, `watch`, `test`, `bench`, `check`,
    `lint`, `fmt`, `fmt-check`, `fix`, `ci`, and `clean`. Flag synonyms such as `format`, `tests`, or `typecheck`.
    Other verbs such as `generate`, `coverage`, or `release` are fine when no standard name fits. Variants follow
-   `<verb>-<component>`, `<verb>-select`, `update-<thing>`, `install-<tool>`, and `clean-<scope>`.
+   `<verb>-<component>`, `<verb>-select`, `update-<thing>`, `install-<tool>`, and `clean-<scope>`. A `fmt-select`
+   target formats only the files in `$(FILES)`, formats nothing when `FILES` is empty, and never calls `fmt`.
 7. **Aggregates.** `ci` never depends on `fmt` or `fix`, directly or through another target. An aggregate whose steps
    must run in order calls them with `$(MAKE)` in its recipe. Prerequisites run in parallel under `make -j`.
 8. **Recipes.** Recursive calls use `$(MAKE)`, never a literal `make`. A target that needs an optional tool checks for
