@@ -4,6 +4,7 @@
 import hashlib
 import json
 import re
+import runpy
 import shutil
 import sys
 from pathlib import Path
@@ -13,14 +14,17 @@ SOURCE = REPO / "claude"
 OUTPUT = REPO / "dist" / "codex"
 SKILLS = (
     "format-checker", "gitignore-maintainer", "go-code-reviewer", "lint-runner",
-    "makefile-helper", "release", "risk-assessment", "session-report",
+    "makefile-helper", "release", "risk-assessment", "schedule-proposal", "session-report",
     "testing-specialist",
 )
-COMMANDS = ("next-pr", "summary")
+COMMANDS = ("next-pr", "summary", "work-on", "work-queue")
+ROLES = ("implementer", "reviewer", "adr-impact")
 UNSUPPORTED = re.compile(
     r"CLAUDE_[A-Z_]+|\$ARGUMENTS|EnterPlanMode|ExitPlanMode|SendMessage|"
-    r"AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:"
+    r"AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:|"
+    r"agent_liveness\.py|TaskStop|<output-file>|Skill tool"
 )
+translate = runpy.run_path(str(REPO / "codex" / "scripts" / "translate.py"))["translate"]
 
 
 def baseline_paths():
@@ -81,6 +85,7 @@ def write_baseline(paths):
 
 
 def convert_skill(text, name, command=False):
+    text = translate(text, name)
     parts = text.split("---\n", 2)
     if len(parts) != 3 or parts[0]:
         raise ValueError(f"{name}: expected YAML frontmatter")
@@ -108,6 +113,18 @@ def convert_skill(text, name, command=False):
     if name == "go-code-reviewer":
         preamble += "Report findings only; do not edit files.\n"
     result = "---\n" + "".join(kept) + "---\n" + preamble + body
+    if UNSUPPORTED.search(result):
+        raise ValueError(f"{name}: untranslated Claude dependency")
+    return result
+
+
+def convert_role(text, name):
+    parts = text.split("---\n", 2)
+    if len(parts) != 3 or parts[0]:
+        raise ValueError(f"{name}: expected YAML frontmatter")
+    body = translate(parts[2], name).replace("${CLAUDE_PLUGIN_ROOT}", "../..")
+    result = (f"# {name}\n\nResolve bundled paths relative to this reference file.\n"
+              "Run project commands in the checkout named by the coordinator.\n\n" + body)
     if UNSUPPORTED.search(result):
         raise ValueError(f"{name}: untranslated Claude dependency")
     return result
@@ -144,6 +161,8 @@ def main():
         source = (SOURCE / "commands" / f"{name}.md" if name in COMMANDS
                   else SOURCE / "skills" / name / "SKILL.md")
         converted[name] = convert_skill(source.read_text(), name, name in COMMANDS)
+    roles = {name: convert_role((SOURCE / "agents" / f"{name}.md").read_text(), name)
+             for name in ROLES}
     if OUTPUT.is_symlink() or OUTPUT.parent.is_symlink():
         raise ValueError("refusing to build through a symlink at dist/ or dist/codex/")
     if OUTPUT.exists():
@@ -161,7 +180,11 @@ def main():
             (target / "agents" / "openai.yaml").write_text(
                 "policy:\n  allow_implicit_invocation: false\n"
             )
-    for directory in ("rules", "project-management"):
+    role_directory = OUTPUT / "references" / "agents"
+    role_directory.mkdir(parents=True)
+    for name, text in roles.items():
+        (role_directory / f"{name}.md").write_text(text)
+    for directory in ("rules", "project-management", "knowledge"):
         shutil.copytree(SOURCE / directory, OUTPUT / directory)
     # No generated workflow uses the Claude critic/judge orchestration.
     (OUTPUT / "project-management" / "design-convergence.md").unlink()
@@ -177,6 +200,7 @@ def main():
     tracking.write_text(tracking.read_text().replace("claude/rules/", "rules/"))
     (OUTPUT / "scripts").mkdir()
     shutil.copy2(SOURCE / "scripts" / "proposals.py", OUTPUT / "scripts" / "proposals.py")
+    shutil.copy2(SOURCE / "scripts" / "detect_era.py", OUTPUT / "scripts" / "detect_era.py")
     shutil.copy2(REPO / "codex" / "scripts" / "setup.py", OUTPUT / "scripts" / "setup.py")
     shutil.copy2(REPO / "codex" / "scripts" / "verify_hooks.py", OUTPUT / "scripts" / "verify_hooks.py")
     write_baseline(baseline)
@@ -222,8 +246,11 @@ def main():
         "or pass --check to report missing setup without changing files.\n"
         "The startup hook checks setup without editing global or project instructions.\n\n"
         "Included skills: " + ", ".join(converted) + ".\n\n"
-        "Commands are explicit-only skills. Claude agents, hooks, mods, settings,\n"
-        "and Codex-only skills are not included. Reference documents do not\n"
+        "Commands are explicit-only skills. work-queue and work-on use bundled role\n"
+        "instructions with ordinary Codex subagents; no custom roles are installed.\n"
+        "Run approval happens explicitly in chat. Progress uses update_plan when\n"
+        "available, or commentary, with full state kept in session reports.\n"
+        "Claude UI mods, settings, and Codex-only skills are not included. Reference documents do not\n"
         "register agents or enable Claude integrations. Model and tool restrictions\n"
         "from Claude frontmatter are not enforced; Codex session permissions apply.\n"
     )

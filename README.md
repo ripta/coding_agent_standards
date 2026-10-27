@@ -147,12 +147,24 @@ The builder does not install anything or write to your home directory. Edit `cla
 Codex-only skills in `codex/`.
 
 The generated `coding-standards-portable` plugin includes `format-checker`, `gitignore-maintainer`, `go-code-reviewer`,
-`lint-runner`, `makefile-helper`, `release`, `risk-assessment`, `session-report`, and `testing-specialist`.
-It also converts `summary` and `next-pr` into explicit-only skills. Bundled paths resolve relative to each skill,
+`lint-runner`, `makefile-helper`, `release`, `risk-assessment`, `schedule-proposal`, `session-report`, and
+`testing-specialist`. It also converts `summary`, `next-pr`, `work-on`, and `work-queue` into explicit-only skills.
+Bundled paths resolve relative to each skill,
 so the package can be moved without depending on the source checkout.
 
-Claude agents, hooks, mods, and orchestration workflows such as `work-on` are excluded. Claude model selection and
-tool allowlists are removed; Codex session permissions apply. The builder rejects unknown skill metadata and
+`work-queue` keeps the coordinator, milestone commits, independent reviews, and durable run reports. It supplies
+bundled implementer, reviewer, and ADR reference instructions to ordinary Codex subagents. It installs no custom agent
+roles. Delegation must be available; reviews run sequentially when there are too few slots for parallel review.
+The complete run requires explicit approval in chat before edits. Command permissions still use the session's approval
+mechanism. Progress uses `update_plan` when available, or commentary otherwise. Full run statuses stay in the reports.
+The empty-queue handoff follows the bundled scheduling skill through its own approval before planning implementation.
+
+Platform-specific sections are adapted by `codex/scripts/translate.py`. Each replacement must match exactly once;
+when the source changes, review its adaptation before rebuilding. Shared workflow text continues to come from `claude/`.
+The bundle includes `proposals.py`, `detect_era.py`, and the report's wiki standard.
+
+Claude UI mods and agent registrations are excluded. Claude model selection and tool allowlists are removed;
+Codex session permissions apply. The builder rejects unknown skill metadata and
 untranslated Claude dependencies in skill instructions. Reference documents are supporting material, not automatically
 loaded project rules. Install the generated directory as a local plugin in a client that supports local plugins.
 
