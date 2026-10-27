@@ -76,6 +76,30 @@ if ! command -v rumdl >/dev/null 2>&1; then
   exit 127
 fi
 
+# Older releases rewrite fenced markdown examples that check does not flag, and
+# join lines on a false MD038. 0.3.0 is the first release verified clean. See
+# bugs/20261027-rumdl-fix-rewrites-unflagged-text.md in coding_agent_standards.
+MIN_VERSION="0.3.0"
+
+version_at_least() {
+  local IFS=.
+  local -a have want
+  read -r -a have <<< "$1"
+  read -r -a want <<< "$2"
+  local i
+  for i in 0 1 2; do
+    if [ "${have[i]:-0}" -gt "${want[i]:-0}" ]; then return 0; fi
+    if [ "${have[i]:-0}" -lt "${want[i]:-0}" ]; then return 1; fi
+  done
+  return 0
+}
+
+VERSION="$(rumdl --version | awk '{ print $2 }')"
+if ! version_at_least "$VERSION" "$MIN_VERSION"; then
+  echo "lint-markdown: rumdl $VERSION is older than $MIN_VERSION. Upgrade it with 'brew upgrade rumdl'." >&2
+  exit 2
+fi
+
 # git reports repo-relative paths, so run everything from the repo root. This
 # also makes the tool work when invoked from a subdirectory.
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"

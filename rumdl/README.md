@@ -29,6 +29,11 @@ rumdl is a single static binary with no runtime.
 brew install rumdl
 ```
 
+`lint-markdown` needs rumdl 0.3.0 or later, and refuses to run on anything
+older. Earlier releases rewrite fenced markdown examples that `check` does not
+flag, and join lines on a false MD038. See
+`bugs/20261027-rumdl-fix-rewrites-unflagged-text.md`.
+
 In the consuming project:
 
 ```sh
@@ -79,6 +84,26 @@ fix. `lint-markdown --all --fix` clears the whole line-length backlog in one
 pass. Run it once at adoption, then leave the default scoping in place for
 everything that has no autofix.
 
+## Formatting edited files
+
+Named files narrow a run to just those files, and skip any that are not
+markdown. The plugin's format hook calls a project's `fmt-select` target after
+each edit. That target passes the edited files through:
+
+```make
+# Space-separated paths, relative to the repo root, for fmt-select. Empty formats nothing.
+FILES ?=
+
+.PHONY: fmt-select
+fmt-select: ## Format only the named files, e.g. make fmt-select FILES='README.md'
+	$(if $(FILES),./rumdl/lint-markdown --fix -- $(FILES))
+```
+
+The `$(if ...)` matters. With no files named, `lint-markdown --fix` falls back
+to the diff, and `fmt-select` must format nothing. `--fix` runs `rumdl fmt`,
+which exits 0 when a finding it cannot fix remains. Lint reports those. See
+"Formatting Edited Files" in `practices/makefile.md`.
+
 ## Reflow only touches what is broken
 
 `reflow = true` is what makes `--fix` able to rewrap prose. It is safe to enable
@@ -102,18 +127,5 @@ both.
 
 ## Known backlog in this repo
 
-MD013 is clean across all 92 files. 64 findings remain in other rules, almost
-all of them pre-existing:
-
-| rule | count | what it is |
-|---|---|---|
-| MD040 | 28 | fenced code block with no language tag |
-| MD032 | 16 | list not preceded by a blank line |
-| MD022 | 8 | heading missing a blank line above or below |
-| MD031 | 7 | fenced block missing a surrounding blank line |
-| MD057 | 3 | relative link to a file that does not exist |
-| MD049 | 1 | inconsistent emphasis style |
-| MD038 | 1 | spaces inside a code span |
-
-61 of the 64 are autofixable. MD040 is worth doing by hand. rumdl guesses the
-language tag, and a wrong tag is worse than a missing one.
+None. With rumdl 0.3.0, `lint-markdown --all` reports no findings across the
+tree.

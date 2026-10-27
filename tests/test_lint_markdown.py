@@ -1,5 +1,6 @@
 """Tests for rumdl/lint-markdown. Run: uv run --with pytest pytest tests"""
 
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -73,3 +74,38 @@ def test_named_files_resolve_from_the_callers_directory(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stdout + result.stderr
     assert (repo / "docs" / "note.md").read_text() == FIXED
+
+
+def fake_rumdl(tmp_path: Path, version: str) -> dict[str, str]:
+    """Put a rumdl on PATH that reports version and records that it ran."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    fake = bin_dir / "rumdl"
+    fake.write_text(f'#!/bin/sh\n[ "$1" = --version ] && {{ echo "rumdl {version}"; exit 0; }}\ntouch "{tmp_path}/ran"\n')
+    fake.chmod(0o755)
+    return {**os.environ, "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}"}
+
+
+@pytest.mark.parametrize("version", ["0.1.52", "0.2.99"])
+def test_a_rumdl_older_than_the_minimum_is_refused(tmp_path: Path, version: str) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "note.md").write_text(FIXABLE)
+
+    result = subprocess.run([SCRIPT, "--fix", "note.md"], cwd=repo, capture_output=True, text=True,
+                            env=fake_rumdl(tmp_path, version))
+
+    assert result.returncode != 0
+    assert "brew upgrade rumdl" in result.stderr
+    assert not (tmp_path / "ran").exists()
+
+
+@pytest.mark.parametrize("version", ["0.3.0", "0.10.1", "1.0.0"])
+def test_a_rumdl_at_or_past_the_minimum_runs(tmp_path: Path, version: str) -> None:
+    repo = make_repo(tmp_path / "repo")
+    (repo / "note.md").write_text(FIXABLE)
+
+    result = subprocess.run([SCRIPT, "--fix", "note.md"], cwd=repo, capture_output=True, text=True,
+                            env=fake_rumdl(tmp_path, version))
+
+    assert result.returncode == 0, result.stderr
+    assert (tmp_path / "ran").exists()

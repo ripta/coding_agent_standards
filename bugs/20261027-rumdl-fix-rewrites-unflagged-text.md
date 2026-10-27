@@ -1,10 +1,11 @@
 # rumdl's fix mode rewrites text that check mode does not flag
 
-**Status:** open
+**Status:** fixed
 
-**Component:** rumdl 0.1.52, `rumdl check --fix` and `rumdl fmt`. Not this repo's code. Not yet reported upstream.
+**Component:** rumdl 0.1.52, `rumdl check --fix` and `rumdl fmt`. Not this repo's code.
 
-**Reproduces on:** rumdl 0.1.52, with and without this repo's `.rumdl.toml`.
+**Reproduces on:** rumdl 0.1.52, with and without this repo's `.rumdl.toml`. Fixed in 0.3.0, checked with the repro
+below on 2026-10-27.
 
 ## Observed behavior
 
@@ -43,6 +44,10 @@ cat span.md fence.md
 
 **Fixed:** `check` reports nothing, and `--fix` leaves both files unchanged.
 
-## Workarounds in this repo
+## Fix
 
-None yet. Do not run `make fmt`, which is `lint-markdown --all --fix`, over the tree without reviewing the diff.
+rumdl's changelog names three fixes that cover these cases. 0.2.4 gates formatting of markdown code blocks behind an
+opt-in. 0.2.53 stops deleting a line when trimming a multi-line code span. 0.2.74 stops reading a math span through a
+code span. Only 0.3.0 was run against the repro.
+
+`rumdl/lint-markdown` refuses rumdl older than 0.3.0, and names the upgrade command.
