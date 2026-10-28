@@ -45,6 +45,14 @@ KNOWN_COMMANDS = {
 MERMAID_ONLY = {"gantt", "timeline", "sankey", "sankey-beta", "pie", "xychart", "xychart-beta",
                 "quadrantchart", "gitgraph"}
 
+MIN_DIAGRAM_NODES = 5
+
+# d2 keywords that can open a line but never name a node.
+D2_RESERVED = {"direction", "vars", "classes", "style", "label", "shape", "icon", "near", "width",
+               "height", "title", "layers", "scenarios", "steps", "grid-rows", "grid-columns",
+               "grid-gap", "tooltip", "link", "constraint", "class"}
+D2_EDGE = re.compile(r"\s*(?:<->|->|<-|--)\s*")
+
 MAX_BULLETS = 5
 MAX_BULLET_CHARS = 60
 MAX_BODY_WORDS = 40
@@ -267,6 +275,7 @@ def check_block(block, label, report, is_appendix):
             report.error(block.start, f"{label}: d2 block without +render shows as source code")
         if shutil.which("d2") is None:
             report.error(block.start, f"{label}: d2 is not installed; run: brew install d2")
+        check_thin_diagram(block, label, report)
         return
 
     if block.lang == "mermaid":
@@ -288,6 +297,58 @@ def check_block(block, label, report, is_appendix):
     if not is_appendix and len(visible) > MAX_CODE_LINES:
         report.warn(block.start, f"{label}: code block has {len(visible)} lines (limit "
                                  f"{MAX_CODE_LINES}); use highlight frames or move it to the appendix")
+
+
+def d2_graph(lines):
+    """Return the node ids and undirected edges of a flat d2 diagram, or None when it is not flat.
+
+    This is a heuristic, not a d2 parser. A diagram with containers, style maps, or a sequence
+    diagram shape returns None, since its shape can carry a claim that node counts do not see.
+    """
+    nodes = set()
+    edges = set()
+
+    for raw in lines:
+        text = raw.split("#", 1)[0].strip()
+        if not text:
+            continue
+
+        if "{" in text or "sequence_diagram" in text:
+            return None
+
+        if D2_EDGE.search(text):
+            chain = text.rsplit(":", 1)[0] if ":" in D2_EDGE.split(text)[-1] else text
+            parts = [p.strip().strip("\"'") for p in D2_EDGE.split(chain) if p.strip()]
+            nodes.update(parts)
+            edges.update(frozenset(pair) for pair in zip(parts, parts[1:]) if pair[0] != pair[1])
+            continue
+
+        key = text.split(":", 1)[0].strip().strip("\"'").split(".", 1)[0]
+        if key and key not in D2_RESERVED:
+            nodes.add(key)
+
+    return nodes, edges
+
+
+def check_thin_diagram(block, label, report):
+    graph = d2_graph(block.lines)
+    if graph is None:
+        return
+
+    nodes, edges = graph
+    if len(nodes) < MIN_DIAGRAM_NODES:
+        report.warn(block.start, f"{label}: d2 diagram has {len(nodes)} nodes (floor "
+                                 f"{MIN_DIAGRAM_NODES}); write the sentence it says instead")
+        return
+
+    degree = {n: 0 for n in nodes}
+    for edge in edges:
+        for n in edge:
+            degree[n] += 1
+
+    if len(edges) == len(nodes) - 1 and max(degree.values()) <= 2:
+        report.warn(block.start, f"{label}: d2 diagram is a straight chain; write the sentence "
+                                 "it says instead")
 
 
 def check_density(slide, label, report):

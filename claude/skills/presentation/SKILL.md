@@ -4,8 +4,8 @@ description: |
   Use this skill to build a terminal slide deck for presenterm from existing source
   material: research, proposals, ADRs, ARCHITECTURE.md, design docs, implementation
   reports, or code. It inventories how much detail the sources hold, asks how much the
-  main deck and the appendix should carry, then writes slides.md with d2 diagrams and
-  speaker notes. Triggers: "/presentation <topic>", "make a deck/slides/talk about X",
+  main deck and the appendix should carry, then writes slides.md with speaker notes, and
+  d2 diagrams only where a shape carries the claim. Triggers: "/presentation <topic>", "make a deck/slides/talk about X",
   "presenterm deck for X". DO NOT trigger for a .pptx or Google Slides deck, an HTML
   explainer page (walkthrough), or a written report (session-report).
 model: opus
@@ -51,14 +51,16 @@ one message. Give each a set of files and this brief:
 > You are inventorying source material for a slide deck about `<topic>`. This is read-only. Do not modify any file.
 > Return a list of topics. For each, give a one-line statement of the finding, the exact `file:line` it comes from,
 > every number, date, and name it rests on, and whether it is a structure, a flow, a sequence, a comparison, a
-> quantity, or a decision. Mark anything you infer as a guess.
+> quantity, or a decision. For a structure, flow, or sequence, give how many parts and links it has, and whether one
+> sentence states it. Mark anything you infer as a guess.
 
 Then build the inventory. Each row is one topic with:
 
 - The finding, as a claim a slide title could carry
 - Its tier, headline, supporting, or deep, by the definitions in `style.md`
 - Its source, as `file:line`
-- The best visual for it: a d2 diagram, a table, a key number, a code excerpt, or none
+- The best visual for it: none, a key number, a table, a code excerpt, or a d2 diagram. None is the default. A diagram
+  must pass the test in `style.md` "Diagrams"
 
 Write the spine: the one sentence the audience should believe or do when the deck ends. The headline topics are the
 ones the spine rests on.
@@ -91,6 +93,7 @@ Write the outline in chat. It is the review gate. Wait for the user to approve o
 
 - The spine, in one sentence
 - Every slide in order: its number, its slide type from `style.md`, its claim title, and its visual
+- For each diagram, the shape it shows that a sentence cannot, such as "two paths merge at the queue"
 - The appendix slides, each with the main slide it backs
 - What the inventory cut, in one line per topic, so the user can pull one back in
 - Any assumptions from Step 3
@@ -124,7 +127,7 @@ python3 "${CLAUDE_SKILL_DIR}/check.py" <deck>/slides.md --notes <checklist|scrip
 ```
 
 Fix every error. Fix each warning by splitting the slide or demoting content to the notes or the appendix, as
-`style.md` says. Do not raise a limit to silence a warning. A warning that is right to keep, such as a five-column
+`style.md` says. Fix a thin-diagram warning by replacing the diagram with the sentence it says. Do not raise a limit to silence a warning. A warning that is right to keep, such as a five-column
 comparison table the claim needs, stays. Say why in the report.
 
 Re-run until no errors remain.
@@ -201,7 +204,7 @@ More than one plausible set of sources is an ambiguity for Step 3. Finding nothi
   invent it
 - `style.md` sets the density limits. Split or demote content to meet them. Never shrink content, and never raise a
   limit to pass `check.py`
-- Draw diagrams in d2. Use Mermaid only for the chart kinds `style.md` lists, and only when `mmdc` exists
+- Draw a diagram only when its shape is the claim, per `style.md`. Draw it in d2. Use Mermaid only for the chart kinds `style.md` lists, and only when `mmdc` exists
 - Write only inside the new deck directory, plus the preference file. Never overwrite an existing deck. Do not commit
   the deck unless the user asks, or the project's rules allow commits on the user's behalf. Never push
 - Run `check.py` and fix its errors before reporting. A missing `d2` or `mmdc` is the exception: report the install

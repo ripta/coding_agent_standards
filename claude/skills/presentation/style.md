@@ -43,7 +43,8 @@ A slide makes one claim. The audience should get it in about five seconds.
 - At most six table rows and five columns in the main deck. A bigger table goes to the appendix, with its one important
   row pulled into the main slide
 - At most 12 code lines on a slide. Use highlight frames, such as `{1-4|6-9}`, rather than a second slide
-- One visual per slide: a diagram, a table, a code block, or a key number. Pair it with text in columns, not stacked
+- At most one visual per slide: a diagram, a table, a code block, or a key number. Pair it with text in columns, not
+  stacked. A slide needs no visual when its claim reads in one line
 
 When a slide breaks these limits, split it or demote some of it. Do not shrink it to fit.
 
@@ -57,7 +58,8 @@ Pick from these before inventing a layout.
   spine and the ask
 - Claim and evidence: a claim title, then one visual with up to three bullets beside it in a `[3, 2]` or `[7, 3]`
   layout
-- Diagram: a claim title, then a d2 diagram centered in `[1, 6, 1]` or at full width
+- Diagram: a claim title, then a d2 diagram centered in `[1, 6, 1]` or at full width. Only for a diagram that passes
+  the test in "Diagrams"
 - Comparison: two columns of equal width, each led by a `###` heading. Use it for before and after, or option A
   against option B
 - Key number: a short claim title, then the number alone, centered, with one line of context under it
@@ -69,8 +71,27 @@ must read well without it.
 
 ## Diagrams
 
-Draw a diagram when the claim is about structure, flow, or sequence. Prefer a table when the claim is a comparison of
-values.
+Most slides need no diagram. A claim about structure, flow, or sequence is not enough on its own. A diagram earns its
+slide only when its shape is the claim, and a sentence cannot carry that shape. These shapes earn one:
+
+- Paths that branch or merge
+- A cycle or feedback loop
+- Nested boundaries, such as which services run inside which account
+- Fan-in or fan-out past three
+- Several actors exchanging messages in order
+
+These shapes do not:
+
+- A straight chain. `A -> B -> C` is a sentence with arrows. Write the sentence
+- A hub with a few spokes. That is a bullet list
+- Three or four boxes with a line or two between them
+- A diagram whose labels repeat the bullets beside it
+
+Before drawing one, write the sentence the diagram says. When that sentence, or up to three bullets, carries
+everything the picture shows, use the text. Prefer a table when the claim is a comparison of values.
+
+`check.py` warns on a d2 diagram with fewer than five nodes, and on one that is a straight chain. Fix the warning by
+replacing the diagram with the sentence it says. When the shape truly is the claim, keep it and say why in the report.
 
 - Use d2. It covers architecture, data flow, nested boundaries like accounts and VPCs, sequence diagrams, and ER and
   class diagrams
@@ -78,7 +99,6 @@ values.
   `gitGraph`. Those need `mmdc`. Without it, use a table and say which chart was dropped
 - Rewrite a source document's Mermaid flowchart or sequence diagram in d2. Keep the diagram's labels, and cut the nodes
   the slide's claim does not need
-- At most about eight nodes on a main-deck diagram. A fuller diagram goes to the appendix
 - Label edges with what flows: `-> : invoices`, not a bare arrow
 - Use `direction: right` for flows read left to right, and the default for hierarchies
 
