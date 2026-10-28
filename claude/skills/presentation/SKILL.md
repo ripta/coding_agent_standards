@@ -126,9 +126,10 @@ load remote images.
 python3 "${CLAUDE_SKILL_DIR}/check.py" <deck>/slides.md --notes <checklist|script>
 ```
 
-Fix every error. Fix each warning by splitting the slide or demoting content to the notes or the appendix, as
-`style.md` says. Fix a thin-diagram warning by replacing the diagram with the sentence it says. Do not raise a limit to silence a warning. A warning that is right to keep, such as a five-column
-comparison table the claim needs, stays. Say why in the report.
+Fix every error. Fix each warning by splitting the slide or demoting content to the notes or the appendix, as `style.md`
+says. Fix a thin-diagram warning by replacing the diagram with the sentence it says. Do not raise a limit to silence a
+warning. A warning that is right to keep, such as a five-column comparison table the claim needs, stays. Say why in the
+report.
 
 Re-run until no errors remain.
 
@@ -204,7 +205,8 @@ More than one plausible set of sources is an ambiguity for Step 3. Finding nothi
   invent it
 - `style.md` sets the density limits. Split or demote content to meet them. Never shrink content, and never raise a
   limit to pass `check.py`
-- Draw a diagram only when its shape is the claim, per `style.md`. Draw it in d2. Use Mermaid only for the chart kinds `style.md` lists, and only when `mmdc` exists
+- Draw a diagram only when its shape is the claim, per `style.md`. Draw it in d2. Use Mermaid only for the chart kinds
+  `style.md` lists, and only when `mmdc` exists
 - Write only inside the new deck directory, plus the preference file. Never overwrite an existing deck. Do not commit
   the deck unless the user asks, or the project's rules allow commits on the user's behalf. Never push
 - Run `check.py` and fix its errors before reporting. A missing `d2` or `mmdc` is the exception: report the install
