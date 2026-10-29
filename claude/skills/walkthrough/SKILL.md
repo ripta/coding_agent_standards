@@ -258,8 +258,11 @@ Content rules:
   one. Cut every word that earns nothing.
 - **No ASCII diagrams.** Use Mermaid, inline SVG, or styled HTML.
 
-If the page needs a plotted chart and a `dataviz` skill is available in the
-session, read it before choosing chart colors.
+If the page needs a plotted chart, read the `data-visualization` skill
+(`coding-standards:data-visualization` under the plugin) before drawing it. It
+sets the title, axes, baseline, labels, and consistency rules every chart
+follows. If a `dataviz` skill is available in the session, read it too before
+choosing chart colors.
 
 ### Step 7: Check, then review
 

@@ -93,6 +93,13 @@ everything the picture shows, use the text. Prefer a table when the claim is a c
 `check.py` warns on a d2 diagram with fewer than five nodes, and on one that is a straight chain. Fix the warning by
 replacing the diagram with the sentence it says. When the shape truly is the claim, keep it and say why in the report.
 
+## Charts
+
+A chart of data follows the `data-visualization` skill (`coding-standards:data-visualization` under the plugin). Read
+it before writing an `xychart`, a `pie`, or an image of a chart. Its rules hold on a slide as anywhere else. The title
+states the finding, and the axes carry labels and units. Bars start at zero, and any other baseline states its reason.
+A slide title can serve as the chart's title.
+
 - Use d2. It covers architecture, data flow, nested boundaries like accounts and VPCs, sequence diagrams, and ER and
   class diagrams
 - Use Mermaid only for what d2 does not draw: `gantt`, `timeline`, `sankey`, `pie`, `xychart`, `quadrantChart`, and
