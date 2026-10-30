@@ -4,7 +4,8 @@
     python3 setup_permissions.py [--settings FILE] [--check]
 
 FILE defaults to ~/.claude/settings.json. The script adds the entries in MANAGED, and removes
-the entries in RETIRED. It also drops redundant entries:
+the entries in RETIRED. When the settings deny reading all of ~/.config, it replaces that deny
+with the config guard. See CONFIG_DENY_RULES. It also drops redundant entries:
 
 - exact duplicates in the permission and sandbox lists
 - permission rules that a broader rule in the same list already covers
@@ -13,7 +14,8 @@ the entries in RETIRED. It also drops redundant entries:
 It never touches any other key.
 
 --check reports what would change and never writes. It exits 1 when a managed entry is
-missing, so a hook can warn, and 3 when only redundant entries would go. Without --check the
+missing, so a hook can warn, and 3 when only redundant entries would go. It exits 4 when the
+settings are complete but the config guard's script is missing. Without --check the
 script writes, but only from a terminal outside a coding agent, and only after the user
 confirms the diff.
 """
@@ -33,8 +35,8 @@ STATE_DIR = "~/.local/state/coding_agent_standards"
 # nitipan keeps its own state directory, so it works without the standards installed. Its
 # CLI runs under the sandbox when a session calls it through Bash.
 NITIPAN_STATE_DIR = "~/.local/state/nitipan"
-# Skill preference files and the private-terms list. The sandbox denies reading all of
-# ~/.config, since it holds credentials, so this one directory is carved back out.
+# Skill preference files and the private-terms list. Users may deny reading all of ~/.config,
+# since it holds credentials, so this one directory is carved back out of the sandbox.
 #
 # Sessions may write the preference files, which are JSON, through the Write and Edit tools.
 # The glob leaves out private-terms.txt, so changing that list still needs the user's approval.
@@ -53,6 +55,19 @@ MANAGED: dict[tuple[str, ...], list[str]] = {
     ("sandbox", "filesystem", "allowWrite"): [STATE_DIR, NITIPAN_STATE_DIR],
     ("sandbox", "filesystem", "allowRead"): [CONFIG_DIR],
 }
+
+# A permission allow cannot carve an exception out of a permission deny. So a deny on all of
+# ~/.config also blocks CONFIG_DIR, whatever MANAGED allows. Settings that hold such a deny get
+# the config guard in its place. For Bash, it is a sandbox denyRead, which allowRead can carve.
+# For the file tools, which the sandbox does not cover, it is a PreToolUse hook.
+#
+# The guard is not added to settings without that deny. A sandbox deny on ~/.config would break
+# tools such as git and gh that read their own config there.
+CONFIG_DENY_RULES = ("Read(~/.config/**)", "Read(~/.config)", "Read(~/.config/)")
+CONFIG_DENY_READ = "~/.config"
+CONFIG_GUARD_MATCHER = "Read|Edit|Write|MultiEdit|NotebookEdit|Grep|Glob"
+CONFIG_GUARD_SCRIPT = "hooks/block-config-access.py"
+CONFIG_GUARD_COMMAND = f'"$HOME"/.claude/coding-standards-current/{CONFIG_GUARD_SCRIPT}'
 
 # Entries an earlier version of MANAGED added, and that no version needs any more. Move an
 # entry here, rather than deleting it from MANAGED, so machines that have it lose it.
@@ -191,6 +206,76 @@ def _dedupe_hooks(new: dict[str, Any], plugin: set[tuple[str, str, str]], change
         groups[:] = [g for g in groups if not any(g is e for e in emptied)]
 
 
+def _config_deny_rules() -> set[str]:
+    home = Path.home()
+    return set(CONFIG_DENY_RULES) | {r.replace("~", "/" + str(home), 1) for r in CONFIG_DENY_RULES}
+
+
+def _has_guard_hook(settings: dict[str, Any]) -> bool:
+    groups = (settings.get("hooks") or {}).get("PreToolUse") or []
+    return any(
+        isinstance(g, dict) and any(isinstance(h, dict) and h.get("command") == CONFIG_GUARD_COMMAND
+                                    for h in g.get("hooks") or [])
+        for g in groups
+    )
+
+
+def _guard_config(new: dict[str, Any], changes: list[str]) -> None:
+    """Replace a permission deny on all of ~/.config with the config guard, or finish a partial one."""
+    rules = _node(new, ("permissions",), create=False)
+    deny = rules.get("deny") if rules is not None else None
+    broad = [r for r in deny if r in _config_deny_rules()] if isinstance(deny, list) else []
+    filesystem = _node(new, ("sandbox", "filesystem"), create=False)
+    deny_read = filesystem.get("denyRead") if filesystem is not None else None
+    sandboxed = isinstance(deny_read, list) and CONFIG_DENY_READ in deny_read
+    if not (broad or sandboxed or _has_guard_hook(new)):
+        return
+
+    for rule in broad:
+        deny.remove(rule)
+        changes.append(f"remove permissions.deny: {rule}, replaced by the sandbox deny and the guard hook")
+
+    if not sandboxed:
+        filesystem = _node(new, ("sandbox", "filesystem"), create=True)
+        if filesystem is None or not isinstance(filesystem.setdefault("denyRead", []), list):
+            raise SetupError("sandbox.filesystem.denyRead is not a list")
+        filesystem["denyRead"].append(CONFIG_DENY_READ)
+        changes.append(f"add sandbox.filesystem.denyRead: {CONFIG_DENY_READ}")
+
+    hooks = _node(new, ("hooks",), create=True)
+    if hooks is None or not isinstance(hooks.setdefault("PreToolUse", []), list):
+        raise SetupError("hooks.PreToolUse is not a list")
+    groups = hooks["PreToolUse"]
+    placed = False
+    emptied = []
+    for group in groups:
+        if not isinstance(group, dict) or not isinstance(group.get("hooks"), list):
+            continue
+        guard = [
+            h for h in group["hooks"] if isinstance(h, dict) and h.get("command") == CONFIG_GUARD_COMMAND
+        ]
+        if not guard:
+            continue
+        if group.get("matcher") == CONFIG_GUARD_MATCHER and not placed:
+            placed = True
+            continue
+        group["hooks"] = [h for h in group["hooks"] if not any(h is g for g in guard)]
+        changes.append(f"drop guard hook from PreToolUse[{group.get('matcher', '')}]")
+        if not group["hooks"]:
+            emptied.append(group)
+    groups[:] = [g for g in groups if not any(g is e for e in emptied)]
+    if not placed:
+        hook = {"type": "command", "command": CONFIG_GUARD_COMMAND}
+        groups.append({"matcher": CONFIG_GUARD_MATCHER, "hooks": [hook]})
+        changes.append(f"add hooks.PreToolUse[{CONFIG_GUARD_MATCHER}]: {CONFIG_GUARD_COMMAND}")
+
+
+def missing_guard_script(settings: dict[str, Any]) -> Path | None:
+    """Return where the registered guard hook's script should be, when it is not there."""
+    script = Path.home() / ".claude" / "coding-standards-current" / CONFIG_GUARD_SCRIPT
+    return script if _has_guard_hook(settings) and not script.exists() else None
+
+
 def plan(
     settings: dict[str, Any], plugin: set[tuple[str, str, str]] = frozenset()
 ) -> tuple[dict[str, Any], list[str]]:
@@ -232,6 +317,7 @@ def plan(
         rules[key] = kept
 
     _dedupe_hooks(new, plugin, changes)
+    _guard_config(new, changes)
 
     for path, entries in RETIRED.items():
         parent = _node(new, path[:-1], create=False)
@@ -307,9 +393,17 @@ def main(argv: list[str]) -> int:
     try:
         old = load(args.settings)
         new, changes = plan(old, plugin_hooks())
+        missing = missing_guard_script(new)
+        if missing is not None:
+            print(
+                f"The config guard hook runs {missing}, which does not exist, so the file tools are not "
+                "guarded. Update the coding-standards plugin, then start a session with it enabled, "
+                "which points ~/.claude/coding-standards-current at the new version."
+            )
         if not changes:
-            print(f"{args.settings} already has what the coding standards need.")
-            return 0
+            if missing is None:
+                print(f"{args.settings} already has what the coding standards need.")
+            return 4 if missing is not None else 0
 
         print(f"{args.settings} needs {len(changes)} change(s) for the coding standards:")
         for change in changes:
@@ -319,6 +413,9 @@ def main(argv: list[str]) -> int:
             return 1 if any(c.startswith("add ") for c in changes) else 3
 
         _refuse_unattended()
+        # Removing the deny before its hook can run would leave the file tools unguarded.
+        if missing is not None and any(c.startswith("remove permissions.deny") for c in changes):
+            raise SetupError("not replacing the ~/.config deny until the guard hook's script exists")
         diff = difflib.unified_diff(
             render(old).splitlines(keepends=True) if args.settings.exists() else [],
             render(new).splitlines(keepends=True),

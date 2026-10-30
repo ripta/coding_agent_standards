@@ -45,8 +45,11 @@ Conventions:
 - Precedence in the skill should be: explicit value in the user's request > preference file > interactively ask the
   user, then write the preference file.
 - Write the file with the Write or Edit tool, never through Bash. The Write tool creates the directory if needed. The
-  sandbox blocks Bash writes anywhere under `~/.config`, and `scripts/setup_permissions.py` allows the two tools to
-  write `*.json` files in this directory only.
+  sandbox blocks Bash writes anywhere under `~/.config`. `scripts/setup_permissions.py` allows the two tools to write
+  `*.json` files in this directory only.
+- A permission deny on all of `~/.config` would block this directory too, since an allow cannot carve an exception out
+  of a deny. `scripts/setup_permissions.py` replaces such a deny with a sandbox `denyRead`, which it carves this
+  directory out of, and the `block-config-access.py` hook for the file tools.
 - Validate values read from the file (e.g., check that a configured directory still exists) before relying on them;
   re-ask and rewrite the file when stale.
 
@@ -63,7 +66,7 @@ Runtime state that changes as sessions run, such as a guardian's ledger, lives a
 Conventions:
 
 - One subdirectory per skill, command, or tool, named after it.
-- Never put state under `~/.config/coding_agent_standards/`. The sandbox blocks all of `~/.config`, since it holds
+- Never put state under `~/.config/coding_agent_standards/`. Users may deny all of `~/.config`, since it holds
   credentials. `scripts/setup_permissions.py` carves this one directory back out for reading, and for writing its
   `*.json` preference files through the Write and Edit tools.
 - Sandboxed sessions can write here only once the user's settings allow it. `scripts/setup_permissions.py` adds that

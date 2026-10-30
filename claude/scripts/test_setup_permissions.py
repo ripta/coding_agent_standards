@@ -173,3 +173,76 @@ def test_invalid_json_is_an_error(tmp_path: Path) -> None:
     path = tmp_path / "settings.json"
     path.write_text("{")
     assert setup_permissions.main(["--settings", str(path), "--check"]) == 2
+
+
+GUARD = {"type": "command", "command": setup_permissions.CONFIG_GUARD_COMMAND}
+GUARD_GROUP = {"matcher": setup_permissions.CONFIG_GUARD_MATCHER, "hooks": [GUARD]}
+
+
+@pytest.mark.parametrize("rule", ["Read(~/.config/**)", "Read(~/.config)", "Read(//Users/me/.config/**)"])
+def test_a_broad_config_deny_becomes_a_sandbox_deny_and_the_guard_hook(
+    monkeypatch: pytest.MonkeyPatch, rule: str
+) -> None:
+    monkeypatch.setattr(Path, "home", lambda: Path("/Users/me"))
+    old = {"permissions": {"deny": ["Read(~/.aws/**)", rule]}}
+    new, changes = setup_permissions.plan(old)
+    assert new["permissions"]["deny"] == ["Read(~/.aws/**)"]
+    assert new["sandbox"]["filesystem"]["denyRead"] == ["~/.config"]
+    assert new["hooks"]["PreToolUse"] == [GUARD_GROUP]
+    assert f"remove permissions.deny: {rule}, replaced by the sandbox deny and the guard hook" in changes
+    assert setup_permissions.plan(new)[1] == []
+
+
+def test_settings_without_a_config_deny_get_no_guard() -> None:
+    new, _ = setup_permissions.plan({"permissions": {"deny": ["Read(~/.aws/**)", "Read(~/.config/gh/**)"]}})
+    assert new["permissions"]["deny"] == ["Read(~/.aws/**)", "Read(~/.config/gh/**)"]
+    assert "denyRead" not in new["sandbox"]["filesystem"]
+    assert "hooks" not in new
+
+
+def test_a_partial_guard_is_completed() -> None:
+    new, changes = setup_permissions.plan({"sandbox": {"filesystem": {"denyRead": ["~/.config"]}}})
+    assert new["hooks"]["PreToolUse"] == [GUARD_GROUP]
+    assert any(c.startswith("add hooks.PreToolUse") for c in changes)
+
+    stale = {"matcher": "Read", "hooks": [GUARD, {"type": "command", "command": "echo hi"}]}
+    new, _ = setup_permissions.plan({"hooks": {"PreToolUse": [stale]}})
+    assert new["sandbox"]["filesystem"]["denyRead"] == ["~/.config"]
+    assert new["hooks"]["PreToolUse"] == [
+        {"matcher": "Read", "hooks": [{"type": "command", "command": "echo hi"}]},
+        GUARD_GROUP,
+    ]
+
+
+def test_check_wants_the_migration(tmp_path: Path) -> None:
+    path = tmp_path / "settings.json"
+    settled, _ = setup_permissions.plan({})
+    settled["permissions"]["deny"] = ["Read(~/.config/**)"]
+    path.write_text(json.dumps(settled))
+    assert setup_permissions.main(["--settings", str(path), "--check"]) == 1
+
+
+def test_check_exits_4_when_the_guard_script_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    path = tmp_path / "settings.json"
+    settled, _ = setup_permissions.plan({"permissions": {"deny": ["Read(~/.config/**)"]}})
+    path.write_text(json.dumps(settled))
+    assert setup_permissions.main(["--settings", str(path), "--check"]) == 4
+    assert "coding-standards-current" in capsys.readouterr().out
+
+    script = tmp_path / ".claude" / "coding-standards-current" / "hooks" / "block-config-access.py"
+    script.parent.mkdir(parents=True)
+    script.write_text("")
+    assert setup_permissions.main(["--settings", str(path), "--check"]) == 0
+
+
+def test_the_deny_stays_until_the_guard_script_exists(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.delenv("CLAUDECODE", raising=False)
+    monkeypatch.setattr(setup_permissions, "_refuse_unattended", lambda: None)
+    path = tmp_path / "settings.json"
+    path.write_text('{"permissions": {"deny": ["Read(~/.config/**)"]}}\n')
+    assert setup_permissions.main(["--settings", str(path)]) == 2
+    assert json.loads(path.read_text())["permissions"]["deny"] == ["Read(~/.config/**)"]

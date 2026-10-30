@@ -301,6 +301,9 @@ python3 ~/.claude/coding-standards-current/scripts/setup_permissions.py
 Re-run it after updating the plugin. It is safe to repeat. `--check` only reports. The link moves to a new plugin
 version only when a session starts. `/reload-plugins` does not move it.
 
+When your settings deny reading all of `~/.config`, the script replaces that deny with a sandbox deny and a hook. Both
+keep `~/.config/coding_agent_standards` readable, which the deny alone cannot.
+
 #### Updating
 
 Installed plugins are cached copies, not live references. After changes land in the repo:

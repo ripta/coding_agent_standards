@@ -17,7 +17,19 @@ def run_hook(
     home: Path | None = None,
 ) -> str | None:
     """Feed one command to a hook. Return its deny reason, or None when it allows."""
-    payload: dict = {"tool_name": tool, "tool_input": {"command": command}}
+    return run_tool_hook(name, tool, {"command": command}, cwd=cwd, home=home)
+
+
+def run_tool_hook(
+    name: str,
+    tool: str,
+    tool_input: dict,
+    *,
+    cwd: Path | None = None,
+    home: Path | None = None,
+) -> str | None:
+    """Feed one tool call to a hook. Return its deny reason, or None when it allows."""
+    payload: dict = {"tool_name": tool, "tool_input": tool_input}
     if cwd is not None:
         payload["cwd"] = str(cwd)
     env = dict(os.environ)

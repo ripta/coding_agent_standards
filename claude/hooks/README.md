@@ -54,6 +54,10 @@ lives at `~/projects/coding_agent_standards`.
   Write, or Bash. Goldens must come from the project's update target.
 - `block-zig-cache.sh` denies running a binary from `.zig-cache/` and deleting
   the cache. `settings/zig-dev.json` already wires it.
+- `block-config-access.py` denies Read, Edit, Write, MultiEdit, NotebookEdit, Grep, and Glob any path under
+  `~/.config` except `~/.config/coding_agent_standards`. It resolves `~`, `..`, and symlinks first. It also denies a
+  Grep or Glob rooted above `~/.config`. `scripts/setup_permissions.py` wires it into the user's settings, through
+  `~/.claude/coding-standards-current`, when those settings deny all of `~/.config`.
 - `block-rm-rf.sh` denies an `rm` that has both a recursive and a force flag,
   in any spelling. Its reason checks each operand on disk. It suggests `unlink`
   for a file or symlink and `rmdir` for an empty directory. A non-empty
