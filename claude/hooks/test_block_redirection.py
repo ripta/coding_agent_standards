@@ -1,5 +1,7 @@
 """Tests for block-redirection.sh. Run: uv run --with pytest pytest claude/hooks"""
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 

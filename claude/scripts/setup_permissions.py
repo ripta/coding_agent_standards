@@ -13,12 +13,17 @@ with the config guard. See CONFIG_DENY_RULES. It also drops redundant entries:
 
 It never touches any other key.
 
---check reports what would change and never writes. It exits 1 when a managed entry is
+--check reports what would change and never writes. It exits 5 when a managed entry is
 missing, so a hook can warn, and 3 when only redundant entries would go. It exits 4 when the
-settings are complete but the config guard's script is missing. Without --check the
-script writes, but only from a terminal outside a coding agent, and only after the user
-confirms the diff.
+settings are complete but the config guard's script is missing. None of these is 1, which
+Python itself exits with on an uncaught exception, so a hook never mistakes a crash for missing
+entries.
+
+Without --check the script writes, but only from a terminal outside a coding agent, and only
+after the user confirms the diff.
 """
+
+from __future__ import annotations
 
 import argparse
 import difflib
@@ -410,7 +415,7 @@ def main(argv: list[str]) -> int:
             print(f"  - {change}")
         if args.check:
             print("Run setup_permissions.py from your own terminal to apply them.")
-            return 1 if any(c.startswith("add ") for c in changes) else 3
+            return 5 if any(c.startswith("add ") for c in changes) else 3
 
         _refuse_unattended()
         # Removing the deny before its hook can run would leave the file tools unguarded.

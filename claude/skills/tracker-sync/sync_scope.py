@@ -15,6 +15,8 @@ Mappings are keyed by the normalized origin URL, so every clone and worktree of 
 repository shares them. `scope` reads the local default branch and never fetches.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os

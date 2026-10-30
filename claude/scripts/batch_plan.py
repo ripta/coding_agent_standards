@@ -24,6 +24,8 @@ The result is JSON on stdout, with `ok` true only when both checks pass. Errors 
 go to stderr with exit status 1. A plan that fails a check exits 3.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import subprocess

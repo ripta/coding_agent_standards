@@ -1,5 +1,7 @@
 """Tests for block-private-terms.sh and private-terms.py. Run: uv run --with pytest pytest claude/hooks"""
 
+from __future__ import annotations
+
 import json
 import os
 import subprocess

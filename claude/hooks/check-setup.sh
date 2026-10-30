@@ -17,12 +17,12 @@ mkdir -p "$HOME/.local/state/coding_agent_standards" 2>/dev/null || true
 
 if [ -n "$root" ] && command -v python3 >/dev/null; then
   status=0
-  python3 "$root/scripts/setup_permissions.py" --check >/dev/null 2>&1 || status=$?
+  err="$(python3 "$root/scripts/setup_permissions.py" --check 2>&1 >/dev/null)" || status=$?
   case "$status" in
     0|3) ;;
-    1) WARNINGS+=("~/.claude/settings.json lacks entries the standards need, such as the state directories under ~/.local/state, or the guard that lets skills read ~/.config/coding_agent_standards. Ask the user to run 'python3 ~/.claude/coding-standards-current/scripts/setup_permissions.py' from their own terminal.") ;;
+    5) WARNINGS+=("~/.claude/settings.json lacks entries the standards need, such as the state directories under ~/.local/state, or the guard that lets skills read ~/.config/coding_agent_standards. Ask the user to run 'python3 ~/.claude/coding-standards-current/scripts/setup_permissions.py' from their own terminal.") ;;
     4) WARNINGS+=("The ~/.config guard hook in ~/.claude/settings.json runs a script missing from ~/.claude/coding-standards-current, so the file tools can read all of ~/.config. Ask the user to update the coding-standards plugin and start a new session.") ;;
-    *) WARNINGS+=("setup_permissions.py --check could not read ~/.claude/settings.json. Ask the user to run it with --check from their own terminal to see why.") ;;
+    *) WARNINGS+=("setup_permissions.py --check could not run under $(python3 --version 2>&1), exit $status: ${err##*$'\n'} Ask the user to run it with --check from their own terminal to see why.") ;;
   esac
 fi
 

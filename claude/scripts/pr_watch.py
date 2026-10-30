@@ -19,6 +19,8 @@ it, so the loop's own replies do not wake the loop. The replies come from the us
 identity, so filtering by author would also drop the user's real comments.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import os

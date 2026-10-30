@@ -1,6 +1,6 @@
 #!/usr/bin/env -S uv run --quiet --script
 # /// script
-# requires-python = ">=3.11"
+# requires-python = ">=3.9"
 # dependencies = ["pyyaml>=6.0"]
 # ///
 """Validate and lint a Google Cloud Build config.
@@ -27,6 +27,8 @@ With no path it checks every cloudbuild*.yaml in the current directory.
 Exit status: 0 when nothing failing is found, 1 when a finding fails the run,
 2 for a usage or I/O problem.
 """
+
+from __future__ import annotations
 
 import argparse
 import json

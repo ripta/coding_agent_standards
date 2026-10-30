@@ -70,6 +70,15 @@ Run `make ci` before reporting work done. `make help` lists the narrower targets
 facts one file states about another, such as quoted paths, script subcommands, and shared vocabularies. When a check
 fails, fix the prose or the code it points at. Change the check only when the rule it encodes changed.
 
+## Python Floor
+
+Hooks, commands, and skills run the plugin's scripts with whatever `python3` comes first on `PATH`. On macOS that can be
+the system Python 3.9. Every script must run on 3.9:
+
+- A module that writes `X | None` or `list[str]` in annotations starts with `from __future__ import annotations`
+- Do not use features newer than 3.9, such as `match`, `zip(strict=True)`, or `tomllib`
+- `make test-python-floor` runs the pytest suites under 3.9, and `make ci` includes it
+
 ## Standards for This Repo
 
 These imports mirror `profiles/baseline.md`. They use relative paths so they read the working tree. The profile's

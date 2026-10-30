@@ -1,5 +1,7 @@
 """Tests for sync_scope.py. Run: uv run --with pytest pytest claude/skills/tracker-sync"""
 
+from __future__ import annotations
+
 import json
 import subprocess
 import sys

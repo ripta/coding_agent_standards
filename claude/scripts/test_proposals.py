@@ -1,5 +1,7 @@
 """Tests for proposals.py. Run: uv run --with pytest pytest claude/scripts"""
 
+from __future__ import annotations
+
 import json
 import subprocess
 import sys

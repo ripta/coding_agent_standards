@@ -36,6 +36,8 @@ entry, or whose entry does not lead to that project's proposals, is `unresolved`
 the row and never blocks it.
 """
 
+from __future__ import annotations
+
 import argparse
 import difflib
 import json

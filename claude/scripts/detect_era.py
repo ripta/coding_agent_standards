@@ -11,6 +11,8 @@ skills. Errors go to stderr with exit status 1.
 Detection reads markers, never dates. An artifact belongs to the era whose markers it carries.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import re

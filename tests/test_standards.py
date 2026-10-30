@@ -5,6 +5,8 @@ subcommand that must be defined, a vocabulary two files must agree on. Judgment 
 rule is still right stays with audits and the reviewer agent.
 """
 
+from __future__ import annotations
+
 import re
 import subprocess
 import sys

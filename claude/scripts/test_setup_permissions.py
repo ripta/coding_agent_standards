@@ -136,7 +136,7 @@ def test_a_key_of_the_wrong_shape_is_an_error() -> None:
 def test_check_reports_and_never_writes(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     path = tmp_path / "settings.json"
     path.write_text('{"theme": "light"}\n')
-    assert setup_permissions.main(["--settings", str(path), "--check"]) == 1
+    assert setup_permissions.main(["--settings", str(path), "--check"]) == 5
     assert path.read_text() == '{"theme": "light"}\n'
     assert f"needs {len(ALLOW) + len(WRITE) + len(READ)} change(s)" in capsys.readouterr().out
 
@@ -219,7 +219,7 @@ def test_check_wants_the_migration(tmp_path: Path) -> None:
     settled, _ = setup_permissions.plan({})
     settled["permissions"]["deny"] = ["Read(~/.config/**)"]
     path.write_text(json.dumps(settled))
-    assert setup_permissions.main(["--settings", str(path), "--check"]) == 1
+    assert setup_permissions.main(["--settings", str(path), "--check"]) == 5
 
 
 def test_check_exits_4_when_the_guard_script_is_missing(

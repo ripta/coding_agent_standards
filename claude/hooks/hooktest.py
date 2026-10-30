@@ -1,5 +1,7 @@
 """Runs a PreToolUse shell hook for the hook tests. Run: uv run --with pytest pytest claude/hooks"""
 
+from __future__ import annotations
+
 import json
 import os
 import subprocess

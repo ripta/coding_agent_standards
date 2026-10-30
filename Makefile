@@ -7,6 +7,9 @@ MAKEFLAGS += --warn-undefined-variables
 # Directories pytest collects. Listed explicitly so agent worktrees under .claude/ stay out.
 PYTEST_PATHS ?= claude tests
 
+# Oldest Python the plugin scripts support. macOS ships it as /usr/bin/python3, which hooks may run.
+PYTHON_FLOOR ?= 3.9
+
 # Space-separated paths, relative to the repo root, for fmt-select. Empty formats nothing.
 FILES ?=
 
@@ -19,11 +22,15 @@ help: ## Show this help
 ##@ Test
 
 .PHONY: test
-test: test-python test-js test-plugin ## Run every test suite
+test: test-python test-python-floor test-js test-plugin ## Run every test suite
 
 .PHONY: test-python
 test-python: ## Run the pytest suites, including the standards checker
 	uvx --with pyyaml pytest -q $(PYTEST_PATHS)
+
+.PHONY: test-python-floor
+test-python-floor: ## Run the pytest suites under the oldest supported Python, PYTHON_FLOOR
+	uvx --python $(PYTHON_FLOOR) --with pyyaml pytest -q $(PYTEST_PATHS)
 
 .PHONY: test-js
 test-js: ## Run the architecture-exploration workflow tests
