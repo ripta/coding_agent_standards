@@ -320,6 +320,20 @@ Ask in chat when the tool cannot represent the batch or multiple selections.""")
         ("""No code reads, no Agent sub-tasks for codebase exploration,""",
          """No code reads, no subagents for codebase exploration,"""),
     ),
+    'test-audit': (
+        ("""Present every batch in one AskUserQuestion call, with `multiSelect`, so the user picks which to apply. Each option's
+description carries the coverage given up and the time and upkeep saved. When there are more batches than fit, offer
+the batches with the most value, and list the rest in the report.""",
+         """Present every batch at once, and let the user name each batch to apply. Use a supported question tool within its
+limits, or ask in chat and accept batch IDs in text. Each batch carries the coverage given up and the time and upkeep
+saved. When there are more batches than the tool can hold, ask in chat."""),
+        ("""- This skill runs only when the user types `/test-audit`. Its frontmatter sets `disable-model-invocation: true`. An
+  audit needs the user's judgment, so no autonomous run, such as an approved `/work-queue` run or an autonomous
+  `/proposal-reviewer` run, may start it and then pause on it. Keep that field.""",
+         """- This skill runs only when the user invokes it explicitly. Its `agents/openai.yaml` disallows implicit
+  invocation. An audit needs the user's judgment, so no autonomous run, such as an approved `work-queue` run, may
+  start it and then pause on it."""),
+    ),
     'session-report': (
         ("""with the Write tool, which creates the parent directory. Bash cannot write
    there.""",

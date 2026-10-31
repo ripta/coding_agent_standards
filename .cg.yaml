@@ -1,5 +1,6 @@
 version: 1
 allow:
+  - prefix: [./bin/build-opencode]
   - prefix: [./rumdl/lint-markdown]
   - prefix: [./vale/lint-prose]
   - prefix: [claude, plugin, test]

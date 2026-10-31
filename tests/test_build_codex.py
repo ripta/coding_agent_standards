@@ -77,6 +77,19 @@ class BaselineBuildTests(unittest.TestCase):
                 policy = moved / "skills" / name / "agents" / "openai.yaml"
                 self.assertIn("allow_implicit_invocation: false", policy.read_text())
 
+    def test_explicit_only_skill_stays_explicit_only(self):
+        with tempfile.TemporaryDirectory(prefix="codex explicit ") as temporary:
+            output = Path(temporary) / "bundle"
+            with patch.dict(self.namespace, OUTPUT=output), patch("sys.argv", [str(BUILD)]):
+                self.builder["main"]()
+            skill = output / "skills" / "test-audit"
+            contents = (skill / "SKILL.md").read_text()
+            self.assertNotIn("disable-model-invocation", contents)
+            self.assertNotIn("AskUserQuestion", contents)
+            self.assertIsNone(self.builder["UNSUPPORTED"].search(contents))
+            policy = skill / "agents" / "openai.yaml"
+            self.assertIn("allow_implicit_invocation: false", policy.read_text())
+
     def test_changed_or_duplicated_adaptation_preserves_previous_build(self):
         source = self.namespace["SOURCE"]
         original = (source / "commands" / "work-queue.md").read_text()
@@ -101,7 +114,7 @@ class BaselineBuildTests(unittest.TestCase):
     def test_shared_workflow_updates_survive_conversion(self):
         source = self.namespace["SOURCE"] / "commands" / "work-queue.md"
         text = source.read_text().replace("## 6. Finish", "Preserve this new shared rule.\n\n## 6. Finish")
-        converted = self.builder["convert_skill"](text, "work-queue", command=True)
+        converted, _ = self.builder["convert_skill"](text, "work-queue", command=True)
         self.assertIn("Preserve this new shared rule.", converted)
 
     def test_untranslated_dependency_is_rejected_in_workflows_and_roles(self):

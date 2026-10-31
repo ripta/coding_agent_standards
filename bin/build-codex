@@ -15,7 +15,7 @@ OUTPUT = REPO / "dist" / "codex"
 SKILLS = (
     "format-checker", "gitignore-maintainer", "go-code-reviewer", "lint-runner",
     "makefile-helper", "release", "risk-assessment", "schedule-proposal", "session-report",
-    "testing-specialist",
+    "test-audit", "testing-specialist",
 )
 COMMANDS = ("next-pr", "summary", "work-on", "work-queue")
 ROLES = ("implementer", "reviewer", "adr-impact")
@@ -85,6 +85,7 @@ def write_baseline(paths):
 
 
 def convert_skill(text, name, command=False):
+    """Return the Codex SKILL.md text, and whether the skill is explicit-only."""
     text = translate(text, name)
     parts = text.split("---\n", 2)
     if len(parts) != 3 or parts[0]:
@@ -93,12 +94,17 @@ def convert_skill(text, name, command=False):
     # pretending its Claude behavior is supported.
     fields = re.split(r"(?=^[a-z][a-z-]*:)", parts[1], flags=re.MULTILINE)
     kept = []
+    explicit = command
     for field in fields:
         if not field.strip():
             continue
         key = field.split(":", 1)[0]
         if key in ("name", "description"):
             kept.append(field)
+        elif key == "disable-model-invocation":
+            if field.split(":", 1)[1].strip() != "true":
+                raise ValueError(f"{name}: unsupported {field.strip()!r}")
+            explicit = True
         elif key not in ("model", "allowed-tools", "argument-hint"):
             raise ValueError(f"{name}: unsupported metadata {key!r}")
     if command:
@@ -115,7 +121,7 @@ def convert_skill(text, name, command=False):
     result = "---\n" + "".join(kept) + "---\n" + preamble + body
     if UNSUPPORTED.search(result):
         raise ValueError(f"{name}: untranslated Claude dependency")
-    return result
+    return result, explicit
 
 
 def convert_role(text, name):
@@ -161,6 +167,7 @@ def main():
         source = (SOURCE / "commands" / f"{name}.md" if name in COMMANDS
                   else SOURCE / "skills" / name / "SKILL.md")
         converted[name] = convert_skill(source.read_text(), name, name in COMMANDS)
+    explicit = {name for name, (_, only) in converted.items() if only}
     roles = {name: convert_role((SOURCE / "agents" / f"{name}.md").read_text(), name)
              for name in ROLES}
     if OUTPUT.is_symlink() or OUTPUT.parent.is_symlink():
@@ -168,14 +175,14 @@ def main():
     if OUTPUT.exists():
         shutil.rmtree(OUTPUT)
     OUTPUT.mkdir(parents=True)
-    for name, text in converted.items():
+    for name, (text, _) in converted.items():
         target = OUTPUT / "skills" / name
         if name in SKILLS:
             shutil.copytree(SOURCE / "skills" / name, target)
         else:
             target.mkdir(parents=True)
         (target / "SKILL.md").write_text(text)
-        if name in COMMANDS:
+        if name in explicit:
             (target / "agents").mkdir(exist_ok=True)
             (target / "agents" / "openai.yaml").write_text(
                 "policy:\n  allow_implicit_invocation: false\n"
@@ -246,7 +253,8 @@ def main():
         "or pass --check to report missing setup without changing files.\n"
         "The startup hook checks setup without editing global or project instructions.\n\n"
         "Included skills: " + ", ".join(converted) + ".\n\n"
-        "Commands are explicit-only skills. work-queue and work-on use bundled role\n"
+        "Commands, and skills Claude marks explicit-only, are explicit-only skills.\n"
+        "work-queue and work-on use bundled role\n"
         "instructions with ordinary Codex subagents; no custom roles are installed.\n"
         "Run approval happens explicitly in chat. Progress uses update_plan when\n"
         "available, or commentary, with full state kept in session reports.\n"

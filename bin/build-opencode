@@ -38,6 +38,9 @@ SKILLS=(
   session-report
   testing-specialist
 )
+# Claude skills marked disable-model-invocation. OpenCode skills cannot opt out
+# of model invocation, so these ship as commands, which only the user starts.
+EXPLICIT_SKILLS=(test-audit)
 
 LINK=false
 for arg in "$@"; do
@@ -64,7 +67,8 @@ convert_frontmatter() {
       }
       fm = 0; print; next
     }
-    fm && /^(allowed-tools|argument-hint):/ { next }
+    fm && /^(allowed-tools|argument-hint|disable-model-invocation):/ { next }
+    fm && kind == "command" && /^name:/ { next }
     fm && kind == "agent" && /^name:/ { next }
     fm && kind == "agent" && /^tools:/ { tools = $0; next }
     fm && /^model:/ {
@@ -122,6 +126,19 @@ for name in "${SKILLS[@]}"; do
   perl -pi -e 's{`?\$ARGUMENTS`?}{the arguments in the user'"'"'s request}g' "$file"
 done
 
+for name in "${EXPLICIT_SKILLS[@]}"; do
+  file="$OUT/commands/$name.md"
+  cp "$SRC/skills/$name/SKILL.md" "$file"
+  convert_frontmatter command "$file"
+  convert_body "$file"
+done
+
+perl -0pi -e '
+  s{This skill runs only when the user types `/test-audit`\. Its frontmatter sets `disable-model-invocation: true`\.}{This ships as a command, so it runs only when the user types it.}s;
+  s{ may start it and then pause on it\. Keep that field\.}{ may start it and then pause on it. Keep it a command.}s;
+  s{The scope is the argument:}{The scope is the argument, `\$ARGUMENTS`:}s;
+' "$OUT/commands/test-audit.md"
+
 # OpenCode has no plan mode tool. Its plan agent cannot edit, so /work-on stays
 # in the current agent and holds edits until the plan is approved.
 perl -0pi -e '
@@ -162,7 +179,7 @@ SRC="$SRC" OUT="$OUT" perl -0pi -e '
 # equivalent.
 perl -ni -e 'print unless /Workaround for bugs\/20261005|SendMessage/' "$OUT/agents/implementer.md"
 
-leftovers="$(grep -rnE 'CLAUDE_[A-Z_]+|EnterPlanMode|ExitPlanMode|SendMessage|TaskStop|[Pp]lan mode|AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:' \
+leftovers="$(grep -rnE 'CLAUDE_[A-Z_]+|EnterPlanMode|ExitPlanMode|SendMessage|TaskStop|[Pp]lan mode|AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:|disable-model-invocation' \
   --include='*.md' "$OUT" || true)"
 if [ -n "$leftovers" ]; then
   echo "error: Claude-only references survived translation:" >&2
