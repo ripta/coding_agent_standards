@@ -4,8 +4,10 @@
 # rename, so this replaces any custom title the session already has.
 #
 # The hook sees the line as typed, before the command expands. A first argument that looks like
-# a path is a checkout, not a domain name, so the session is left alone. The guardian then asks
-# for the domain and tells the user the /rename line to type.
+# a path is a checkout, not a domain name, so the session is left alone. The guardian then stops
+# and asks the user to rerun /guardian with a domain name first.
+#
+# This hook and the user's /rename are the only ways to name a session. The session cannot.
 
 INPUT=$(cat)
 PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty')

@@ -28,13 +28,18 @@ decisions when its context is compacted or the session resumes.
 
 ## Starting
 
-1. Settle the domain. Take it from the argument when given. Otherwise ask the user, via AskUserQuestion, for each
-   checkout and its scopes. Ask for each entry's commit policy too, and offer the default first. Read each entry's
-   visibility from its host, and ask the user to confirm it in the same call. See `rules/disclosure.md` "Visibility".
-2. Check the session name. Call ListAgents. Its first line names this session. When `/guardian` gets the domain name
-   as its first argument, the plugin's `name-guardian.sh` hook has already named it. Otherwise the name is not yet
-   `<domain name>_guardian`. Tell the user the exact `/rename <domain name>_guardian` to type, since a session cannot
-   rename itself mid-turn.
+1. Settle the domain. The domain name is the first argument to `/guardian`. Without one, stop before any other step.
+   Tell the user to rerun it as `/guardian <domain name>`, followed by any checkouts and scopes. A first argument that
+   is a path is a checkout, not a name. Do not ask for the name instead. A name given as an answer cannot name the
+   session. See step 2. Take the checkouts and scopes from the arguments when given. Otherwise ask the user, via
+   AskUserQuestion, for each checkout and its scopes. Ask for each entry's commit policy too, and offer the default
+   first. Read each entry's visibility from its host, and ask the user to confirm it in the same call. See
+   `rules/disclosure.md` "Visibility".
+2. Check the session name. Call ListAgents. Its first line names this session. Only a prompt the user types can name a
+   session. The session itself never can, at any point. The plugin's `name-guardian.sh` hook reads the `/guardian`
+   line before the command runs, and names the session `<domain name>_guardian`. The user's `/rename` is the only
+   other way. When the name is still not `<domain name>_guardian`, such as when the hook is not installed, tell the
+   user the exact `/rename <domain name>_guardian` to type. Put it first in the reply.
 3. Check for a rival. When ListAgents lists another live session with the same guardian name, stop and ask the user.
    Two guardians must never own overlapping paths.
 4. Open the ledger at `~/.local/state/coding_agent_standards/guardians/<domain name>/ledger.md`. When the directory
