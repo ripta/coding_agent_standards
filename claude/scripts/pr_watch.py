@@ -530,15 +530,19 @@ def workflow_pr_bases(text: str) -> str | None:
     return None
 
 
-def ci_other_bases(root: Path, systems: list[dict[str, Any]]) -> dict[str, str]:
-    """Say whether CI builds PRs whose base is not the mainline, from what the checkout shows.
+def ci_other_bases(root: Path, systems: list[dict[str, Any]],
+                   cloud_build: dict[str, str] | None = None) -> dict[str, str]:
+    """Say whether CI builds PRs whose base is not the mainline.
 
-    Only GitHub Actions triggers live in the checkout. Every other system configures its triggers
-    elsewhere, so it answers unknown.
+    Only GitHub Actions triggers live in the checkout. Cloud Build triggers live in the cloud, so
+    the caller resolves them and passes the verdict in `cloud_build`. Every other system, and Cloud
+    Build without a verdict, answers unknown.
     """
     verdicts: list[tuple[str, str]] = []
     for system in systems:
-        if system["system"] != "github-actions":
+        if system["system"] == "cloud-build" and cloud_build:
+            verdicts.append((cloud_build["answer"], cloud_build["reason"]))
+        elif system["system"] != "github-actions":
             verdicts.append(("unknown", f"{system['system']} triggers are configured outside the checkout"))
     for path in sorted((root / ".github" / "workflows").glob("*.y*ml")):
         try:
@@ -563,6 +567,116 @@ def ci_other_bases(root: Path, systems: list[dict[str, Any]]) -> dict[str, str]:
     if verdicts:
         return {"answer": "no", "reason": verdicts[0][1] + " (branch filter excludes other bases)"}
     return {"answer": "no", "reason": "no workflow runs on pull_request"}
+
+
+class GcloudError(Exception):
+    pass
+
+
+def gcloud(args: list[str]) -> str:
+    try:
+        result = subprocess.run(["gcloud", *args], capture_output=True, text=True)
+    except FileNotFoundError as e:
+        raise GcloudError("gcloud is not installed") from e
+    if result.returncode != 0:
+        raise GcloudError(result.stderr.strip() or f"gcloud {' '.join(args)} exited {result.returncode}")
+    return result.stdout
+
+
+CLOUD_BUILD_APPS = {"google-cloud-build", "google-cloud-developer-connect"}
+BUILD_URL = re.compile(r"/cloud-build/builds(?:;region=([\w-]+))?/([\w-]+)")
+TRIGGER_URL = re.compile(r"/cloud-build/triggers(?:;region=([\w-]+))?/edit/([\w-]+)")
+PR_CONFIG_KEYS = ("developerConnectEventConfig", "github", "repositoryEventConfig")
+BATCH_BRANCH = "agent/topic/batch"
+
+
+def parse_cloud_build_url(url: str) -> dict[str, str | None] | None:
+    """Pull the kind, ID, region, and project number out of a Cloud Build details URL."""
+    project = re.search(r"[?&]project=([\w-]+)", url or "")
+    for kind, pattern in (("build", BUILD_URL), ("trigger", TRIGGER_URL)):
+        match = pattern.search(url or "")
+        if match and project:
+            return {"kind": kind, "region": match.group(1), "id": match.group(2), "project": project.group(1)}
+    return None
+
+
+def recent_cloud_build_checks(slug: str, base: str, required: list[str]) -> list[dict[str, Any]]:
+    """Return the Cloud Build check runs of the newest merged PR into `base` that has any."""
+    merged = gh_json(["pr", "list", "--base", base, "--state", "merged", "--limit", "5",
+                      "--json", "number,headRefOid"])
+    for pr in merged:
+        data = gh_json(["api", f"repos/{slug}/commits/{pr['headRefOid']}/check-runs?per_page=100"])
+        runs = [
+            run for run in data.get("check_runs") or []
+            if (run.get("app") or {}).get("slug") in CLOUD_BUILD_APPS and (not required or run.get("name") in required)
+        ]
+        if runs:
+            return runs
+    return []
+
+
+def trigger_pr_branch(trigger: dict[str, Any]) -> str | None:
+    """Return the trigger's pull request branch regex, or None when it does not build PRs."""
+    for key in PR_CONFIG_KEYS:
+        pull_request = (trigger.get(key) or {}).get("pullRequest")
+        if pull_request:
+            return pull_request.get("branch") or ""
+    return None
+
+
+def cloud_build_verdict(slug: str, base: str, required: list[str]) -> dict[str, str]:
+    """Say whether the Cloud Build triggers behind the base's recent checks build PRs for any base.
+
+    The triggers are found through the check runs of a recent merged PR. Each trigger's pull request
+    branch regex is tried against a representative batch branch name. Cloud Build uses RE2. A
+    pattern Python cannot compile answers unknown.
+    """
+    try:
+        runs = recent_cloud_build_checks(slug, base, required)
+    except GhError as e:
+        return {"answer": "unknown", "reason": f"cloud-build: reading recent check runs failed: {e}"}
+    if not runs:
+        return {"answer": "unknown", "reason": f"cloud-build: no Cloud Build check runs on recent merged PRs into {base}"}
+
+    projects: dict[str, str] = {}
+    triggers: dict[tuple[str, str | None, str], dict[str, Any]] = {}
+    try:
+        for run in runs:
+            target = parse_cloud_build_url(run.get("details_url") or "")
+            if not target:
+                raise GcloudError(f"check {run.get('name')} has no Cloud Build details URL")
+            number, region = target["project"], target["region"]
+            if number not in projects:
+                projects[number] = gcloud(["projects", "describe", number, "--format=value(projectId)"]).strip()
+            project = projects[number]
+            region_args = ["--region", region] if region else []
+
+            trigger_id = target["id"]
+            if target["kind"] == "build":
+                trigger_id = gcloud(["builds", "describe", target["id"], "--project", project, *region_args,
+                                     "--format=value(buildTriggerId)"]).strip()
+                if not trigger_id:
+                    raise GcloudError(f"build {target['id']} was not started by a trigger")
+            key = (project, region, trigger_id)
+            if key not in triggers:
+                triggers[key] = json.loads(gcloud(["builds", "triggers", "describe", trigger_id, "--project",
+                                                   project, *region_args, "--format=json"]))
+    except (GcloudError, ValueError) as e:
+        return {"answer": "unknown", "reason": f"cloud-build: trigger lookup failed: {e}"}
+
+    for (project, _region, trigger_id), trigger in triggers.items():
+        name = trigger.get("name") or trigger_id
+        pattern = trigger_pr_branch(trigger)
+        if pattern is None:
+            return {"answer": "no", "reason": f"cloud-build trigger {name} in {project} does not build pull requests"}
+        try:
+            matches = re.search(pattern, BATCH_BRANCH)
+        except re.error as e:
+            return {"answer": "unknown", "reason": f"cloud-build trigger {name}: branch pattern {pattern!r}: {e}"}
+        if not matches:
+            return {"answer": "no", "reason": f"cloud-build trigger {name} in {project} only builds PRs "
+                                              f"whose base matches {pattern!r}"}
+    return {"answer": "yes", "reason": f"cloud-build: {len(triggers)} trigger(s) build PRs for any base"}
 
 
 def gcloud_status() -> str:
@@ -622,12 +736,18 @@ def preflight(base: str | None) -> dict[str, Any]:
     report["stacking"] = stacking_summary(report["merge_methods"])
 
     report["ci"] = ci_systems(Path.cwd())
-    report["ci_builds_other_bases"] = ci_other_bases(Path.cwd(), report["ci"])
+    cloud_build = None
     if any("gcloud" in system["needs"] for system in report["ci"]):
         report["gcloud"] = gcloud_status()
         if report["gcloud"] != "ok":
             report["needs"].append(f"Cloud Build logs need gcloud, which is {report['gcloud']}. "
                                    "Run `gcloud auth login` before the loop starts.")
+            cloud_build = {"answer": "unknown",
+                           "reason": f"cloud-build triggers cannot be read: gcloud is {report['gcloud']}"}
+        else:
+            required = (report["protection"] or {}).get("required_checks") or []
+            cloud_build = cloud_build_verdict(slug, base, required)
+    report["ci_builds_other_bases"] = ci_other_bases(Path.cwd(), report["ci"], cloud_build)
     return report
 
 

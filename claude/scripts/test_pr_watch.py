@@ -309,3 +309,113 @@ def test_ci_other_bases_unknown_for_filters_and_other_systems(tmp_path):
 
 def test_ci_other_bases_unknown_without_ci(tmp_path):
     assert pr_watch.ci_other_bases(tmp_path, [])["answer"] == "unknown"
+
+
+BUILD_URL = "https://console.cloud.google.com/cloud-build/builds;region=us-central1/build-1?project=111"
+TRIGGER_URL = "https://console.cloud.google.com/cloud-build/triggers;region=us-central1/edit/trig-1?project=111"
+GLOBAL_BUILD_URL = "https://console.cloud.google.com/cloud-build/builds/build-1?project=111"
+
+
+def _cb_run(name="ci (proj-a)", url=BUILD_URL, app="google-cloud-developer-connect"):
+    return {"name": name, "app": {"slug": app}, "details_url": url}
+
+
+def _fake_cloud(monkeypatch, runs, trigger, merged=(("1", "sha1"),), build_trigger="trig-1", fail=None):
+    gcloud_calls = []
+
+    def fake_gh_json(args):
+        if args[:2] == ["pr", "list"]:
+            return [{"number": int(n), "headRefOid": sha} for n, sha in merged]
+        return {"check_runs": runs.get(args[1].split("/commits/")[1].split("/")[0], [])}
+
+    def fake_gcloud(args):
+        gcloud_calls.append(args)
+        if fail and fail in args:
+            raise pr_watch.GcloudError(f"{fail} denied")
+        if args[:2] == ["projects", "describe"]:
+            return "proj-a\n"
+        if args[:2] == ["builds", "describe"]:
+            return build_trigger + "\n"
+        return json.dumps(trigger)
+
+    monkeypatch.setattr(pr_watch, "gh_json", fake_gh_json)
+    monkeypatch.setattr(pr_watch, "gcloud", fake_gcloud)
+    return gcloud_calls
+
+
+def _verdict(required=()):
+    return pr_watch.cloud_build_verdict("o/r", "main", list(required))
+
+
+def test_cloud_build_developer_connect_trigger_matching_everything_is_yes(monkeypatch):
+    calls = _fake_cloud(monkeypatch, {"sha1": [_cb_run()]},
+                        {"name": "t", "developerConnectEventConfig": {"pullRequest": {"branch": ".*"}}})
+    assert _verdict()["answer"] == "yes"
+    assert ["builds", "describe", "build-1", "--project", "proj-a", "--region", "us-central1",
+            "--format=value(buildTriggerId)"] in calls
+
+
+def test_cloud_build_first_gen_trigger_filtered_to_main_is_no(monkeypatch):
+    _fake_cloud(monkeypatch, {"sha1": [_cb_run(app="google-cloud-build")]},
+                {"name": "main-only", "github": {"pullRequest": {"branch": "^main$"}}})
+    answer = _verdict()
+    assert answer["answer"] == "no" and "main-only" in answer["reason"]
+
+
+def test_cloud_build_trigger_url_skips_the_build_lookup(monkeypatch):
+    calls = _fake_cloud(monkeypatch, {"sha1": [_cb_run(url=TRIGGER_URL)]},
+                        {"repositoryEventConfig": {"pullRequest": {"branch": ".*"}}})
+    assert _verdict()["answer"] == "yes"
+    assert not any(c[:2] == ["builds", "describe"] for c in calls)
+
+
+def test_cloud_build_global_build_url_omits_region(monkeypatch):
+    calls = _fake_cloud(monkeypatch, {"sha1": [_cb_run(url=GLOBAL_BUILD_URL)]},
+                        {"github": {"pullRequest": {"branch": ".*"}}})
+    assert _verdict()["answer"] == "yes"
+    assert all("--region" not in c for c in calls)
+
+
+def test_cloud_build_push_trigger_does_not_build_prs(monkeypatch):
+    _fake_cloud(monkeypatch, {"sha1": [_cb_run()]}, {"name": "pusher", "github": {"push": {"branch": ".*"}}})
+    assert _verdict()["answer"] == "no"
+
+
+def test_cloud_build_re2_pattern_python_rejects_is_unknown(monkeypatch):
+    _fake_cloud(monkeypatch, {"sha1": [_cb_run()]}, {"github": {"pullRequest": {"branch": "(?P<x"}}})
+    assert _verdict()["answer"] == "unknown"
+
+
+def test_cloud_build_lookup_failure_is_unknown_with_the_step(monkeypatch):
+    _fake_cloud(monkeypatch, {"sha1": [_cb_run()]}, {}, fail="projects")
+    answer = _verdict()
+    assert answer["answer"] == "unknown" and "projects denied" in answer["reason"]
+
+
+def test_cloud_build_without_check_runs_is_unknown(monkeypatch):
+    _fake_cloud(monkeypatch, {"sha1": [_cb_run(app="github-actions")]}, {})
+    answer = _verdict()
+    assert answer["answer"] == "unknown" and "no Cloud Build check runs" in answer["reason"]
+
+
+def test_cloud_build_uses_the_newest_pr_with_cloud_build_checks_and_looks_each_trigger_up_once(monkeypatch):
+    calls = _fake_cloud(monkeypatch, {"sha1": [], "sha2": [_cb_run("a"), _cb_run("b")]},
+                        {"github": {"pullRequest": {"branch": ".*"}}}, merged=(("1", "sha1"), ("2", "sha2")))
+    assert _verdict()["answer"] == "yes"
+    assert sum(c[:3] == ["builds", "triggers", "describe"] for c in calls) == 1
+    assert sum(c[:2] == ["projects", "describe"] for c in calls) == 1
+
+
+def test_cloud_build_only_required_checks_count(monkeypatch):
+    _fake_cloud(monkeypatch, {"sha1": [_cb_run("required"), _cb_run("optional", url=TRIGGER_URL)]},
+                {"github": {"pullRequest": {"branch": "^main$"}}})
+    assert _verdict(["other"])["answer"] == "unknown"
+    assert _verdict(["required"])["answer"] == "no"
+
+
+def test_ci_other_bases_takes_the_cloud_build_verdict(tmp_path):
+    (tmp_path / "cloudbuild.yaml").write_text("steps: []\n")
+    systems = pr_watch.ci_systems(tmp_path)
+    assert pr_watch.ci_other_bases(tmp_path, systems, {"answer": "yes", "reason": "r"})["answer"] == "yes"
+    unreadable = {"answer": "unknown", "reason": "gcloud is unauthenticated"}
+    assert pr_watch.ci_other_bases(tmp_path, systems, unreadable)["reason"] == "gcloud is unauthenticated"
