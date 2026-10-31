@@ -364,7 +364,9 @@ For each milestone picked:
    for its answer to the follow-up.
 
 5. Check the implementer's last report. Every check must have run and passed.
-   Its file list must match `git status` in the code repo, and the specs repo's
+   The exception is a test failure the work did not cause. Its record must
+   follow "Test Failures" in `${CLAUDE_PLUGIN_ROOT}/rules/work-discipline.md`,
+   and it goes in the session report. Its file list must match `git status` in the code repo, and the specs repo's
    status for the proposal. Leave the run's session reports out of this
    comparison. Ask the implementer about any mismatch before committing.
 
@@ -387,7 +389,10 @@ For each milestone picked:
    the same commit.
 
 7. Amend the row's session report (see section 4). Copy in the implementer's
-   best guesses and deviations, so the next implementer sees them. When the
+   best guesses and deviations, so the next implementer sees them. Copy in its
+   unowned failures and test cost too. The test cost tracks a trend across
+   rows, per "Per-File Budgets" in `practices/testing.md` in the coding
+   standards repo. When the
    report lives in a repo step 6 commits to, amend it before that commit, and
    commit it by path with the milestone.
 
@@ -472,7 +477,8 @@ write its subject in that repo's own style, as for the other specs commits.
 
 Block a row, and say why, only when:
 
-- A build or test failure cannot be fixed within the milestone's scope
+- A build failure, or a test failure the work caused, cannot be fixed within
+  the milestone's scope
 - A review finding needs a design decision the documents do not cover, and
   any guess would be costly to reverse
 - The work contradicts an ADR, and honoring the ADR would change the approved

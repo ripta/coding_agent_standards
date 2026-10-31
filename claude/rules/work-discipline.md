@@ -6,7 +6,7 @@
 - Verify existing code is actually wrong before "fixing" it; trace through the logic to confirm the bug rather than
   shuffling code around
 - Write a fix's regression test before the fix, and run it on the unfixed code. It must fail there, for the reason the
-  bug describes. A test that passes before the fix does not cover the bug
+  bug describes. A failure in fixture setup does not count. A test that passes before the fix does not cover the bug
 - When it passes, find out why before moving on. Either the test misses the bug, or the diagnosis is wrong. Until that
   is settled, record the diagnosis as unresolved, not as fact. This holds even when a review marked it confirmed
 - When the failure cannot be reproduced in a test, say so. Record that the test pins the fix, not the bug
@@ -16,6 +16,18 @@
 - Do not ignore compilation or build failures
 - Confirm with the user before moving on to a new milestone or task
 - Read and maintain the proposal's milestone status and As built block before and after every milestone
+
+## Test Failures
+
+A failing test is a defect, whoever caused it.
+
+- Make a bounded attempt to reproduce it, in the original shard order first. Find which change or component owns it
+- A failure your change causes blocks the work. Fix it before reporting the work done
+- A failure that also fails on the base commit, or fails only in some test orders, does not block. Record the original
+  failure, each attempt, the evidence, and what stays uncertain. Record them in the session report or the PR, then
+  continue. CI and review gates still apply as they are
+- A passing rerun does not prove a fix
+- Never hide a failure with retries, longer timeouts, weaker assertions, broader mocks, or changed baselines
 
 ## Refactoring
 

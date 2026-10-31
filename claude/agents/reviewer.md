@@ -107,6 +107,22 @@ caller says it runs one beside you, do not sweep the ADRs yourself. Still
 report an ADR violation you notice while tracing code. Otherwise, take the
 applicable ADRs into account yourself.
 
+Hold each test the diff adds or changes to the value gate in
+`practices/testing.md` of the coding standards repo. A finding names the gap:
+
+- The test proves no caller-visible contract. Examples are a mock of an
+  internal decision, or an expected value computed by the code under test.
+- No credible regression would make it fail.
+- An existing test already owns the contract at an equal or stronger
+  boundary. The diff neither retires that test nor names what the new one
+  adds.
+- It is slow where a cheaper layer could prove the same contract. Real
+  sleeps, timers, long polls, and whole-product boots are the usual causes. A
+  costly test that records why no cheaper layer can prove its contract is not
+  a finding.
+- It hides a failure: a retry, a longer timeout, a weaker assertion, a broader
+  mock, or a changed baseline.
+
 Verify before you report. For every correctness or security finding, mark a
 verdict:
 

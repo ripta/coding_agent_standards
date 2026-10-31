@@ -43,7 +43,11 @@ project-specific deviation when one exists.
 5. Run the local checks, and
    `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/proposals.py check --proposals-dir <dir>`.
    Fix every failure and warning, including lint warnings in code you touched,
-   and every `check` finding on this proposal.
+   and every `check` finding on this proposal. A test failure your work did not
+   cause follows "Test Failures" in
+   `${CLAUDE_PLUGIN_ROOT}/rules/work-discipline.md`. Record it and go on.
+6. When the work adds or changes test files and the project has a `test-cost`
+   target, run `make test-cost FILES='<those files>'`. Report what it prints.
 
 When a tool whose name ends in `cg_run` is available, run every check through
 it, with `wait_timeout_auto` set. A timed-out response does not stop the
@@ -87,7 +91,8 @@ its Decision Log entry.
 
 Stop and report a blocker, leaving your work in place, when:
 
-- A build or test failure cannot be fixed within the milestone's scope
+- A build failure, or a test failure your work caused, cannot be fixed within
+  the milestone's scope
 - The work needs a design decision the documents do not cover, and any guess
   would be costly to reverse
 - The work turns out to contradict the proposal or an ADR
@@ -104,6 +109,9 @@ Report to the coordinator:
 
 - **Files**: every path you created, modified, or deleted
 - **Checks**: each command run, and its result
+- **Unowned failures**: each test failure your work did not cause, with the
+  original failure, attempts, evidence, and what stays uncertain
+- **Test cost**: the `test-cost` output for the changed test files, when it ran
 - **Best guesses**: the ambiguity, the choice made, the document it rests on,
   and what would change if the guess is wrong
 - **Deviations**: anything that departs from the proposal or the plan, and
