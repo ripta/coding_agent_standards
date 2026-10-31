@@ -83,7 +83,9 @@ the system Python 3.9. Every script must run on 3.9:
 ## Standards for This Repo
 
 These imports mirror `profiles/baseline.md`. They use relative paths so they read the working tree. The profile's
-`~/.claude/coding-standards-current/` paths would read the installed plugin, which lags behind edits made here.
+`~/.claude/coding-standards-current/` paths would read the installed plugin, which lags behind edits made here. The
+profile's on-demand docs are left out here too. When the plugin's hook names one, read the working tree's copy under
+`claude/` instead.
 
 @claude/rules/precedence.md
 @claude/rules/decision-making.md
@@ -99,10 +101,4 @@ These imports mirror `profiles/baseline.md`. They use relative paths so they rea
 @claude/rules/research-limits.md
 @claude/rules/disclosure.md
 @claude/practices/code-review.md
-@claude/practices/makefile.md
 @claude/practices/testing.md
-@claude/project-management/glossary.md
-@claude/project-management/design.md
-@claude/project-management/plans.md
-@claude/project-management/proposals.md
-@claude/project-management/tracking.md

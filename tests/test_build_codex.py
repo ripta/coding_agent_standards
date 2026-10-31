@@ -26,9 +26,11 @@ class BaselineBuildTests(unittest.TestCase):
                 self.builder["main"]()
             moved = output.rename(Path(temporary) / "relocated bundle")
             baseline = (moved / "baseline.md").read_text()
-            paths = self.builder["baseline_paths"]()
+            paths, on_demand = self.builder["baseline_paths"]()
+            self.assertIn("project-management/proposals.md", [path for path, _ in on_demand])
+            self.assertIn("practices/makefile.md", [path for path, _ in on_demand])
             positions = []
-            for relative in paths:
+            for relative in paths + [path for path, _ in on_demand]:
                 positions.append(baseline.index(f"]({relative})"))
                 contents = (moved / relative).read_text()
                 self.assertNotIn("AskUserQuestion", contents)

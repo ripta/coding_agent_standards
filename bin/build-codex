@@ -27,26 +27,44 @@ UNSUPPORTED = re.compile(
 translate = runpy.run_path(str(REPO / "codex" / "scripts" / "translate.py"))["translate"]
 
 
+CURRENT = "~/.claude/coding-standards-current/"
+ON_DEMAND = re.compile(r"^- `~/\.claude/coding-standards-current/([^`]+)` (before .+)$")
+
+
+def _relative(line, spelled):
+    if not spelled.startswith(CURRENT):
+        raise ValueError(f"unsupported baseline import: {line}")
+    relative = spelled.removeprefix(CURRENT)
+    if ".." in Path(relative).parts or not (SOURCE / relative).is_file():
+        raise ValueError(f"invalid baseline import: {line}")
+    return relative
+
+
 def baseline_paths():
-    paths = []
+    """Return the baseline's imports, then its on-demand docs as (path, when) pairs.
+
+    Imports are the `@` lines. On-demand docs are the bullets under "## On Demand", which
+    Claude Code sessions get from a hook. Codex has no such hook, so it reads them by condition.
+    """
+    paths, on_demand = [], []
+    section = None
     for line in (REPO / "profiles" / "baseline.md").read_text().splitlines():
-        if not line.startswith("@"):
-            continue
-        if line.startswith("@~/.claude/coding-standards-current/"):
-            relative = line.removeprefix("@~/.claude/coding-standards-current/")
-            source = SOURCE / relative
-        else:
-            raise ValueError(f"unsupported baseline import: {line}")
-        if ".." in Path(relative).parts or not source.is_file():
-            raise ValueError(f"invalid baseline import: {line}")
-        paths.append(relative)
+        if line.startswith("## "):
+            section = line[3:].strip()
+        elif line.startswith("@"):
+            paths.append(_relative(line, line[1:]))
+        elif section == "On Demand" and line.startswith("- "):
+            match = ON_DEMAND.match(line)
+            if not match:
+                raise ValueError(f"unsupported on-demand entry: {line}")
+            on_demand.append((_relative(line, CURRENT + match.group(1)), match.group(2)))
     if not paths:
         raise ValueError("baseline profile has no imports")
-    return paths
+    return paths, on_demand
 
 
-def write_baseline(paths):
-    for relative in paths:
+def write_baseline(paths, on_demand):
+    for relative in paths + [path for path, _ in on_demand]:
         target = OUTPUT / relative
         text = target.read_text().replace("AskUserQuestion", "available user-question")
         text = text.replace(" (up to 4 questions)", "")
@@ -60,6 +78,9 @@ def write_baseline(paths):
         "relative to this file, regardless of the project's working directory. These are instructions,\n"
         "not optional background reading. If a document is missing, report it before proceeding.\n\n"
         + "".join(f"- [{path}]({path})\n" for path in paths)
+        + ("\nRead each document below before the work it names. Most sessions never need them.\n\n"
+           + "".join(f"- [{path}]({path}) {when}\n" for path, when in on_demand)
+           if on_demand else "")
         + "\n## Codex adaptations\n\n"
         "Apply these adaptations when reading the shared standards:\n\n"
         "- Use the available user-question tool within its limits. If unavailable, ask in chat.\n"
@@ -157,7 +178,7 @@ def version_plugin():
 def main():
     if len(sys.argv) != 1:
         raise ValueError("usage: bin/build-codex")
-    baseline = baseline_paths()
+    baseline, on_demand = baseline_paths()
     # Prepare and validate translations before replacing the previous build.
     converted = {}
     for name in (*SKILLS, *COMMANDS):
@@ -207,7 +228,7 @@ def main():
     shutil.copy2(SOURCE / "scripts" / "test_cost.py", OUTPUT / "scripts" / "test_cost.py")
     shutil.copy2(REPO / "codex" / "scripts" / "setup.py", OUTPUT / "scripts" / "setup.py")
     shutil.copy2(REPO / "codex" / "scripts" / "verify_hooks.py", OUTPUT / "scripts" / "verify_hooks.py")
-    write_baseline(baseline)
+    write_baseline(baseline, on_demand)
     (OUTPUT / "hooks").mkdir()
     for name in ("link-current.py", "check-setup.py"):
         shutil.copy2(REPO / "codex" / "hooks" / name, OUTPUT / "hooks" / name)
