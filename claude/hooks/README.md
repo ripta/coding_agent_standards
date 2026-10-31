@@ -12,6 +12,8 @@
   machine and the project are set up. It prints nothing when they are.
   `guardian-session-start.sh` tells a `<domain name>_guardian` session that
   comes back by resume, `/clear`, or fork to re-run its Starting steps.
+  `standards-on-demand.py` forgets which docs it named once the session
+  compacts or clears. See `PreToolUse` below.
 - `UserPromptSubmit` runs `name-guardian.sh`. When the prompt is `/guardian`
   with a domain name as its first argument, it names the session
   `<domain name>_guardian`, replacing any custom title.
@@ -19,6 +21,10 @@
   guardian that ran its start hooks, it runs that guardian's stop hooks,
   detached. See "Hooks" in `project-management/guardian.md`.
 - `PreToolUse` on `Bash` runs `block-broad-find.sh` and `block-private-terms.sh`. See "Private Terms" below.
+- `PreToolUse` on the file tools runs `standards-on-demand.py`. Profiles leave the project-management docs and
+  `practices/makefile.md` out of startup context. The first time a session reads or changes a proposal, an ADR, the
+  queue, or a Makefile, the hook names the docs to read. It matches a file's resolved path too, so a symlinked `spec/`
+  directory counts. It never blocks a call.
 - `PostToolUse` on `Edit|Write` runs `format-edited-file.sh`. It runs `make fmt-select FILES=<path>` on the edited
   file, in the repo that holds it, when that repo has the target. See "Formatting Edited Files" in
   `practices/makefile.md`.
