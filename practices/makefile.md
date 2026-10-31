@@ -179,6 +179,40 @@ fmt-select: ## Format only the named files, e.g. make fmt-select FILES='cmd/app/
 	$(if $(filter %.go,$(FILES)),gofmt -w $(filter %.go,$(FILES)))
 ```
 
+## Measuring Changed Tests
+
+A project that adopts per-file test budgets adds a `test-cost` target. See "Per-File Budgets" in
+`practices/testing.md`. A project without the target has no budget, and agents skip the step.
+
+- `FILES` holds space-separated test file paths relative to the repo root. The caller picks the new and changed
+  files, such as from `git diff --name-only`. The target never works out which files changed.
+- An empty `FILES` measures nothing. It never falls back to the whole suite.
+- It runs each named file alone, with no parallelism, using the command the language doc gives. The rest of the
+  suite keeps its parallelism in `test`.
+- It reads each file's budget: the carve-out when the file has one, and the project's default otherwise. The project
+  picks the carve-out's form and parses it here.
+- It wraps each run in the plugin's `scripts/test_cost.py`, which prints one JSON line per file with wall time, CPU
+  time, and peak memory. The helper only measures. It knows nothing about runners or carve-outs.
+- It exits nonzero when a file fails or runs over its budget.
+
+```make
+# Space-separated test file paths, relative to the repo root, for test-cost. Empty measures nothing.
+FILES ?=
+# Default wall-time budget per test file, in seconds.
+TEST_BUDGET ?= 2
+# The plugin's measuring helper.
+TEST_COST ?= $(HOME)/.claude/coding-standards-current/scripts/test_cost.py
+
+.PHONY: test-cost
+test-cost: ## Measure named test files alone against their budgets, e.g. make test-cost FILES='tests/test_a.py'
+	@status=0; for f in $(FILES); do \
+		budget=$$(sed -n 's/^.*test-budget: *\([0-9.]*\)s.*$$/\1/p' "$$f" | head -1); \
+		python3 $(TEST_COST) --label "$$f" --budget "$${budget:-$(TEST_BUDGET)}" -- uv run pytest -q "$$f" || status=1; \
+	done; exit $$status
+```
+
+The example reads a `test-budget: 8s` comment. A sidecar file or a config file works as well.
+
 ## Aggregate Targets
 
 - Top-level verbs are aggregates over component targets: `build: build-rust build-ui`.
