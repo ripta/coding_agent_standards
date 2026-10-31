@@ -47,6 +47,8 @@
 - Unit tests: embedded `test "description" { ... }` blocks at the bottom of source files
 - Use `std.testing` for assertions in unit tests
 - Run tests with `zig build test` or via Makefile targets
+- Measure one source file's tests alone with `zig test <file>.zig` when the file builds standalone. Otherwise add a
+  per-file step to `build.zig`
 
 ## Build System
 

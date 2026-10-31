@@ -5,6 +5,5 @@
 @../languages/svelte.md
 @../languages/css.md
 @../languages/protobuf.md
-@../practices/testing.md
 @../practices/error-handling.md
 @../practices/security.md

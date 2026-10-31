@@ -38,6 +38,18 @@
 - Use `errgroup` for concurrent operations with shared error handling
 - Pass `context.Context` through all async operations
 
+## Testing
+
+- Declare a named test struct type at package level (not inline)
+- Declare test cases as a package-level variable: `var fooTests = []fooTest{...}`
+- Use subtests: `t.Run(test.Name, func(t *testing.T) { ... })`
+- Each test case has a descriptive `Name` field
+- Inject a clock interface (e.g., `clockwork.Clock`) for deterministic time control
+- HTTP handlers: use `httptest.NewRequest` and `httptest.NewRecorder`. Assert on status code, response body, and
+  headers. A `testConfig()` helper returns a known-good config
+- Measure one test package alone: `go test -count=1 -p 1 -parallel 1 ./path/to/pkg`. Go builds and runs tests per
+  package, so the package is the unit a per-file budget measures
+
 ## Imports
 
 - Group: stdlib, blank line, external, blank line, internal

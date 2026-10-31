@@ -6,5 +6,4 @@ instead of this one when the project has picked a renderer.
 @../profiles/baseline.md
 @../languages/typescript.md
 @../practices/game-simulation.md
-@../practices/testing.md
 @../practices/security.md

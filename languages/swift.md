@@ -87,10 +87,13 @@ Makefile                     # Build targets wrapping xcodebuild / swift build
 ## Testing
 
 - Unit tests: `XCTestCase` subclasses in `Tests/`
-- Use `@testable import <ModuleName>` to access internal symbols
+- Use `@testable import <ModuleName>` to access internal symbols. Many test-only reaches into one type are a sign of
+  fragmented ownership. See "What a Test Proves" in `practices/testing.md`
 - Async test methods: `func testFoo() async throws { ... }`
 - UI tests: `XCUIApplication` for integration / E2E testing
 - Run via Makefile: `make test` wrapping `swift test` or `xcodebuild test`
+- Measure one test class alone: `swift test --filter <TestClass>`. `swift test` runs serially unless given
+  `--parallel`. Build first, so compile time stays out of the measurement
 
 ## Crash Detection
 

@@ -41,6 +41,8 @@
 - Unit tests in `#[cfg(test)] mod tests` within the same file
 - Integration tests in `tests/integration/`
 - Assert on Display output for error messages
+- Measure one integration test file alone: `cargo test --test <name> -- --test-threads=1`. Unit tests in a module:
+  `cargo test --lib <module>:: -- --test-threads=1`. Build first, so compile time stays out of the measurement
 
 ## Unsafe
 

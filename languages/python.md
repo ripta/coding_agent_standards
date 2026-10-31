@@ -95,6 +95,7 @@ Makefile
 - Use fixtures in `conftest.py`; avoid deep fixture inheritance
 - Parametrize over test cases with `@pytest.mark.parametrize` (table-driven equivalent)
 - Makefile target: `make test` (`uv run pytest`)
+- Measure one test file alone: `uv run pytest tests/test_models.py`. With `pytest-xdist` installed, add `-n 0`
 
 ## Comments & Docstrings
 

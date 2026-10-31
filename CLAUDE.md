@@ -99,6 +99,7 @@ These imports mirror `profiles/baseline.md`. They use relative paths so they rea
 @claude/rules/disclosure.md
 @practices/code-review.md
 @practices/makefile.md
+@practices/testing.md
 @claude/project-management/glossary.md
 @claude/project-management/design.md
 @claude/project-management/plans.md

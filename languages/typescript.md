@@ -28,6 +28,7 @@ Makefile
 - Keep pure domain code in its own directory with no framework imports
 - Enforce that boundary with a lint rule, not a comment (see Formatting & Linting)
 - Unit tests live next to the code (`foo.ts` → `foo.test.ts`); cross-module tests in `tests/`
+- Measure one test file alone: `vitest run src/foo.test.ts --no-file-parallelism`
 
 ## Types
 
