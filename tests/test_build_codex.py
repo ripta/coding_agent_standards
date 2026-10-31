@@ -90,6 +90,16 @@ class BaselineBuildTests(unittest.TestCase):
             policy = skill / "agents" / "openai.yaml"
             self.assertIn("allow_implicit_invocation: false", policy.read_text())
 
+    def test_bundle_ships_the_test_cost_helper_the_makefile_practice_names(self):
+        with tempfile.TemporaryDirectory(prefix="codex cost ") as temporary:
+            output = Path(temporary) / "bundle"
+            with patch.dict(self.namespace, OUTPUT=output), patch("sys.argv", [str(BUILD)]):
+                self.builder["main"]()
+            practice = (output / "practices" / "makefile.md").read_text()
+            self.assertIn("coding-standards-current/scripts/test_cost.py", practice)
+            self.assertIn("CODEX_HOME", practice)
+            self.assertTrue((output / "scripts" / "test_cost.py").is_file())
+
     def test_changed_or_duplicated_adaptation_preserves_previous_build(self):
         source = self.namespace["SOURCE"]
         original = (source / "commands" / "work-queue.md").read_text()

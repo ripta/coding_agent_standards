@@ -208,6 +208,7 @@ def main():
     (OUTPUT / "scripts").mkdir()
     shutil.copy2(SOURCE / "scripts" / "proposals.py", OUTPUT / "scripts" / "proposals.py")
     shutil.copy2(SOURCE / "scripts" / "detect_era.py", OUTPUT / "scripts" / "detect_era.py")
+    shutil.copy2(SOURCE / "scripts" / "test_cost.py", OUTPUT / "scripts" / "test_cost.py")
     shutil.copy2(REPO / "codex" / "scripts" / "setup.py", OUTPUT / "scripts" / "setup.py")
     shutil.copy2(REPO / "codex" / "scripts" / "verify_hooks.py", OUTPUT / "scripts" / "verify_hooks.py")
     write_baseline(baseline)

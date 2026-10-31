@@ -191,8 +191,9 @@ A project that adopts per-file test budgets adds a `test-cost` target. See "Per-
   suite keeps its parallelism in `test`.
 - It reads each file's budget: the carve-out when the file has one, and the project's default otherwise. The project
   picks the carve-out's form and parses it here.
-- It wraps each run in the plugin's `scripts/test_cost.py`, which prints one JSON line per file with wall time, CPU
-  time, and peak memory. The helper only measures. It knows nothing about runners or carve-outs.
+- It wraps each run in `scripts/test_cost.py`, which prints one JSON line per file with wall time, CPU time, and peak
+  memory. The Claude Code plugin and the Codex bundle both ship it. The helper only measures. It knows nothing about
+  runners or carve-outs.
 - It exits nonzero when a file fails or runs over its budget.
 
 ```make
@@ -200,11 +201,16 @@ A project that adopts per-file test budgets adds a `test-cost` target. See "Per-
 FILES ?=
 # Default wall-time budget per test file, in seconds.
 TEST_BUDGET ?= 2
-# The plugin's measuring helper.
-TEST_COST ?= $(HOME)/.claude/coding-standards-current/scripts/test_cost.py
+# Codex's home directory, where its plugin keeps the standards link.
+CODEX_HOME ?= $(HOME)/.codex
+# The measuring helper, from the Claude Code plugin or the Codex bundle, whichever is installed.
+TEST_COST ?= $(firstword $(wildcard \
+	$(HOME)/.claude/coding-standards-current/scripts/test_cost.py \
+	$(CODEX_HOME)/coding-standards-current/scripts/test_cost.py))
 
 .PHONY: test-cost
 test-cost: ## Measure named test files alone against their budgets, e.g. make test-cost FILES='tests/test_a.py'
+	@test -n "$(TEST_COST)" || { echo "test_cost.py not found; install the coding standards plugin, or set TEST_COST"; exit 1; }
 	@status=0; for f in $(FILES); do \
 		budget=$$(sed -n 's/^.*test-budget: *\([0-9.]*\)s.*$$/\1/p' "$$f" | head -1); \
 		python3 $(TEST_COST) --label "$$f" --budget "$${budget:-$(TEST_BUDGET)}" -- uv run pytest -q "$$f" || status=1; \
