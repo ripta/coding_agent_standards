@@ -6,8 +6,9 @@ argument-hint: "<domain name> [checkout paths and scopes]"
 Act as the guardian of the domain in $ARGUMENTS by following
 `${CLAUDE_PLUGIN_ROOT}/project-management/guardian.md`. Commits follow
 `${CLAUDE_PLUGIN_ROOT}/rules/git-workflow.md` and
-`${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Read all three. If any cannot be
-read, stop and tell the user the standards are not available.
+`${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Read the guide. Read each rule
+file too, unless the project's instructions already loaded it. If any cannot
+be read, stop and tell the user the standards are not available.
 
 Do not enter plan mode. A guardian edits and commits as requests settle.
 

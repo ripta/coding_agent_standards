@@ -24,7 +24,8 @@ and where the commit style comes from. The default is to commit on the checked-o
 visible repo is a promotion, and follows `rules/disclosure.md`.
 
 **Ledger**: the guardian's record of every request, its verdict, and its commit. It lets the guardian keep its
-decisions when its context is compacted or the session resumes.
+decisions when its context is compacted or the session resumes. Closed requests move to an archive beside it, so
+starting reads only what is still open.
 
 ## Starting
 
@@ -44,8 +45,8 @@ decisions when its context is compacted or the session resumes.
    Two guardians must never own overlapping paths.
 4. Open the ledger at `~/.local/state/coding_agent_standards/guardians/<domain name>/ledger.md`. When the directory
    cannot be written, use the session's scratchpad instead, and tell the user that the ledger will not outlive the
-   session. When a ledger already exists, read it. Its open requests are still open. The ledger opens with the domain,
-   and each entry's commit policy and visibility.
+   session. When a ledger already exists, read it. Its open requests are still open. Leave `ledger-archive.md` beside it
+   unread. See "Ledger Format". The ledger opens with the domain, and each entry's commit policy and visibility.
 5. Run the start hooks. See "Hooks". Pass the domain on stdin with a heredoc:
 
    ```sh
@@ -88,7 +89,8 @@ starts a fresh one with `/guardian <domain name>`.
    removed. Say how the requestor picks it up. Ask it to re-check against its own project when the guardian could not.
    When the requestor's session is gone, drop the reply. Never send it to another session, which would only confuse
    that session. Tell the user the session is gone and could not be answered.
-9. **Close it.** Record the verdict, the source's visibility, and the commit in the ledger.
+9. **Close it.** Record the verdict, the source's visibility, and the commit in the ledger. Then move the entry to the
+   end of the archive.
 
 ## Rules
 
@@ -126,6 +128,10 @@ One section per request, numbered in order:
 - Fix: 6df85f7, narrower than suggested
 - Status: closed
 ```
+
+`ledger.md` holds the header and the open requests. A closed request moves to the end of `ledger-archive.md`, beside
+the ledger, with its number unchanged. Numbering runs across both files. The next request takes the number after the
+highest in either. Search the archive when a request cites or repeats an earlier one. Starting never reads it whole.
 
 ## Hooks
 
