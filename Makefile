@@ -62,7 +62,7 @@ lint-prose: ## Lint prose and comments changed against main with Vale
 fmt: ## Fix markdown lint findings in place
 	./rumdl/lint-markdown --all --fix
 
-# The plugin's format hook calls this after each edit. See "Formatting Edited Files" in practices/makefile.md.
+# The plugin's format hook calls this after each edit. See "Formatting Edited Files" in claude/practices/makefile.md.
 .PHONY: fmt-select
 fmt-select: ## Fix markdown lint findings in the named files only, e.g. make fmt-select FILES='README.md'
 	$(if $(FILES),./rumdl/lint-markdown --fix -- $(FILES))

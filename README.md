@@ -9,7 +9,6 @@ rules.
 ```text
 coding_agent_standards/
 ├── languages/          Language-specific standards
-├── practices/          Cross-cutting practices
 ├── .claude/            Project-local Claude Code config (skills, settings) for this repo
 ├── claude/             Claude Code plugin source (exported to other projects)
 │   ├── .claude-plugin/      Plugin manifest
@@ -17,6 +16,7 @@ coding_agent_standards/
 │   ├── commands/            Slash commands
 │   ├── hooks/               hooks.json, the guard scripts it wires up, and the work-queue progress mod
 │   ├── knowledge/           LLM wiki standard and the templates a wiki copies
+│   ├── practices/           Cross-cutting practices
 │   ├── project-management/  Plans, proposals, design, tracking, and commit chunking standards
 │   ├── rules/               Agent behavior rules
 │   ├── scripts/             Standalone scripts (statusline)

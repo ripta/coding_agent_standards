@@ -5,5 +5,5 @@ instead of this one when the project has picked a renderer.
 
 @../profiles/baseline.md
 @../languages/typescript.md
-@../practices/game-simulation.md
-@../practices/security.md
+@~/.claude/coding-standards-current/practices/game-simulation.md
+@~/.claude/coding-standards-current/practices/security.md

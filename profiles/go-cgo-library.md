@@ -5,4 +5,4 @@ For Go projects that expose functionality through C ABI (c-archive, gomobile bin
 @../profiles/baseline.md
 @../languages/go.md
 @../languages/cgo.md
-@../practices/error-handling.md
+@~/.claude/coding-standards-current/practices/error-handling.md

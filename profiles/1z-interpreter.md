@@ -3,7 +3,7 @@
 @../profiles/baseline.md
 @../languages/zig.md
 @../languages/1z.md
-@../practices/error-handling.md
+@~/.claude/coding-standards-current/practices/error-handling.md
 
 ## 1z Interpreter Build
 

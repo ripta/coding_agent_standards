@@ -17,7 +17,7 @@ writing anything.
 ## Repo Structure
 
 - `languages/<lang>.md` - Language-specific standards (naming, structure, idioms, tooling)
-- `practices/*.md` - Cross-cutting practices (testing, error handling, security, code review)
+- `claude/practices/*.md` - Cross-cutting practices (testing, error handling, security, code review)
 - `profiles/<archetype>.md` - Composable profiles that `@import` language and practice files
 - `claude/rules/*.md` - Agent behavior rules (not your concern)
 
@@ -87,7 +87,8 @@ If the project has multiple languages interacting:
 
 ### Phase 6: Cross-Cutting Practices
 
-Check if the project reveals patterns relevant to `practices/` files (testing, error handling, security, code review).
+Check if the project reveals patterns relevant to `claude/practices/` files (testing, error handling, security, code
+review).
 
 - If a practice file already exists, propose specific additions or amendments
 - If a new practice area is observed, propose a new file

@@ -2,4 +2,4 @@
 
 @../profiles/baseline.md
 @../languages/zig.md
-@../practices/error-handling.md
+@~/.claude/coding-standards-current/practices/error-handling.md

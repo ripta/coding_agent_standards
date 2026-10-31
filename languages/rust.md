@@ -58,4 +58,4 @@
 - `clippy.toml`: set `msrv` to the minimum supported Rust version
 - CI runs: `cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`
 - Makefile targets: `build`, `test`, `lint`, `fmt`, `fmt-check`, `ci`, `watch`
-- See [`makefile.md`](../practices/makefile.md) for help, `.PHONY`, and target naming conventions
+- See [`makefile.md`](../claude/practices/makefile.md) for help, `.PHONY`, and target naming conventions

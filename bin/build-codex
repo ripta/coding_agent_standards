@@ -35,9 +35,6 @@ def baseline_paths():
         if line.startswith("@~/.claude/coding-standards-current/"):
             relative = line.removeprefix("@~/.claude/coding-standards-current/")
             source = SOURCE / relative
-        elif line.startswith("@../practices/"):
-            relative = line.removeprefix("@../")
-            source = REPO / relative
         else:
             raise ValueError(f"unsupported baseline import: {line}")
         if ".." in Path(relative).parts or not source.is_file():
@@ -191,7 +188,7 @@ def main():
     role_directory.mkdir(parents=True)
     for name, text in roles.items():
         (role_directory / f"{name}.md").write_text(text)
-    for directory in ("rules", "project-management", "knowledge"):
+    for directory in ("rules", "project-management", "knowledge", "practices"):
         shutil.copytree(SOURCE / directory, OUTPUT / directory)
     # No generated workflow uses the Claude critic/judge orchestration.
     (OUTPUT / "project-management" / "design-convergence.md").unlink()
@@ -201,7 +198,6 @@ def main():
     text = decisions.read_text().replace("AskUserQuestion", "available user-question")
     text = text.replace(" (up to 4 questions)", "")
     decisions.write_text(text)
-    shutil.copytree(REPO / "practices", OUTPUT / "practices")
     shutil.copytree(REPO / "rumdl", OUTPUT / "rumdl")
     tracking = OUTPUT / "project-management" / "tracking.md"
     tracking.write_text(tracking.read_text().replace("claude/rules/", "rules/"))

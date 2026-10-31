@@ -11,7 +11,7 @@ pipeline.
 
 - Pixi is a renderer. It owns the display list and nothing else.
 - Game logic lives in the simulation layer and knows nothing about Pixi
-- See [`game-simulation.md`](../practices/game-simulation.md) for the split and its enforcement
+- See [`game-simulation.md`](../claude/practices/game-simulation.md) for the split and its enforcement
 - Pixi supplies no scene lifecycle, input abstraction, or game loop discipline. Build those explicitly rather than
   letting them accrete in the ticker callback.
 

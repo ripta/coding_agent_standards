@@ -41,7 +41,7 @@ reflow = true
 # only relocates the complaint to the first `##`. So the rule is ignored for
 # these paths rather than weakened everywhere.
 #
-# MD041 stays on for ordinary prose docs (README, languages/, practices/,
+# MD041 stays on for ordinary prose docs (README, languages/, claude/practices/,
 # profiles/, claude/rules/, claude/project-management/), all of which do open
 # with an h1 today.
 "**/SKILL.md" = ["MD041"]

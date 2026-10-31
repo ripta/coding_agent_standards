@@ -53,7 +53,7 @@
 ## Build System
 
 - Use Makefile as the entry point; Makefile targets call `zig build` subcommands
-- See [`makefile.md`](../practices/makefile.md) for help, `.PHONY`, and target naming conventions
+- See [`makefile.md`](../claude/practices/makefile.md) for help, `.PHONY`, and target naming conventions
 - Build options via `addOptions()` for compile-time constants
 
 ## Sandbox and Standard Library Access

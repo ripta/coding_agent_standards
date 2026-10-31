@@ -6,7 +6,6 @@ projects.
 ## Structure
 
 - `languages/` - Language-specific coding standards
-- `practices/` - Cross-cutting practices (testing, error handling, security)
 - `.claude/` - Project-local Claude Code config for this repo (skills, settings)
 - `.opencode/` - Project-local OpenCode config for this repo. `/convert-to-opencode` adds a `claude/` item to
   `bin/build-opencode`
@@ -19,6 +18,8 @@ projects.
   copies. The wiki tool itself is `claude/scripts/wiki.py`
 - `claude/project-management/` - Plans, proposals, design, tracking, and commit chunking standards, the eras
   that name past styles, and the guardian protocol. Lives under `claude/` so it ships with the plugin
+- `claude/practices/` - Cross-cutting practices (testing, error handling, security, Makefiles). Lives under `claude/`
+  so it ships with the plugin
 - `codex/` - Codex skills that have no Claude Code equivalent, packaged as a separate Codex plugin. A skill belongs here
   only when it depends on something Codex has and Claude Code does not
 - `mods/` - Claude Code mods (function-hook plugins that can draw UI). Each is its own opt-in plugin listed in
@@ -97,9 +98,9 @@ These imports mirror `profiles/baseline.md`. They use relative paths so they rea
 @claude/rules/guardian-requests.md
 @claude/rules/research-limits.md
 @claude/rules/disclosure.md
-@practices/code-review.md
-@practices/makefile.md
-@practices/testing.md
+@claude/practices/code-review.md
+@claude/practices/makefile.md
+@claude/practices/testing.md
 @claude/project-management/glossary.md
 @claude/project-management/design.md
 @claude/project-management/plans.md
