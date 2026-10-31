@@ -105,3 +105,16 @@ def test_after_cycle_is_rejected(repo):
                {"name": "y", "commits": [repo["a2"]], "after": ["x"]}]
     with pytest.raises(batch_plan.PlanError, match="cycle"):
         batch_plan.verify({"base": repo["base"], "tip": repo["tip"], "batches": batches})
+
+
+def test_reduced_after_drops_entries_another_entry_reaches():
+    batches = [
+        {"name": "a", "after": []},
+        {"name": "b", "after": ["a"]},
+        {"name": "c", "after": ["a", "b"]},
+        {"name": "d", "after": ["b"]},
+        {"name": "e", "after": ["c", "d"]},
+    ]
+    assert batch_plan.reduced_after(batches) == {
+        "a": [], "b": ["a"], "c": ["b"], "d": ["b"], "e": ["c", "d"],
+    }

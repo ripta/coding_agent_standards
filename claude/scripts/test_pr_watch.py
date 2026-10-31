@@ -101,6 +101,13 @@ def test_empty_approval_is_not_an_event_but_changes_requested_is():
     assert [e["id"] for e in events] == ["r2"]
 
 
+def test_behind_is_reported_once_per_head():
+    state = {}
+    assert _kinds(pr_watch.pr_events(state, _pr(mergeStateStatus="BEHIND"), 0, 600)) == ["behind"]
+    assert pr_watch.pr_events(state, _pr(mergeStateStatus="BEHIND"), 1, 600) == []
+    assert _kinds(pr_watch.pr_events(state, _pr(mergeStateStatus="BEHIND", sha="s2"), 2, 600)) == ["behind"]
+
+
 def test_merged_and_conflict_events():
     state = {}
     events = pr_watch.pr_events(state, _pr(mergeStateStatus="DIRTY"), 0, 600)
@@ -191,3 +198,114 @@ def test_failures_extract_log_ids():
 def test_marker_is_added_once():
     assert pr_watch.marked("done").endswith(pr_watch.MARKER)
     assert pr_watch.marked(pr_watch.marked("done")).count(pr_watch.MARKER) == 1
+
+
+REPO = {"mergeCommitAllowed": True, "squashMergeAllowed": True, "rebaseMergeAllowed": False}
+
+
+def test_merge_methods_start_from_repo_switches():
+    assert pr_watch.merge_methods(REPO, []) == {"allowed": ["MERGE", "SQUASH"], "merge_queue": None}
+    assert pr_watch.merge_methods(REPO, None)["allowed"] == ["MERGE", "SQUASH"]
+
+
+def test_merge_methods_are_narrowed_by_rulesets():
+    linear = pr_watch.merge_methods(REPO, [{"type": "required_linear_history"}])
+    assert linear["allowed"] == ["SQUASH"]
+
+    restricted = [{"type": "pull_request", "parameters": {"allowed_merge_methods": ["merge", "rebase"]}}]
+    assert pr_watch.merge_methods(REPO, restricted)["allowed"] == ["MERGE"]
+
+    unrestricted = [{"type": "pull_request", "parameters": {"required_approving_review_count": 1}}]
+    assert pr_watch.merge_methods(REPO, unrestricted)["allowed"] == ["MERGE", "SQUASH"]
+
+
+def test_merge_queue_makes_stacking_unviable():
+    methods = pr_watch.merge_methods(REPO, [{"type": "merge_queue", "parameters": {"merge_method": "SQUASH"}}])
+    assert methods["merge_queue"] == {"merge_method": "SQUASH"}
+    summary = pr_watch.stacking_summary(methods)
+    assert summary["viable"] is False and summary["reasons"] == ["the base uses a merge queue"]
+
+
+def test_stacking_needs_merge_commits():
+    methods = pr_watch.merge_methods(REPO, [{"type": "required_linear_history"}])
+    assert pr_watch.stacking_summary(methods) == {
+        "viable": False, "reasons": ["merge commits are not allowed on the base"]}
+    assert pr_watch.stacking_summary(pr_watch.merge_methods(REPO, [])) == {"viable": True, "reasons": []}
+
+
+def test_strict_up_to_date_from_rulesets_and_classic():
+    strict_rule = {"type": "required_status_checks",
+                   "parameters": {"strict_required_status_checks_policy": True, "required_status_checks": []}}
+    loose_rule = {"type": "required_status_checks", "parameters": {"strict_required_status_checks_policy": False}}
+    assert pr_watch.strict_from_rules([strict_rule]) is True
+    assert pr_watch.strict_from_rules([loose_rule]) is False
+    assert pr_watch.strict_from_classic({"required_status_checks": {"strict": True}}) is True
+    assert pr_watch.strict_from_classic({"required_status_checks": {"strict": False}}) is False
+    assert pr_watch.strict_from_classic({}) is False
+
+
+WORKFLOWS = {
+    "plain": ("on:\n  push:\n    branches: [main]\n  pull_request:\njobs: {}\n", "yes"),
+    "types only": ("on:\n  pull_request:\n    types: [opened]\n  push:\n", "yes"),
+    "inline list": ("on: [push, pull_request]\n", "yes"),
+    "inline scalar": ("on: pull_request\n", "yes"),
+    "list item": ("on:\n  - push\n  - pull_request\n", "yes"),
+    "literal branches": ("on:\n  pull_request:\n    branches:\n      - main\n      - 'release'\n", "no"),
+    "inline branches": ("on:\n  pull_request:\n    branches: [main]\n", "no"),
+    "glob branches": ("on:\n  pull_request:\n    branches:\n      - 'agent/**'\n", "unknown"),
+    "ignore": ("on:\n  pull_request:\n    branches-ignore:\n      - docs\n", "unknown"),
+    "inline mapping filter": ("on:\n  pull_request: {branches: [main]}\n", "unknown"),
+    "push filter only": ("on:\n  push:\n    branches: [main]\n", None),
+    "target is not pull_request": ("on:\n  pull_request_target:\n", None),
+    "event name in a condition": ("on: push\njobs:\n  a:\n    if: github.event_name == 'pull_request'\n", None),
+    "comment": ("on:\n  push:\n  # pull_request:\n", None),
+}
+
+
+def test_workflow_pr_bases():
+    for label, (text, expected) in WORKFLOWS.items():
+        assert pr_watch.workflow_pr_bases(text) == expected, label
+
+
+def _workflows(root, **files):
+    folder = root / ".github" / "workflows"
+    folder.mkdir(parents=True)
+    for name, text in files.items():
+        (folder / f"{name}.yml").write_text(text)
+    return pr_watch.ci_systems(root)
+
+
+def test_ci_other_bases_is_yes_when_every_pr_workflow_builds_any_base(tmp_path):
+    systems = _workflows(tmp_path, ci=WORKFLOWS["plain"][0], lint=WORKFLOWS["types only"][0])
+    assert pr_watch.ci_other_bases(tmp_path, systems)["answer"] == "yes"
+
+
+def test_ci_other_bases_is_unknown_when_workflows_disagree(tmp_path):
+    """The required check may come from the filtered workflow, so one unfiltered workflow proves nothing."""
+    systems = _workflows(tmp_path, ci=WORKFLOWS["plain"][0], lint=WORKFLOWS["inline branches"][0])
+    assert pr_watch.ci_other_bases(tmp_path, systems)["answer"] == "unknown"
+
+
+def test_ci_other_bases_is_no_when_every_pr_workflow_filters(tmp_path):
+    systems = _workflows(tmp_path, ci=WORKFLOWS["inline branches"][0], push=WORKFLOWS["push filter only"][0])
+    assert pr_watch.ci_other_bases(tmp_path, systems)["answer"] == "no"
+
+
+def test_ci_other_bases_is_no_without_pr_workflows(tmp_path):
+    systems = _workflows(tmp_path, push=WORKFLOWS["push filter only"][0])
+    answer = pr_watch.ci_other_bases(tmp_path, systems)
+    assert answer["answer"] == "no" and "pull_request" in answer["reason"]
+
+
+def test_ci_other_bases_unknown_for_filters_and_other_systems(tmp_path):
+    systems = _workflows(tmp_path, ci=WORKFLOWS["plain"][0], lint=WORKFLOWS["ignore"][0])
+    assert pr_watch.ci_other_bases(tmp_path, systems)["answer"] == "unknown"
+
+    (tmp_path / "cloudbuild.yaml").write_text("steps: []\n")
+    systems = pr_watch.ci_systems(tmp_path)
+    answer = pr_watch.ci_other_bases(tmp_path, [s for s in systems if s["system"] == "cloud-build"])
+    assert answer["answer"] == "unknown" and "outside the checkout" in answer["reason"]
+
+
+def test_ci_other_bases_unknown_without_ci(tmp_path):
+    assert pr_watch.ci_other_bases(tmp_path, [])["answer"] == "unknown"

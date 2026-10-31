@@ -41,7 +41,9 @@ worktree, and run the loop there. See Step 3.
 poll loop by hand. Its subcommands print JSON:
 
 - `pr_watch.py preflight --base BRANCH` reports gh access, merge settings, required checks and reviews, the CI systems
-  the checkout configures, and a `needs` list of what is missing
+  the checkout configures, and a `needs` list of what is missing. It also reports the facts stacked PRs depend on:
+  the merge methods the base allows, a merge queue, strict up-to-date branches, and whether CI builds PRs against
+  other bases
 - `pr_watch.py snapshot --pr N` prints the PR's state, checks, merge state, and unresolved thread count
 - `pr_watch.py watch --pr N --state FILE --timeout SECONDS` waits and prints one JSON line per new event
 - `pr_watch.py failures --pr N` lists failing checks, with the Actions run and job, or the Cloud Build build and region
@@ -76,14 +78,19 @@ one wake-up. Act on every event it printed, push once, then arm the next wait. I
 - `no-checks`: the head commit has had no check at all for `--appear-timeout` seconds
 - `comment`, `review`: someone else commented, or submitted a review with a body or with changes requested
 - `conflict`: the PR no longer merges cleanly into its base
+- `behind`: the base has commits the head lacks. It fires once per head. Act on it only when the base requires
+  up-to-date branches, or when the caller says to
 - `merged`, `closed`: the PR is done, one way or the other
 - `timeout`: this wait ended with nothing new. Re-arm while budget remains
 - `error`: `gh` failed three polls in a row. Read the message before deciding anything
 
 Keep the state file at `~/.local/state/coding_agent_standards/merge-fix-loop/<owner>-<repo>-<number>.json`. Use the
 session scratchpad when that directory cannot be written. The file records what was already reported, so a re-armed or
-resumed watch never repeats an event. Record the deadline, the branch, and the worktree path in a second file beside
-it, named with a `.loop.json` suffix in place of `.json`.
+resumed watch never repeats an event. Record the deadline, the branch, the worktree path, and `merge_into` in a second
+file beside it, named with a `.loop.json` suffix in place of `.json`.
+
+`merge_into` is the branch this PR is meant to land in. `land-branch` passes the mainline. A standalone loop sets it to
+the PR's base, after the check in Step 1.
 
 ## Step 1: Detect, without asking
 
@@ -97,7 +104,10 @@ No question belongs in this step.
 2. Look for this PR's `.loop.json` file. When it exists, this is a resume. Take the branch, worktree, policy, and
    deadline from it, report them in one line, and go to Step 6
 3. Decide whether you own the branch, per "Branch ownership"
-4. Run `pr_watch.py preflight --base <base>`. Read every entry in `needs`
+4. Set `merge_into`. When `land-branch` did not pass it, use the PR's base. Refuse and report when that base is the head
+   of another open PR: `gh pr list --head <base> --state open --json number` is not empty. Merging would land this
+   PR in that PR's branch, not in the mainline. Run `pr_watch.py preflight --base <merge_into>` and read every entry
+   in `needs`
 5. Read the repository's own guidance on PRs: `CONTRIBUTING.md`, the PR template, and the project's `CLAUDE.md` or
    `AGENTS.md`. Note what it says about review, merge method, and checks
 6. Find the local check command. Prefer `make ci` when the Makefile has it, since CI runs the same target. Otherwise
@@ -148,9 +158,12 @@ When a PR is already open, skip to Step 5.
 
 1. Wait for the first checks: `pr_watch.py watch --pr N --state FILE --timeout T --until checks`. A head that reports no
    check within `--appear-timeout` prints `no-checks`
-2. On `no-checks`, compare against preflight's required checks. When the base requires checks that never appeared, the
-   CI did not trigger. Report it to the user and stop. When nothing is required, follow the user's "No CI" answer
-3. When checks exist, turn on merging:
+2. On `no-checks`, compare against the required checks of `merge_into`, as preflight reported them. When it requires
+   checks that never appeared, the CI did not trigger. Report it to the user and stop. When nothing is required,
+   follow the user's "No CI" answer. A stacked `land-branch` batch waits for its parent instead. See `land-branch`
+3. When checks exist, turn on merging. Before every merge command here and in Step 6, read the PR's live
+   `baseRefName` with `pr_watch.py snapshot`. Act only when it equals `merge_into`. Otherwise do not merge, and do not
+   enable auto-merge. `gh pr merge --auto` merges at once on a PR that is already `CLEAN`, so the gate covers it too:
    - When the repo allows auto-merge, run `gh pr merge N --auto --<method>`. Use the method the repository's guidance
      names. Otherwise use preflight's `viewerDefaultMergeMethod`, provided the repo allows it
    - When the repo does not allow auto-merge, merge with `gh pr merge N --<method>` yourself, only once
@@ -161,7 +174,7 @@ When a PR is already open, skip to Step 5.
 
 Arm `pr_watch.py watch --pr N --state FILE --timeout T`, act on what it reports, and arm it again. After every push,
 check that auto-merge is still on with `pr_watch.py snapshot`, and turn it on again if a push or a conflict turned it
-off.
+off. Turn it on only when the PR's `base` equals `merge_into`, per Step 5.
 
 ### A check failed
 
@@ -211,13 +224,18 @@ review body with `pr_watch.py comment`.
 In the worktree, run `git fetch origin`, then `git merge origin/<base>`. Resolve the conflicts. When a resolution needs
 a judgement about what either side meant, show the user both sides before committing it. Run the local checks and push.
 
+### The PR was behind its base
+
+On `behind`, when the base requires up-to-date branches, run `git fetch origin` and `git merge origin/<base>` in the
+worktree, run the local checks, and push. Otherwise leave it.
+
 ### The PR merged
 
 1. Remove the worktree with `git worktree remove <path>`
 2. Delete the local branch. GitHub reports the PR merged, so the work is on the base even when a squash merge stops
    `git branch -d` from seeing it. Use `git branch -D <branch>` for a branch you own
 3. Delete the remote branch with `git push origin --delete <branch>`, unless the repository already deletes merged
-   branches
+   branches. When open PRs are stacked on this branch, retarget them first. See `land-branch`
 4. Delete the `.loop.json` file and the state file
 
 ### The PR closed without merging

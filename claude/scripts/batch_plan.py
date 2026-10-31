@@ -2,6 +2,7 @@
 """Check that a plan of commit batches reproduces the branch it was cut from.
 
     python3 batch_plan.py verify --plan FILE
+    python3 batch_plan.py reduce --plan FILE
 
 The plan is JSON:
 
@@ -19,6 +20,10 @@ Two checks run, each in a throwaway detached worktree that is removed afterwards
    conflict means the batch depends on work the plan does not give it.
 2. Every batch is cherry-picked onto `base` in dependency order. The resulting tree must equal the
    tree of `tip`. A difference means the plan dropped, duplicated, or reordered work.
+
+`reduce` prints each batch's `after` list after transitive reduction, as a JSON object keyed by
+batch name. A batch that is after B, and after A which B is also after, reduces to B alone. A batch
+whose reduced list holds one name can stack on that batch's branch.
 
 The result is JSON on stdout, with `ok` true only when both checks pass. Errors in the plan itself
 go to stderr with exit status 1. A plan that fails a check exits 3.
@@ -109,6 +114,19 @@ def ancestors(batches: list[dict[str, Any]], name: str) -> set[str]:
     return found
 
 
+def reduced_after(batches: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """Drop each `after` entry that another entry already reaches."""
+    by_name = {b["name"]: b for b in batches}
+    reduced: dict[str, list[str]] = {}
+    for batch in batches:
+        direct = batch["after"]
+        covered: set[str] = set()
+        for other in direct:
+            covered |= ancestors(batches, other)
+        reduced[batch["name"]] = [n for n in direct if n not in covered and n in by_name]
+    return reduced
+
+
 def apply(worktree: Path, start: str, commits: list[str]) -> str | None:
     """Reset the worktree to `start` and cherry-pick `commits`. Return the conflicting commit, if any."""
     git(["reset", "--hard", "--quiet", start], cwd=worktree)
@@ -168,7 +186,20 @@ def main(argv: list[str]) -> int:
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("verify", help="check that the batches apply on their own and rebuild the tip's tree")
     p.add_argument("--plan", type=Path, required=True, help="JSON plan file")
+    p = sub.add_parser("reduce", help="print each batch's after list with redundant entries removed")
+    p.add_argument("--plan", type=Path, required=True, help="JSON plan file")
     args = parser.parse_args(argv[1:])
+
+    if args.command == "reduce":
+        try:
+            plan = json.loads(args.plan.read_text())
+            batches = validate(plan)
+            order(batches)
+            print(json.dumps(reduced_after(batches), indent=2))
+        except (PlanError, OSError, json.JSONDecodeError, KeyError) as e:
+            print(f"batch_plan: {e}", file=sys.stderr)
+            return 1
+        return 0
 
     try:
         result = verify(json.loads(args.plan.read_text()))

@@ -252,6 +252,10 @@ def pr_events(state: dict[str, Any], pr: dict[str, Any], now: float, appear_time
         head["conflict"] = True
         emit("conflict", sha=sha)
 
+    if pr.get("mergeStateStatus") == "BEHIND" and not head.get("behind"):
+        head["behind"] = True
+        emit("behind", sha=sha)
+
     for thread in (pr.get("reviewThreads") or {}).get("nodes") or []:
         view = thread_view(thread)
         for comment in view["comments"]:
@@ -424,6 +428,143 @@ def merge_protection(*parts: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def merge_methods(repo: dict[str, Any], rules: list[dict[str, Any]] | None) -> dict[str, Any]:
+    """Narrow the repo's merge-method switches by the rulesets that apply to the base.
+
+    `rules` is None when the rulesets could not be read. The answer then comes from the repo
+    switches alone. Classic branch protection cannot restrict merge methods, so it adds nothing.
+    """
+    allowed = {
+        method for method, key in (("MERGE", "mergeCommitAllowed"), ("SQUASH", "squashMergeAllowed"),
+                                   ("REBASE", "rebaseMergeAllowed"))
+        if repo.get(key)
+    }
+    queue = None
+    for rule in rules or []:
+        params = rule.get("parameters") or {}
+        kind = rule.get("type")
+        if kind == "required_linear_history":
+            allowed.discard("MERGE")
+        elif kind == "pull_request" and params.get("allowed_merge_methods"):
+            allowed &= {str(m).upper() for m in params["allowed_merge_methods"]}
+        elif kind == "merge_queue":
+            queue = {"merge_method": params.get("merge_method")}
+    return {"allowed": sorted(allowed), "merge_queue": queue}
+
+
+def strict_from_rules(rules: list[dict[str, Any]]) -> bool:
+    return any(
+        bool((rule.get("parameters") or {}).get("strict_required_status_checks_policy"))
+        for rule in rules if rule.get("type") == "required_status_checks"
+    )
+
+
+def strict_from_classic(protection: dict[str, Any]) -> bool:
+    return bool((protection.get("required_status_checks") or {}).get("strict"))
+
+
+def stacking_summary(methods: dict[str, Any]) -> dict[str, Any]:
+    """Report the stacking conditions a script can read. CI and the run's merge method are not among them."""
+    reasons = []
+    if "MERGE" not in methods["allowed"]:
+        reasons.append("merge commits are not allowed on the base")
+    if methods["merge_queue"]:
+        reasons.append("the base uses a merge queue")
+    return {"viable": not reasons, "reasons": reasons}
+
+
+COMMENT = re.compile(r"\s+#.*$")
+UNQUOTE = re.compile(r"""^['"]|['"]$""")
+GLOB_CHARS = set("*?[]!{}")
+
+
+def _branch_values(block: list[str], index: int, indent: int) -> list[str]:
+    rest = block[index].split(":", 1)[1].strip()
+    if rest.startswith("["):
+        items = rest.strip("[]").split(",")
+    elif rest:
+        items = [rest]
+    else:
+        items = []
+        for line in block[index + 1:]:
+            if len(line) - len(line.lstrip()) <= indent or not line.lstrip().startswith("-"):
+                break
+            items.append(line.lstrip()[1:].strip())
+    return [UNQUOTE.sub("", item.strip()) for item in items if item.strip()]
+
+
+def workflow_pr_bases(text: str) -> str | None:
+    """Say whether a workflow builds PRs against any base: yes, no, or unknown.
+
+    Return None when the workflow has no `pull_request` trigger. This reads lines, not YAML.
+    It decides only the plain shapes. Anything else is unknown.
+    """
+    lines = [COMMENT.sub("", line).rstrip() for line in text.splitlines()]
+    lines = [line for line in lines if line.strip()]
+    for i, line in enumerate(lines):
+        key = re.match(r"^(\s*)pull_request\s*:\s*(.*)$", line)
+        if not key and (re.match(r"^\s*-\s*pull_request\s*$", line) or re.match(r"^on\s*:.*\bpull_request\b", line)):
+            return "unknown" if "branches" in line else "yes"
+        if not key:
+            continue
+
+        indent, rest = len(key.group(1)), key.group(2)
+        if rest:
+            return "unknown" if "branches" in rest else "yes"
+
+        block = []
+        for follow in lines[i + 1:]:
+            if len(follow) - len(follow.lstrip()) <= indent:
+                break
+            block.append(follow)
+        for j, entry in enumerate(block):
+            name = entry.strip()
+            if name.startswith("branches-ignore"):
+                return "unknown"
+            if name.startswith("branches"):
+                values = _branch_values(block, j, len(entry) - len(entry.lstrip()))
+                if values and not any(GLOB_CHARS & set(v) for v in values):
+                    return "no"
+                return "unknown"
+        return "yes"
+    return None
+
+
+def ci_other_bases(root: Path, systems: list[dict[str, Any]]) -> dict[str, str]:
+    """Say whether CI builds PRs whose base is not the mainline, from what the checkout shows.
+
+    Only GitHub Actions triggers live in the checkout. Every other system configures its triggers
+    elsewhere, so it answers unknown.
+    """
+    verdicts: list[tuple[str, str]] = []
+    for system in systems:
+        if system["system"] != "github-actions":
+            verdicts.append(("unknown", f"{system['system']} triggers are configured outside the checkout"))
+    for path in sorted((root / ".github" / "workflows").glob("*.y*ml")):
+        try:
+            verdict = workflow_pr_bases(path.read_text())
+        except OSError:
+            verdict = "unknown"
+        if verdict:
+            verdicts.append((verdict, f"{path.name}: {verdict}"))
+
+    if not systems:
+        return {"answer": "unknown", "reason": "no CI system found in the checkout"}
+    for answer, reason in verdicts:
+        if answer == "unknown":
+            return {"answer": "unknown", "reason": reason}
+    answers = {answer for answer, _ in verdicts}
+    if answers == {"yes", "no"}:
+        # The required check may come from the filtered workflow. Nothing here maps checks to workflows.
+        no = next(r for a, r in verdicts if a == "no")
+        return {"answer": "unknown", "reason": f"workflows disagree; {no} filters its branches"}
+    if answers == {"yes"}:
+        return {"answer": "yes", "reason": next(r for a, r in verdicts if a == "yes")}
+    if verdicts:
+        return {"answer": "no", "reason": verdicts[0][1] + " (branch filter excludes other bases)"}
+    return {"answer": "no", "reason": "no workflow runs on pull_request"}
+
+
 def gcloud_status() -> str:
     try:
         result = subprocess.run(["gcloud", "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"],
@@ -458,12 +599,16 @@ def preflight(base: str | None) -> dict[str, Any]:
     slug = repo["nameWithOwner"]
     parts = []
     unknown = []
+    rules: list[dict[str, Any]] | None = None
+    classic: dict[str, Any] | None = None
     try:
-        parts.append(protection_from_rules(gh_json(["api", f"repos/{slug}/rules/branches/{base}"])))
+        rules = gh_json(["api", f"repos/{slug}/rules/branches/{base}"])
+        parts.append(protection_from_rules(rules))
     except GhError as e:
         unknown.append(f"rulesets: {e}")
     try:
-        parts.append(protection_from_classic(gh_json(["api", f"repos/{slug}/branches/{base}/protection"])))
+        classic = gh_json(["api", f"repos/{slug}/branches/{base}/protection"])
+        parts.append(protection_from_classic(classic))
     except GhError as e:
         # 404 means no classic protection. Anything else, usually 403, means it could not be read.
         if "404" not in str(e) and "Not Found" not in str(e):
@@ -471,7 +616,13 @@ def preflight(base: str | None) -> dict[str, Any]:
     report["protection"] = merge_protection(*parts) if parts else None
     report["protection_unreadable"] = unknown
 
+    report["merge_methods"] = merge_methods(repo, rules)
+    strict = strict_from_rules(rules or []) or strict_from_classic(classic or {})
+    report["strict_up_to_date"] = strict or (None if unknown else False)
+    report["stacking"] = stacking_summary(report["merge_methods"])
+
     report["ci"] = ci_systems(Path.cwd())
+    report["ci_builds_other_bases"] = ci_other_bases(Path.cwd(), report["ci"])
     if any("gcloud" in system["needs"] for system in report["ci"]):
         report["gcloud"] = gcloud_status()
         if report["gcloud"] != "ok":
@@ -511,7 +662,7 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="pr_watch.py", description=__doc__.split("\n\n")[0])
     sub = parser.add_subparsers(dest="command", required=True)
 
-    p = sub.add_parser("preflight", help="report gh access, merge settings, protection, and CI log needs")
+    p = sub.add_parser("preflight", help="report gh access, merge settings, protection, stacking facts, and CI log needs")
     p.add_argument("--base", help="branch the PRs target; defaults to the repo's default branch")
 
     p = sub.add_parser("snapshot", help="print one PR's state, checks, and unresolved thread count")
