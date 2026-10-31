@@ -71,3 +71,14 @@ Conventions:
   `*.json` preference files through the Write and Edit tools.
 - Sandboxed sessions can write here only once the user's settings allow it. `scripts/setup_permissions.py` adds that
   allowance. Read state defensively, and fall back to the session's scratchpad when the directory cannot be written.
+
+## Explicit-only skills
+
+A skill that needs the user's judgment partway through, and cannot run without pausing, sets
+`disable-model-invocation: true` in its frontmatter. The model then never sees it in the skill listing, and the Skill
+tool refuses it. Only the user's slash command starts it. That keeps an autonomous run, such as an approved
+`/work-queue` run or an autonomous `/proposal-reviewer` run, from starting the skill and then stalling on its
+questions.
+
+`test-audit/SKILL.md` is the example. Do not remove the field to make such a skill easier to reach. Do not confuse it
+with `user-invocable: false`, which hides a skill from the slash menu and leaves the model free to invoke it.
