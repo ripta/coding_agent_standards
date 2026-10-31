@@ -6,6 +6,7 @@ allow:
   - prefix: [claude, plugin, test]
   - prefix: [claude, plugin, validate]
   - prefix: [du]
+  - prefix: [gcloud, builds, triggers, list]
   - prefix: [ls]
   - prefix: [mv]
   - prefix: [node, claude/skills/architecture-exploration/workflow.test.mjs]
