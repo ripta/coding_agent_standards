@@ -118,3 +118,59 @@ def test_reduced_after_drops_entries_another_entry_reaches():
     assert batch_plan.reduced_after(batches) == {
         "a": [], "b": ["a"], "c": ["b"], "d": ["b"], "e": ["c", "d"],
     }
+
+
+def _marker(subject="8< --- snip ---"):
+    _git(Path.cwd(), "commit", "-q", "--allow-empty", "-m", subject)
+    return _git(Path.cwd(), "rev-parse", "HEAD")
+
+
+def _all_batch(repo):
+    return [{"name": "all", "commits": [repo["docs"], repo["a1"], repo["b"], repo["a2"]]}]
+
+
+def test_excluded_empty_commit_is_accepted(repo):
+    marker = _marker()
+    plan = {"base": repo["base"], "tip": marker, "batches": _all_batch(repo), "exclude": [marker]}
+    result = batch_plan.verify(plan)
+    assert result["ok"], result
+    assert result["excluded"] == [marker]
+    assert result["missing"] == []
+    assert result["exclude_errors"] == []
+
+
+def test_empty_commit_not_excluded_is_still_missing(repo):
+    marker = _marker()
+    plan = {"base": repo["base"], "tip": marker, "batches": _all_batch(repo)}
+    result = batch_plan.verify(plan)
+    assert not result["ok"]
+    assert result["missing"] == [marker]
+    assert result["excluded"] == []
+
+
+def test_excluding_a_non_empty_commit_fails(repo):
+    batches = [{"name": "all", "commits": [repo["docs"], repo["a1"], repo["a2"]]}]
+    plan = {"base": repo["base"], "tip": repo["tip"], "batches": batches, "exclude": [repo["b"]]}
+    result = batch_plan.verify(plan)
+    assert not result["ok"]
+    assert result["excluded"] == []
+    assert result["exclude_errors"] == [{"commit": repo["b"], "reason": "not empty"}]
+
+
+def test_excluding_a_commit_outside_the_range_fails(repo):
+    plan = {"base": repo["base"], "tip": repo["tip"], "batches": _all_batch(repo), "exclude": [repo["base"]]}
+    result = batch_plan.verify(plan)
+    assert not result["ok"]
+    assert result["exclude_errors"] == [{"commit": repo["base"], "reason": "not on the branch range"}]
+
+
+def test_excluding_a_batched_commit_is_rejected(repo):
+    marker = _marker()
+    batches = _all_batch(repo) + [{"name": "marker", "commits": [marker]}]
+    with pytest.raises(batch_plan.PlanError, match="also in a batch"):
+        batch_plan.verify({"base": repo["base"], "tip": marker, "batches": batches, "exclude": [marker]})
+
+
+def test_malformed_exclude_is_rejected(repo):
+    with pytest.raises(batch_plan.PlanError, match="exclude"):
+        batch_plan.verify({"base": repo["base"], "tip": repo["tip"], "batches": _all_batch(repo), "exclude": "abc"})

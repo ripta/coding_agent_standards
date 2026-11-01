@@ -14,6 +14,12 @@ The plan is JSON:
 of the branch being landed. `after` names the batches a batch must land behind. A batch with an
 empty `after` is meant to land concurrently with the others, straight onto the mainline.
 
+The optional `"exclude": ["<sha>", ...]` lists commits that are left out on purpose, such as empty
+marker commits. verify accepts an entry only when it is on the branch range and its tree equals its
+parent's tree. Accepted entries appear under `excluded`. Any other entry appears under
+`exclude_errors` as `{"commit", "reason"}` and fails the plan. An entry that is also in a batch is a
+plan error.
+
 Two checks run, each in a throwaway detached worktree that is removed afterwards:
 
 1. Each batch is cherry-picked onto `base` plus only the batches it is `after`, transitively. A
@@ -80,6 +86,36 @@ def validate(plan: dict[str, Any]) -> list[dict[str, Any]]:
     return batches
 
 
+def validate_exclude(plan: dict[str, Any], batches: list[dict[str, Any]]) -> list[str]:
+    raw = plan.get("exclude", [])
+    if not isinstance(raw, list):
+        raise PlanError("exclude must be a list of commits")
+
+    full = [resolve(c) for c in raw]
+    batched = {c for b in batches for c in b["commits"]}
+    both = batched.intersection(full)
+    if both:
+        raise PlanError(f"exclude lists commits that are also in a batch: {sorted(both)}")
+    return full
+
+
+def check_excluded(exclude: list[str], on_branch: list[str]) -> tuple[list[str], list[dict[str, str]]]:
+    """Split `exclude` into accepted commits and errors. Only an empty commit on the range is accepted."""
+    accepted: list[str] = []
+    errors: list[dict[str, str]] = []
+    for commit in exclude:
+        if commit not in on_branch:
+            errors.append({"commit": commit, "reason": "not on the branch range"})
+            continue
+        tree = git(["rev-parse", f"{commit}^{{tree}}"]).stdout.strip()
+        parent_tree = git(["rev-parse", f"{commit}^^{{tree}}"]).stdout.strip()
+        if tree != parent_tree:
+            errors.append({"commit": commit, "reason": "not empty"})
+            continue
+        accepted.append(commit)
+    return accepted, errors
+
+
 def order(batches: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Topological order by `after`, keeping plan order where the dependencies allow it."""
     by_name = {b["name"]: b for b in batches}
@@ -142,6 +178,7 @@ def verify(plan: dict[str, Any]) -> dict[str, Any]:
     base = resolve(plan["base"])
     tip = resolve(plan["tip"])
     batches = validate(plan)
+    exclude = validate_exclude(plan, batches)
     ordered = order(batches)
 
     result: dict[str, Any] = {"base": base, "tip": tip, "order": [b["name"] for b in ordered], "batches": []}
@@ -174,10 +211,13 @@ def verify(plan: dict[str, Any]) -> dict[str, Any]:
 
     listed = {c for b in batches for c in b["commits"]}
     on_branch = git(["rev-list", "--no-merges", f"{base}..{tip}"]).stdout.split()
-    result["missing"] = [c for c in on_branch if c not in listed]
+    excluded, exclude_errors = check_excluded(exclude, on_branch)
+    result["excluded"] = excluded
+    result["exclude_errors"] = exclude_errors
+    result["missing"] = [c for c in on_branch if c not in listed and c not in exclude]
     result["extra"] = sorted(listed - set(on_branch))
     result["ok"] = (all(b["applies"] for b in result["batches"]) and result["tree_matches"]
-                    and not result["missing"] and not result["extra"])
+                    and not result["missing"] and not result["extra"] and not exclude_errors)
     return result
 
 

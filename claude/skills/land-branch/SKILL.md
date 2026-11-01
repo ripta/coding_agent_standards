@@ -39,9 +39,12 @@ No question belongs in this step.
    Otherwise it is the source branch's tip, now. Record its full hash. Commits the user adds later are not part of this
    run. Uncommitted changes in the user's checkout are never part of it
 4. Find the range: `git merge-base origin/<mainline> <snapshot>`, then
-   `git log --reverse --no-merges --format='%h %s' <base>..<snapshot>`. Stop when the range is empty. A range with merge
-   commits from the mainline is fine, since `--no-merges` leaves them out. A range with other merges needs the user.
-   Report it and stop
+   `git log --reverse --no-merges --format='%h %s' <base>..<snapshot>`. A range with merge commits from the
+   mainline is fine, since `--no-merges` leaves them out. A range with other merges needs the user. Report it and stop.
+   Stop too when the range is empty. In that stop message, list the local branches that hold work the mainline lacks.
+   For each branch from `git for-each-ref refs/heads`, run `git cherry origin/<mainline> <branch>`. Keep the branch
+   when any line starts with `+`, and show its count of `+` lines. The user's next `/land-branch <branch>` is then
+   obvious
 5. Run `pr_watch.py preflight --base <mainline>` through `cg_run`, as `merge-fix-loop` describes
 6. Read what the repository says about kinds of change that merge differently. Look in `CONTRIBUTING.md`, the project's
    `CLAUDE.md` or `AGENTS.md`, `CODEOWNERS`, the rulesets and branch protection preflight reported, and the `paths` and
@@ -81,6 +84,11 @@ No question belongs in this step.
 7. When a batch does not apply, it depends on something its `after` list lacks. Add the dependency, or merge it into
    that stream. When the tree does not match, or `missing` or `extra` is not empty, the plan lost or added work. Fix the
    plan and verify again. Never ask the user to approve a plan that fails verification
+8. The branch may hold empty marker commits that the user wants left out of PRs and merges, such as one with the subject
+   `8< --- snip ---`. List their full hashes in the plan's `exclude` array. Only a commit with no change of its own
+   belongs there. Never put a non-empty commit in `exclude`, and never drop one the user did not mark. `verify` reports
+   the accepted ones under `excluded`. It lists an entry that is not empty, or not on the range, under
+   `exclude_errors`, and the plan then fails. An empty commit not in `exclude` still counts as `missing`
 
 By default a batch that depends on another waits for it to merge, then opens against the mainline. That is a serial
 batch.
@@ -97,11 +105,12 @@ Record each batch's `pr_base` in the run file. The plan JSON does not carry it, 
 
 Put every question into one AskUserQuestion call. The plan approval is part of it.
 
-- **The plan.** Show each batch: its name, its commits, what it lands after, and its PR title. Mark which batches open
-  concurrently at the start. Offer to approve it, to land the whole range as one PR, or to adjust it through "Other".
-  When stacking is on offer, show the plan both ways, stacked and serial, and mark which batches stack on which. Use
-  Step 1's recommendation. When the mainline requires up-to-date branches, say that every child rebuilds after its
-  parent merges. Stacking then gains early failure detection and early review, not a shorter total time
+- **The plan.** Show each excluded commit with its subject, and say it is left out. Show each batch: its name, its
+  commits, what it lands after, and its PR title. Mark which batches open concurrently at the start. Offer to approve
+  it, to land the whole range as one PR, or to adjust it through "Other". When stacking is on offer, show the plan both
+  ways, stacked and serial, and mark which batches stack on which. Use Step 1's recommendation. When the mainline
+  requires up-to-date branches, say that every child rebuilds after its parent merges. Stacking then gains early failure
+  detection and early review, not a shorter total time
 - **Review policy**, in the order `merge-fix-loop` Step 2 gives. One answer covers every batch
 - **Budget** for the whole run, not per batch. Offer 4 hours, 8 hours (recommended for more than two batches), and 12
   hours
@@ -133,7 +142,8 @@ branch is pushed. For each ready batch:
    landing the other batches
 4. Run `merge-fix-loop` Steps 3 through 5 for the batch: local checks, push, PR, confirm checks, turn on merging. The PR
    title comes from the plan. Write each PR body from that batch's own diff, and name the batches it lands after.
-   Every watch uses the run's watch state file, so no event is reported twice. Pass `merge_into`, the mainline. Open a
+   Every watch uses the run's watch state file, so no event is reported twice. Pass `merge_into`, the mainline. Each
+   batch's `merge_into` lives in that PR's `merge-fix-loop` `.loop.json`. The run file does not copy it. Open a
    stacked batch's PR with `--base` set to the parent's branch. Never turn on merging for a stacked batch. The
    `merge_into` gate refuses it while the base is the parent branch
 
