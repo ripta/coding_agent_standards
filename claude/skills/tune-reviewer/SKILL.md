@@ -32,10 +32,10 @@ lines. When a wrap-width change is in play, measure line widths with `awk '{ pri
 ## Step 2: Locate the instruction files, without asking
 
 - **The shared reviewer and standards.** Edit the source checkout of the coding standards repo, never the installed
-  plugin copy under `~/.claude/plugins/`, which an update overwrites. Look for it at `~/projects/coding_agent_standards`
-  or `~/coding-standards`. The reviewer is `claude/agents/reviewer.md` there. The writing
-  rules are `claude/rules/work-discipline.md` (Comments, Output Style), `claude/rules/sentence-structure.md`, and
-  `claude/rules/writing-voice.md`. If no checkout exists, say so; the shared homes are then unavailable.
+  plugin copy under `~/.claude/plugins/`, which an update overwrites. It lives at `~/projects/coding_agent_standards`.
+  The reviewer is `claude/agents/reviewer.md` there. The writing rules are `claude/rules/work-discipline.md` (Comments,
+  Output Style), `claude/rules/sentence-structure.md`, and `claude/rules/writing-voice.md`. If no checkout exists, say
+  so; the shared homes are then unavailable.
 - **The project overlay.** A project-local reviewer at `.claude/agents/reviewer.md`, if the project has one.
 - **The project instructions.** The project's `CLAUDE.md`, and `CLAUDE.local.md` if present.
 - **Memory.** Use the memory directory named in your system prompt when one is listed. Otherwise derive it as

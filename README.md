@@ -476,20 +476,20 @@ isolated package and query the actual runtime so that a successful file build ca
 Run the Codex integration tests with `python3 -m unittest discover -s codex/scripts` and
 `python3 -m unittest discover -s codex/hooks`. Build tests run with `python3 -m unittest discover -s tests`.
 
-### Non-standard Paths
+### Paths
 
-Profile imports go through the plugin link, `~/.claude/coding-standards-current`. They do not need a checkout path.
-Run `/update-profile` to point a project at the link.
+Two paths name the standards. Use each only for its job:
 
-A few things still read the checkout. If this repo doesn't live at `~/projects/coding_agent_standards`, create a
-symlink for them:
+| Path | What it is | Who uses it | Changes when |
+|------|------------|-------------|--------------|
+| `~/.claude/coding-standards-current/` | Link to the installed plugin snapshot | Every project's imports, and opt-in hooks in settings | The plugin is updated and a session starts |
+| `~/projects/coding_agent_standards` | The git checkout | Only tools that edit the standards, such as `tune-reviewer` | Every edit, committed or not |
 
-```sh
-ln -s /actual/path/to/coding_agent_standards ~/coding-standards
-```
+Projects never import from the checkout, since it holds uncommitted work. Run `/update-profile` to point a project at
+the link.
 
-The symlink serves old `~/coding-standards/...` imports during the transition, the hook script paths that
-`claude/scripts/setup_permissions.py` recognizes, and the checkout lookup in the `tune-reviewer` skill.
+`~/coding-standards` is retired. `/update-profile`, `check-setup.sh`, and `setup_permissions.py` still recognize it,
+but only to rewrite or dedupe old paths.
 
 ## License
 

@@ -47,14 +47,15 @@ For projects you don't own, use `CLAUDE.local.md` (auto-gitignored):
 @~/.claude/coding-standards-current/profiles/oss-contrib.md
 ```
 
-Profile imports go through the plugin link, so they need no checkout path. Some things still read the checkout.
-They are old `~/coding-standards/...` imports during the transition, the hook script paths
-`claude/scripts/setup_permissions.py` recognizes, and the `tune-reviewer` skill. If the repo is at a non-standard
-path, symlink it for them:
+Two paths name the standards. Use each only for its job:
 
-```sh
-ln -s /actual/path/to/coding_agent_standards ~/coding-standards
-```
+| Path | What it is | Who uses it | Changes when |
+|------|------------|-------------|--------------|
+| `~/.claude/coding-standards-current/` | Link to the installed plugin snapshot | Every project's imports, and opt-in hooks in settings | The plugin is updated and a session starts |
+| `~/projects/coding_agent_standards` | The git checkout | Only tools that edit the standards, such as `tune-reviewer` | Every edit, committed or not |
+
+Projects never import from the checkout, since it holds uncommitted work. `~/coding-standards` is retired. The tools
+still recognize it, but only to rewrite or dedupe old paths.
 
 The plugin's SessionStart hook, `claude/hooks/check-setup.sh`, checks that the machine and the project are set up.
 
