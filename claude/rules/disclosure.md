@@ -26,6 +26,12 @@ descriptions, which are as visible as the files they describe.
 Moving content to a repo of the same or narrower visibility is not a promotion. Neither is content that is already
 public at its source, such as a quote from published documentation.
 
+Content that lands generalized needs no visibility lookup. When the change carries only patterns and lessons, with no
+repo, path, person, or identifier in it, assume the source is private and write it generically. Do not ask where each
+example came from. Look up visibility only when the change must carry content that cannot be generalized, such as a
+quoted error, a fixture, or a config excerpt. Substantive topics still need step 3. Ask about them in the first question
+round, alongside any design questions.
+
 Before committing a promotion:
 
 1. Name the source, the destination, and the visibility of each.

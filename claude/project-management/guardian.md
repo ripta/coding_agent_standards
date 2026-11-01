@@ -77,8 +77,10 @@ starts a fresh one with `/guardian <domain name>`.
    `design-critic` checks a design argument.
 4. **Choose the fix.** The requestor's suggested fix is input, not a spec. Offer a narrower or broader fix when it is
    better, and say why.
-5. **Check disclosure.** Ask the requestor which repo the content comes from, and its visibility, when the request does
-   not say. When that repo is less visible than the entry, the fix is a promotion. Follow `rules/disclosure.md`
+5. **Check disclosure.** When the fix will carry only generalized patterns, skip the lookup. Assume the source is
+   private, as `rules/disclosure.md` "Promotion" says, and go straight to the fix. Otherwise ask the requestor which
+   repo the content comes from, and its visibility, when the request does not say. When that repo is less visible than
+   the entry, the fix is a promotion. Follow `rules/disclosure.md`
    "Promotion" for the change and its commit message. The guardian's own user approves each topic, never the
    requestor.
 6. **Settle disagreement.** The requestor and the guardian, or its verifier, may still disagree after one exchange.
