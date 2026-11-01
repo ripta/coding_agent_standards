@@ -22,8 +22,8 @@
   interactive session, and `/update-profile` cannot do it. The check also names
   hook commands in `.claude/settings.json` and `settings.local.json` that run
   the checkout, and gives the link path to use. A `--plugin-dir` session also
-  gets a check of the link, and a one-line notice when the project's imports read the installed
-  snapshot while the tools come from the working tree.
+  gets a check of the link, and a one-line notice when the project's imports
+  read the installed snapshot while the tools come from the working tree.
   `guardian-session-start.sh` tells a `<domain name>_guardian` session that
   comes back by resume, `/clear`, or fork to re-run its Starting steps.
   `standards-on-demand.py` forgets which docs it named once the session
