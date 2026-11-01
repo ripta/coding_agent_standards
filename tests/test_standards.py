@@ -89,7 +89,7 @@ def test_quoted_paths_resolve(path: Path) -> None:
 # -- script commands ------------------------------------------------------------------------
 
 SCRIPT_CALL = re.compile(
-    r"\b(proposals|detect_era|pr_watch|batch_plan)\.py(?: ([a-z][a-z-]*))?((?: --[a-z][a-z-]*)*)"
+    r"\b(proposals|detect_era|pr_watch|batch_plan|dependabot_sweep)\.py(?: ([a-z][a-z-]*))?((?: --[a-z][a-z-]*)*)"
 )
 
 

@@ -53,8 +53,9 @@ poll loop by hand. Its subcommands print JSON:
 - `pr_watch.py resolve --thread ID` resolves a review thread
 
 `gh` reads its credentials from `~/.config/gh`, which the Bash sandbox blocks. Run every `gh` and `pr_watch.py` command
-through `cg_run`, which runs outside the sandbox. Run them from the PR's worktree, so `gh` finds the repository. When
-cg is unavailable, run them through Bash with the sandbox disabled.
+through `cg_run`, which runs outside the sandbox. Run them from the PR's worktree, so `gh` finds the repository. Without
+a checkout, pass the global `--repo OWNER/NAME` before the subcommand, as in `pr_watch.py --repo OWNER/NAME snapshot`.
+When cg is unavailable, run them through Bash with the sandbox disabled.
 
 `reply` and `comment` add a marker to every body they post. `watch` skips comments that carry it, so the loop's own
 replies never wake it. The replies come from the user's `gh` identity, so do not filter comments by author. Always post

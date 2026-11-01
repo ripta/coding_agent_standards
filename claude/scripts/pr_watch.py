@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Watch GitHub pull requests for CI results and review activity, and act on review threads.
 
-    python3 pr_watch.py preflight [--base BRANCH]
+    python3 pr_watch.py [--repo OWNER/NAME] preflight [--base BRANCH]
     python3 pr_watch.py snapshot --pr N
     python3 pr_watch.py watch --pr N [--pr M ...] --state FILE --timeout SECONDS
     python3 pr_watch.py threads --pr N
@@ -11,8 +11,12 @@
     python3 pr_watch.py resolve --thread ID
 
 Every subcommand prints JSON on stdout. `watch` prints one JSON object per line, one per event.
-Run it from inside the repository's checkout. `gh` reads its credentials from ~/.config/gh, which
-a sandboxed shell cannot read, so run this script through cg or with the sandbox disabled.
+Run it from inside the repository's checkout, or pass the global `--repo OWNER/NAME` before the
+subcommand to work on a repository without a checkout. One invocation names one repository, so a
+sweep over several repositories runs one process per repository. With `--repo`, `preflight` skips
+the checkout's CI files and answers unknown for whether CI builds PRs against other bases.
+`gh` reads its credentials from ~/.config/gh, which a sandboxed shell cannot read, so run this
+script through cg or with the sandbox disabled.
 
 Replies and comments this script posts carry MARKER. `watch` never reports a comment that carries
 it, so the loop's own replies do not wake the loop. The replies come from the user's own `gh`
@@ -122,7 +126,16 @@ def graphql(query: str, **variables: Any) -> dict[str, Any]:
     return data["data"]
 
 
-def repo_slug() -> tuple[str, str]:
+REPO_SLUG = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+
+
+def repo_slug(override: str | None = None) -> tuple[str, str]:
+    """Return (owner, name) from `--repo` when given, else from the checkout's remote."""
+    if override:
+        if not REPO_SLUG.match(override):
+            raise GhError(f"--repo must look like OWNER/NAME, got {override!r}")
+        owner, name = override.split("/")
+        return owner, name
     owner, name = gh(["repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner"]).strip().split("/")
     return owner, name
 
@@ -690,7 +703,7 @@ def gcloud_status() -> str:
     return "ok" if result.stdout.strip() else "unauthenticated"
 
 
-def preflight(base: str | None) -> dict[str, Any]:
+def preflight(base: str | None, repo_override: str | None = None) -> dict[str, Any]:
     report: dict[str, Any] = {"needs": []}
     try:
         gh(["auth", "status"])
@@ -700,7 +713,7 @@ def preflight(base: str | None) -> dict[str, Any]:
         report["needs"].append("gh cannot authenticate. Run it outside the sandbox, or run `gh auth login`.")
         return report
 
-    owner, name = repo_slug()
+    owner, name = repo_slug(repo_override)
     repo = graphql(REPO_QUERY, owner=owner, name=name)["repository"]
     base = base or repo["defaultBranchRef"]["name"]
     report["repo"] = {k: v for k, v in repo.items() if k != "defaultBranchRef"}
@@ -734,6 +747,12 @@ def preflight(base: str | None) -> dict[str, Any]:
     strict = strict_from_rules(rules or []) or strict_from_classic(classic or {})
     report["strict_up_to_date"] = strict or (None if unknown else False)
     report["stacking"] = stacking_summary(report["merge_methods"])
+
+    if repo_override:
+        report["ci"] = []
+        report["ci_builds_other_bases"] = {"answer": "unknown",
+                                           "reason": "--repo names a repository without a checkout to read"}
+        return report
 
     report["ci"] = ci_systems(Path.cwd())
     cloud_build = None
@@ -780,7 +799,9 @@ def failures_of(pr: dict[str, Any]) -> list[dict[str, Any]]:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="pr_watch.py", description=__doc__.split("\n\n")[0])
-    sub = parser.add_subparsers(dest="command", required=True)
+    parser.add_argument("--repo", metavar="OWNER/NAME",
+                        help="work on this repository instead of the checkout's; goes before the subcommand")
+    sub =parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("preflight", help="report gh access, merge settings, protection, stacking facts, and CI log needs")
     p.add_argument("--base", help="branch the PRs target; defaults to the repo's default branch")
@@ -823,9 +844,9 @@ def main(argv: list[str]) -> int:
 
     try:
         if args.command == "preflight":
-            emit(preflight(args.base))
+            emit(preflight(args.base, args.repo))
         elif args.command in ("snapshot", "threads", "failures"):
-            pr = fetch_pr(*repo_slug(), args.pr)
+            pr = fetch_pr(*repo_slug(args.repo), args.pr)
             if args.command == "snapshot":
                 emit(summarize(pr))
             elif args.command == "threads":
@@ -833,14 +854,15 @@ def main(argv: list[str]) -> int:
             else:
                 emit(failures_of(pr))
         elif args.command == "watch":
-            owner, name = repo_slug()
+            owner, name = repo_slug(args.repo)
             return watch(args.pr, args.state, args.timeout, args.interval, args.appear_timeout, args.until,
                          lambda n: fetch_pr(owner, name, n), emit)
         elif args.command == "reply":
             data = graphql(REPLY_MUTATION, thread=args.thread, body=marked(args.body_file.read_text()))
             emit(data["addPullRequestReviewThreadReply"]["comment"])
         elif args.command == "comment":
-            url = gh(["pr", "comment", str(args.pr), "--body", marked(args.body_file.read_text())]).strip()
+            target = ["-R", "/".join(repo_slug(args.repo))] if args.repo else []
+            url = gh(["pr", "comment", str(args.pr), *target, "--body", marked(args.body_file.read_text())]).strip()
             emit({"url": url})
         elif args.command == "resolve":
             emit(graphql(RESOLVE_MUTATION, thread=args.thread)["resolveReviewThread"]["thread"])

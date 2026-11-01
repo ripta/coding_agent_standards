@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent))
 
 import pr_watch
@@ -419,3 +421,45 @@ def test_ci_other_bases_takes_the_cloud_build_verdict(tmp_path):
     assert pr_watch.ci_other_bases(tmp_path, systems, {"answer": "yes", "reason": "r"})["answer"] == "yes"
     unreadable = {"answer": "unknown", "reason": "gcloud is unauthenticated"}
     assert pr_watch.ci_other_bases(tmp_path, systems, unreadable)["reason"] == "gcloud is unauthenticated"
+
+
+REPO_SLUG = "example-owner/example-repo"
+
+
+# -- pr_watch --repo ---------------------------------------------------------------------------
+
+
+def test_repo_override_skips_the_checkout_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    def forbidden(args):
+        raise AssertionError("must not ask the checkout")
+
+    monkeypatch.setattr(pr_watch, "gh", forbidden)
+    assert pr_watch.repo_slug("example-owner/example-repo") == ("example-owner", "example-repo")
+
+
+@pytest.mark.parametrize("bad", ["example-repo", "a/b/c", "a b/c", "#12"])
+def test_repo_override_must_look_like_owner_slash_name(bad: str) -> None:
+    with pytest.raises(pr_watch.GhError, match="OWNER/NAME"):
+        pr_watch.repo_slug(bad)
+
+
+def test_snapshot_with_repo_queries_that_repository(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    seen = []
+
+    def fake_fetch(owner, name, number):
+        seen.append((owner, name, number))
+        return {"number": number, "state": "OPEN", "merged": False, "headRefOid": "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678"}
+
+    monkeypatch.setattr(pr_watch, "fetch_pr", fake_fetch)
+    assert pr_watch.main(["pr_watch.py", "--repo", REPO_SLUG, "snapshot", "--pr", "4"]) == 0
+    assert seen == [("example-owner", "example-repo", 4)]
+    assert json.loads(capsys.readouterr().out)["number"] == 4
+
+
+def test_comment_with_repo_targets_that_repository(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    calls = []
+    monkeypatch.setattr(pr_watch, "gh", lambda args: calls.append(args) or "https://example.invalid/c\n")
+    body = tmp_path / "body.md"
+    body.write_text("hello")
+    assert pr_watch.main(["pr_watch.py", "--repo", REPO_SLUG, "comment", "--pr", "4", "--body-file", str(body)]) == 0
+    assert calls[0][:5] == ["pr", "comment", "4", "-R", REPO_SLUG]
