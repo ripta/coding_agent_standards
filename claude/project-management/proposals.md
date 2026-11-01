@@ -116,6 +116,20 @@ A milestone is a subsection of the Milestones section. Its heading is `### MN: T
 then an optional one-line goal. Then come plain bullets, each phrased as a check. The bullets are the milestone's
 acceptance criteria. There is no separate description and no separate checklist.
 
+A check judges the work. Its result can show the work is wrong, so the milestone is not done until it passes. That holds
+when only the user can run it. Examples:
+
+- The user looks at the new settings page and confirms the layout
+- A live trial against production traffic meets its error budget
+- The user rules on whether a trial's outcome justifies the default
+
+A chore whose timing does not matter is never a check. It shows nothing about the work, and it can happen whenever the
+user next touches the place it applies to. List it in the As built block, so the user can find it. Examples:
+
+- Approving external imports in each project, which Claude Code prompts for at that project's next session
+- Committing a migrated file in another repo the user owns
+- Restarting a long-running session so it picks up a new plugin version
+
 A milestone whose checks read production state that another deploy unit's deployment produces carries a
 `**Live after:** PROJ-NNN MN deployed` line, directly after its `**Status:**` line. Only that milestone waits for the
 deployment. See `plans.md` "Live Checks".
