@@ -64,6 +64,8 @@ test/<org>/<app>/core_test.clj
 ## Formatting and Linting
 
 - Format with `cljfmt`. Configure it in `.cljfmt.edn`. `cljfmt fix` formats in place and `cljfmt check` verifies
+- Run cljfmt as its precompiled binary, which its README calls the fastest way. Without the binary, install it as a
+  Clojure CLI tool and run `clj -Tcljfmt check`
 - Lint with `clj-kondo`, configured in `.clj-kondo/config.edn`. CI runs `clj-kondo --lint src test` and fails on any
   warning
 - clj-kondo catches the misplaced docstring, unused bindings, and wrong arity before the code runs
