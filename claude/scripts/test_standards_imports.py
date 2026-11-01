@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -250,3 +251,349 @@ def test_git_paths_are_absolute_without_path_format(tmp_path: Path) -> None:
     root = repo(tmp_path)
     assert si.git_path(root, "--git-dir") == root / ".git"
     assert si.git_path(root / "pkg", "--git-common-dir") == root / ".git"
+
+
+# -- hook paths -----------------------------------------------------------------------------
+
+HOME = Path("/home/u")
+LINK_HOOKS = "$HOME/.claude/coding-standards-current/hooks/a.sh"
+HOOK_PATHS = [
+    ("$HOME spelling", '"$HOME/projects/coding_agent_standards/claude/hooks/a.sh" --x', [LINK_HOOKS]),
+    ("braced HOME", "${HOME}/projects/coding_agent_standards/claude/hooks/a.sh", [LINK_HOOKS]),
+    ("tilde and symlink", "~/coding-standards/claude/hooks/a.sh", [LINK_HOOKS]),
+    ("absolute home", "/home/u/projects/coding_agent_standards/claude/hooks/a.sh", [LINK_HOOKS]),
+    ("mapped directory", "$HOME/coding-standards/practices/a.sh", ["$HOME/.claude/coding-standards-current/practices/a.sh"]),
+    ("repo-only path", "$HOME/projects/coding_agent_standards/bin/a.sh", []),
+    ("already on the link", LINK_HOOKS, []),
+    ("another user's home", "/home/other/projects/coding_agent_standards/claude/hooks/a.sh", []),
+]
+
+
+@pytest.mark.parametrize(("name", "command", "expected"), HOOK_PATHS, ids=[c[0] for c in HOOK_PATHS])
+def test_old_hook_paths_map_onto_the_link_only_for_plugin_files(name: str, command: str, expected: list) -> None:
+    """A hook wired to the checkout leaks its working tree. Repo-only tools have no link path to suggest."""
+    assert [new for _, new in si.old_hook_paths(command, HOME)] == expected
+
+
+def test_a_hung_git_is_given_up_on(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A hung git must not burn the hook's whole 5 s budget and lose the warnings found so far."""
+    fake = tmp_path / "bin"
+    fake.mkdir()
+    (fake / "git").write_text("#!/bin/sh\nsleep 3\n")
+    (fake / "git").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{fake}:{os.environ['PATH']}")
+    monkeypatch.setattr(si, "GIT_TIMEOUT", 0.2, raising=False)
+
+    start = time.monotonic()
+    checkout = si.locate(tmp_path)
+
+    assert time.monotonic() - start < 1.5
+    assert checkout.root == tmp_path.resolve()
+    assert checkout.main_root is None
+
+
+# -- check ----------------------------------------------------------------------------------
+
+SNAP = {"profiles/p.md": "p\n", "rules/a.md": "a\n"}
+GOOD = f"@{LINK}/profiles/p.md\n"
+OLD = f"@{CHECKOUT}/claude/rules/a.md\n"
+
+TAGS = [
+    ("old-unresolved", "does not resolve in the plugin snapshot"),
+    ("old", "imports the old standards path"),
+    ("link-unresolved", "is not in the standards snapshot"),
+    ("plain", "without a leading @"),
+    ("no-import", "does not import the coding standards"),
+    ("worktree", ".worktreeinclude"),
+    ("approval", "has not approved external imports"),
+    ("hook", "which is the checkout's working tree"),
+    ("link", f"{LINK} "),
+    ("notice-text", "This is a --plugin-dir session"),
+]
+
+
+def tag(level: str, text: str) -> str:
+    """Name a result by its phrase, so a test states the exact set of warnings and an unknown text shows up whole."""
+    for name, phrase in TAGS:
+        if phrase in text and (name != "link" or text.startswith(LINK)):
+            return f"{level}:{name}"
+    return f"{level}:{text}"
+
+
+class World:
+    """A fake HOME, an installed snapshot, a --plugin-dir tree, a link, and a git project."""
+
+    def __init__(self, tmp: Path) -> None:
+        self.tmp = tmp.resolve()
+        self.home = self.tmp / "home"
+        self.installed = self.snap(self.home / "installed")
+        self.dev = self.snap(self.tmp / "dev")
+        self.link = self.home / ".claude" / "coding-standards-current"
+        self.link.parent.mkdir(parents=True)
+        self.project = repo(self.tmp)
+        self.approve(True)
+
+    def snap(self, path: Path) -> Path:
+        for rel, text in SNAP.items():
+            (path / rel).parent.mkdir(parents=True, exist_ok=True)
+            (path / rel).write_text(text)
+        return path
+
+    def write(self, files: dict) -> None:
+        for rel, text in files.items():
+            path = self.project / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(text)
+
+    def approve(self, value: object) -> None:
+        config = self.home / ".claude.json"
+        if value is None:
+            config.unlink(missing_ok=True)
+        elif value == "other-project":
+            config.write_text(json.dumps({"projects": {str(self.tmp / "else"): {"hasClaudeMdExternalIncludesApproved": True}}}))
+        else:
+            config.write_text(json.dumps({"projects": {str(self.project): {"hasClaudeMdExternalIncludesApproved": value}}}))
+
+    def check(self, session: str = "installed", cwd: Path | None = None) -> list:
+        root = self.installed if session == "installed" else self.dev
+        results = si.check(cwd or self.project, root, session, self.link, self.home, self.home / ".claude.json")
+        return [tag(level, text) for level, text in results]
+
+
+@pytest.fixture
+def world(tmp_path: Path) -> World:
+    return World(tmp_path)
+
+
+PROJECT_CASES = [
+    ("clean", {"CLAUDE.md": GOOD}, []),
+    ("see line", {"CLAUDE.md": f"See @{LINK}/profiles/p.md\n"}, []),
+    ("local file counts", {"CLAUDE.local.md": GOOD}, []),
+    ("old path", {"CLAUDE.md": OLD}, ["warning:old"]),
+    ("old path resolves only through the symlinks", {"CLAUDE.md": f"@{CHECKOUT}/languages/go.md\n"}, ["warning:old-unresolved"]),
+    ("old path with no mapping", {"CLAUDE.md": f"@{CHECKOUT}/bugs/x.md\n"}, ["warning:old-unresolved"]),
+    ("unresolved link path", {"CLAUDE.md": f"@{LINK}/rules/gone.md\n"}, ["warning:link-unresolved"]),
+    ("plain text", {"CLAUDE.md": f"- {LINK}/profiles/p.md\n"}, ["warning:plain"]),
+    ("plain text is not also no-import", {"CLAUDE.md": f"{CHECKOUT}/profiles/p.md\n"}, ["warning:plain"]),
+    ("no import", {"CLAUDE.md": "Nothing here.\n"}, ["warning:no-import"]),
+    ("no file", {}, ["warning:no-import"]),
+    ("code span", {"CLAUDE.md": f"Write `{OLD.strip()}` to import.\n{GOOD}"}, []),
+    ("fence", {"CLAUDE.md": f"```\n{OLD}```\n{GOOD}"}, []),
+    ("prose naming the checkout", {"CLAUDE.md": f"Clone it to {CHECKOUT} first.\n{GOOD}"}, []),
+    ("link target", {"CLAUDE.md": f"[docs]({CHECKOUT}/claude/rules/a.md)\n{GOOD}"}, []),
+    ("link target alone is no import", {"CLAUDE.md": f"[docs]({LINK}/rules/a.md)\n"}, ["warning:no-import"]),
+    ("hook path in prose", {"CLAUDE.md": f"Wire {CHECKOUT}/claude/hooks/block-zig-cache.sh by hand.\n{GOOD}"}, []),
+    ("old and link problems both", {"CLAUDE.md": OLD + f"@{LINK}/rules/gone.md\n"}, ["warning:old", "warning:link-unresolved"]),
+]
+
+
+@pytest.mark.parametrize(("name", "files", "expected"), PROJECT_CASES, ids=[c[0] for c in PROJECT_CASES])
+def test_project_imports(world: World, name: str, files: dict, expected: list) -> None:
+    """Each import that loads nothing earns exactly its own warning, and code, prose and link targets earn none.
+
+    An old path that resolves must not also be called unresolved, and one that does not must not
+    be told it loads nothing today. It cannot prove the wording, which the full-text test does.
+    """
+    world.write(files)
+
+    assert world.check() == expected
+
+
+def test_a_parent_directorys_file_is_checked_from_a_subdirectory(world: World) -> None:
+    """Claude Code loads every file up to the git root, so a stale import above the cwd still counts."""
+    world.write({"CLAUDE.md": GOOD, "pkg/CLAUDE.md": OLD})
+
+    assert world.check(cwd=world.project / "pkg") == ["warning:old"]
+
+
+def test_warning_texts_name_the_file_the_lines_and_the_fix(world: World) -> None:
+    """Catches a warning that does not say which file and lines to fix, or does not name /update-profile."""
+    world.write({"CLAUDE.md": "intro\n" + OLD})
+    (old,) = si.check(world.project, world.installed, "installed", world.link, world.home, world.home / ".claude.json")
+
+    assert old == (
+        "warning",
+        f"{world.project}/CLAUDE.md imports the old standards path {CHECKOUT}/claude/rules/a.md (line 2). "
+        "The path loads only while the checkout keeps its transition symlinks. Run /update-profile to point it at the plugin link.",
+    )
+
+    world.write({"CLAUDE.md": f"@{CHECKOUT}/languages/go.md\n"})
+    (unresolved,) = si.check(world.project, world.installed, "installed", world.link, world.home, world.home / ".claude.json")
+
+    assert unresolved == (
+        "warning",
+        f"{world.project}/CLAUDE.md imports the old standards path {CHECKOUT}/languages/go.md (line 1), which does not "
+        "resolve in the plugin snapshot. It loads today only through the checkout's transition symlinks, and will load "
+        "nothing once they go. Run /update-profile to rewrite what it can and report the rest.",
+    )
+
+
+def test_a_warning_lists_at_most_three_paths_and_lines(world: World) -> None:
+    """Eleven stale imports must not print eleven paths into context at every session start."""
+    lines = "".join(f"- @{CHECKOUT}/claude/rules/a{n}.md\n" for n in range(1, 6))
+    world.write({"CLAUDE.md": lines})
+    for n in range(1, 6):
+        (world.installed / "rules" / f"a{n}.md").write_text("x\n")
+
+    ((_, text),) = si.check(world.project, world.installed, "installed", world.link, world.home, world.home / ".claude.json")
+
+    assert text.count("rules/a") == 3
+    assert "and 2 more" in text
+    assert "lines 1, 2, 3, and 2 more" in text
+
+
+APPROVAL_CASES = [
+    ("not approved", False, ["warning:approval"]),
+    ("approved", True, []),
+    ("project missing", "other-project", ["warning:approval"]),
+    ("config missing", None, []),
+]
+
+
+@pytest.mark.parametrize(("name", "state", "expected"), APPROVAL_CASES, ids=[c[0] for c in APPROVAL_CASES])
+def test_approval_covers_every_line_with_an_import(world: World, name: str, state: object, expected: list) -> None:
+    """Most projects write `See @...`. The old check read only lines that began with @ and missed them."""
+    world.write({"CLAUDE.md": f"See @{LINK}/profiles/p.md for the rules.\n"})
+    world.approve(state)
+
+    assert world.check() == expected
+
+
+def test_a_config_that_is_not_json_is_not_an_answer(world: World) -> None:
+    """A half-written ~/.claude.json must not make every project warn."""
+    world.write({"CLAUDE.md": GOOD})
+    (world.home / ".claude.json").write_text("{nope")
+
+    assert world.check() == []
+
+
+def test_no_approval_warning_without_an_import(world: World) -> None:
+    """Plain text and link targets are not external imports, so approval is not what is wrong."""
+    world.write({"CLAUDE.md": f"[a]({LINK}/profiles/p.md) and {LINK}/rules/a.md\n"})
+    world.approve(False)
+
+    assert world.check() == ["warning:plain"]
+
+
+def settings(command: str) -> str:
+    return json.dumps({"hooks": {"PreToolUse": [{"hooks": [{"type": "command", "command": command}]}]}})
+
+
+@pytest.mark.parametrize("name", ["settings.json", "settings.local.json"])
+def test_old_hook_paths_name_the_link_path(world: World, name: str) -> None:
+    """A hook wired to the checkout runs unreleased code, and the warning must give the exact fix."""
+    world.write({"CLAUDE.md": GOOD, f".claude/{name}": settings('"$HOME/projects/coding_agent_standards/claude/hooks/a.sh"')})
+
+    ((level, text),) = si.check(world.project, world.installed, "installed", world.link, world.home, world.home / ".claude.json")
+
+    assert level == "warning"
+    assert text == (
+        f"{world.project}/.claude/{name} runs $HOME/projects/coding_agent_standards/claude/hooks/a.sh, which is the "
+        "checkout's working tree. Use $HOME/.claude/coding-standards-current/hooks/a.sh instead, so the command runs "
+        "the installed plugin."
+    )
+
+
+def test_link_hook_paths_and_broken_settings_are_quiet(world: World) -> None:
+    """A hook already on the link is right. A settings file that is not JSON is not this check's business."""
+    world.write({"CLAUDE.md": GOOD, ".claude/settings.json": settings(LINK_HOOKS), ".claude/settings.local.json": "{nope"})
+
+    assert world.check() == []
+
+
+# -- sessions -------------------------------------------------------------------------------
+
+
+def test_an_installed_session_resolves_against_the_plugin_root_not_the_link(world: World) -> None:
+    """The link may still point at the old snapshot while link-current.sh repoints it in the same SessionStart."""
+    old = world.tmp / "old"
+    old.mkdir()
+    world.link.symlink_to(old)
+    world.write({"CLAUDE.md": GOOD})
+
+    assert world.check() == []
+
+
+def test_an_installed_session_never_checks_the_link(world: World) -> None:
+    """link-current.sh runs beside the hook, so on a first session the link is legitimately absent."""
+    world.write({"CLAUDE.md": GOOD})
+
+    assert not world.link.exists() and not world.link.is_symlink()
+    assert world.check() == []
+
+
+@pytest.mark.parametrize("breaker", ["missing", "dangling", "file"])
+def test_plugin_dir_reports_a_broken_link_first_and_resolves_nothing(world: World, breaker: str) -> None:
+    """The user must not be sent to /update-profile for a link problem, and imports cannot be resolved without it."""
+    if breaker == "dangling":
+        world.link.symlink_to(world.tmp / "gone")
+    elif breaker == "file":
+        world.link.write_text("x")
+    world.write({"CLAUDE.md": OLD + f"@{LINK}/rules/gone.md\n"})
+
+    assert world.check("plugin-dir") == ["warning:link", "warning:old"]
+
+
+def test_plugin_dir_resolves_against_the_links_target(world: World) -> None:
+    """Under --plugin-dir the session's imports read the link, whatever the working tree holds."""
+    linked = world.snap(world.tmp / "linked")
+    world.link.symlink_to(linked)
+    (world.dev / "rules" / "only-dev.md").write_text("x\n")
+    (linked / "rules" / "only-link.md").write_text("x\n")
+    world.write({"CLAUDE.md": f"@{LINK}/rules/only-dev.md\n@{LINK}/rules/only-link.md\n"})
+
+    results = si.check(world.project, world.dev, "plugin-dir", world.link, world.home, world.home / ".claude.json")
+
+    (text,) = [t for level, t in results if level == "warning"]
+    assert "only-dev.md" in text and "only-link.md" not in text
+
+
+NOTICE_CASES = [
+    ("link differs, link import", "other", GOOD, ["notice:notice-text"]),
+    ("link equals the working tree", "dev", GOOD, []),
+    ("link differs, only an old import", "other", OLD, ["warning:old"]),
+    ("link differs, no import", "other", "Nothing.\n", ["warning:no-import"]),
+]
+
+
+@pytest.mark.parametrize(("name", "target", "text", "expected"), NOTICE_CASES, ids=[c[0] for c in NOTICE_CASES])
+def test_plugin_dir_notice_only_when_it_is_true(world: World, name: str, target: str, text: str, expected: list) -> None:
+    """The notice says instructions come from the installed snapshot. Printing it when they do not misleads."""
+    world.link.symlink_to(world.dev if target == "dev" else world.snap(world.tmp / "other"))
+    world.write({"CLAUDE.md": text})
+
+    assert world.check("plugin-dir") == expected
+
+
+def test_the_notice_names_both_snapshots(world: World) -> None:
+    """The reader must learn which tree the instructions come from and which the tools come from."""
+    other = world.snap(world.tmp / "other")
+    world.link.symlink_to(other)
+    world.write({"CLAUDE.md": GOOD})
+
+    ((level, text),) = si.check(world.project, world.dev, "plugin-dir", world.link, world.home, world.home / ".claude.json")
+
+    assert level == "notice"
+    assert str(other) in text and str(world.dev) in text
+
+
+def test_an_installed_session_never_gets_the_notice(world: World) -> None:
+    """Only a --plugin-dir session can disagree with its own link."""
+    world.link.symlink_to(world.snap(world.tmp / "other"))
+    world.write({"CLAUDE.md": GOOD})
+
+    assert world.check() == []
+
+
+def test_check_command_prints_prefixed_lines_and_nothing_when_clean(world: World, capsys: pytest.CaptureFixture) -> None:
+    """check-setup.sh splits these lines by prefix, so the prefixes and one line per result are a contract."""
+    args = ["check", "--cwd", str(world.project), "--plugin-root", str(world.installed), "--session", "installed", "--home", str(world.home)]
+
+    world.write({"CLAUDE.md": GOOD})
+    assert si.main(args) == 0
+    assert capsys.readouterr().out == ""
+
+    world.write({"CLAUDE.md": "none\n"})
+    assert si.main(args) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("warning: This project does not import") and out.count("\n") == 1

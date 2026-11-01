@@ -107,7 +107,7 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   and replies to review threads for `merge-fix-loop`; `dependabot_sweep.py`, which inventories, verifies, and buckets an
   owner's dependabot PRs for `dependabot-sweep`; `batch_plan.py`, which checks that `land-branch`'s batches rebuild
   the branch they came from; `update_profile.py`, which edits a project's profile imports for `update-profile`; and
-  `standards_imports.py`, the parser it uses and `check-setup.sh` is meant to reuse
+  `standards_imports.py`, the parser it uses, which `check-setup.sh` reuses through its `check` command
 - **Skills** (`skills/`) -- specialized agents for code review, testing, linting, Makefile maintenance, releases,
   proposals, landing a branch through PRs (`land-branch`), driving one PR to merged (`merge-fix-loop`), sweeping an
   owner's dependabot PRs (`dependabot-sweep`), etc.
@@ -429,8 +429,12 @@ is well. Otherwise it names what is missing:
 
 - Settings entries that `setup_permissions.py` adds
 - A project with no standards import in `CLAUDE.md` or `CLAUDE.local.md`
+- An import of an old checkout path, a file the plugin lacks, or a standards path with no `@`. Each points to
+  `/update-profile`
 - A worktree missing the main checkout's `CLAUDE.local.md`
 - A project whose standards import is not yet approved
+- A hook command in the project's settings that runs the checkout instead of the plugin link
+- In a `--plugin-dir` session, a missing or dangling plugin link
 
 The generated Codex plugin follows the same pattern. `codex/hooks/check-setup.py` refreshes the installed link and
 checks the baseline reference in global or project instructions. It prints nothing when setup is complete.

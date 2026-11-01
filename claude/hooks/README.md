@@ -9,7 +9,15 @@
   runs `revisit-notice.sh`, which prints one line when a revisit hook in the
   project's proposals has passed, and nothing otherwise. Last, `check-setup.sh`
   creates `~/.local/state/coding_agent_standards/`, and checks that the
-  machine and the project are set up. It prints nothing when they are.
+  machine and the project are set up. It prints nothing when they are. In a
+  project it runs `standards_imports.py check`, which names imports that load
+  nothing, each with the fix `/update-profile`: old checkout paths, paths
+  missing from the plugin snapshot, paths with no `@`, and external imports the
+  project has not approved. It also names hook commands in
+  `.claude/settings.json` and `settings.local.json` that run the checkout, and
+  gives the link path to use. A `--plugin-dir` session also gets a check of the
+  link, and a one-line notice when the project's imports read the installed
+  snapshot while the tools come from the working tree.
   `guardian-session-start.sh` tells a `<domain name>_guardian` session that
   comes back by resume, `/clear`, or fork to re-run its Starting steps.
   `standards-on-demand.py` forgets which docs it named once the session

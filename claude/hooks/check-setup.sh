@@ -27,39 +27,46 @@ if [ -n "$root" ] && command -v python3 >/dev/null; then
 fi
 
 # --- Project: only inside a git checkout, and never in the standards repo itself ---
+NOTICES=()
 if git rev-parse --is-inside-work-tree &>/dev/null; then
-  PROJECT_ROOT="$(git rev-parse --show-toplevel)"
-  # In a linked worktree, this is the main checkout. Otherwise it is PROJECT_ROOT.
-  MAIN_ROOT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+  # In a linked worktree, this is the main checkout. Otherwise it is the project root.
+  # --path-format needs git 2.31, so the common dir is made absolute by hand. It is relative to the cwd.
+  MAIN_ROOT="$(dirname "$(CDPATH='' cd "$(git rev-parse --git-common-dir)" && pwd)")"
 
   if [ ! -f "$MAIN_ROOT/claude/.claude-plugin/plugin.json" ]; then
-    STANDARDS_REFERENCED=false
-    for f in "$PROJECT_ROOT/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.local.md" "$PROJECT_ROOT/.claude/CLAUDE.md"; do
-      if [ -f "$f" ] && grep -qE "(coding-standards|coding_agent_standards)" "$f" 2>/dev/null; then
-        STANDARDS_REFERENCED=true
-        break
-      fi
-    done
+    # The same test as link-current.sh. An installed snapshot is the one the link is about to
+    # point at. Anything else is a --plugin-dir working tree.
+    case "$root" in
+      "$HOME"/.claude/plugins/cache/*) session=installed ;;
+      *) session=plugin-dir ;;
+    esac
 
-    if [ "$STANDARDS_REFERENCED" = false ] && [ "$MAIN_ROOT" != "$PROJECT_ROOT" ] \
-      && grep -qsE "(coding-standards|coding_agent_standards)" "$MAIN_ROOT/CLAUDE.local.md"; then
-      WARNINGS+=("This worktree has no CLAUDE.local.md, so the coding standards it imports in $MAIN_ROOT do not load. List CLAUDE.local.md in $MAIN_ROOT/.worktreeinclude so new worktrees get a copy, and copy it into this one.")
-    elif [ "$STANDARDS_REFERENCED" = false ]; then
-      WARNINGS+=("Coding standards not referenced. Add a @~/projects/coding_agent_standards/profiles/<profile>.md import to CLAUDE.md or CLAUDE.local.md in this project.")
-    fi
-
-    # Profiles live outside the project, so Claude Code loads them only once the project
-    # approves external imports. Without approval it skips them silently.
-    if grep -qsE "^@.*(coding-standards|coding_agent_standards)" \
-        "$PROJECT_ROOT/CLAUDE.md" "$PROJECT_ROOT/CLAUDE.local.md" "$PROJECT_ROOT/.claude/CLAUDE.md" \
-      && command -v jq &>/dev/null && [ -f "$HOME/.claude.json" ]; then
-      APPROVED="$(jq -r --arg p "$PROJECT_ROOT" '.projects[$p].hasClaudeMdExternalIncludesApproved // false' "$HOME/.claude.json" 2>/dev/null || echo unknown)"
-      if [ "$APPROVED" = false ]; then
-        WARNINGS+=("This project imports the coding standards but has not approved external imports, so none of them load. Start an interactive session here and accept the external imports prompt.")
+    # One python3 call does the whole project check, to stay inside the hook's timeout. A failure
+    # here must never fail the hook.
+    if [ -z "$root" ] || ! command -v python3 >/dev/null; then
+      WARNINGS+=("Could not check this project's standards imports, since python3 or CLAUDE_PLUGIN_ROOT is missing.")
+    else
+      status=0
+      out="$(python3 "$root/scripts/standards_imports.py" check --plugin-root "$root" --session "$session" \
+        --cwd "$PWD" --home "$HOME" 2>&1)" || status=$?
+      if [ "$status" -ne 0 ]; then
+        WARNINGS+=("standards_imports.py check could not run under $(python3 --version 2>&1), exit $status: ${out##*$'\n'} Ask the user to run it from their own terminal to see why.")
+      else
+        while IFS= read -r line; do
+          case "$line" in
+            "warning: "*) WARNINGS+=("${line#warning: }") ;;
+            "notice: "*) NOTICES+=("${line#notice: }") ;;
+          esac
+        done <<< "$out"
       fi
     fi
   fi
 fi
+
+# A notice is not a setup problem, so it stays out of the setup list.
+for n in ${NOTICES[@]+"${NOTICES[@]}"}; do
+  echo "coding-standards: $n"
+done
 
 if [ ${#WARNINGS[@]} -gt 0 ]; then
   echo "CODING STANDARDS SETUP:"
