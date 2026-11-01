@@ -29,7 +29,11 @@ finished rows in the order they were built. Every command reads both as one queu
 DIR is the proposals directory, which may sit in a symlinked specs repo. The flag may
 come before or after the command. Without it, DIR is the nearest spec/proposals,
 docs/proposals, or proposals directory at or above the current directory, stopping at
-the repo root. Results are JSON on stdout. Errors go to stderr with exit status 1.
+the repo root.
+
+Results are JSON on stdout. Two commands print text instead: `notice`, and `progress`
+without --json. Every other command also accepts --json, which changes nothing. Errors
+go to stderr with exit status 1.
 
 A dependency on another project's proposal resolves through the `## Other proposals`
 entries in DIR/queue.md. `--proposals-for PREFIX=PATH` adds or overrides one entry for a
@@ -1536,6 +1540,9 @@ def main(argv: list[str]) -> int:
             cmd.add_argument("--passed", action="store_true", help="list only hooks whose date has passed")
         if name == "progress":
             cmd.add_argument("--json", action="store_true", help="print JSON instead of text")
+        elif name != "notice":
+            # These print JSON already. Callers pass --json expecting it, so it must not be an error.
+            cmd.add_argument("--json", action="store_true", help="accepted for symmetry; output is always JSON")
         if name == "next":
             cmd.add_argument("--count", type=int, default=1, help="how many rows to pick; defaults to 1")
             cmd.add_argument("--hold", action="append", default=[], help="a proposal whose rows the run holds")

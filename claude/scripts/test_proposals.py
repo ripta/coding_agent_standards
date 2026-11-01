@@ -1197,3 +1197,16 @@ def test_cli_passes_over_a_code_package_named_proposals(
     code, out, err = _ran(["next"], capsys)
     assert code == 0, err
     assert [e["row"] for e in json.loads(out)["run"]] == ["PROJ-001 M1"]
+
+
+@pytest.mark.parametrize("argv", [["check"], ["row", "PROJ-001"], ["freeze"], ["hooks"], ["next"], ["candidates"]])
+def test_cli_takes_json_on_every_json_command(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], argv: list[str]
+) -> None:
+    """Agents pass --json expecting JSON. These commands print JSON anyway, so the flag must not be an error."""
+    _repo_with_proposals(tmp_path, "spec/proposals")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(proposals, "freeze", lambda *_: [])
+    code, out, err = _ran([*argv, "--json"], capsys)
+    assert code == 0, err
+    json.loads(out)
