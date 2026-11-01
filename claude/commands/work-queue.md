@@ -479,8 +479,8 @@ The report directory may sit inside the code repo or the specs repo, e.g. at
 skill's "Resolve the target directory" section, not by the path as written.
 A `./spec` that links to a separate specs repo puts the reports in the specs
 repo. Then the run commits the reports in that repo. Each commit the run makes
-there carries the reports' current amendments, by path. A report names the
-commit that carries it by that commit's subject. When the
+there carries the reports' current amendments, by path. A report never names
+the commit that carries it. `git log` on the report finds that commit. When the
 run is done, commit the reports' last amendments by path as their own commit.
 In the code repo, check its message as in section 2, step 6. In the specs repo,
 write its subject in that repo's own style, as for the other specs commits.
