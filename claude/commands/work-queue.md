@@ -230,10 +230,22 @@ user to type.
 
 Record the code repo's current `HEAD` before the first milestone, and again
 before the first milestone of each row. These are the base commits for the row
-and final reviews. Keep a list of every specs-repo commit the run makes, by
-SHA, per row. When the specs live in the code repo, the code commits are the
-specs commits. Write all of this into the session report so it survives
-context compaction.
+and final reviews. Keep a list of every specs-repo commit the run makes, per
+row. When the specs live in the code repo, the code commits are the specs
+commits.
+
+Keep these SHAs in the run's state file, never in a session report or any other
+committed doc. A rebase rewrites the project's SHAs, so a recorded one can point
+at nothing. The state file is
+`~/.local/state/coding_agent_standards/work-queue/<code repo directory name>-<first row report's basename>.json`.
+It survives context compaction and a resumed session on the same machine. The
+session report names the same commits by subject.
+
+When the state file is missing, find each commit from its subject in the report. Ask the user about a
+subject that matches no commit or several. Before each review, check that the
+base commit is still an ancestor of `HEAD` with `git merge-base --is-ancestor`.
+When it is not, the history was rewritten. Stop and ask the user for the new
+base. Delete the state file when the run is done.
 
 Track every milestone's run status: QUEUED, IN PROGRESS, DONE, DROPPED, HELD,
 or BLOCKED. A milestone the proposal marks `DROPPED` is never work to run. A
@@ -384,8 +396,8 @@ For each milestone picked:
    messages, so this check is the coordinator's.
 
    When the specs live in a separate repo, also commit the proposal there, by
-   path, with a subject in that repo's own style. Record its SHA in the row's
-   list of specs commits. When they live in the code repo, the proposal goes in
+   path, with a subject in that repo's own style. Record its SHA in the state
+   file's list of the row's specs commits. When they live in the code repo, the proposal goes in
    the same commit.
 
 7. Amend the row's session report (see section 4). Copy in the implementer's
@@ -444,7 +456,7 @@ file, not when amending it. Do not start a new file per milestone.
 
 The report records, per milestone:
 
-- The commits, by short SHA and subject, in the code repo and the specs repo
+- The commits, by subject, in the code repo and the specs repo
 - The checks run, and their result
 - Every best guess: the ambiguity, the choice made, the document it rests on,
   and what would change if the guess is wrong
@@ -454,9 +466,9 @@ The report records, per milestone:
   Decision Log entry, whatever verdict the reviewer gave
 - Any deviation from the proposal, and anything left open
 
-The first row report of the run also carries the run state, near the top: the
-base commits, each row's specs commits, every milestone with its run status,
-and each held or blocked row with its reason. Update it whenever a status
+The first row report of the run also carries the run state, near the top. It
+names the base commits and each row's specs commits by subject. It lists every
+milestone with its run status, and each held or blocked row with its reason. Update it whenever a status
 changes. Later row reports link to it. After a context compaction, re-read it,
 the session reports, the proposals, `queue.md`, and `history.md` to find
 where the run stands, then continue. A run resumed in a new session does the same. The run's
@@ -467,8 +479,8 @@ The report directory may sit inside the code repo or the specs repo, e.g. at
 skill's "Resolve the target directory" section, not by the path as written.
 A `./spec` that links to a separate specs repo puts the reports in the specs
 repo. Then the run commits the reports in that repo. Each commit the run makes
-there carries the reports' current amendments, by path. A report cannot hold
-the SHA of the commit that carries it, so the next amendment adds it. When the
+there carries the reports' current amendments, by path. A report names the
+commit that carries it by that commit's subject. When the
 run is done, commit the reports' last amendments by path as their own commit.
 In the code repo, check its message as in section 2, step 6. In the specs repo,
 write its subject in that repo's own style, as for the other specs commits.

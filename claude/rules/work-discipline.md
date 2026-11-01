@@ -49,6 +49,9 @@ silently expand a feature task into a sweeping rewrite.
 - Avoid emojis in output
 - Do not include proposal or milestone IDs, or phase numbers from older projects, in code or comments; those are
   project management artifacts
+- Committed docs cite the project's own commits by subject, never by SHA. A rebase rewrites SHAs, so a recorded one
+  can point at nothing. A pinned commit in another repo, such as a dependency pin, is fine. The project's rebases
+  cannot change it
 - Preserve the tone, wording, and style of existing comments that are not being changed; keep user voice exactly as
   written
 - Separate logical blocks of code with blank lines; let the code breathe. Do not squash statements together to save
