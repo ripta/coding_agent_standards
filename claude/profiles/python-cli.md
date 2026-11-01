@@ -4,8 +4,8 @@ For Python command-line tools built with Typer.
 
 @../profiles/baseline.md
 @../languages/python.md
-@~/.claude/coding-standards-current/practices/error-handling.md
-@~/.claude/coding-standards-current/practices/security.md
+@../practices/error-handling.md
+@../practices/security.md
 
 ## CLI Framework
 

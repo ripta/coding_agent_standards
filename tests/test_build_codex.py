@@ -53,6 +53,17 @@ class BaselineBuildTests(unittest.TestCase):
                     self.builder["main"]()
             self.assertEqual(marker.read_text(), "previous build")
 
+    def test_baseline_imports_resolve_against_the_profiles_directory(self):
+        paths, _ = self.builder["baseline_paths"]()
+        self.assertEqual(paths[0], "rules/precedence.md")
+        self.assertIn("practices/testing.md", paths)
+
+    def test_baseline_import_outside_the_source_tree_is_rejected(self):
+        # A link-form import or an escape from claude/ must fail the build, not ship a stray file.
+        for spelled in ("../../README.md", "../rules/missing.md", "~/.claude/coding-standards-current/rules/precedence.md"):
+            with self.subTest(spelled=spelled), self.assertRaisesRegex(ValueError, "unsupported|invalid"):
+                self.builder["_import_path"](f"@{spelled}", spelled)
+
     def test_queue_dependencies_resolve_after_relocation(self):
         with tempfile.TemporaryDirectory(prefix="codex queue ") as temporary:
             output = Path(temporary) / "bundle"

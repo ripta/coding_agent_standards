@@ -2,21 +2,21 @@
 
 Minimal standards applied to all projects.
 
-@~/.claude/coding-standards-current/rules/precedence.md
-@~/.claude/coding-standards-current/rules/decision-making.md
-@~/.claude/coding-standards-current/rules/work-discipline.md
-@~/.claude/coding-standards-current/rules/response-style.md
-@~/.claude/coding-standards-current/rules/git-workflow.md
-@~/.claude/coding-standards-current/rules/commit-style.md
-@~/.claude/coding-standards-current/rules/pr-style.md
-@~/.claude/coding-standards-current/rules/sentence-structure.md
-@~/.claude/coding-standards-current/rules/writing-voice.md
-@~/.claude/coding-standards-current/rules/shell-discipline.md
-@~/.claude/coding-standards-current/rules/guardian-requests.md
-@~/.claude/coding-standards-current/rules/research-limits.md
-@~/.claude/coding-standards-current/rules/disclosure.md
-@~/.claude/coding-standards-current/practices/code-review.md
-@~/.claude/coding-standards-current/practices/testing.md
+@../rules/precedence.md
+@../rules/decision-making.md
+@../rules/work-discipline.md
+@../rules/response-style.md
+@../rules/git-workflow.md
+@../rules/commit-style.md
+@../rules/pr-style.md
+@../rules/sentence-structure.md
+@../rules/writing-voice.md
+@../rules/shell-discipline.md
+@../rules/guardian-requests.md
+@../rules/research-limits.md
+@../rules/disclosure.md
+@../practices/code-review.md
+@../practices/testing.md
 
 ## On Demand
 

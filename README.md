@@ -32,9 +32,6 @@ coding_agent_standards/
 └── bin/                Utility scripts
 ```
 
-The repo root also holds `languages`, `practices`, and `profiles` symlinks into `claude/`. They keep old imports of the
-checkout path loading while projects move to the plugin link. They are temporary.
-
 ### Languages
 
 Standards for each language/framework covering naming, project structure, error handling, testing, and tooling:
@@ -281,7 +278,8 @@ source.
 Only `claude/` is copied into the plugin cache. An installed plugin cannot read files outside its own directory, so
 anything a project or a skill reads at runtime has to live inside it. That is why `project-management/`, `practices/`,
 `languages/`, and `profiles/` sit under `claude/` rather than at the repo root. Projects import a profile through the
-plugin link, so the profile and the tools come from one commit.
+plugin link, so the profile and the tools come from one commit. A profile imports the rules, practices, and languages it
+needs by relative path, so they come from the same snapshot as the profile.
 
 Install once, inside any Claude Code session. Run the two commands as separate prompts. A slash command takes the whole
 rest of the input as its argument. Pasting both lines at once makes `/plugin marketplace add` read the second line as

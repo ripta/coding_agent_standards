@@ -321,22 +321,15 @@ def _examples(refs: list, limit: int = 3) -> str:
     return shown + (f", and {len(texts) - limit} more" if len(texts) > limit else "")
 
 
-SYMLINKED_DIRS = ("profiles", "languages", "practices")
-MOVED_DIRS = ("project-management", "knowledge")
-
 FIXABLE_OLD = {
-    "symlinked": "The path loads only while the checkout keeps its transition symlinks.",
-    "moved": "The checkout moved that directory under claude/ and keeps no symlink for it, so the path loads nothing.",
+    "moved": "The checkout moved that directory under claude/, so the path loads nothing once the checkout is current.",
     "tree": (
         "The path reads the checkout's working tree, not the installed plugin, so it follows whatever the "
         "checkout has checked out."
     ),
 }
 UNRESOLVED_OLD = {
-    "symlinked": (
-        "It loads today only through the checkout's transition symlinks, and will load nothing once they go."
-    ),
-    "moved": "The checkout moved that directory under claude/ and keeps no symlink for it, so it loads nothing.",
+    "moved": "The checkout moved that directory under claude/, so it loads nothing once the checkout is current.",
     "tree": (
         "It reads the checkout's working tree, not the installed plugin, so it follows whatever the checkout "
         "has checked out."
@@ -345,10 +338,8 @@ UNRESOLVED_OLD = {
 
 
 def _old_kind(ref: Ref) -> str:
-    """Name what an old path reaches: a root symlink, a directory that moved, or the checkout's own tree."""
-    if ref.old_dir in SYMLINKED_DIRS:
-        return "symlinked"
-    if ref.old_dir in MOVED_DIRS:
+    """Name what an old path reaches: a directory that moved under claude/, or the checkout's own tree."""
+    if ref.old_dir in MAPPED_DIRS:
         return "moved"
     return "tree"
 

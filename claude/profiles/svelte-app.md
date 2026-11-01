@@ -3,4 +3,4 @@
 @../profiles/baseline.md
 @../languages/svelte.md
 @../languages/css.md
-@~/.claude/coding-standards-current/practices/security.md
+@../practices/security.md

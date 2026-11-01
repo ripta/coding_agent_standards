@@ -22,8 +22,6 @@ projects.
 - `claude/languages/` - Language-specific coding standards. Lives under `claude/` so it ships with the plugin
 - `claude/profiles/` - Composable project profiles that import from the above. Lives under `claude/` so it ships with
   the plugin
-- `languages`, `practices`, `profiles` at the repo root are temporary symlinks into `claude/`. They keep old imports of
-  the checkout path loading until every project imports through the plugin link
 - `codex/` - Codex skills that have no Claude Code equivalent, packaged as a separate Codex plugin. A skill belongs here
   only when it depends on something Codex has and Claude Code does not
 - `mods/` - Claude Code mods (function-hook plugins that can draw UI). Each is its own opt-in plugin listed in

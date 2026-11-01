@@ -32,12 +32,23 @@ ON_DEMAND = re.compile(r"^- `~/\.claude/coding-standards-current/([^`]+)` (befor
 
 
 def _relative(line, spelled):
+    """Return a bundle-relative path for a link-form on-demand path."""
     if not spelled.startswith(CURRENT):
         raise ValueError(f"unsupported baseline import: {line}")
     relative = spelled.removeprefix(CURRENT)
     if ".." in Path(relative).parts or not (SOURCE / relative).is_file():
         raise ValueError(f"invalid baseline import: {line}")
     return relative
+
+
+def _import_path(line, spelled):
+    """Return a bundle-relative path for an `@` import, which is relative to claude/profiles/."""
+    if not spelled.startswith("../"):
+        raise ValueError(f"unsupported baseline import: {line}")
+    resolved = (SOURCE / "profiles" / spelled).resolve()
+    if not resolved.is_relative_to(SOURCE.resolve()) or not resolved.is_file():
+        raise ValueError(f"invalid baseline import: {line}")
+    return resolved.relative_to(SOURCE.resolve()).as_posix()
 
 
 def baseline_paths():
@@ -52,7 +63,7 @@ def baseline_paths():
         if line.startswith("## "):
             section = line[3:].strip()
         elif line.startswith("@"):
-            paths.append(_relative(line, line[1:]))
+            paths.append(_import_path(line, line[1:]))
         elif section == "On Demand" and line.startswith("- "):
             match = ON_DEMAND.match(line)
             if not match:

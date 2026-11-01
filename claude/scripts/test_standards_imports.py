@@ -142,6 +142,21 @@ def test_included_files_follow_link_and_relative_imports(tmp_path: Path) -> None
     }
 
 
+def test_included_files_follow_relative_rules_and_practices_imports(tmp_path: Path) -> None:
+    """Catches profiles that import rules and practices by `../` path losing them from /update-profile's collapse."""
+    snap = snapshot(
+        tmp_path,
+        {
+            "profiles/p.md": "@../profiles/base.md\n@../practices/t.md\n",
+            "profiles/base.md": "@../rules/a.md\n",
+            "practices/t.md": "t\n",
+            "rules/a.md": "a\n",
+            "rules/unrelated.md": "u\n",
+        },
+    )
+    assert si.profile_files(snap, ["p"]) == {"profiles/p.md", "profiles/base.md", "practices/t.md", "rules/a.md"}
+
+
 def test_included_files_skip_code_cycles_and_missing_files(tmp_path: Path) -> None:
     """An import in a code span is text. A cycle must end. A missing import adds nothing."""
     snap = snapshot(
@@ -372,7 +387,7 @@ PROJECT_CASES = [
     ("see line", {"CLAUDE.md": f"See @{LINK}/profiles/p.md\n"}, []),
     ("local file counts", {"CLAUDE.local.md": GOOD}, []),
     ("old path", {"CLAUDE.md": OLD}, ["warning:old"]),
-    ("old path resolves only through the symlinks", {"CLAUDE.md": f"@{CHECKOUT}/languages/go.md\n"}, ["warning:old-unresolved"]),
+    ("old path missing from the snapshot", {"CLAUDE.md": f"@{CHECKOUT}/languages/go.md\n"}, ["warning:old-unresolved"]),
     ("old path with no mapping", {"CLAUDE.md": f"@{CHECKOUT}/bugs/x.md\n"}, ["warning:old-unresolved"]),
     ("unresolved link path", {"CLAUDE.md": f"@{LINK}/rules/gone.md\n"}, ["warning:link-unresolved"]),
     ("plain text", {"CLAUDE.md": f"- {LINK}/profiles/p.md\n"}, ["warning:plain"]),
@@ -424,27 +439,22 @@ def test_warning_texts_name_the_file_the_lines_and_the_fix(world: World) -> None
     assert unresolved == (
         "warning",
         f"{world.project}/CLAUDE.md imports the old standards path {CHECKOUT}/languages/go.md (line 1), which does not "
-        "resolve in the plugin snapshot. It loads today only through the checkout's transition symlinks, and will load "
-        "nothing once they go. Run /update-profile to rewrite what it can and report the rest.",
+        "resolve in the plugin snapshot. The checkout moved that directory under claude/, so it loads nothing once the "
+        "checkout is current. Run /update-profile to rewrite what it can and report the rest.",
     )
 
 
-SYMLINKED = "The path loads only while the checkout keeps its transition symlinks. Run /update-profile to point it at the plugin link."
 MOVED = (
-    "The checkout moved that directory under claude/ and keeps no symlink for it, so the path loads nothing. "
+    "The checkout moved that directory under claude/, so the path loads nothing once the checkout is current. "
     "Run /update-profile to point it at the plugin link."
 )
 TREE = (
     "The path reads the checkout's working tree, not the installed plugin, so it follows whatever the checkout "
     "has checked out. Run /update-profile to point it at the plugin link."
 )
-UNRESOLVED_SYMLINKED = (
-    "which does not resolve in the plugin snapshot. It loads today only through the checkout's transition "
-    "symlinks, and will load nothing once they go. Run /update-profile to rewrite what it can and report the rest."
-)
 UNRESOLVED_MOVED = (
-    "which does not resolve in the plugin snapshot. The checkout moved that directory under claude/ and keeps no "
-    "symlink for it, so it loads nothing. Run /update-profile to rewrite what it can and report the rest."
+    "which does not resolve in the plugin snapshot. The checkout moved that directory under claude/, so it loads "
+    "nothing once the checkout is current. Run /update-profile to rewrite what it can and report the rest."
 )
 UNRESOLVED_TREE = (
     "which does not resolve in the plugin snapshot. It reads the checkout's working tree, not the installed plugin, "
@@ -452,9 +462,9 @@ UNRESOLVED_TREE = (
 )
 
 OLD_WORDING = [
-    ("profiles", "profiles/p.md", SYMLINKED),
-    ("practices", "practices/t.md", SYMLINKED),
-    ("languages", "languages/go.md", SYMLINKED),
+    ("profiles", "profiles/p.md", MOVED),
+    ("practices", "practices/t.md", MOVED),
+    ("languages", "languages/go.md", MOVED),
     ("project-management", "project-management/g.md", MOVED),
     ("knowledge", "knowledge/w.md", MOVED),
     ("claude", "claude/rules/a.md", TREE),
@@ -467,9 +477,9 @@ ROOTS = [CHECKOUT, "~/coding-standards"]
 def test_an_old_path_warning_says_only_what_is_true_of_its_directory(
     world: World, root: str, name: str, rel: str, tail: str
 ) -> None:
-    """Catches a warning that promises transition symlinks for a directory that has none.
+    """Catches a warning that promises a root symlink for a directory that has none.
 
-    Only profiles/, languages/ and practices/ keep root symlinks. It cannot prove the symlinks exist.
+    The checkout keeps no root symlink for any moved directory. It cannot prove the symlinks are gone.
     """
     for path in ("practices/t.md", "languages/go.md", "project-management/g.md", "knowledge/w.md"):
         (world.installed / path).parent.mkdir(parents=True, exist_ok=True)
@@ -484,9 +494,9 @@ def test_an_old_path_warning_says_only_what_is_true_of_its_directory(
 
 
 UNRESOLVED_WORDING = [
-    ("profiles", "profiles/gone.md", UNRESOLVED_SYMLINKED),
-    ("practices", "practices/gone.md", UNRESOLVED_SYMLINKED),
-    ("languages", "languages/gone.md", UNRESOLVED_SYMLINKED),
+    ("profiles", "profiles/gone.md", UNRESOLVED_MOVED),
+    ("practices", "practices/gone.md", UNRESOLVED_MOVED),
+    ("languages", "languages/gone.md", UNRESOLVED_MOVED),
     ("project-management", "project-management/gone.md", UNRESOLVED_MOVED),
     ("knowledge", "knowledge/gone.md", UNRESOLVED_MOVED),
     ("claude", "claude/rules/gone.md", UNRESOLVED_TREE),
