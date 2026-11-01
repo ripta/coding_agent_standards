@@ -52,7 +52,7 @@ dialect file win where they differ.
   | Mutation | `swap!` | `n` prefix, as in `nreverse` | `set-box!` | named plainly, as in `put` |
   | Dynamic variable | `*out*` with `^:dynamic` | `*standard-output*` | parameter `current-output-port` | `(dyn :out)` |
   | Constant | plain `def` | `+max-size+` | plain `define` | `def` |
-  | Conversion | `->vec` | `coerce` | `string->symbol` | `string` |
+  | Conversion | target type's name, as in `vec` | target type's name, or `coerce` | `from->to`, as in `string->symbol` | target type's name, as in `string` |
 
 - Do not abbreviate beyond the dialect's own standard library. `cfg` is fine when the dialect uses it. `prs-hdr` is not
 
@@ -77,7 +77,8 @@ dialect file win where they differ.
 - Keep functions pure. Push I/O, mutation, and global state to the edges of the program
 - Prefer the dialect's sequence functions and comprehensions to hand-written recursion. Use explicit recursion when it
   is clearer, and use the dialect's tail-call form where the runtime needs one, such as Clojure's `recur`
-- Prefer threading macros or `let` bindings to deeply nested calls when the nesting hides the data flow
+- Prefer `let` bindings, or threading macros where the dialect has them, to deeply nested calls when the nesting hides
+  the data flow
 
 ## Macros
 

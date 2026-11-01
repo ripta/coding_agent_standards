@@ -236,6 +236,12 @@ relevant language and practice standards:
 | `1z-project` | 1z standalone projects |
 | `1z-interpreter` | 1z interpreter (Zig + 1z) |
 | `zig-project` | Zig projects |
+| `zig-janet-host` | `zig-project` plus embedded Janet |
+| `rust-janet-host` | `rust-project` plus embedded Janet |
+| `swift-janet-host` | `swift-cli` plus embedded Janet |
+| `clojure-project` | Clojure projects |
+| `common-lisp-project` | Common Lisp projects on SBCL |
+| `racket-project` | Racket projects |
 | `svelte-app` | Svelte/SvelteKit apps |
 | `ts-game` | Browser games in TypeScript, engine-agnostic base |
 | `ts-phaser-game` | `ts-game` plus Phaser |

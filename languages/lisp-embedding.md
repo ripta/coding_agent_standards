@@ -58,7 +58,8 @@ undecided. See "Go" below.
 
 ## Zig
 
-- Add `janet.c` to the build as a C source with `-std=c99`, and import `janet.h` with `@cImport`
+- Add `janet.c` to the build as a C source with `-std=c99`. Import `janet.h` with `@cImport`, or with the translate-c
+  build step on Zig versions that moved C translation out of the compiler
 - Zig's C translation drops some function-like macros. Wrap any you need in a small C shim compiled with `janet.c`
 - Convert Janet signals to Zig error sets at the boundary. See [`zig.md`](./zig.md)
 
