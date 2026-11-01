@@ -105,8 +105,9 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   which reads a project's era from its markers and inventories what a migration to era 3 moves; `wiki.py`, which builds
   and checks a wiki's generated index and topic report lists; `pr_watch.py`, which polls PRs for CI and review events
   and replies to review threads for `merge-fix-loop`; `dependabot_sweep.py`, which inventories, verifies, and buckets an
-  owner's dependabot PRs for `dependabot-sweep`; and `batch_plan.py`, which checks that `land-branch`'s batches rebuild
-  the branch they came from
+  owner's dependabot PRs for `dependabot-sweep`; `batch_plan.py`, which checks that `land-branch`'s batches rebuild
+  the branch they came from; `update_profile.py`, which edits a project's profile imports for `update-profile`; and
+  `standards_imports.py`, the parser it uses and `check-setup.sh` is meant to reuse
 - **Skills** (`skills/`) -- specialized agents for code review, testing, linting, Makefile maintenance, releases,
   proposals, landing a branch through PRs (`land-branch`), driving one PR to merged (`merge-fix-loop`), sweeping an
   owner's dependabot PRs (`dependabot-sweep`), etc.
@@ -120,7 +121,8 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   rows planned up front (`work-queue`), summarizing a session as a commit message (`summary`), chunking an
   integration branch into PRs (`next-pr`), writing a PR title and description for a branch (`pr-description`),
   iterating a design question with the critic until it converges (`converge-design`), migrating a project to era 3
-  (`migrate-era`), and owning a domain's changes for other sessions (`guardian`)
+  (`migrate-era`), adding or replacing a project's profile import (`update-profile`), and owning a domain's changes for
+  other sessions (`guardian`)
 
 Commands stay thin. The rules they enforce live in `claude/rules/` and `claude/project-management/`, and a command reads
 them at `${CLAUDE_PLUGIN_ROOT}/...` rather than restating them. Keeping one copy is what stops `/summary` and `/work-on`
