@@ -26,8 +26,10 @@ rows, with the hooks.
 The queue is DIR/queue.md, which holds unfinished rows, and DIR/history.md, which holds
 finished rows in the order they were built. Every command reads both as one queue.
 
-DIR is the proposals directory, which may sit in a symlinked specs repo. Results
-are JSON on stdout. Errors go to stderr with exit status 1.
+DIR is the proposals directory, which may sit in a symlinked specs repo. The flag may
+come before or after the command. Without it, DIR is the nearest spec/proposals,
+docs/proposals, or proposals directory at or above the current directory, stopping at
+the repo root. Results are JSON on stdout. Errors go to stderr with exit status 1.
 
 A dependency on another project's proposal resolves through the `## Other proposals`
 entries in DIR/queue.md. `--proposals-for PREFIX=PATH` adds or overrides one entry for a
@@ -1469,12 +1471,54 @@ def candidates(
 # -- cli ------------------------------------------------------------------
 
 
+PROPOSALS_LOCATIONS = ("spec/proposals", "docs/proposals", "proposals")
+
+
+def _holds_proposals(directory: Path) -> bool:
+    """Whether a directory holds a queue, an index, or a proposal, so a code package named
+    `proposals` is not mistaken for one."""
+    if not directory.is_dir():
+        return False
+    if any((directory / name).is_file() for name in (QUEUE_FILE, HISTORY_FILE, "index.md", "README.md")):
+        return True
+    return any(PROPOSAL_FILE.match(child.name) for child in directory.iterdir())
+
+
+def find_proposals_dir(start: Path) -> Path:
+    """Return the nearest common proposals location at or above `start`, within its repo.
+
+    The search stops at the first directory holding `.git`, a directory or a submodule's file. A
+    proposals directory above that belongs to some other project. In a monorepo the nearest one
+    wins, so running from inside an app picks that app's proposals over the repo's.
+    """
+    for directory in (start, *start.parents):
+        found = [directory / loc for loc in PROPOSALS_LOCATIONS if _holds_proposals(directory / loc)]
+        if len(found) > 1:
+            names = ", ".join(str(f) for f in found)
+            raise ProposalError(f"found several proposals directories: {names}. Pass --proposals-dir DIR to pick one")
+        if found:
+            return found[0]
+        if (directory / ".git").exists():
+            break
+    looked = ", ".join(f"{loc}/" for loc in PROPOSALS_LOCATIONS)
+    raise ProposalError(
+        f"no proposals directory found: looked for {looked} holding a queue, an index, or a proposal, in "
+        f"{start} and its parents up to the repo root. Pass --proposals-dir DIR"
+    )
+
+
 def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    # --proposals-dir is accepted on either side of the subcommand, since callers write it both
+    # ways. SUPPRESS keeps the subcommand's unset default from erasing a value given before it.
+    dir_help = "the proposals directory; defaults to the nearest " + ", ".join(PROPOSALS_LOCATIONS) + " in the repo"
+    parser = argparse.ArgumentParser(
+        prog="proposals.py", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument("--proposals-dir", type=Path, default=argparse.SUPPRESS, help=dir_help)
     sub = parser.add_subparsers(dest="command", required=True)
     for name in ("check", "row", "freeze", "hooks", "progress", "notice", "next", "candidates"):
         cmd = sub.add_parser(name)
-        cmd.add_argument("--proposals-dir", type=Path, required=True)
+        cmd.add_argument("--proposals-dir", type=Path, default=argparse.SUPPRESS, help=dir_help)
         if name in ("check", "row", "progress", "next", "candidates"):
             cmd.add_argument(
                 "--proposals-for", action="append", default=[], metavar="PREFIX=PATH",
@@ -1497,6 +1541,8 @@ def main(argv: list[str]) -> int:
             cmd.add_argument("--hold", action="append", default=[], help="a proposal whose rows the run holds")
     args = parser.parse_args(argv)
     try:
+        if not hasattr(args, "proposals_dir"):
+            args.proposals_dir = find_proposals_dir(Path.cwd())
         if getattr(args, "today", None) is not None and not ISO_DATE.match(args.today):
             raise ProposalError(f"--today {args.today!r} is not YYYY-MM-DD")
         overrides = parse_overrides(getattr(args, "proposals_for", []))

@@ -1102,3 +1102,98 @@ def test_freeze_follows_renames(specs: Path) -> None:
     (directory / "PROJ-001-renamed.md").write_text(FROZEN.replace("Keys carry a version.", "Changed."))
     [result] = proposals.freeze(directory, [])
     assert result["freeze_commit"] == flip
+
+
+def _repo_with_proposals(root: Path, *locations: str) -> None:
+    (root / ".git").mkdir(parents=True)
+    for location in locations:
+        directory = root / location
+        directory.mkdir(parents=True)
+        _write(directory, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")))
+        _queue(directory, "| PROJ-001 M1 | None | |")
+
+
+def _ran(argv: list[str], capsys: pytest.CaptureFixture[str]) -> tuple[int, str, str]:
+    try:
+        code = proposals.main(argv)
+    except SystemExit as exit_:
+        code = int(exit_.code or 0)
+    out, err = capsys.readouterr()
+    return code, out, err
+
+
+@pytest.mark.parametrize("location", ["spec/proposals", "docs/proposals", "proposals"])
+def test_cli_finds_the_proposals_dir_from_anywhere_in_the_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], location: str
+) -> None:
+    """Agents call the script without --proposals-dir, copying the docs' shorthand. The script finds
+    the nearest common location above the current directory, as the docs tell agents to."""
+    _repo_with_proposals(tmp_path, location)
+    (tmp_path / "src" / "deep").mkdir(parents=True)
+    monkeypatch.chdir(tmp_path / "src" / "deep")
+    code, out, _ = _ran(["next"], capsys)
+    assert code == 0
+    assert [e["row"] for e in json.loads(out)["run"]] == ["PROJ-001 M1"]
+
+
+def test_cli_takes_the_nearest_proposals_dir_in_a_monorepo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _repo_with_proposals(tmp_path, "spec/proposals")
+    app = tmp_path / "apps" / "web"
+    (app / "spec" / "proposals").mkdir(parents=True)
+    _write(app / "spec" / "proposals", "WEB-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")).replace(
+        "PROJ-001", "WEB-001"))
+    _queue(app / "spec" / "proposals", "| WEB-001 M1 | None | |")
+    monkeypatch.chdir(app)
+    code, out, _ = _ran(["next"], capsys)
+    assert code == 0
+    assert [e["row"] for e in json.loads(out)["run"]] == ["WEB-001 M1"]
+
+
+def test_cli_refuses_to_guess_between_two_proposals_dirs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _repo_with_proposals(tmp_path, "spec/proposals", "docs/proposals")
+    monkeypatch.chdir(tmp_path)
+    code, _, err = _ran(["check"], capsys)
+    assert code == 1
+    assert "spec/proposals" in err and "docs/proposals" in err and "--proposals-dir" in err
+
+
+def test_cli_stops_looking_at_the_repo_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A proposals dir above the repo belongs to some other project, so the search must not reach it."""
+    _repo_with_proposals(tmp_path, "spec/proposals")
+    inner = tmp_path / "vendor" / "other"
+    (inner / ".git").mkdir(parents=True)
+    monkeypatch.chdir(inner)
+    code, _, err = _ran(["check"], capsys)
+    assert code == 1
+    assert "no proposals directory" in err and "--proposals-dir" in err
+
+
+def test_cli_accepts_proposals_dir_before_the_subcommand(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _repo_with_proposals(tmp_path, "spec/proposals")
+    directory = str(tmp_path / "spec" / "proposals")
+    for argv in (["--proposals-dir", directory, "row", "PROJ-001"], ["row", "--proposals-dir", directory, "PROJ-001"]):
+        code, out, err = _ran(argv, capsys)
+        assert code == 0, err
+        assert json.loads(out)["row"] == "PROJ-001 M1"
+
+
+def test_cli_passes_over_a_code_package_named_proposals(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _repo_with_proposals(tmp_path, "spec/proposals")
+    package = tmp_path / "src" / "proposals"
+    package.mkdir(parents=True)
+    (package / "proposals.go").write_text("package proposals\n")
+    (tmp_path / "src" / "cmd").mkdir()
+    monkeypatch.chdir(tmp_path / "src" / "cmd")
+    code, out, err = _ran(["next"], capsys)
+    assert code == 0, err
+    assert [e["row"] for e in json.loads(out)["run"]] == ["PROJ-001 M1"]

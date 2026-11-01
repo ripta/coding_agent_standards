@@ -17,10 +17,12 @@ status values, and amendment rules live in
 defer to a project-specific deviation when one exists.
 
 `${CLAUDE_PLUGIN_ROOT}/scripts/proposals.py` reads the queue and the
-proposals. Run it with `python3`, and pass `--proposals-dir` the proposals
-directory from step 1. Use it rather than parsing the files by hand. It
-resolves a dependency on another project's proposal through the
-`## Other proposals` entries in `queue.md`. When the user gives a
+proposals. Run it with `python3`. Pass `--proposals-dir` the proposals
+directory from step 1 on every call, as the steps below write it. Without the
+flag, the script looks for the nearest `spec/proposals/`, `docs/proposals/`,
+or `proposals/` above the current directory. Use it rather than parsing the
+files by hand. It resolves a dependency on another project's proposal through
+the `## Other proposals` entries in `queue.md`. When the user gives a
 `--proposals-for PREFIX=PATH` override, pass it to every call.
 
 Whenever a choice comes up, in the plan or during implementation, build the
@@ -42,8 +44,9 @@ field.
    means its next unfinished milestone in queue order. A `--review-loop` flag
    changes only step 12.
 
-3. Run `proposals.py row PROJ-NNN [M3]`. It finds the queue row that names the
-   milestone and reports whether it is ready. Stop and tell the user when:
+3. Run `proposals.py row --proposals-dir <dir> PROJ-NNN [M3]`. It finds the
+   queue row that names the milestone and reports whether it is ready. Stop
+   and tell the user when:
    - The milestone is in no queue row. It is not scheduled. Schedule it only
      when the user asks, per `plans.md` "Scheduling a Proposal"
    - The milestone is already `DONE` or `DROPPED`
@@ -105,14 +108,16 @@ field.
      divergence only in the Decision Log
    - Do not write `implemented` yet. Step 12 does that after the review passes
 
-10. Run `proposals.py check`. Fix every finding on this proposal.
+10. Run `proposals.py check --proposals-dir <dir>`. Fix every finding on
+    this proposal.
 
-11. Run `proposals.py freeze`. Its hunks with origin `row` are edits this work
-    made, and uncommitted edits count as this work's own. Undo each one the
-    freeze does not allow. The exception is a correction of fact: when the
-    proposal's `corrections_logged` is above zero, leave its text hunks for the
-    reviewer to judge in step 12. Leave a hunk with origin `other` or
-    `unknown` alone, and name it to the user in your response.
+11. Run `proposals.py freeze --proposals-dir <dir>`. Its hunks with origin
+    `row` are edits this work made, and uncommitted edits count as this work's
+    own. Undo each one the freeze does not allow. The exception is a
+    correction of fact: when the proposal's `corrections_logged` is above
+    zero, leave its text hunks for the reviewer to judge in step 12. Leave a
+    hunk with origin `other` or `unknown` alone, and name it to the user in
+    your response.
 
 12. Review the change with the `reviewer` agent, named
     `coding-standards:reviewer` when installed as a plugin. Tell it the
@@ -159,7 +164,7 @@ field.
       the proposal to `implemented` and update the proposal index
     - When it was the last milestone in its row, move the row from `queue.md`
       to the end of `history.md`, creating it if needed
-    - Run `proposals.py check` once more
+    - Run `proposals.py check --proposals-dir <dir>` once more
 
 13. Summarize the work as a commit message, following
     `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Emit raw markdown. Use only

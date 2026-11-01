@@ -53,10 +53,10 @@ Do all of this before any question.
 2. **Queue.** Read `queue.md` in the proposals directory, and `history.md` when it exists. Together they are the
    queue, and "queue row" below means a row in either file. If `queue.md` does not exist, this is the project's first
    scheduled work. Step 5 creates it in the form `plans.md` "The Queue File" gives.
-3. **Recommend, when no ID was given.** Run `proposals.py candidates`. Show its tiers, as `plans.md` "Choosing What to
-   Schedule" describes, in its order. For each candidate, give its unscheduled milestones, what it unblocks, the open
-   bugs it cites, its `**Created:**` date, and a one-line reason drawn from its `motivation`. Name what each waiting
-   candidate waits on, and each not-schedulable one's reasons.
+3. **Recommend, when no ID was given.** Run `proposals.py candidates --proposals-dir <dir>`. Show its tiers, as
+   `plans.md` "Choosing What to Schedule" describes, in its order. For each candidate, give its unscheduled milestones,
+   what it unblocks, the open bugs it cites, its `**Created:**` date, and a one-line reason drawn from its `motivation`.
+   Name what each waiting candidate waits on, and each not-schedulable one's reasons.
 
    Then ask which to schedule, with AskUserQuestion in one multi-select call. Offer the first three ready candidates,
    and mark the first "(Recommended)". End with a "Do not schedule" option. Say in the question that "Other" takes any
@@ -70,8 +70,8 @@ Do all of this before any question.
 5. **Proposal.** For each proposal, find `<ID>-*.md` in the proposals directory. If none exists, tell the user and stop.
    Read it and capture the title, `**Status:**`, `**Tradeoffs:**` if present, Dependencies, Design Decisions (Settled),
    Design Decisions (Open), Milestones, Risks, and the Decision Log.
-6. **Validate.** Run `proposals.py check`. Stop and report the failed check if any of these is true. In a batch, drop
-   only the failing proposal and report it. The others go on, unless one of them depends on it:
+6. **Validate.** Run `proposals.py check --proposals-dir <dir>`. Stop and report the failed check if any of these is
+   true. In a batch, drop only the failing proposal and report it. The others go on, unless one of them depends on it:
    - The proposal's `**Status:**` is anything other than `accepted`.
    - `check` reports a finding on this proposal, such as milestones that are not subsections with a status line, or
      an index row that disagrees.
@@ -184,9 +184,9 @@ Milestone numbers named by a queue row are now permanent. Say so in the report.
 
 ### Step 7: Verify
 
-Run `proposals.py check`, and `proposals.py row PROJ-NNN` for each proposal's first new row. Report each dependency's
-state from `row`. Fix any `check` finding this run caused. A dependency this run gave an entry must not come back
-`unresolved`.
+Run `proposals.py check --proposals-dir <dir>`, and `proposals.py row --proposals-dir <dir> PROJ-NNN` for each
+proposal's first new row. Report each dependency's state from `row`. Fix any `check` finding this run caused. A
+dependency this run gave an entry must not come back `unresolved`.
 
 ### Step 8: Report
 

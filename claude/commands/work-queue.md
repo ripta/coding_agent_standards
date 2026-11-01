@@ -27,9 +27,10 @@ and it commits instead of only summarizing. The queue lives in
 project-specific deviation when one exists.
 
 `${CLAUDE_PLUGIN_ROOT}/scripts/proposals.py` reads the queue and the
-proposals, as in `/work-on`. Use it rather than parsing the files by hand.
-Pass any `--proposals-for PREFIX=PATH` override the user gives to every call
-in the run.
+proposals, as in `/work-on`. Pass `--proposals-dir <dir>` on every call, as
+the steps below write it. Use it rather than parsing the files by hand. Pass
+any `--proposals-for PREFIX=PATH` override the user gives to every call in the
+run.
 
 ## What the user authorizes by approving the plan
 
@@ -72,14 +73,14 @@ create or switch branches. Never act on an edit this run did not make.
    the run. A note like "hold PROJ-004" holds that proposal's rows. The
    arguments take one of three forms:
    - A count. `next N` means the next N rows the run can take, in queue order.
-     N counts rows, not milestones. `next` alone, or no arguments at all, means
-     `next 1`. Run `proposals.py next --count N`, with a `--hold PROJ-NNN` for
-     each proposal the notes hold. Its `run` list is the run. A row in it may
-     wait on a row picked before it. Its `skipped` list holds each row it
-     passed over, with the reasons. These rows are not in the run, so they
-     raise no questions in item 7. The user names a skipped row by its ID to
-     run it. When `run` is empty, or `next` reports there is no queue, see
-     "When there is nothing to run" below.
+     N counts rows, not milestones. `next` alone, or no arguments at all,
+     means `next 1`. Run `proposals.py next --proposals-dir <dir> --count N`,
+     with a `--hold PROJ-NNN` for each proposal the notes hold. Its `run` list
+     is the run. A row in it may wait on a row picked before it. Its `skipped`
+     list holds each row it passed over, with the reasons. These rows are not
+     in the run, so they raise no questions in item 7. The user names a
+     skipped row by its ID to run it. When `run` is empty, or `next` reports
+     there is no queue, see "When there is nothing to run" below.
    - `all` means every unfinished row in `queue.md`. With none, see "When
      there is nothing to run".
    - Rows by ID. `PROJ-NNN` means every unfinished row of that proposal.
@@ -91,15 +92,16 @@ create or switch branches. Never act on an edit this run did not make.
 
 2. For every row, run the checks `/work-on` makes before it explores the
    codebase: locate the proposals directory and the specs repo, run
-   `proposals.py row` on the row's first unfinished milestone, read the
-   proposal, and check its status. Where `/work-on` says to stop on a
-   finished milestone, drop it from the run and note that instead.
+   `proposals.py row --proposals-dir <dir>` on the row's first unfinished
+   milestone, read the proposal, and check its status. Where `/work-on` says
+   to stop on a finished milestone, drop it from the run and note that
+   instead.
 
 3. Classify each row's dependencies from the `row` output, and each
    milestone's `live_after` entry. The `next` output lists both kinds under a
    row's `awaiting_deploy`, and every `Live after` line under `live_after`.
-   Run `proposals.py row` on a later milestone to read its entry. Each is one
-   of:
+   Run `proposals.py row --proposals-dir <dir>` on a later milestone to read
+   its entry. Each is one of:
    - Met: its state is `met`.
    - Awaiting deploy: its state is `awaiting deploy`. Its code is finished,
      and only the user can say the deploy is live. It is a question in item 7.
@@ -200,7 +202,8 @@ A `next` or `all` run may find no row to take. Then offer to schedule
 proposals instead, and hand off. Do not schedule in plan mode. Plan mode
 cannot write, and scheduling has its own approval in `/schedule-proposal`.
 
-- No `queue.md`, or no unfinished row in it. Run `proposals.py candidates`.
+- No `queue.md`, or no unfinished row in it. Run
+  `proposals.py candidates --proposals-dir <dir>`.
   Show its tiers, and ask which to schedule, the way
   `${CLAUDE_PLUGIN_ROOT}/skills/schedule-proposal/SKILL.md` Step 2, item 3,
   does. That includes its one multi-select AskUserQuestion call.
@@ -282,12 +285,13 @@ For each milestone picked:
 3. Read its report. If it reports a blocker, check it against section 5. A
    blocker that section 5 does not cover becomes a best guess.
 
-4. Run `proposals.py check`, and `proposals.py freeze` with a `--row-commit`
-   for each specs commit this row has made. Then spawn a fresh `reviewer`
-   agent. Tell it the milestone, the proposal file, the specs repo, the row's
-   specs commits, and that an `adr-impact` agent runs beside it. When the
-   session reports live in the code repo, name their paths and say they are
-   out of review scope. In the same message, spawn a fresh `adr-impact` agent
+4. Run `proposals.py check --proposals-dir <dir>`, and
+   `proposals.py freeze --proposals-dir <dir>` with a `--row-commit` for each
+   specs commit this row has made. Then spawn a fresh `reviewer` agent. Tell
+   it the milestone, the proposal file, the specs repo, the row's specs
+   commits, and that an `adr-impact` agent runs beside it. When the session
+   reports live in the code repo, name their paths and say they are out of
+   review scope. In the same message, spawn a fresh `adr-impact` agent
    (`coding-standards:adr-impact`) on the working-tree diff. Triage what they
    report, along with the two script results:
    - Mark comment, style, and plan-gap findings as fix. The exception is a
@@ -419,7 +423,8 @@ When the last milestone of a row in the run is committed:
    commits, and every milestone the range covers. Ask it to weigh how the
    milestones fit together, on top of its usual axes. Run a fresh `adr-impact`
    agent on the same range beside it, and tell the reviewer so. Run
-   `proposals.py freeze` with the row's specs commits, as in section 2.
+   `proposals.py freeze --proposals-dir <dir>` with the row's specs commits,
+   as in section 2.
 
 2. Triage the findings as in section 2. Send them to a fresh `implementer`,
    with the commit range and the milestones it covers in place of a single
@@ -429,10 +434,11 @@ When the last milestone of a row in the run is committed:
 
 3. Only now finish the row, per `plans.md` "Working a Milestone". A proposal
    whose milestones are all finished becomes `implemented`, and the proposal
-   index says so. The row moves from `queue.md` to the end of `history.md`. Run
-   `proposals.py check`, and fix what it reports. Commit these edits by path,
-   and record the specs commit. Writing `implemented` before the review's
-   fixes land would freeze the proposal before its last amendment.
+   index says so. The row moves from `queue.md` to the end of `history.md`.
+   Run `proposals.py check --proposals-dir <dir>`, and fix what it reports.
+   Commit these edits by path, and record the specs commit. Writing
+   `implemented` before the review's fixes land would freeze the proposal
+   before its last amendment.
 
 4. Continue with the next ready row.
 

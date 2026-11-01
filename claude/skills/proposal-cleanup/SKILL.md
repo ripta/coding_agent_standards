@@ -33,7 +33,7 @@ than 3, or `partial`, the project has not finished migrating to era 3. Stop and 
 
 ### Step 2: Run the Check
 
-Run `proposals.py check`. Sort its findings:
+Run `proposals.py check --proposals-dir <dir>`. Sort its findings:
 
 - **Finished, not marked.** "every milestone is finished, so the proposal should be implemented". Step 3 fixes these.
 - **Index drift.** "index.md lists ..., but the proposal says ...". The proposal is the source of truth. Step 4 fixes
@@ -72,9 +72,9 @@ When `history.md` does not exist yet, create it beside `queue.md` with a `# Hist
 as `queue.md`. A project that kept its finished rows at the top of `queue.md`, as the standard once asked, migrates
 this way. Its whole finished block moves in one run.
 
-Move each row in one edit pair: append it to `history.md`, then delete it from `queue.md`. Run `proposals.py check`
-after the moves. A row in both files, or a `DONE` milestone in neither, that the first check did not report means one
-of this run's moves went wrong. Fix it before Step 6.
+Move each row in one edit pair: append it to `history.md`, then delete it from `queue.md`. Run
+`proposals.py check --proposals-dir <dir>` after the moves. A row in both files, or a `DONE` milestone in neither, that
+the first check did not report means one of this run's moves went wrong. Fix it before Step 6.
 
 Then look for rows the queue should no longer hold. An unfinished row of a proposal that is `deferred`, `retracted`,
 `superseded`, or `rejected` means the proposal stopped without the steps in `plans.md` "Stopping a Proposal". Report
@@ -97,7 +97,8 @@ Leave a trailing newline at the end of the file.
 
 ### Step 8: Verify and Report
 
-Run `proposals.py check` again, and `proposals.py hooks --passed`. Summarize:
+Run `proposals.py check --proposals-dir <dir>` again, and `proposals.py hooks --proposals-dir <dir> --passed`.
+Summarize:
 
 - Which proposals were moved to `implemented`
 - Which index rows were corrected
