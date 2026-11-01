@@ -99,7 +99,7 @@ Makefile                     # Build targets wrapping xcodebuild / swift build
 
 A native macOS crash goes to the system crash reporter, not to the terminal. Swift runtime traps (force-unwrapping nil,
 an index out of range, `fatalError`, `precondition`) kill the process with a signal. They often fire only on a UI path
-that no test reaches. Follow "Running the App by Hand" in [`testing.md`](../claude/practices/testing.md), plus these
+that no test reaches. Follow "Running the App by Hand" in [`testing.md`](../practices/testing.md), plus these
 steps:
 
 - Launch the built binary directly (`MyApp.app/Contents/MacOS/MyApp`), not with `open`.
@@ -112,7 +112,7 @@ steps:
 ## Build
 
 - Use Makefile targets wrapping `swift build`, `swift test`, `xcodebuild`
-- See [`makefile.md`](../claude/practices/makefile.md) for help, `.PHONY`, and target naming conventions
+- See [`makefile.md`](../practices/makefile.md) for help, `.PHONY`, and target naming conventions
 - Archive for distribution: `xcodebuild archive` with an export options plist
 - Code signing: handle via Xcode project settings, not in Makefile
 

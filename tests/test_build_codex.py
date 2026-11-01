@@ -42,8 +42,8 @@ class BaselineBuildTests(unittest.TestCase):
     def test_unknown_import_preserves_previous_build(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            (root / "profiles").mkdir()
-            (root / "profiles" / "baseline.md").write_text("@unexpected/source.md\n")
+            (root / "claude" / "profiles").mkdir(parents=True)
+            (root / "claude" / "profiles" / "baseline.md").write_text("@unexpected/source.md\n")
             output = root / "bundle"
             output.mkdir()
             marker = output / "existing"

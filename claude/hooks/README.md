@@ -45,8 +45,9 @@ until a run reports. Check it with `claude plugin validate claude` and
 
 These are not wired into `hooks.json` either. Each one suits only some
 projects. Wire one from the project's `.claude/settings.json` by absolute path,
-since `${CLAUDE_PLUGIN_ROOT}` is not set there. The examples assume the repo
-lives at `~/projects/coding_agent_standards`.
+since `${CLAUDE_PLUGIN_ROOT}` is not set there. The examples go through the plugin link,
+`~/.claude/coding-standards-current`, so a hook runs the installed commit and not the
+checkout's working tree.
 
 - `block-pm-references.sh` denies an Edit or Write to a source file whose new
   text names a proposal, ADR, or bug ID, or a phase or milestone number. It
@@ -78,7 +79,7 @@ lives at `~/projects/coding_agent_standards`.
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/projects/coding_agent_standards/claude/hooks/block-pm-references.sh MOSK"
+            "command": "$HOME/.claude/coding-standards-current/hooks/block-pm-references.sh MOSK"
           }
         ]
       },
@@ -87,7 +88,7 @@ lives at `~/projects/coding_agent_standards`.
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/projects/coding_agent_standards/claude/hooks/protect-golden-files.sh"
+            "command": "$HOME/.claude/coding-standards-current/hooks/protect-golden-files.sh"
           }
         ]
       }
@@ -97,7 +98,7 @@ lives at `~/projects/coding_agent_standards`.
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/projects/coding_agent_standards/claude/hooks/audit-pm-refs.sh MOSK"
+            "command": "$HOME/.claude/coding-standards-current/hooks/audit-pm-refs.sh MOSK"
           }
         ]
       }

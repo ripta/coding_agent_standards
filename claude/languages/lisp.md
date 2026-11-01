@@ -112,4 +112,4 @@ The reader can run code. Read untrusted input only through a data-only reader:
 - Use the dialect's standard runner. Each dialect file names it
 - Tests live in a test directory or test submodule, not mixed into public source modules
 - Every Makefile exposes `test` and `ci`, plus each of `check`, `lint`, `fmt`, `fmt-check`, and `fmt-select` that the
-  dialect's tools support. See [`makefile.md`](../claude/practices/makefile.md) for the vocabulary
+  dialect's tools support. See [`makefile.md`](../practices/makefile.md) for the vocabulary

@@ -8,7 +8,6 @@ rules.
 
 ```text
 coding_agent_standards/
-├── languages/          Language-specific standards
 ├── .claude/            Project-local Claude Code config (skills, settings) for this repo
 ├── claude/             Claude Code plugin source (exported to other projects)
 │   ├── .claude-plugin/      Plugin manifest
@@ -16,7 +15,9 @@ coding_agent_standards/
 │   ├── commands/            Slash commands
 │   ├── hooks/               hooks.json, the guard scripts it wires up, and the work-queue progress mod
 │   ├── knowledge/           LLM wiki standard and the templates a wiki copies
+│   ├── languages/           Language-specific standards
 │   ├── practices/           Cross-cutting practices
+│   ├── profiles/            Composable project profiles
 │   ├── project-management/  Plans, proposals, design, tracking, and commit chunking standards
 │   ├── rules/               Agent behavior rules
 │   ├── scripts/             Standalone scripts (statusline)
@@ -26,11 +27,13 @@ coding_agent_standards/
 │   └── types/               State contract for the plugin's hooks module
 ├── codex/              Codex skills with no Claude Code equivalent (exported as a Codex plugin)
 ├── mods/               Claude Code mods, each its own opt-in plugin in the same marketplace
-├── profiles/           Composable project profiles
 ├── rumdl/              Shared markdown lint config and runner
 ├── vale/               Shared prose lint styles and runner
 └── bin/                Utility scripts
 ```
+
+The repo root also holds `languages`, `practices`, and `profiles` symlinks into `claude/`. They keep old imports of the
+checkout path loading while projects move to the plugin link. They are temporary.
 
 ### Languages
 
@@ -178,7 +181,7 @@ loaded project rules. Install the generated directory as a local plugin in a cli
 
 #### Baseline standards in Codex
 
-The same build generates `dist/codex/baseline.md` from the imports in `profiles/baseline.md`.
+The same build generates `dist/codex/baseline.md` from the imports in `claude/profiles/baseline.md`.
 It lists all baseline documents in their original order and supplies Codex-specific tool adaptations.
 The bundle includes the proposal checker referenced by the project management standards; it requires Python 3.10+.
 Edit the shared sources and rebuild to update it.
@@ -251,16 +254,16 @@ relevant language and practice standards:
 
 ## Usage
 
-Import a profile from your project's `CLAUDE.md`:
+Import a profile from your project's `CLAUDE.md`, through the plugin link:
 
 ```markdown
-@~/projects/coding_agent_standards/profiles/go-service.md
+@~/.claude/coding-standards-current/profiles/go-service.md
 ```
 
 For repos you don't own, use `CLAUDE.local.md` (auto-gitignored by Claude Code) to avoid committing personal standards:
 
 ```markdown
-@~/projects/coding_agent_standards/profiles/oss-contrib.md
+@~/.claude/coding-standards-current/profiles/oss-contrib.md
 ```
 
 A gitignored `CLAUDE.local.md` does not reach a new worktree on its own. Claude Code copies the gitignored files listed
@@ -274,8 +277,9 @@ marketplace manifest lives at the repo root (`.claude-plugin/marketplace.json`) 
 source.
 
 Only `claude/` is copied into the plugin cache. An installed plugin cannot read files outside its own directory, so
-anything a skill needs at runtime has to live inside it. That is why `project-management/` sits under `claude/` rather
-than at the repo root, and why `profiles/baseline.md` imports it from there.
+anything a project or a skill reads at runtime has to live inside it. That is why `project-management/`, `practices/`,
+`languages/`, and `profiles/` sit under `claude/` rather than at the repo root. Projects import a profile through the
+plugin link, so the profile and the tools come from one commit.
 
 Install once, inside any Claude Code session. Run the two commands as separate prompts. A slash command takes the whole
 rest of the input as its argument. Pasting both lines at once makes `/plugin marketplace add` read the second line as

@@ -48,7 +48,7 @@ def baseline_paths():
     """
     paths, on_demand = [], []
     section = None
-    for line in (REPO / "profiles" / "baseline.md").read_text().splitlines():
+    for line in (REPO / "claude" / "profiles" / "baseline.md").read_text().splitlines():
         if line.startswith("## "):
             section = line[3:].strip()
         elif line.startswith("@"):
@@ -73,7 +73,7 @@ def write_baseline(paths, on_demand):
         target.write_text(text)
     (OUTPUT / "baseline.md").write_text(
         "# Coding standards baseline for Codex\n\n"
-        "Generated from profiles/baseline.md by bin/build-codex. Do not edit this copy.\n\n"
+        "Generated from claude/profiles/baseline.md by bin/build-codex. Do not edit this copy.\n\n"
         "Read and follow every document below before working on the project. Resolve these paths\n"
         "relative to this file, regardless of the project's working directory. These are instructions,\n"
         "not optional background reading. If a document is missing, report it before proceeding.\n\n"

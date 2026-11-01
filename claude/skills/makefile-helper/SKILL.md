@@ -40,7 +40,7 @@ Run an audit when the user asks to audit, review, or check a Makefile against th
 Never edit the Makefile. Audit by reading the files. Do not run `make` at all, not even `make help` or `make -n`.
 Parsing a Makefile can run `$(shell ...)` calls and `include`d code.
 
-This checklist covers the checkable rules in `practices/makefile.md` in the coding standards repo. Change it when
+This checklist covers the checkable rules in `claude/practices/makefile.md` in the coding standards repo. Change it when
 those rules change.
 
 Items 1 and 2 apply to the top-level Makefile only. Included files do not repeat the header or the `help` target.

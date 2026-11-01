@@ -8,7 +8,7 @@ major upgrade.
 - Phaser is rendering, input, and asset loading over plain data
 - Game logic lives in the simulation layer and knows nothing about Phaser
 - A Scene reads simulation state and draws it. It does not own state.
-- See [`game-simulation.md`](../claude/practices/game-simulation.md) for the split and its enforcement
+- See [`game-simulation.md`](../practices/game-simulation.md) for the split and its enforcement
 
 ## Scenes
 

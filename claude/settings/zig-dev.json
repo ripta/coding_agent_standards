@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "$HOME/projects/coding_agent_standards/claude/hooks/block-zig-cache.sh"
+            "command": "$HOME/.claude/coding-standards-current/hooks/block-zig-cache.sh"
           }
         ]
       }

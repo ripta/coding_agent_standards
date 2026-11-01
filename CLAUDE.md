@@ -5,7 +5,6 @@ projects.
 
 ## Structure
 
-- `languages/` - Language-specific coding standards
 - `.claude/` - Project-local Claude Code config for this repo (skills, settings)
 - `.opencode/` - Project-local OpenCode config for this repo. `/convert-to-opencode` adds a `claude/` item to
   `bin/build-opencode`
@@ -20,13 +19,17 @@ projects.
   that name past styles, and the guardian protocol. Lives under `claude/` so it ships with the plugin
 - `claude/practices/` - Cross-cutting practices (testing, error handling, security, Makefiles). Lives under `claude/`
   so it ships with the plugin
+- `claude/languages/` - Language-specific coding standards. Lives under `claude/` so it ships with the plugin
+- `claude/profiles/` - Composable project profiles that import from the above. Lives under `claude/` so it ships with
+  the plugin
+- `languages`, `practices`, `profiles` at the repo root are temporary symlinks into `claude/`. They keep old imports of
+  the checkout path loading until every project imports through the plugin link
 - `codex/` - Codex skills that have no Claude Code equivalent, packaged as a separate Codex plugin. A skill belongs here
   only when it depends on something Codex has and Claude Code does not
 - `mods/` - Claude Code mods (function-hook plugins that can draw UI). Each is its own opt-in plugin listed in
   `.claude-plugin/marketplace.json`, so projects using `coding-standards` do not get them. A mod that serves a
   `claude/` command ships inside `claude/` instead, so everyone who gets the command gets the mod. Its hooks module is
   `claude/hooks/<name>.tsx`, its state contract is `claude/types/index.d.ts`, and its tests are in `claude/tests/`
-- `profiles/` - Composable project profiles that import from the above
 - `bugs/` - Bugs this repo works around, mostly in Claude Code. Each lists its repro and which workarounds to remove
   once it is fixed
 
@@ -35,13 +38,13 @@ projects.
 Import a profile from a project's `CLAUDE.md` or `CLAUDE.local.md`:
 
 ```markdown
-@~/projects/coding_agent_standards/profiles/go-service.md
+@~/.claude/coding-standards-current/profiles/go-service.md
 ```
 
 For projects you don't own, use `CLAUDE.local.md` (auto-gitignored):
 
 ```markdown
-@~/projects/coding_agent_standards/profiles/oss-contrib.md
+@~/.claude/coding-standards-current/profiles/oss-contrib.md
 ```
 
 If the repo is at a non-standard path, symlink it:
@@ -82,7 +85,7 @@ the system Python 3.9. Every script must run on 3.9:
 
 ## Standards for This Repo
 
-These imports mirror `profiles/baseline.md`. They use relative paths so they read the working tree. The profile's
+These imports mirror `claude/profiles/baseline.md`. They use relative paths so they read the working tree. The profile's
 `~/.claude/coding-standards-current/` paths would read the installed plugin, which lags behind edits made here. The
 profile's on-demand docs are left out here too. When the plugin's hook names one, read the working tree's copy under
 `claude/` instead.

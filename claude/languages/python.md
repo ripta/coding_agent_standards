@@ -86,7 +86,7 @@ Makefile
 - Define metadata in `pyproject.toml` `[project]` table; no `setup.py` or `setup.cfg`
 - Build with `uv build`; publish with `uv publish`
 - Makefile targets: `make build`, `make publish`
-- See [`makefile.md`](../claude/practices/makefile.md) for help, `.PHONY`, and target naming conventions
+- See [`makefile.md`](../practices/makefile.md) for help, `.PHONY`, and target naming conventions
 
 ## Testing
 

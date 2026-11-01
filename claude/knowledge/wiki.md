@@ -240,7 +240,7 @@ The templates live in `templates/wiki/` beside this file. To set up a wiki:
 1. Copy `bin/wiki`, `.githooks/pre-commit`, `.githooks/commit-msg`, and `wiki.json` into the wiki root. Keep them
    executable.
 2. Edit `wiki.json` to name the wiki.
-3. Import the wiki profile from the wiki's `CLAUDE.md` with `@~/projects/coding_agent_standards/profiles/wiki.md`.
+3. Import the wiki profile from the wiki's `CLAUDE.md` with `@~/.claude/coding-standards-current/profiles/wiki.md`.
 4. Write the wiki's `README.md`, with its repository-specific rules.
 5. Enable the hooks once per clone with `git config core.hooksPath .githooks`. The hooks are tracked, but
    `core.hooksPath` is local config.

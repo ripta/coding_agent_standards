@@ -16,9 +16,9 @@ writing anything.
 
 ## Repo Structure
 
-- `languages/<lang>.md` - Language-specific standards (naming, structure, idioms, tooling)
+- `claude/languages/<lang>.md` - Language-specific standards (naming, structure, idioms, tooling)
 - `claude/practices/*.md` - Cross-cutting practices (testing, error handling, security, code review)
-- `profiles/<archetype>.md` - Composable profiles that `@import` language and practice files
+- `claude/profiles/<archetype>.md` - Composable profiles that `@import` language and practice files
 - `claude/rules/*.md` - Agent behavior rules (not your concern)
 
 ## Workflow
@@ -32,7 +32,7 @@ writing anything.
 
 ### Phase 2: Check for Existing Standards
 
-For each target language, check if `languages/<lang>.md` already exists in this repo.
+For each target language, check if `claude/languages/<lang>.md` already exists in this repo.
 
 - **If it exists**, ask the user:
   - **Replace**: discard existing standards and write new ones from scratch
@@ -103,7 +103,7 @@ For each file to create or modify:
 3. Write the file
 
 Follow the format and tone of existing files in the repo. Match their heading structure, bullet style, and level of
-detail. Study `languages/go.md` and `profiles/go-service.md` as references.
+detail. Study `claude/languages/go.md` and `claude/profiles/go-service.md` as references.
 
 ### Phase 8: Profile (Optional)
 
@@ -111,7 +111,7 @@ After language and practice files are written, ask if the user wants a new profi
 
 - A profile is a composition: it `@import`s language files, practice files, and optionally adds
   project-archetype-specific rules
-- Use existing profiles as templates (e.g., `profiles/go-service.md`, `profiles/go-cli.md`)
+- Use existing profiles as templates (e.g., `claude/profiles/go-service.md`, `claude/profiles/go-cli.md`)
 - Name the profile `<lang>-<archetype>.md`
 
 ## Rules
