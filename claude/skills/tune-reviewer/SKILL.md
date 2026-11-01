@@ -7,7 +7,7 @@ description: |
   what is already covered, and adds the genuinely-new part to the reviewer agent,
   the shared standards, the project's instructions, or memory.
 model: sonnet
-allowed-tools: AskUserQuestion, Bash, Read, Edit, Write, Grep, Glob
+allowed-tools: AskUserQuestion, Bash, Read, Edit, Write, Grep, Glob, ListAgents, SendMessage
 ---
 
 You take a correction the user made by hand, usually a style or comment-craft fix the `reviewer` agent missed at the
@@ -31,11 +31,14 @@ lines. When a wrap-width change is in play, measure line widths with `awk '{ pri
 
 ## Step 2: Locate the instruction files, without asking
 
-- **The shared reviewer and standards.** Edit the source checkout of the coding standards repo, never the installed
-  plugin copy under `~/.claude/plugins/`, which an update overwrites. It lives at `~/projects/coding_agent_standards`.
-  The reviewer is `claude/agents/reviewer.md` there. The writing rules are `claude/rules/work-discipline.md` (Comments,
-  Output Style), `claude/rules/sentence-structure.md`, and `claude/rules/writing-voice.md`. If no checkout exists, say
-  so; the shared homes are then unavailable.
+- **The shared reviewer and standards.** The reviewer is `agents/reviewer.md`. The writing rules are
+  `rules/work-discipline.md` (Comments, Output Style), `rules/sentence-structure.md`, and `rules/writing-voice.md`.
+  Where to find them depends on where you run:
+  - In the coding standards repo itself, the current repo's top level holds `claude/.claude-plugin/plugin.json`. Read
+    and edit the files under `claude/` there.
+  - In any other project, read them under `${CLAUDE_PLUGIN_ROOT}/`, the installed plugin. Never edit them there. An
+    update overwrites that copy, and the standards repo belongs to another session. Step 7 says how a shared edit
+    reaches it.
 - **The project overlay.** A project-local reviewer at `.claude/agents/reviewer.md`, if the project has one.
 - **The project instructions.** The project's `CLAUDE.md`, and `CLAUDE.local.md` if present.
 - **Memory.** Use the memory directory named in your system prompt when one is listed. Otherwise derive it as
@@ -62,7 +65,7 @@ Read what already governs each principle in the files from Step 2. Classify it a
 Pick the home by what the principle governs. A principle may belong in more than one; keep the copies in sync.
 
 - **Something any project's reviewer should catch**, such as comment craft, naming, or structure that the formatter
-  and linter do not enforce: the shared `claude/agents/reviewer.md`. If tooling cannot enforce it, say so in the rule,
+  and linter do not enforce: the shared `agents/reviewer.md`. If tooling cannot enforce it, say so in the rule,
   since the reviewer is told to skip tooling-enforced style.
 - **A general writing or comment rule for every project**: the shared rules. That is the single home that governs the
   writer and feeds the reviewer's baseline. Prefer it for anything not specific to this project.
@@ -79,8 +82,8 @@ This is the one checkpoint. Present every proposed edit, with the file, the clas
 broadened. List any weak signal you held back, and why. Ask with AskUserQuestion whether to apply the plan, and whether
 to promote any weak signal.
 
-Edits to the shared standards repo change every project that uses it. Show those as diffs and name the repo path, so
-the user sees a cross-repo write before it happens. Never commit there.
+Edits to the shared standards change every project that uses it. Show them as diffs. Outside the standards repo, say
+how each will reach it, per Step 7, before anything is sent.
 
 ## Step 7: Apply with discipline
 
@@ -90,13 +93,20 @@ the user sees a cross-repo write before it happens. Never commit there.
 - Do not generalize a comment-scoped fix into an all-prose rule unless the evidence supports it.
 - Respect conclusions already reached in the standards. If a correction contradicts an existing rule, flag the tension
   in Step 6 instead of overwriting the rule.
+- Edit project files and memory in place.
+- Edit the shared standards in place only when you run in the standards repo itself. Never commit there.
+- From any other project, a shared edit is a guardian request, per `${CLAUDE_PLUGIN_ROOT}/rules/guardian-requests.md`.
+  Call ListAgents and look for the standards repo's guardian, such as `cas_guardian`. When one is listed, send it the
+  approved diff with SendMessage. Write the rule generically, with no project name, path, or identifier from the
+  project you run in, per `${CLAUDE_PLUGIN_ROOT}/rules/disclosure.md`. When no guardian is listed, give the user the
+  diff to apply instead.
 
 ## Step 8: Report
 
 Summarize:
 
 - Each principle extracted, and whether it was already covered, a scope gap, or new.
-- Each file edited, and the rule added or broadened there. Call out edits to the shared repo, which still need
-  committing there.
+- Each file edited, and the rule added or broadened there. Call out shared edits: made in place and still to commit,
+  sent to the guardian, or handed to the user.
 - Weak signals not encoded, and why.
 - Any tension with an existing rule that needs the user's call.

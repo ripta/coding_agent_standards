@@ -52,7 +52,7 @@ Two paths name the standards. Use each only for its job:
 | Path | What it is | Who uses it | Changes when |
 |------|------------|-------------|--------------|
 | `~/.claude/coding-standards-current/` | Link to the installed plugin snapshot | Every project's imports, and opt-in hooks in settings | The plugin is updated and a session starts |
-| `~/projects/coding_agent_standards` | The git checkout | Only tools that edit the standards, such as `tune-reviewer` | Every edit, committed or not |
+| `~/projects/coding_agent_standards` | The git checkout | Sessions working in this repo. Other projects send changes to its guardian | Every edit, committed or not |
 
 Projects never import from the checkout, since it holds uncommitted work. `~/coding-standards` is retired. The tools
 still recognize it, but only to rewrite or dedupe old paths.
