@@ -81,6 +81,14 @@ class Ref:
         return f"{LINK}/{self.rel}" if self.rel else None
 
     @property
+    def old_dir(self) -> Optional[str]:
+        """The first path segment under an old checkout root, or None for a path on the link."""
+        for root in OLD_ROOTS:
+            if self.path.startswith(root + "/"):
+                return self.path[len(root) + 1 :].split("/", 1)[0]
+        return None
+
+    @property
     def profile(self) -> Optional[str]:
         match = PROFILE_REL.match(self.rel or "")
         return match.group(1) if match else None
@@ -313,6 +321,46 @@ def _examples(refs: list, limit: int = 3) -> str:
     return shown + (f", and {len(texts) - limit} more" if len(texts) > limit else "")
 
 
+SYMLINKED_DIRS = ("profiles", "languages", "practices")
+MOVED_DIRS = ("project-management", "knowledge")
+
+FIXABLE_OLD = {
+    "symlinked": "The path loads only while the checkout keeps its transition symlinks.",
+    "moved": "The checkout moved that directory under claude/ and keeps no symlink for it, so the path loads nothing.",
+    "tree": (
+        "The path reads the checkout's working tree, not the installed plugin, so it follows whatever the "
+        "checkout has checked out."
+    ),
+}
+UNRESOLVED_OLD = {
+    "symlinked": (
+        "It loads today only through the checkout's transition symlinks, and will load nothing once they go."
+    ),
+    "moved": "The checkout moved that directory under claude/ and keeps no symlink for it, so it loads nothing.",
+    "tree": (
+        "It reads the checkout's working tree, not the installed plugin, so it follows whatever the checkout "
+        "has checked out."
+    ),
+}
+
+
+def _old_kind(ref: Ref) -> str:
+    """Name what an old path reaches: a root symlink, a directory that moved, or the checkout's own tree."""
+    if ref.old_dir in SYMLINKED_DIRS:
+        return "symlinked"
+    if ref.old_dir in MOVED_DIRS:
+        return "moved"
+    return "tree"
+
+
+def _by_kind(refs: list) -> dict:
+    """Group old-path refs by (file, kind), so each warning's claim holds for every path it lists."""
+    groups: dict = {}
+    for ref in refs:
+        groups.setdefault((ref.file, _old_kind(ref)), []).append(ref)
+    return groups
+
+
 def _by_file(refs: list) -> dict:
     grouped: dict = {}
     for ref in refs:
@@ -448,18 +496,18 @@ def check(cwd: Path, plugin_root: Path, session: str, link: Path, home: Path, co
                 f"@{LINK}/profiles/<profile>.md to CLAUDE.md or CLAUDE.local.md.",
             ))
 
-    for file, group in _by_file(fixable_old).items():
+    for (file, kind), group in _by_kind(fixable_old).items():
         out.append((
             "warning",
-            f"{file} imports the old standards path {_examples(group)} ({_lines(group)}). The path loads only "
-            "while the checkout keeps its transition symlinks. Run /update-profile to point it at the plugin link.",
+            f"{file} imports the old standards path {_examples(group)} ({_lines(group)}). {FIXABLE_OLD[kind]} "
+            "Run /update-profile to point it at the plugin link.",
         ))
-    for file, group in _by_file(unresolved_old).items():
+    for (file, kind), group in _by_kind(unresolved_old).items():
         out.append((
             "warning",
             f"{file} imports the old standards path {_examples(group)} ({_lines(group)}), which does not resolve "
-            "in the plugin snapshot. It loads today only through the checkout's transition symlinks, and will load "
-            "nothing once they go. Run /update-profile to rewrite what it can and report the rest.",
+            f"in the plugin snapshot. {UNRESOLVED_OLD[kind]} "
+            "Run /update-profile to rewrite what it can and report the rest.",
         ))
     for file, group in _by_file(unresolved_link).items():
         out.append((

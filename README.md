@@ -478,11 +478,18 @@ Run the Codex integration tests with `python3 -m unittest discover -s codex/scri
 
 ### Non-standard Paths
 
-If this repo doesn't live at `~/projects/coding_agent_standards`, create a symlink:
+Profile imports go through the plugin link, `~/.claude/coding-standards-current`. They do not need a checkout path.
+Run `/update-profile` to point a project at the link.
+
+A few things still read the checkout. If this repo doesn't live at `~/projects/coding_agent_standards`, create a
+symlink for them:
 
 ```sh
 ln -s /actual/path/to/coding_agent_standards ~/coding-standards
 ```
+
+The symlink serves old `~/coding-standards/...` imports during the transition, the hook script paths that
+`claude/scripts/setup_permissions.py` recognizes, and the checkout lookup in the `tune-reviewer` skill.
 
 ## License
 

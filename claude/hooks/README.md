@@ -10,10 +10,17 @@
   project's proposals has passed, and nothing otherwise. Last, `check-setup.sh`
   creates `~/.local/state/coding_agent_standards/`, and checks that the
   machine and the project are set up. It prints nothing when they are. In a
-  project it runs `standards_imports.py check`, which names imports that load
-  nothing, each with the fix `/update-profile`: old checkout paths, paths
-  missing from the plugin snapshot, paths with no `@`, and external imports the
-  project has not approved. It also names hook commands in
+  project it runs `standards_imports.py check`. Four warnings name imports
+  that load nothing, or load only by accident, and give the fix
+  `/update-profile`. An old `profiles/`, `languages/`, or `practices/` path
+  loads only while the checkout keeps its transition symlinks. An old
+  `project-management/` or `knowledge/` path loads nothing, because the
+  directory moved under `claude/`. An old `claude/...` path, or one no mapping
+  covers, reads the checkout's working tree and not the installed plugin. A
+  path missing from the plugin snapshot, or with no `@`, loads nothing. A
+  fifth warning names a project that imports the standards but has not
+  approved external imports. Its fix is to accept the prompt in an interactive
+  session, and `/update-profile` cannot do it. The check also names hook commands in
   `.claude/settings.json` and `settings.local.json` that run the checkout, and
   gives the link path to use. A `--plugin-dir` session also gets a check of the
   link, and a one-line notice when the project's imports read the installed

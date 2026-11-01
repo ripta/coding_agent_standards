@@ -13,6 +13,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
 
+import standards_imports
 import update_profile
 
 CLAUDE = Path(__file__).resolve().parents[1]
@@ -57,7 +58,6 @@ def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureF
     project = tmp / "project"
     (project / "sub").mkdir(parents=True)
     git(project, "init", "-q")
-    git(project, "commit", "-q", "--allow-empty", "-m", "init")
 
     def run(*argv: str, cwd: Path = project) -> tuple:
         status = update_profile.main([argv[0], *argv[1:], "--cwd", str(cwd)])
@@ -384,6 +384,7 @@ def test_json_flag_is_accepted(env: SimpleNamespace) -> None:
 @pytest.fixture
 def tree(env: SimpleNamespace) -> Path:
     path = env.tmp / "tree"
+    git(env.project, "commit", "-q", "--allow-empty", "-m", "init")
     git(env.project, "worktree", "add", "-q", str(path), "-b", "tree")
     return path
 
@@ -563,3 +564,104 @@ def test_a_failed_write_leaves_the_original_intact(env: SimpleNamespace, monkeyp
     assert "No space left" in err
     assert (env.project / "CLAUDE.md").read_text() == original
     assert sorted(p.name for p in env.project.iterdir() if p.name != ".git") == ["CLAUDE.md", "sub"]
+
+
+LINK_ONLY = [
+    ("link target to the requested profile", f"See [p]({LINK}/profiles/python-project.md) for details.\n"),
+    ("old link target to the requested profile", f"See [p]({CHECKOUT}/profiles/python-project.md) for details.\n"),
+    ("link target to a different profile", f"See [g]({LINK}/profiles/go-service.md) for details.\n"),
+]
+
+
+@pytest.mark.parametrize(("name", "text"), LINK_ONLY, ids=[c[0] for c in LINK_ONLY])
+def test_a_link_target_is_not_an_import_when_placing_the_profile(env: SimpleNamespace, name: str, text: str) -> None:
+    """A link target loads nothing, so it must neither count as the profile placed nor start a replace question.
+
+    Catches `apply` reporting nothing to do for a file that check-setup says imports no standards. It
+    cannot prove the warning is gone, which the cross-tool contract test does.
+    """
+    (env.project / "CLAUDE.md").write_text(text)
+    _, plan, _ = env.run("plan", "python-project")
+    assert plan["existing_profile_imports"] == []
+    assert plan["different_profile_imports"] == []
+    assert plan["questions"]["mode"] is False
+
+    _, result, _ = env.run("apply", "python-project")
+    assert result["written"] == [str(env.project / "CLAUDE.md")]
+    assert imp("profiles/python-project.md") in (env.project / "CLAUDE.md").read_text().splitlines()
+
+
+def test_a_file_with_only_link_targets_is_not_the_target_over_one_that_imports(env: SimpleNamespace) -> None:
+    """The profile import goes into the file that imports the standards, not one that only links to them."""
+    (env.project / "CLAUDE.md").write_text(f"See [p]({LINK}/profiles/python-project.md).\n")
+    (env.project / "CLAUDE.local.md").write_text(imp("rules/pr-style.md") + "\n")
+    _, plan, _ = env.run("plan", "python-project")
+    assert plan["target"] == str(env.project / "CLAUDE.local.md")
+
+
+def test_replace_leaves_a_link_target_to_a_different_profile_alone(env: SimpleNamespace) -> None:
+    """Swapping or dropping a link target would turn documentation into an import or delete prose."""
+    link = f"See [g]({LINK}/profiles/go-service.md) for details."
+    (env.project / "CLAUDE.md").write_text(f"{link}\n{imp('profiles/oss-contrib.md')}\n")
+    env.run("apply", "python-project", "--mode", "replace")
+    assert (env.project / "CLAUDE.md").read_text() == f"{link}\n{imp('profiles/python-project.md')}\n"
+
+
+# -- the contract with check-setup ----------------------------------------------------------
+
+OLD_TREE_IMPORT = f"@{CHECKOUT}/claude/rules/pr-style.md\n"
+
+# Each case is (name, files, cwd, profile). Files are keyed by path under the project, or "tree/..." for the worktree.
+CONTRACT_CASES = [
+    ("fresh project", {}, "project", "python-project"),
+    ("plain text path", {"CLAUDE.md": f"- {CHECKOUT}/profiles/python-project.md\n"}, "project", "python-project"),
+    ("plain text of another file", {"CLAUDE.md": "~/coding-standards/practices/security.md\n"}, "project", "python-project"),
+    ("link target alone", {"CLAUDE.md": f"See [p]({LINK}/profiles/python-project.md) for details.\n"}, "project", "python-project"),
+    ("old link target alone", {"CLAUDE.md": f"See [p]({CHECKOUT}/rules/x.md) and [q]({CHECKOUT}/profiles/python-project.md).\n"}, "project", "python-project"),
+    ("link target beside an import", {"CLAUDE.md": f"[g]({LINK}/profiles/go-service.md)\n{OLD_TREE_IMPORT}"}, "project", "python-project"),
+    (
+        "per-file list",
+        {"CLAUDE.md": f"- @{CHECKOUT}/claude/rules/commit-style.md\n- See @{CHECKOUT}/practices/testing.md\n- @{CHECKOUT}/claude/rules/pr-style.md\n"},
+        "project",
+        "python-project",
+    ),
+    ("prose line", {"CLAUDE.md": f"Uses @{CHECKOUT}/profiles/python-project.md for style.\n"}, "project", "go-service"),
+    ("parent directory file", {"CLAUDE.md": OLD_TREE_IMPORT}, "sub", "python-project"),
+    ("skipped import", {"CLAUDE.md": f"@{CHECKOUT}/bugs/a.md\n{OLD_TREE_IMPORT}"}, "project", "python-project"),
+    ("skipped link path", {"CLAUDE.md": f"{imp('rules/nope.md')}\n@{CHECKOUT}/claude/rules/nope.md\n"}, "project", "python-project"),
+    (
+        "worktree with its own local file",
+        {"CLAUDE.local.md": OLD_TREE_IMPORT, "tree/CLAUDE.local.md": OLD_TREE_IMPORT},
+        "tree",
+        "oss-contrib",
+    ),
+    ("worktree with a plain CLAUDE.md", {"tree/CLAUDE.md": f"- {CHECKOUT}/profiles/oss-contrib.md\n"}, "tree", "oss-contrib"),
+] + [(f"old form {old}", {"CLAUDE.md": f"@{old}\n"}, "project", "python-project") for old, _ in OLD_PATHS]
+
+
+@pytest.mark.parametrize(("name", "files", "where", "profile"), CONTRACT_CASES, ids=[c[0] for c in CONTRACT_CASES])
+def test_apply_clears_every_warning_check_setup_would_show(
+    env: SimpleNamespace, request: pytest.FixtureRequest, name: str, files: dict, where: str, profile: str
+) -> None:
+    """Owns the contract between /update-profile and check-setup. After `apply`, `check` warns only about skipped imports.
+
+    The two tools parse the same files in separate code. Catches a warning whose advice, run as
+    written, changes nothing, such as a link target that `check` counts as no import and `apply`
+    counts as a placed profile. Approval is set, because `apply` never grants it. A worktree is built
+    only for the cases about worktrees. It cannot prove wording, which the standards_imports tests own.
+    """
+    tree = request.getfixturevalue("tree") if where == "tree" else env.tmp / "tree"
+    for rel, text in files.items():
+        path = env.tmp / "tree" / rel[len("tree/") :] if rel.startswith("tree/") else env.project / rel
+        path.write_text(text)
+    cwd = {"project": env.project, "sub": env.project / "sub", "tree": tree}[where]
+    config = {"projects": {str(root.resolve()): {"hasClaudeMdExternalIncludesApproved": True} for root in (env.project, tree)}}
+    (env.home / ".claude.json").write_text(json.dumps(config))
+
+    status, result, _ = env.run("apply", profile, cwd=cwd)
+    assert status == 0
+
+    skipped = [s["text"].lstrip("@") for s in result["skipped"]]
+    results = standards_imports.check(cwd, env.snapshot, "installed", env.link, env.home, env.home / ".claude.json")
+    remaining = [text for level, text in results if not any(path in text for path in skipped)]
+    assert remaining == []

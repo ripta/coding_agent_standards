@@ -47,7 +47,10 @@ For projects you don't own, use `CLAUDE.local.md` (auto-gitignored):
 @~/.claude/coding-standards-current/profiles/oss-contrib.md
 ```
 
-If the repo is at a non-standard path, symlink it:
+Profile imports go through the plugin link, so they need no checkout path. Some things still read the checkout.
+They are old `~/coding-standards/...` imports during the transition, the hook script paths
+`claude/scripts/setup_permissions.py` recognizes, and the `tune-reviewer` skill. If the repo is at a non-standard
+path, symlink it for them:
 
 ```sh
 ln -s /actual/path/to/coding_agent_standards ~/coding-standards

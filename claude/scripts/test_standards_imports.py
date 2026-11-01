@@ -180,11 +180,13 @@ def git(cwd: Path, *args: str) -> None:
     subprocess.run(["git", *config, *args], cwd=cwd, env=env, check=True, capture_output=True)
 
 
-def repo(tmp_path: Path) -> Path:
+def repo(tmp_path: Path, commit: bool = False) -> Path:
+    """Make a git repo. Only a linked worktree needs a commit to branch from, so a commit is opt-in."""
     root = (tmp_path / "project").resolve()
     (root / "pkg" / "deep").mkdir(parents=True)
     git(root, "init", "-q")
-    git(root, "commit", "-q", "--allow-empty", "-m", "init")
+    if commit:
+        git(root, "commit", "-q", "--allow-empty", "-m", "init")
     return root
 
 
@@ -211,7 +213,7 @@ def test_discovery_outside_git_reads_only_the_current_directory(tmp_path: Path) 
 
 def test_linked_worktree_finds_the_main_checkouts_local_file(tmp_path: Path) -> None:
     """Only a worktree's own CLAUDE.local.md loads, so the main checkout's copy has to be found separately."""
-    root = repo(tmp_path)
+    root = repo(tmp_path, commit=True)
     (root / "CLAUDE.local.md").write_text("main\n")
     tree = (tmp_path / "tree").resolve()
     git(root, "worktree", "add", "-q", str(tree), "-b", "tree")
@@ -413,8 +415,7 @@ def test_warning_texts_name_the_file_the_lines_and_the_fix(world: World) -> None
 
     assert old == (
         "warning",
-        f"{world.project}/CLAUDE.md imports the old standards path {CHECKOUT}/claude/rules/a.md (line 2). "
-        "The path loads only while the checkout keeps its transition symlinks. Run /update-profile to point it at the plugin link.",
+        f"{world.project}/CLAUDE.md imports the old standards path {CHECKOUT}/claude/rules/a.md (line 2). {TREE}",
     )
 
     world.write({"CLAUDE.md": f"@{CHECKOUT}/languages/go.md\n"})
@@ -425,6 +426,86 @@ def test_warning_texts_name_the_file_the_lines_and_the_fix(world: World) -> None
         f"{world.project}/CLAUDE.md imports the old standards path {CHECKOUT}/languages/go.md (line 1), which does not "
         "resolve in the plugin snapshot. It loads today only through the checkout's transition symlinks, and will load "
         "nothing once they go. Run /update-profile to rewrite what it can and report the rest.",
+    )
+
+
+SYMLINKED = "The path loads only while the checkout keeps its transition symlinks. Run /update-profile to point it at the plugin link."
+MOVED = (
+    "The checkout moved that directory under claude/ and keeps no symlink for it, so the path loads nothing. "
+    "Run /update-profile to point it at the plugin link."
+)
+TREE = (
+    "The path reads the checkout's working tree, not the installed plugin, so it follows whatever the checkout "
+    "has checked out. Run /update-profile to point it at the plugin link."
+)
+UNRESOLVED_SYMLINKED = (
+    "which does not resolve in the plugin snapshot. It loads today only through the checkout's transition "
+    "symlinks, and will load nothing once they go. Run /update-profile to rewrite what it can and report the rest."
+)
+UNRESOLVED_MOVED = (
+    "which does not resolve in the plugin snapshot. The checkout moved that directory under claude/ and keeps no "
+    "symlink for it, so it loads nothing. Run /update-profile to rewrite what it can and report the rest."
+)
+UNRESOLVED_TREE = (
+    "which does not resolve in the plugin snapshot. It reads the checkout's working tree, not the installed plugin, "
+    "so it follows whatever the checkout has checked out. Run /update-profile to rewrite what it can and report the rest."
+)
+
+OLD_WORDING = [
+    ("profiles", "profiles/p.md", SYMLINKED),
+    ("practices", "practices/t.md", SYMLINKED),
+    ("languages", "languages/go.md", SYMLINKED),
+    ("project-management", "project-management/g.md", MOVED),
+    ("knowledge", "knowledge/w.md", MOVED),
+    ("claude", "claude/rules/a.md", TREE),
+]
+ROOTS = [CHECKOUT, "~/coding-standards"]
+
+
+@pytest.mark.parametrize("root", ROOTS)
+@pytest.mark.parametrize(("name", "rel", "tail"), OLD_WORDING, ids=[c[0] for c in OLD_WORDING])
+def test_an_old_path_warning_says_only_what_is_true_of_its_directory(
+    world: World, root: str, name: str, rel: str, tail: str
+) -> None:
+    """Catches a warning that promises transition symlinks for a directory that has none.
+
+    Only profiles/, languages/ and practices/ keep root symlinks. It cannot prove the symlinks exist.
+    """
+    for path in ("practices/t.md", "languages/go.md", "project-management/g.md", "knowledge/w.md"):
+        (world.installed / path).parent.mkdir(parents=True, exist_ok=True)
+        (world.installed / path).write_text("x\n")
+    world.write({"CLAUDE.md": f"@{root}/{rel}\n"})
+    (warning,) = si.check(world.project, world.installed, "installed", world.link, world.home, world.home / ".claude.json")
+
+    assert warning == (
+        "warning",
+        f"{world.project}/CLAUDE.md imports the old standards path {root}/{rel} (line 1). {tail}",
+    )
+
+
+UNRESOLVED_WORDING = [
+    ("profiles", "profiles/gone.md", UNRESOLVED_SYMLINKED),
+    ("practices", "practices/gone.md", UNRESOLVED_SYMLINKED),
+    ("languages", "languages/gone.md", UNRESOLVED_SYMLINKED),
+    ("project-management", "project-management/gone.md", UNRESOLVED_MOVED),
+    ("knowledge", "knowledge/gone.md", UNRESOLVED_MOVED),
+    ("claude", "claude/rules/gone.md", UNRESOLVED_TREE),
+    ("unmapped", "bugs/x.md", UNRESOLVED_TREE),
+]
+
+
+@pytest.mark.parametrize("root", ROOTS)
+@pytest.mark.parametrize(("name", "rel", "tail"), UNRESOLVED_WORDING, ids=[c[0] for c in UNRESOLVED_WORDING])
+def test_an_unresolved_old_path_warning_says_only_what_is_true_of_its_directory(
+    world: World, root: str, name: str, rel: str, tail: str
+) -> None:
+    """The same wording rule for a path the snapshot lacks, including a path no mapping covers."""
+    world.write({"CLAUDE.md": f"@{root}/{rel}\n"})
+    (warning,) = si.check(world.project, world.installed, "installed", world.link, world.home, world.home / ".claude.json")
+
+    assert warning == (
+        "warning",
+        f"{world.project}/CLAUDE.md imports the old standards path {root}/{rel} (line 1), {tail}",
     )
 
 

@@ -120,10 +120,15 @@ def collect(checkout: si.Checkout) -> tuple:
     return entries, pairs
 
 
+def placing(ref: si.Ref) -> bool:
+    """True for a path that is or becomes an import. A Markdown link target loads nothing and stays one."""
+    return ref.kind != "linktarget"
+
+
 def choose_target(entries: list) -> tuple:
     """Return (target, candidates): the file that already imports the standards, else None."""
-    candidates = [e for e in entries if e.refs and not (e.main_copy and e.has_twin)]
-    with_profile = [e for e in candidates if any(r.profile for r in e.refs)]
+    candidates = [e for e in entries if any(placing(r) for r in e.refs) and not (e.main_copy and e.has_twin)]
+    with_profile = [e for e in candidates if any(r.profile for r in e.refs if placing(r))]
     pool = with_profile or candidates
     return (pool[0] if pool else None), candidates
 
@@ -164,7 +169,7 @@ def decide(ref: si.Ref, ctx: Context, placed: set, result: Result) -> tuple:
         return "keep", None
 
     name = ref.profile
-    if ctx.is_target and ctx.mode == "replace" and name is not None and name not in ctx.requested:
+    if ctx.is_target and ctx.mode == "replace" and placing(ref) and name is not None and name not in ctx.requested:
         fresh = next((p for p in ctx.requested if p not in placed), None)
         if fresh:
             placed.add(fresh)
@@ -203,7 +208,7 @@ def process(entry: Entry, ctx: Context) -> Result:
     for ref in entry.refs:
         by_line.setdefault(ref.line, []).append(ref)
 
-    placed = {r.profile for r in entry.refs if ctx.is_target and r.profile in ctx.requested}
+    placed = {r.profile for r in entry.refs if ctx.is_target and placing(r) and r.profile in ctx.requested}
     out: list = []
     anchor = None
     anchor_line = 0
@@ -253,7 +258,7 @@ def process(entry: Entry, ctx: Context) -> Result:
             result.flagged.append({"file": where, "line": number, "text": new_body, "reason": note})
 
         out.append(new_body + eol)
-        if any(ref.kind != "linktarget" for ref in refs):
+        if any(placing(ref) for ref in refs):
             anchor = len(out)
             anchor_line = number
 
@@ -433,8 +438,8 @@ def plan(args: argparse.Namespace) -> dict:
         if e.exists
     ]
     all_refs = [r for e in state.entries for r in e.refs]
-    existing = [r.to_json() for r in all_refs if r.profile]
-    different = [r.to_json() for r in target.refs if r.profile and r.profile not in state.requested]
+    existing = [r.to_json() for r in all_refs if r.profile and placing(r)]
+    different = [r.to_json() for r in target.refs if r.profile and placing(r) and r.profile not in state.requested]
 
     base = build(state, target, "keep", DEFAULT_PER_FILE)
     collapsible = sum(r.collapsible for r in base)
