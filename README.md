@@ -42,6 +42,12 @@ Standards for each language/framework covering naming, project structure, error 
 - **Swift** (`swift.md`) -- SwiftUI, async/await, SPM, Go/C library integration
 - **Rust** (`rust.md`) -- modules, workspaces, error handling with thiserror/anyhow
 - **Zig** (`zig.md`) -- allocators, error sets, build system, embedded tests
+- **Lisp** (`lisp.md`) -- rules shared across dialects: formatting, naming, docstrings, macros, safe reading
+- **Clojure** (`clojure.md`) -- deps.edn, namespaces, ex-info, clj-kondo and cljfmt
+- **Common Lisp** (`common-lisp.md`) -- SBCL, ASDF, ocicl, packages, conditions and restarts, FiveAM
+- **Racket** (`racket.md`) -- racket/base, contracts, rackunit, raco fmt, Resyntax
+- **Janet** (`janet.md`) -- data types, errors, PEGs, tooling, and the C embedding API
+- **Lisp embedding** (`lisp-embedding.md`) -- host-side rules for an embedded Lisp, with Rust, Zig, Swift, and Go notes
 - **CSS** (`css.md`) -- cascade layers, reset, logical properties, OKLCH tokens, fluid type and space, layout patterns
 - **Svelte** (`svelte.md`) -- SvelteKit, Svelte 5 runes, Tailwind, protobuf RPC
 - **TypeScript** (`typescript.md`) -- strict tsconfig, ESM, Biome for format and lint, pnpm
