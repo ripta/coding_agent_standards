@@ -79,6 +79,8 @@ right before each edit and change it in place, never rewrite it from memory.
 If it changed since you last read it, and you did not make the change, another
 session may be writing it. Stop and ask the user. When the work only extends
 or corrects someone else's report, write a new report and link back to it.
+If the README's frontmatter can name earlier reports, such as a wiki's
+`follows` and `corrects`, name them there too.
 
 ## 3. Frontmatter and topics
 
@@ -94,8 +96,10 @@ If the target has a topic or index layer, such as a wiki's `topics/<slug>.md`:
   that page's hand-written position section, such as a wiki's "Current
   position" and its `reviewed` date, and nothing else. If the report only adds
   evidence, tagging is enough.
-- **Never hand-edit generated content**: generated blocks in topic pages or a
-  generated index, such as a wiki's "Reports" block and `index.md`.
+- **Never hand-edit generated content**: generated blocks in topic pages,
+  reports, or a generated index, such as a wiki's "Reports" block, its
+  later-reports block, and `index.md`. When the build rewrites an earlier
+  report's generated block, commit that report with yours.
 
 If the README names a build or lint command, such as a wiki's `bin/wiki
 build` then `bin/wiki check`, run it after writing and fix any errors in files

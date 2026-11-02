@@ -12,7 +12,8 @@ If the only errors are "stale", run:
 
     bin/wiki build
 
-then add index.md and the topics/*.md pages your reports are tagged with.
+then add index.md, the topics/*.md pages your reports are tagged with, and
+the earlier reports your reports follow or correct.
 If this is a false positive, commit again with --no-verify.
 MSG
 	exit 1

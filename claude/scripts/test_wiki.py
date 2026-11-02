@@ -12,8 +12,13 @@ REPORT = "reports/2026/03/20260312-cache-eviction-study.md"
 CONFIG = {"title": "Example wiki", "intro": "Start here."}
 
 
-def _report(topics: str = "[caching, storage-engine]", summary: str = "LRU beats FIFO for this workload.") -> str:
-    return f'---\ntopics: {topics}\nsummary: "{summary}"\n---\n\n# Cache eviction study\n\nFindings.\n'
+def _report(
+    topics: str = "[caching, storage-engine]",
+    summary: str = "LRU beats FIFO for this workload.",
+    extra: str = "",
+    title: str = "Cache eviction study",
+) -> str:
+    return f'---\ntopics: {topics}\nsummary: "{summary}"\n{extra}---\n\n# {title}\n\nFindings.\n'
 
 
 def _topic(title: str, area: str = "Infrastructure", reviewed: str = "2026-03-01") -> str:
@@ -206,18 +211,46 @@ def test_directory_report_needs_exactly_one_frontmatter_md(repo: Path) -> None:
     assert _wiki(repo, "check").returncode == 0
 
 
-def test_html_report_reads_meta(repo: Path) -> None:
-    page = (
-        '<html><head><title>Eviction &amp; admission</title>\n'
-        '<meta name="topics" content="caching, storage-engine">\n'
-        '<meta name="description" content="Admission filters halve churn.">\n</head></html>\n'
-    )
+HTML_PAGE = (
+    "<html><head><title>Eviction &amp; admission</title>\n"
+    '<meta name="topics" content="caching, storage-engine">\n'
+    '<meta name="description" content="Admission filters halve churn.">\n</head></html>\n'
+)
+
+
+def test_standalone_html_report_reads_meta_and_warns(repo: Path) -> None:
+    """Legacy standalone HTML reports still index, but new reports need a Markdown entry."""
     rel = "reports/2026/03/20260317-admission.html"
-    _write(repo, rel, page)
+    _write(repo, rel, HTML_PAGE)
     _build(repo)
     assert f"- **2026-03-17** [Eviction & admission]({rel}): Admission filters halve churn." in (
         repo / "index.md"
     ).read_text()
+
+    result = _wiki(repo, "check")
+    assert result.returncode == 0, result.stderr
+    assert f"warning: {rel}: standalone HTML report; give it a Markdown entry" in result.stderr
+
+
+def test_html_beside_a_markdown_entry_is_a_rendering(repo: Path) -> None:
+    base = "reports/2026/03/20260317-admission"
+    _write(repo, f"{base}/README.md", _report(title="Admission"))
+    _write(repo, f"{base}/report.html", HTML_PAGE)
+    _build(repo)
+    assert f"[Admission]({base}/README.md)" in (repo / "index.md").read_text()
+
+    result = _wiki(repo, "check")
+    assert result.returncode == 0, result.stderr
+    assert "standalone HTML" not in result.stderr
+
+
+def test_corrected_html_report_is_flagged_but_not_rewritten(repo: Path) -> None:
+    rel = "reports/2026/03/20260317-admission.html"
+    _write(repo, rel, HTML_PAGE)
+    _write(repo, RECOUNT, _report(extra="corrects: [20260317-admission]\n"))
+    _build(repo)
+    assert (repo / rel).read_text() == HTML_PAGE
+    assert f"halve churn. (corrected by [20260401-hit-ratio-recount]({RECOUNT}))" in (repo / "index.md").read_text()
     assert _wiki(repo, "check").returncode == 0
 
 
@@ -238,3 +271,108 @@ def test_help_names_the_shim(repo: Path) -> None:
     result = _wiki(repo, "--help")
     assert result.stdout.startswith("usage: bin/wiki")
     assert "wiki.py" not in result.stdout
+
+
+FOLLOW_UP = "reports/2026/03/20260320-eviction-follow-up.md"
+RECOUNT = "reports/2026/04/20260401-hit-ratio-recount.md"
+LATER_BEGIN = "<!-- BEGIN GENERATED: later-reports (wiki build) -->"
+
+
+def _link_later(repo: Path) -> None:
+    _write(repo, FOLLOW_UP, _report(extra="follows: [20260312-cache-eviction-study]\n", title="Eviction follow-up"))
+    _write(repo, RECOUNT, _report(extra="corrects: [20260312-cache-eviction-study]\n", title="Hit-ratio recount"))
+    _build(repo)
+    _git(repo, "add", "--", "reports")
+
+
+def test_later_reports_block_lands_under_the_target_h1(repo: Path) -> None:
+    """A follow-up or correction must reach the earlier report, which is otherwise frozen."""
+    _link_later(repo)
+
+    block = (
+        f"{LATER_BEGIN}\n"
+        "Later reports:\n\n"
+        "- Corrected by **2026-04-01** [Hit-ratio recount](../04/20260401-hit-ratio-recount.md)\n"
+        "- Followed by **2026-03-20** [Eviction follow-up](20260320-eviction-follow-up.md)\n"
+        "<!-- END GENERATED -->\n"
+    )
+    assert (repo / REPORT).read_text() == _report().replace("# Cache eviction study\n\n", f"# Cache eviction study\n\n{block}\n")
+
+    for rel in (FOLLOW_UP, RECOUNT):
+        assert LATER_BEGIN not in (repo / rel).read_text()
+
+    result = _wiki(repo, "check")
+    assert result.returncode == 0, result.stderr
+
+
+def test_corrected_report_is_flagged_in_index_and_topic_lists(repo: Path) -> None:
+    _link_later(repo)
+
+    flag = "(corrected by [20260401-hit-ratio-recount]({}))"
+    index = (repo / "index.md").read_text()
+    assert f"LRU beats FIFO for this workload. {flag.format(RECOUNT)}\n" in index
+    topic = (repo / "topics/caching.md").read_text()
+    assert f"LRU beats FIFO for this workload. {flag.format('../' + RECOUNT)}\n" in topic
+    assert "Eviction follow-up](../reports/2026/03/20260320-eviction-follow-up.md): LRU beats FIFO for this workload.\n" in topic
+
+
+def test_later_reports_block_is_removed_when_its_sources_go(repo: Path) -> None:
+    """An earlier report nobody links must stay byte-identical to what its author committed."""
+    _link_later(repo)
+    _git(repo, "rm", "-q", "-f", "--", FOLLOW_UP, RECOUNT)
+    _build(repo)
+    assert (repo / REPORT).read_text() == _report()
+    assert _wiki(repo, "check").returncode == 0
+
+
+def test_check_flags_a_missing_or_stale_later_reports_block(repo: Path) -> None:
+    _link_later(repo)
+    _write(repo, REPORT, _report())
+    result = _wiki(repo, "check")
+    assert result.returncode == 1
+    assert f"error: {REPORT}: stale; run bin/wiki build" in result.stderr
+
+
+def test_later_reports_block_follows_frontmatter_without_an_h1(repo: Path) -> None:
+    text = '---\ntopics: [caching]\nsummary: "No heading."\ntitle: Untitled study\n---\n\nFindings.\n'
+    _write(repo, REPORT, text)
+    _write(repo, RECOUNT, _report(extra="corrects: [20260312-cache-eviction-study]\n"))
+    _build(repo)
+    out = (repo / REPORT).read_text()
+    assert out.startswith(text.split("\n\nFindings")[0] + f"\n\n{LATER_BEGIN}\n")
+    assert out.endswith("<!-- END GENERATED -->\n\nFindings.\n")
+
+
+def test_directory_report_takes_the_block_in_its_entry(repo: Path) -> None:
+    base = "reports/2026/03/20260316-tier-sizing"
+    _write(repo, f"{base}/README.md", _report(title="Tier sizing"))
+    _write(repo, RECOUNT, _report(extra="corrects: [20260316-tier-sizing]\n"))
+    _build(repo)
+    readme = (repo / f"{base}/README.md").read_text()
+    assert "](../../04/20260401-hit-ratio-recount.md)" in readme
+    assert _wiki(repo, "check").returncode == 0
+
+
+@pytest.mark.parametrize(
+    "rel, extra, error",
+    [
+        (RECOUNT, "corrects: [20260301-nothing-here]\n", "corrects '20260301-nothing-here', which is not a report"),
+        (RECOUNT, "follows: [20260401-hit-ratio-recount]\n", "follows itself"),
+        (RECOUNT, "follows: 20260312-cache-eviction-study\n", "follows must be a list, such as [name]"),
+        (
+            RECOUNT,
+            "follows: [20260312-cache-eviction-study]\ncorrects: [20260312-cache-eviction-study]\n",
+            "names '20260312-cache-eviction-study' in both follows and corrects",
+        ),
+        (
+            "reports/2026/03/20260301-earlier.md",
+            "corrects: [20260312-cache-eviction-study]\n",
+            "corrects '20260312-cache-eviction-study', which is dated after it",
+        ),
+    ],
+)
+def test_check_rejects_bad_later_report_targets(repo: Path, rel: str, extra: str, error: str) -> None:
+    _write(repo, rel, _report(extra=extra))
+    result = _wiki(repo, "check")
+    assert result.returncode == 1
+    assert f"error: {rel}: {error}" in result.stderr
