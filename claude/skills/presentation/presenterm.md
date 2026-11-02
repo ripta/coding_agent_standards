@@ -147,8 +147,48 @@ payer -> prod: consolidated bill
 ````
 
 - `+width:N%` scales the rendered image.
-- The theme's `d2.theme` picks the d2 palette. The built-in light themes set one already.
+- The theme's `d2.theme` picks the d2 palette. This skill overrides every slot of it, so the palette never shows.
 - Mermaid works the same way with `` ```mermaid +render ``, but needs `mmdc` from `@mermaid-js/mermaid-cli`.
+
+Every d2 block opens with its layout and palette. These are the light values from `practices/diagrams.md`:
+
+````markdown
+```d2 +render
+vars: {
+  d2-config: {
+    layout-engine: elk
+    theme-overrides: {
+      N1: "#1b2230"
+      N2: "#1b2230"
+      N3: "#4a5466"
+      N4: "#7d889c"
+      N5: "#d5dae3"
+      N6: "#eef1f6"
+      N7: "#ffffff"
+      B1: "#7d889c"
+      B2: "#7d889c"
+      B3: "#d5dae3"
+      B4: "#f6f7f9"
+      B5: "#f6f7f9"
+      B6: "#eef1f6"
+      AA2: "#2f5fd0"
+      AA4: "#e4ebfb"
+      AA5: "#f6f7f9"
+      AB4: "#e4ebfb"
+      AB5: "#f6f7f9"
+    }
+  }
+}
+**.style.bold: false
+(** -> **)[*].style.italic: false
+
+direction: right
+api: API
+queue: Queue
+api -> queue: jobs
+queue.style: { fill: "#e4ebfb"; stroke: "#2f5fd0"; stroke-width: 2 }
+```
+````
 
 ## Images
 

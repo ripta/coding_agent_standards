@@ -275,6 +275,7 @@ def check_block(block, label, report, is_appendix):
             report.error(block.start, f"{label}: d2 block without +render shows as source code")
         if shutil.which("d2") is None:
             report.error(block.start, f"{label}: d2 is not installed; run: brew install d2")
+        check_d2_style(block, label, report)
         check_thin_diagram(block, label, report)
         return
 
@@ -299,6 +300,35 @@ def check_block(block, label, report, is_appendix):
                                  f"{MAX_CODE_LINES}); use highlight frames or move it to the appendix")
 
 
+def strip_d2_vars(lines):
+    """Return the lines with any top-level `vars: { ... }` block removed.
+
+    Every deck diagram opens with one for its palette and layout. Its braces would otherwise make
+    every diagram look nested to d2_graph.
+    """
+    kept = []
+    depth = 0
+    for raw in lines:
+        text = raw.split("#", 1)[0]
+        if depth == 0 and re.match(r"\s*vars\s*:\s*\{", text):
+            depth = text.count("{") - text.count("}")
+            continue
+        if depth > 0:
+            depth += text.count("{") - text.count("}")
+            continue
+        kept.append(raw)
+    return kept
+
+
+def check_d2_style(block, label, report):
+    source = "\n".join(block.lines)
+    if "theme-overrides" not in source:
+        report.warn(block.start, f"{label}: d2 block has no vars.d2-config.theme-overrides, so it shows "
+                                 "presenterm's built-in d2 palette; map the slots per practices/diagrams.md")
+    if not re.search(r"layout-engine\s*:\s*elk\b", source):
+        report.warn(block.start, f"{label}: d2 block does not set layout-engine: elk in vars.d2-config")
+
+
 def d2_graph(lines):
     """Return the node ids and undirected edges of a flat d2 diagram, or None when it is not flat.
 
@@ -308,7 +338,7 @@ def d2_graph(lines):
     nodes = set()
     edges = set()
 
-    for raw in lines:
+    for raw in strip_d2_vars(lines):
         text = raw.split("#", 1)[0].strip()
         if not text:
             continue

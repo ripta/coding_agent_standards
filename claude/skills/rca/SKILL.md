@@ -238,6 +238,10 @@ Trigger: <the proximate event, cited>
 Contributing factors:
 - <factor> (D): <citation>
 
+## Causal chart
+
+<an events and causal factors chart, as a mermaid fence>
+
 ## Detection and recovery
 <chains from step 7, or "not applicable">
 
@@ -247,6 +251,24 @@ Contributing factors:
 ## Unknowns
 - <link>. Needs: <the data that would resolve it>
 ```
+
+Draw the causal chart when time order matters, which is true of every
+incident with a timeline. Skip it, and the section, for a defect with no
+timeline. Follow "Events and Causal Factors Charts" in
+`${CLAUDE_SKILL_DIR}/../../practices/diagrams.md`:
+
+- Events from the timeline go on one spine, each label opening with its
+  absolute timestamp and a `<br>`.
+- Conditions attach to the event that created them or the event they enabled.
+  Mark standing conditions `standing`, causal factors `causal`, and the
+  outcome `danger`.
+- Split a recurring incident into episodes, with an elapsed-time `marker`
+  between them and no arrow from one outcome to the next episode.
+- Every event and condition on the chart is a link in the tree. The chart adds
+  no claim the tree does not cite.
+
+The fence is source. It renders as a diagram once the report is in a page or a
+viewer that renders Mermaid.
 
 Marker legend. Use these and no others:
 

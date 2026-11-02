@@ -220,6 +220,19 @@ def check(path: str) -> int:
     if used["mermaid"] and "themechange" not in src:
         p.warn("no themechange handler; Mermaid diagrams keep their old colors after a toggle", 1)
 
+    # Diagrams take their colors from the page tokens on the base theme. Built-in themes put
+    # labels on greys the page cannot fix, and the hand-drawn look is ruled out.
+    builtin = re.compile(r"""\btheme['"]?\s*:\s*['"]?(default|dark|neutral|forest|neo|neo-dark|redux[\w-]*)\b""")
+    for m in builtin.finditer(src):
+        p.err(f"Mermaid built-in theme '{m.group(1)}'; use the template's base theme from the page tokens",
+              src.count("\n", 0, m.start()) + 1)
+    for m in re.finditer(r"""\blook['"]?\s*:\s*['"]?handDrawn\b""", src):
+        p.err("Mermaid handDrawn look; use the template's neo look", src.count("\n", 0, m.start()) + 1)
+    for m in re.finditer(r'<div class="mermaid"[^>]*>(.*?)</div>', src, re.DOTALL):
+        if re.search(r"^\s*(classDef|style)\b.*#[0-9a-fA-F]{3,8}\b", m.group(1), re.MULTILINE):
+            p.warn("Mermaid source hardcodes a hex color; tag the node with focus, danger, warn, or ok instead",
+                   src.count("\n", 0, m.start()) + 1)
+
     # Hardcoded colors defeat the theme toggle.
     for m in re.finditer(r"<svg\b.*?</svg>", src, re.DOTALL | re.IGNORECASE):
         if re.search(r"(fill|stroke)\s*=\s*[\"']#[0-9a-f]{3,8}", m.group(0), re.IGNORECASE):

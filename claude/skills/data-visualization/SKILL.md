@@ -25,6 +25,17 @@ particular: legends. See "Labels".
 - Each chart makes one point. A chart that needs two takeaways is two charts.
 - Use a pie or donut only for parts of one whole, with at most five slices. Otherwise use a bar chart. Readers compare
   lengths far more accurately than angles.
+- A period-over-period change is one number. Put it in a headline figure with its baseline, such as "+40% vs
+  September", instead of drawing another chart for it.
+
+### Usage Against a Limit
+
+Usage that runs against a quota, a budget, or a billing threshold takes two charts that share the time axis:
+
+- A stacked daily chart, broken down by source, shows who used it and when.
+- A cumulative line against the limit, drawn as a labeled horizontal rule, shows when the limit was crossed.
+
+One chart cannot show both. Daily bars hide the running total, and a cumulative line hides which source spiked.
 
 ## No Decoration
 
@@ -157,7 +168,11 @@ difference the reader sees is a difference in the data.
 - State the sample size when it is small enough to matter, and show uncertainty where the data has it, such as
   confidence intervals or min-max bands. Say what an error bar represents.
 - When a comparison involves a change, such as a deploy, a config flip, or an incident, mark that point on the chart
-  and label it.
+  and label it. On a time axis, draw it as a vertical rule labeled with what changed.
+- When older data lacks a dimension the newer data has, say so on the chart. A breakdown that starts partway through
+  the range, because earlier exports did not record that field, must not read as a change in behavior.
+- In an HTML page, give every chart a table view of the numbers it plots, one control away. The table is the
+  accessible version, and the way a reader checks a value.
 
 ## Ordering
 

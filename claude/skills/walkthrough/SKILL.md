@@ -37,6 +37,9 @@ Read these before writing any HTML. They live in this skill's directory
   with copy-paste snippets. Pick from here before inventing a widget.
 - `check.py`: mechanical self-containment and link checks. Run it before the
   review.
+- `${CLAUDE_SKILL_DIR}/../../practices/diagrams.md`: when a diagram earns its
+  place, which diagram fits which information, the semantic tints, and how to
+  check a rendered page. Every diagram on the page follows it.
 
 ## Workflow
 
@@ -197,7 +200,8 @@ model, the pivot, the new model, the consequences.
 **The diagrams.** Pick two or three families from `components.md` and reuse
 them for the whole page. A page with six diagram styles reads as six pages. Put
 sample data on the edges of any data-flow diagram. A concrete payload beats a
-labeled arrow.
+labeled arrow. Nodes stay grey. Tag the few the reader should notice with the
+template's tint classes: `focus`, `danger`, `warn`, or `ok`.
 
 **The interactions.** Pick from the catalog in `components.md`. Two or three
 well-chosen widgets beat a page of gadgets. Every interaction must teach
@@ -231,6 +235,13 @@ Theme gotchas the template already handles, which you must not break:
 - Mermaid bakes its colors in at render time. A theme switch means restoring
   each diagram's source and running Mermaid again. The template stores the
   source and provides the re-render hook.
+- The template renders Mermaid on the `base` theme, with the neo look and the
+  ELK layout, colored from the page tokens by `mermaidConfig()`. It adds the
+  tint classes to every flowchart and state diagram. Never set a theme or a
+  look in a diagram's `%%{init}` or front matter, and never write a color in
+  diagram source. Mermaid's built-in themes and its `handDrawn` look are out.
+- The template pins each diagram's SVG to its natural size. A wide diagram
+  scrolls inside its figure. Never scale one down to fit.
 - Chart.js reads its colors once. The template keeps a chart registry and
   re-applies colors from the CSS custom properties on toggle. Pass every chart
   you create through `registerChart`.
@@ -274,6 +285,12 @@ python3 "${CLAUDE_SKILL_DIR}/check.py" <path to the written page>
 ```
 
 Fix every error it reports. Judge the warnings and fix the ones that matter.
+
+Then check the page as rendered, in light and dark. Follow "Checking a Rendered
+Page" in `practices/diagrams.md`. Load the page with `?audit&theme=light` and
+`?audit&theme=dark` in headless Chrome, and read each diagram's
+`data-contrast-min` and `data-contrast-fails`. Fix every label below 4.5:1.
+Screenshot each tab by its `#hash` and look at every diagram.
 
 Then spawn one `general-purpose` reviewer with `model: sonnet`. Fast is the
 point. This is a readability pass, not a security audit. Brief it:
@@ -332,6 +349,8 @@ commits on the user's behalf. Do not push unless asked.
 - Group code changes by the idea they serve, not by file order in the diff.
 - Pick two or three diagram families and reuse them across the page. No ASCII
   diagrams.
+- Diagrams follow `practices/diagrams.md`: page tokens only, grey nodes, and
+  tints on the few that matter. Every label passes 4.5:1 in both themes.
 - Run `check.py` and then a `sonnet` reviewer before reporting. Apply what they
   find.
 - Never overwrite an existing page. Extend the slug on collision.

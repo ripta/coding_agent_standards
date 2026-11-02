@@ -25,6 +25,12 @@ sentence.
 
 ## Diagram families
 
+`practices/diagrams.md` in the plugin decides which diagram fits which
+information, and how diagrams are colored. Nodes stay grey. Tag the few the
+reader should notice with `class <id> focus`, `danger`, `warn`, or `ok`. The
+template defines those classes from the page tokens, so diagram source never
+carries a color.
+
 ### 1. Data flow
 
 The default. Components as boxes, data as labelled edges. **Put a sample
@@ -38,6 +44,7 @@ flowchart LR
   G -- "{qty: 2, userId: 7}" --> S["Order service"]
   S --> DB[("orders")]
   S -. "on failure {code: 429}" .-> C
+  class S focus
   </div>
   <figcaption><b>Figure 1.</b> The retry hint rides on the error
     response, not a separate call.</figcaption>
@@ -80,10 +87,34 @@ stateDiagram-v2
   Running --> Pending: lease expires
   Running --> Dead: attempts > 5
   Dead --> [*]
+  class Dead danger
 </div>
 ```
 
-### 4. Before / after
+### 4. Events and causal factors
+
+For incidents and anything where *why it happened, in time order* is the
+point. Events run down one spine with their timestamps. Conditions hang off
+the events they enabled. `practices/diagrams.md` has the conventions and a full
+example: `causal` for causal factors, `standing` for conditions that predate
+the incident, `danger` for the outcome, and `marker` for the gap between
+episodes.
+
+```html
+<div class="mermaid">
+flowchart TB
+  e1["14:02 UTC<br>deploy raises chunk size to 8 MB"]
+  e2["14:05 UTC<br>uploads exceed the proxy's 30 s limit"]
+  e1 --> e2
+  c1(["Proxy timeout never sized for chunk size"])
+  c1 --> e2
+  class c1 standing
+  class c1 causal
+  class e2 danger
+</div>
+```
+
+### 5. Before / after
 
 Two diagrams of the same family, side by side, in one figure. The reader's eye
 does the diffing. Keep node names identical across the pair so the delta
@@ -108,7 +139,7 @@ stands out.
 </figure>
 ```
 
-### 5. Simplified UI
+### 6. Simplified UI
 
 For interface changes, and better than a screenshot. It stays legible in both
 themes, costs nothing to keep current, and shows only what changed.
@@ -127,7 +158,7 @@ themes, costs nothing to keep current, and shows only what changed.
 </div>
 ```
 
-### 6. Hand-authored SVG
+### 7. Hand-authored SVG
 
 For layered architectures, timelines, memory layouts, and anything else Mermaid
 lays out badly. Use the template's utility classes (`.fill-accent`,
@@ -416,3 +447,8 @@ emphasis left.
 - **A wall of pasted diff.** If the page shows more code than prose, it is a
   diff viewer with extra steps.
 - **Hardcoded colors in SVG, D3, or Chart.js.** They survive exactly one theme.
+- **Mermaid's built-in themes, its `handDrawn` look, or a color in diagram
+  source.** The template colors every diagram from the page tokens.
+- **A tinted diagram.** When most nodes carry a tint, nothing stands out.
+- **A diagram shrunk to fit its card.** Labels become unreadable. Let it
+  scroll.

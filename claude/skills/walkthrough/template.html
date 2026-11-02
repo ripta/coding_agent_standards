@@ -10,6 +10,7 @@
     * the `themechange` CustomEvent        (mermaid + charts re-theme on it)
     * registerChart() for every Chart.js instance
     * the .tab / .panel wiring             (hash deep-links, lazy mermaid)
+    * mermaidConfig() and the --tint-* tokens (diagram colors come from them)
 
   Replace everything marked REPLACE. Delete the CDN <script> tags for libraries
   the page does not use, and delete their helpers at the bottom.
@@ -21,9 +22,10 @@
 <title>REPLACE — walkthrough</title>
 <script>
   // Runs before first paint. Stored choice wins; otherwise follow the system.
+  // ?theme=light or ?theme=dark wins, so a headless check can render either theme.
   (function () {
-    var t;
-    try { t = localStorage.getItem('wt-theme'); } catch (e) { t = null; }
+    var t = (location.search.match(/[?&]theme=(light|dark)\b/) || [])[1];
+    if (!t) { try { t = localStorage.getItem('wt-theme'); } catch (e) { t = null; } }
     if (t !== 'light' && t !== 'dark') {
       t = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
@@ -38,7 +40,7 @@
 
 <!-- Libraries load in <head> so inline widget scripts in the body can use them.
      Delete any this page does not need, along with its helper at the bottom. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.4.1/mermaid.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/12.2.0/mermaid.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"></script>
 <style>
@@ -66,6 +68,11 @@ html[data-theme="light"] {
   --c-warn: #c0392b;  --c-warn-bg: #fdeceb;
   --c-read: #5f6b7a;  --c-read-bg: #eff1f4;
 
+  --tint-focus: #2f6feb;  --tint-focus-bg: #eaf0fe;
+  --tint-danger: #c0392b; --tint-danger-bg: #fdeceb;
+  --tint-warn: #a76a00;   --tint-warn-bg: #fdf3e2;
+  --tint-ok: #2c7a41;     --tint-ok-bg: #e1f2e5;
+
   --code-k: #cf222e;  --code-s: #0a3069;  --code-n: #0550ae;  --code-c: #6e7781;
   --code-f: #8250df;  --code-t: #953800;  --code-o: #24292f;  --code-a: #953800;
   --diff-add: rgba(31,136,61,.12);  --diff-add-bar: #1f883d;
@@ -85,6 +92,11 @@ html[data-theme="dark"] {
   --c-edge: #e0a44a;  --c-edge-bg: #332713;
   --c-warn: #f08a7e;  --c-warn-bg: #351d1c;
   --c-read: #9aa7b6;  --c-read-bg: #21262d;
+
+  --tint-focus: #7fa7f9;  --tint-focus-bg: #1b2740;
+  --tint-danger: #f08a7e; --tint-danger-bg: #351d1c;
+  --tint-warn: #e0a44a;   --tint-warn-bg: #332713;
+  --tint-ok: #7ccf91;     --tint-ok-bg: #1e3427;
 
   --code-k: #ff7b72;  --code-s: #a5d6ff;  --code-n: #79c0ff;  --code-c: #8b949e;
   --code-f: #d2a8ff;  --code-t: #ffa657;  --code-o: #c9d1d9;  --code-a: #ffa657;
@@ -213,6 +225,7 @@ figcaption {
 }
 figcaption b { color: var(--text); font-weight: 600; }
 .mermaid { text-align: center; overflow-x: auto; }
+.mermaid > svg { display: inline-block; max-width: none; }
 .mermaid[data-failed] {
   text-align: left; white-space: pre; font: .82rem/1.5 var(--font-mono);
   color: var(--text-dim); background: var(--surface-2); padding: .8rem; border-radius: var(--radius-sm);
@@ -318,7 +331,8 @@ tbody tr:hover { background: var(--surface-2); }
 .src-link { font: .8rem var(--font-mono); }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  * { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  /* Mermaid measures its labels while they lay out; a forced transition on them inflates every diagram. */
+  :not(.mermaid *) { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
 @media print {
   .topbar, .controls, .stepper { display: none; }
@@ -371,6 +385,7 @@ tbody tr:hover { background: var(--surface-2); }
 flowchart LR
   A["Client"] -- "REPLACE: {id: 42}" --> B["Service"]
   B --> C[("Store")]
+  class B focus
       </div>
       <figcaption><b>Figure 1.</b> REPLACE — say what the reader should notice, not what the boxes are named.</figcaption>
     </figure>
@@ -516,21 +531,95 @@ flowchart LR
   // Mermaid bakes colors in at render time, so a theme switch means restoring
   // each diagram's source and running it again. Diagrams in a hidden panel
   // measure as zero-width, so they render on first reveal instead of at load.
-  function mermaidTheme() { return theme() === 'dark' ? 'dark' : 'default'; }
+  //
+  // Colors come only from the page tokens, on the base theme: Mermaid's built-in
+  // themes put edge labels on greys the page cannot fix. See practices/diagrams.md.
+  function mermaidConfig() {
+    var node = css('--surface-2'), border = css('--border-strong'), text = css('--text'),
+        dim = css('--text-dim'), surface = css('--surface'), accent = css('--tint-focus'),
+        accentBg = css('--tint-focus-bg');
+    return {
+      startOnLoad: false, securityLevel: 'strict',
+      theme: 'base', look: 'neo', layout: 'elk',
+      fontFamily: css('--font-ui'),
+      flowchart: { wrappingWidth: 260 },
+      themeVariables: {
+        darkMode: theme() === 'dark', fontFamily: css('--font-ui'), fontSize: '15px',
+        background: surface, primaryColor: node, mainBkg: node, primaryTextColor: text, textColor: text,
+        titleColor: text, primaryBorderColor: border, nodeBorder: border, secondaryColor: accentBg,
+        tertiaryColor: surface, lineColor: dim, edgeLabelBackground: surface,
+        clusterBkg: css('--bg'), clusterBorder: css('--border'),
+        actorBkg: node, actorBorder: border, actorTextColor: text, actorLineColor: css('--border'),
+        signalColor: dim, signalTextColor: text, labelBoxBkgColor: node, labelBoxBorderColor: border,
+        labelTextColor: text, loopTextColor: text, noteBkgColor: accentBg, noteBorderColor: accent,
+        noteTextColor: text, activationBkgColor: accentBg, activationBorderColor: accent,
+        sequenceNumberColor: surface, stateLabelColor: text, transitionColor: dim,
+        transitionLabelColor: text, specialStateColor: dim
+      }
+    };
+  }
+
+  // The semantic tints, defined from the tokens and added to every flowchart and
+  // state diagram, so diagram source names a class and never carries a color.
+  function tintDefs() {
+    function tint(name, width) {
+      return 'classDef ' + name + ' fill:' + css('--tint-' + name + '-bg') + ',stroke:' + css('--tint-' + name) +
+        ',stroke-width:' + width;
+    }
+    return [
+      tint('focus', '2px'), tint('danger', '3px'), tint('warn', '2px'), tint('ok', '2px'),
+      'classDef causal fill:' + css('--tint-focus-bg') + ',stroke:' + css('--tint-focus') + ',stroke-width:3px',
+      'classDef standing stroke-dasharray:5 4',
+      'classDef marker stroke-dasharray:2 3'
+    ];
+  }
+
+  function withTints(src) {
+    var lines = src.split('\n');
+    var start = 0;
+    if (/^\s*---\s*$/.test(lines[0])) {
+      var close = lines.slice(1).findIndex(function (l) { return /^\s*---\s*$/.test(l); });
+      start = close < 0 ? lines.length : close + 2;
+    }
+    var head = lines.findIndex(function (l, i) { return i >= start && l.trim() && !/^\s*%%/.test(l); });
+    if (head < 0 || !/^\s*(flowchart|graph|stateDiagram)/.test(lines[head])) return src;
+    lines.splice.apply(lines, [head + 1, 0].concat(tintDefs().map(function (d) { return '  ' + d; })));
+    return lines.join('\n');
+  }
+
+  // Mermaid scales its SVG to the container. Pin it to its own size so labels are
+  // never shrunk; a wide diagram scrolls inside its .mermaid box instead.
+  function naturalSize(n) {
+    var svg = n.querySelector('svg');
+    var vb = svg && svg.viewBox && svg.viewBox.baseVal;
+    if (!vb || !vb.width) return;
+    svg.style.maxWidth = 'none';
+    svg.setAttribute('width', vb.width);
+    svg.setAttribute('height', vb.height);
+  }
 
   // Renders every visible, unrendered diagram. Safe to call repeatedly.
   function renderMermaid() {
     if (typeof mermaid === 'undefined') return;
     var nodes = Array.prototype.slice.call(document.querySelectorAll('.mermaid'));
-    nodes.forEach(function (n) { if (!n.dataset.src) n.dataset.src = n.textContent.trim(); });
+    // A <br> in a label parses as an element, so put it back as text before keeping the source.
+    nodes.forEach(function (n) {
+      if (n.dataset.src) return;
+      n.querySelectorAll('br').forEach(function (br) { br.replaceWith('<br>'); });
+      n.dataset.src = n.textContent.trim();
+    });
     var pending = nodes.filter(function (n) {
       if (n.dataset.processed) return false;
       var panel = n.closest('.panel');
       return !panel || !panel.hidden;
     });
     if (!pending.length) return;
-    mermaid.initialize({ startOnLoad: false, theme: mermaidTheme(), securityLevel: 'strict' });
-    mermaid.run({ nodes: pending }).catch(function () {
+    pending.forEach(function (n) { n.textContent = withTints(n.dataset.src); });
+    mermaid.initialize(mermaidConfig());
+    mermaid.run({ nodes: pending }).then(function () {
+      pending.forEach(naturalSize);
+      if (AUDIT) pending.forEach(auditContrast);
+    }).catch(function () {
       pending.forEach(function (n) { n.textContent = n.dataset.src; n.setAttribute('data-failed', ''); });
     });
   }
@@ -546,6 +635,82 @@ flowchart LR
 
   if (typeof mermaid === 'undefined') {
     document.querySelectorAll('.mermaid').forEach(function (n) { n.setAttribute('data-failed', ''); });
+  }
+
+  /* ---- contrast audit -------------------------------------------------- */
+  // With ?audit in the URL, each rendered diagram records its lowest label contrast
+  // against the paint directly behind each label: data-contrast-min, plus the labels
+  // under 4.5:1 in data-contrast-fails. Only labels inside the window are measured,
+  // so a headless check uses a tall window. See "Checking a Rendered Page".
+  var AUDIT = /[?&]audit\b/.test(location.search);
+
+  function rgb(s) {
+    var m = s && s.match(/rgba?\(([^)]+)\)/);
+    if (!m) return null;
+    var p = m[1].split(/[\s,\/]+/).filter(Boolean).map(parseFloat);
+    return { c: p.slice(0, 3), a: p.length > 3 ? p[3] : 1 };
+  }
+
+  function contrast(a, b) {
+    function lum(c) {
+      var v = c.map(function (x) { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+      return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+    }
+    var l1 = lum(a), l2 = lum(b);
+    return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+  }
+
+  var SHAPES = { rect: 1, path: 1, polygon: 1, circle: 1, ellipse: 1 };
+
+  function paintBehind(el, x, y) {
+    var stack = document.elementsFromPoint(x, y);
+    for (var i = 0; i < stack.length; i++) {
+      var c = stack[i];
+      if (c === el || el.contains(c)) continue;
+      var cs = getComputedStyle(c);
+      if (c instanceof SVGElement) {
+        if (!SHAPES[c.tagName.toLowerCase()]) continue;
+        var f = rgb(cs.fill);
+        if (f && f.a * parseFloat(cs.fillOpacity || '1') * parseFloat(cs.opacity || '1') >= 0.5) return f.c;
+      } else {
+        var b = rgb(cs.backgroundColor);
+        if (b && b.a >= 0.5) return b.c;
+      }
+    }
+    return null;
+  }
+
+  function auditContrast(n) {
+    var svg = n.querySelector('svg');
+    if (!svg) return;
+    var box = n.getBoundingClientRect();
+    var worst = null, fails = [];
+    Array.prototype.forEach.call(svg.querySelectorAll('*'), function (el) {
+      var own = Array.prototype.some.call(el.childNodes, function (t) { return t.nodeType === 3 && t.nodeValue.trim(); });
+      if (!own) return;
+      var r = el.getBoundingClientRect();
+      var x = r.left + r.width / 2, y = r.top + r.height / 2;
+      if (!r.width || x < box.left || x > box.right || x > innerWidth || y < 0 || y > innerHeight) return;
+
+      // Mermaid draws sequence numbers on a circle inside an SVG marker, which hit-testing cannot see.
+      var bg = null;
+      if (el.classList.contains('sequenceNumber')) {
+        var mk = svg.querySelector('marker[id$="sequencenumber"] circle');
+        var mf = mk && rgb(getComputedStyle(mk).fill);
+        bg = mf && mf.c;
+      }
+      bg = bg || paintBehind(el, x, y);
+      var cs = getComputedStyle(el);
+      var fg = rgb(el instanceof SVGElement ? cs.fill : cs.color);
+      if (!fg || !bg) return;
+
+      var k = contrast(fg.c, bg);
+      if (!worst || k < worst) worst = k;
+      if (k < 4.5) fails.push(el.textContent.trim() + ' ' + k.toFixed(1) + ':1');
+    });
+    if (worst === null) return;
+    n.dataset.contrastMin = worst.toFixed(2);
+    n.dataset.contrastFails = fails.join('; ');
   }
 
   /* ---- charts --------------------------------------------------------- */

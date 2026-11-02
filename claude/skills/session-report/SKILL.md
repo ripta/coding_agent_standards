@@ -137,6 +137,11 @@ Standard skeleton (adapt, don't force): title; date + trigger/context with
 links; TL;DR; findings with evidence; causal analysis; remediation options or
 next steps; systemic/wider implications if any; status.
 
+Diagrams follow `${CLAUDE_PLUGIN_ROOT}/practices/diagrams.md`. Draw the causal
+analysis of an incident as an events and causal factors chart, in a `mermaid`
+fence. Charts of data follow the `data-visualization` skill. When the report
+also gets an HTML rendering, check it as "Checking a Rendered Page" says.
+
 ## 5. After writing
 
 Report the absolute path of the report and which topic pages were tagged

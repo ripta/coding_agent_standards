@@ -72,20 +72,9 @@ must read well without it.
 ## Diagrams
 
 Most slides need no diagram. A claim about structure, flow, or sequence is not enough on its own. A diagram earns its
-slide only when its shape is the claim, and a sentence cannot carry that shape. These shapes earn one:
-
-- Paths that branch or merge
-- A cycle or feedback loop
-- Nested boundaries, such as which services run inside which account
-- Fan-in or fan-out past three
-- Several actors exchanging messages in order
-
-These shapes do not:
-
-- A straight chain. `A -> B -> C` is a sentence with arrows. Write the sentence
-- A hub with a few spokes. That is a bullet list
-- Three or four boxes with a line or two between them
-- A diagram whose labels repeat the bullets beside it
+slide only when its shape is the claim, and a sentence cannot carry that shape. The test, the shapes that pass it, and
+which diagram fits which information are in `${CLAUDE_SKILL_DIR}/../../practices/diagrams.md`. On a slide, a diagram
+whose labels repeat the bullets beside it also fails.
 
 Before drawing one, write the sentence the diagram says. When that sentence, or up to three bullets, carries
 everything the picture shows, use the text. Prefer a table when the claim is a comparison of values.
@@ -102,6 +91,11 @@ A slide title can serve as the chart's title.
 
 - Use d2. It covers architecture, data flow, nested boundaries like accounts and VPCs, sequence diagrams, and ER and
   class diagrams
+- Open every d2 block with a `vars.d2-config` that sets `layout-engine: elk` and `theme-overrides` for every color
+  slot. Use the reference palette in `practices/diagrams.md` that matches the deck's theme. presenterm's d2 theme must
+  never show through. `check.py` warns on a block without both
+- Nodes stay grey. Tint the few that matter, set on each shape: blue for focus, red for danger, amber for a warning,
+  green for healthy. See "Semantic Tints" in `practices/diagrams.md`
 - Use Mermaid only for what d2 does not draw: `gantt`, `timeline`, `sankey`, `pie`, `xychart`, `quadrantChart`, and
   `gitGraph`. Those need `mmdc`. Without it, use a table and say which chart was dropped
 - Rewrite a source document's Mermaid flowchart or sequence diagram in d2. Keep the diagram's labels, and cut the nodes
