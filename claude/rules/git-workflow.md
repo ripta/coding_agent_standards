@@ -26,9 +26,13 @@ is the user's, including the checked-out branch and the mainline.
 
 - When the user asks for work that needs a branch, such as landing a PR, the agent creates its own. It never pushes the
   user's branch to do that work
-- On an agent-owned branch, the agent may commit, push, and merge the base in without asking, within the task that
+- On an agent-owned branch, the agent may commit, push, and rebase onto the base without asking, within the task that
   created it
-- Never force-push, even an agent-owned branch. Merge the base in instead of rebasing, so every push fast-forwards
+- Bring a branch up to date by rebasing it onto its base. Never merge the base into a branch. Merges run one way only:
+  the branch into the base
+- Push a rebased agent-owned branch with `git push --force-with-lease=<branch>:<sha>`. The `<sha>` is the remote head
+  the rebase started from. A bare `--force-with-lease` checks against the remote-tracking ref, and any `git fetch`
+  moves that ref. It can then overwrite a push the agent never saw. Never use a bare `--force`
 - Once the branch's PR has merged, or its work is confirmed on the target, delete it with `git branch -D`. A squash
   merge stops `git branch -d` from seeing the work, so the merge record is the evidence. Delete the remote branch too
 - Never push to, reset, rebase, or delete a user's branch. `git fetch` is fine. `git pull` into a user's branch is not
@@ -36,8 +40,8 @@ is the user's, including the checked-out branch and the mainline.
 ## Destructive Operations
 
 - Do not run `git reset --hard`, `git checkout .`, `git clean -f`, `git push --force`, or `git branch -D` unless the
-  user explicitly requests it. The exception is `git branch -D` on a merged agent-owned branch, per "Branches the Agent
-  Owns"
+  user explicitly requests it. The exceptions are `git branch -D` on a merged agent-owned branch, and a pinned
+  `--force-with-lease` push of a rebased agent-owned branch. Both are in "Branches the Agent Owns"
 - Warn the user before any operation that discards uncommitted changes
 
 ## Worktrees

@@ -26,11 +26,12 @@ You work only on a branch you own. That rule is what lets this loop push without
 - You own a branch this skill or `land-branch` created in this run, or one recorded in this loop's state file. Every
   other branch is the user's. See "Branches the Agent Owns" in
   `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`.
-- On a branch you own, you may commit, push, merge the base in, and delete the branch once its PR merged.
+- On a branch you own, you may commit, push, rebase onto the base, and delete the branch once its PR merged.
 - Never push to, reset, rebase, or delete a branch you do not own. That includes the user's checked-out branch and
   the base branch.
-- Never force-push, not even your own branch. Resolve conflicts by merging the base into the branch, so every push
-  fast-forwards. A reviewer's comments then stay attached to the commits they reviewed.
+- Never merge the base into the branch. Bring it up to date by rebasing onto the base. Then push it with
+  `git push --force-with-lease=<branch>:<sha>`, where `<sha>` is the remote head the rebase started from. Never use a
+  bare `--force`. See `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` for why the lease is pinned.
 
 When the target is the user's branch, you do not push it. Create your own branch at the same commit, in its own
 worktree, and run the loop there. See Step 3.
@@ -222,13 +223,15 @@ review body with `pr_watch.py comment`.
 
 ### The PR conflicts with its base
 
-In the worktree, run `git fetch origin`, then `git merge origin/<base>`. Resolve the conflicts. When a resolution needs
-a judgement about what either side meant, show the user both sides before committing it. Run the local checks and push.
+In the worktree, note the branch's remote head with `git rev-parse origin/<branch>`. Run `git fetch origin`, then
+`git rebase origin/<base>`. Resolve the conflicts commit by commit. When a resolution needs a judgement about what
+either side meant, show the user both sides before continuing the rebase. Run the local checks. Push with
+`git push --force-with-lease=<branch>:<sha> origin <branch>`, using the head you noted.
 
 ### The PR was behind its base
 
-On `behind`, when the base requires up-to-date branches, run `git fetch origin` and `git merge origin/<base>` in the
-worktree, run the local checks, and push. Otherwise leave it.
+On `behind`, when the base requires up-to-date branches, rebase onto the base and push as in the conflict case above.
+Otherwise leave it.
 
 ### The PR merged
 
@@ -258,7 +261,8 @@ command, `/merge-fix-loop <number>`, which resumes from the state files.
 
 ## Rules
 
-- Every push is to a branch you own, and fast-forwards
+- Every push is to a branch you own. A push that does not fast-forward follows a rebase onto the base, and carries a
+  pinned lease
 - Every change you push answers a failing check or a review comment on this PR. Note anything else you notice for the
   report instead
 - Do the fix work yourself, or delegate it to a subagent that returns before you arm the next wait. Never hand a

@@ -159,8 +159,9 @@ The rules here add to `merge-fix-loop`. They apply only to a run that stacked.
   step 3, retarget every open child. Read the child's `baseRefName`. When it is not the mainline, run
   `gh pr edit N --base <mainline>`. GitHub may have retargeted it already, so the edit is safe to repeat. A retarget
   changes no SHA, so no `checks-done` fires again. Run `pr_watch.py snapshot` on the child to read its checks
-- **Reuse or merge up.** Reuse the child's passing checks, unless one of these holds. Then merge the mainline into the
-  child's worktree with `git merge origin/<mainline>`, run the local checks, and push:
+- **Reuse or rebase.** Reuse the child's passing checks, unless one of these holds. Then rebase the child onto the
+  mainline in its worktree with `git rebase origin/<mainline>`, run the local checks, and push with a pinned lease as
+  `merge-fix-loop` "The PR conflicts with its base" says:
   - a required check is missing, `ACTION_REQUIRED`, or failing on the head
   - the mainline requires up-to-date branches, so the child is `BEHIND`
   - a parent fix has not reached the child
@@ -169,12 +170,13 @@ The rules here add to `merge-fix-loop`. They apply only to a run that stacked.
   `merge-fix-loop` Step 5. The gate passes now, since the base equals `merge_into`
 - **Checks that never appear.** CI may not build a PR whose base is a batch branch. A stacked child whose required
   checks never appear, as `no-checks` or by missing names, waits for its parent. It does not stop as `merge-fix-loop`
-  Step 5.2 says. After the retarget, the merge-up gives it a build against the mainline. That is a serial landing,
+  Step 5.2 says. After the retarget, the rebase gives it a build against the mainline. That is a serial landing,
   never a worse one. Never close and reopen a PR to start a build. The watcher treats closed as final
-- **A parent was pushed to.** Every push to a parent batch must reach each open child. That covers a fix, and a merge
-  of the mainline that resolved a conflict. Merge the parent branch into the child, never rebase or force-push, run
-  the local checks, and push. The child must not merge until that is done and its required checks pass on the new
-  head. A conflict that needs a judgement goes to the user, as in Step 5.3
+- **A parent was pushed to.** Every push to a parent batch must reach each open child. That covers a fix, and a rebase
+  of the parent onto the mainline that resolved a conflict. Before the parent's push, note its old head. Then rebase
+  each child onto the new parent with `git rebase --onto origin/<parent> <old parent head>`, run the local checks, and
+  push with a pinned lease. Never merge the parent into the child. The child must not merge until that is done and its
+  required checks pass on the new head. A conflict that needs a judgement goes to the user, as in Step 5.3
 - **A parent closed without merging.** Mark its stacked children stopped. Never retarget them, since they carry the
   parent's unmerged commits. Report it to the user
 
