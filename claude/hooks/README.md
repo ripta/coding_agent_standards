@@ -5,7 +5,9 @@
 - `SessionStart` runs `link-current.sh`. It points
   `~/.claude/coding-standards-current` at the installed plugin, so profiles
   import the standards from the same commit as the tools. It skips
-  `--plugin-dir` sessions, which would otherwise link a working tree. It also
+  `--plugin-dir` sessions, which would otherwise link a working tree. A
+  session that resumes or compacts on an older snapshot links the one
+  `installed_plugins.json` lists instead of its own. It also
   runs `revisit-notice.sh`, which prints one line when a revisit hook in the
   project's proposals has passed, and nothing otherwise. Last, `check-setup.sh`
   creates `~/.local/state/coding_agent_standards/`, and checks that the

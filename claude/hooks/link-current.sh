@@ -22,6 +22,28 @@ if [ ! -d "$root" ]; then
   exit 0
 fi
 
+# SessionStart also fires when a session resumes or compacts, and a session
+# keeps the snapshot it started with, so a weeks-old session would point every
+# project back at old tools. Link the snapshot the plugin record lists as
+# installed, unless this one is listed. With no readable record, link this
+# session's own snapshot.
+installed=$(python3 - "$root" "$HOME/.claude/plugins/installed_plugins.json" <<'PY' 2>/dev/null || true
+import json, os, sys
+
+root, record = sys.argv[1], sys.argv[2]
+plugin_dir = os.path.dirname(root.rstrip("/"))
+key = os.path.basename(plugin_dir) + "@" + os.path.basename(os.path.dirname(plugin_dir))
+with open(record) as f:
+    paths = [e.get("installPath", "") for e in json.load(f).get("plugins", {}).get(key, [])]
+paths = [p for p in paths if os.path.isdir(p)]
+if paths and root not in paths:
+    print(paths[0])
+PY
+)
+case "$installed" in
+  "$HOME"/.claude/plugins/cache/*) root="$installed" ;;
+esac
+
 if [ -L "$link" ] && [ "$(readlink "$link")" = "$root" ]; then
   exit 0
 fi
