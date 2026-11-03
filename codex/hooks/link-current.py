@@ -7,7 +7,8 @@ import tempfile
 from pathlib import Path
 
 
-def link_current(root, codex_home):
+def link_current(root, codex_home, refresh=True):
+    # Without refresh, only a missing or dangling link is pointed at root.
     root = root.resolve(strict=True)
     cache = (codex_home / "plugins" / "cache").resolve()
     if cache not in root.parents:
@@ -19,6 +20,8 @@ def link_current(root, codex_home):
         return
     if link.exists() and not link.is_symlink():
         raise ValueError(f"{link} exists and is not a symlink; leaving it unchanged")
+    if not refresh and link.exists():
+        return
     # A private temporary directory avoids collisions between simultaneous session starts.
     with tempfile.TemporaryDirectory(prefix=".coding-standards-", dir=codex_home) as temporary:
         pending = Path(temporary) / "current"

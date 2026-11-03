@@ -52,6 +52,19 @@ class LinkCurrentTests(unittest.TestCase):
             LINK_CURRENT(self.root, self.home)
         self.assertFalse(self.link.is_symlink())
 
+    def test_without_refresh_only_a_missing_or_dangling_link_moves(self):
+        LINK_CURRENT(self.root, self.home, refresh=False)
+        self.assertEqual(self.link.resolve(), self.root.resolve())
+        older = self.root.with_name("0.9.0")
+        older.mkdir()
+        (older / "baseline.md").write_text("old baseline")
+        LINK_CURRENT(older, self.home, refresh=False)
+        self.assertEqual(self.link.resolve(), self.root.resolve())
+        self.link.unlink()
+        self.link.symlink_to(self.home / "missing")
+        LINK_CURRENT(older, self.home, refresh=False)
+        self.assertEqual(self.link.resolve(), older.resolve())
+
     def test_concurrent_sessions_leave_valid_link_and_no_temporary_files(self):
         with ThreadPoolExecutor(max_workers=8) as pool:
             list(pool.map(lambda _: LINK_CURRENT(self.root, self.home), range(32)))

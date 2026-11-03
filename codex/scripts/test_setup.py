@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -27,16 +28,23 @@ class SetupTests(unittest.TestCase):
         self.instructions = self.home / "AGENTS.md"
         self.link = self.home / "coding-standards-current"
 
-    def run_setup(self, *args):
-        script = self.root / "scripts" / "setup.py"
+    def run_setup(self, *args, root=None, source=None):
+        root = root or self.root
+        script = root / "scripts" / "setup.py"
         if args == ("--startup",):
-            script = self.root / "hooks" / "check-setup.py"
+            script = root / "hooks" / "check-setup.py"
             args = ()
         return subprocess.run(
             [sys.executable, str(script), *args],
             env=dict(os.environ, CODEX_HOME=str(self.home)), cwd=self.project,
+            input=json.dumps({"source": source}) if source else "",
             capture_output=True, text=True,
         )
+
+    def newer_snapshot(self):
+        newer = self.root.with_name("2.0.0")
+        shutil.copytree(self.root, newer)
+        return newer
 
     def test_check_reports_missing_setup_without_writing(self):
         result = self.run_setup("--check")
@@ -93,6 +101,29 @@ class SetupTests(unittest.TestCase):
         (self.project.parent / "AGENTS.md").write_text(f"Read {self.link}/baseline.md")
         result = self.run_setup("--startup")
         self.assertIn("do not reference", result.stdout)
+
+    def test_an_older_thread_that_resumes_keeps_the_newer_link(self):
+        newer = self.newer_snapshot()
+        self.assertEqual(self.run_setup("--startup", root=newer, source="startup").returncode, 0)
+        for source in ("resume", "compact", "clear", "fork"):
+            with self.subTest(source=source):
+                result = self.run_setup("--startup", source=source)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(self.link.resolve(), newer)
+                self.assertNotIn("does not point", result.stdout)
+                self.assertIn(str(newer / "scripts" / "setup.py"), result.stdout)
+
+    def test_a_fresh_start_moves_the_link(self):
+        newer = self.newer_snapshot()
+        self.assertEqual(self.run_setup("--startup", root=newer, source="startup").returncode, 0)
+        self.assertEqual(self.run_setup("--startup", source="startup").returncode, 0)
+        self.assertEqual(self.link.resolve(), self.root)
+
+    def test_a_resumed_thread_repairs_a_missing_link(self):
+        result = self.run_setup("--startup", source="resume")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.link.resolve(), self.root)
+        self.assertNotIn("does not point", result.stdout)
 
 
 if __name__ == "__main__":
