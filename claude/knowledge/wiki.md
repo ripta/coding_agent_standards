@@ -17,9 +17,14 @@ A wiki has three layers:
 The organizing rule is that paths encode only what never changes. A report's date never changes, so the date decides
 its folder. Topics can be renamed, split, or added, so they live in frontmatter. Re-tagging a report never moves it.
 
+`index.md` is the entry point, so its size is a cost on every lookup. It lists topics and projects, which grow slowly.
+The list of every report grows with each one, so it lives in `reports/index.md` instead. A reader reaches a report
+through its topic page, or through that list when browsing by date.
+
 ```text
-index.md              generated catalog: topics, projects, every report
+index.md              generated catalog: topics and projects
 topics/<slug>.md      living topic pages
+reports/index.md      generated list of every report, newest first
 reports/YYYY/MM/      dated reports, filed by the date in their name
 references/           imported external material, kept verbatim
 projects/<name>/      optional project folders
@@ -107,8 +112,8 @@ A report that no later report names has no block. When the last one goes, `build
 byte-identical to what its author committed. A multi-file report takes the block in its entry. A standalone HTML
 report gets no block.
 
-The index and the topic report lists flag a corrected report with "(corrected by ...)" after its summary. That holds
-for standalone HTML reports too.
+`reports/index.md` and the topic report lists flag a corrected report with "(corrected by ...)" after its summary. That
+holds for standalone HTML reports too.
 
 ### Immutability
 
@@ -159,6 +164,25 @@ What the topic covers and where its edges are.
 When a report changes the current position, update that topic's "Current position" in the same commit as the report.
 Bump `reviewed` to the report's date at the same time. When a report only adds evidence, tagging it is enough.
 
+### Claims
+
+A reader acts on "Current position" without rereading the reports, so each claim must say what it rests on:
+
+- State each claim so that evidence could prove it wrong. Use names, numbers, and absolute dates. "The nightly job
+  finishes in 40 minutes as of 2026-03-12" can be checked. "The nightly job is slow" cannot.
+- Link the report behind each claim. A claim with no report behind it needs one written first.
+- Say plainly when a claim is not confirmed, at the end of its bullet, as in "the cause is suspected, not confirmed".
+  An unmarked claim reads as confirmed.
+
+### Open Questions
+
+An open question is work not yet done, not a place to park doubt. Settle it before recording it whenever you can. When
+a measurement, a test, or a read of the source would answer it, do that now. Write the result up as a report, and put
+the answer in "Current position".
+
+Record a question only when it cannot be settled now, such as when it needs access you lack or a decision someone else
+owns. Each one names what would settle it: the measurement or test to run, or who decides.
+
 Create a topic page when the first report needs it. The check fails on a tag with no page, which also catches typos.
 
 ### Splitting and Renaming
@@ -171,13 +195,18 @@ page as a short stub that points at the new pages.
 Several sessions often write reports at the same time, all in the same checkout. The layout keeps them from colliding:
 
 - Reports are new files, so they never conflict.
-- `index.md`, the topic report lists, and the later-reports blocks are generated deterministically from tracked
-  files. Any session that regenerates them produces the same output.
+- `index.md`, `reports/index.md`, the topic report lists, and the later-reports blocks are generated
+  deterministically from tracked files. Any session that regenerates them produces the same output.
 - The only hand-edited shared text is a topic's "Current position". It changes only when a finding changes it.
 
-Sessions edit "Current position" directly, so topics do not go stale between review passes. Revisit this design if
-edits to one topic page start colliding often. The alternative is for sessions only to tag reports. A periodic review
-pass then becomes the single writer of topic text. That removes the conflicts, but topics lag until the next pass.
+Sessions edit "Current position" directly, so topics do not go stale between review passes. The alternative is for
+sessions only to tag reports. A periodic review pass then becomes the single writer of topic text. That removes the
+conflicts, but topics lag until the next pass.
+
+A collision is the signal to revisit this design. It looks like this: a session about to update a topic page finds
+uncommitted edits in it that the session did not make. That session stops before committing the page, since a
+commit by path would carry the other session's edits too. It tells its user which page collided. The user decides when
+collisions are frequent enough to move to the alternative.
 
 ## References
 
@@ -221,7 +250,7 @@ back to the topic, and the topic's "Related" section links to the project.
 `bin/wiki` runs the tool:
 
 ```text
-bin/wiki build    regenerate index.md, the topic report lists, and the later-reports blocks
+bin/wiki build    regenerate index.md, reports/index.md, the topic report lists, and the later-reports blocks
 bin/wiki check    lint; fails on anything invalid or stale
 bin/wiki stale    list topics with reports newer than their `reviewed` date
 ```
@@ -235,8 +264,9 @@ bin/wiki stale    list topics with reports newer than their `reviewed` date
 - Every tagged topic has a page.
 - Every `follows` and `corrects` value is a list naming an existing, earlier report other than this one, and no
   report names one target in both.
-- In-repo links in reports, topics, and the index resolve.
-- `index.md`, every topic's generated block, and every report's later-reports block are current.
+- In-repo links in reports, topics, and both indexes resolve.
+- `index.md`, `reports/index.md`, every topic's generated block, and every report's later-reports block are
+  current.
 
 `check` also warns about a topic page that no report tags, and about a standalone HTML report. A warning does not fail
 the check.
@@ -245,8 +275,8 @@ Only git-tracked files count, and that includes staged files. A report another s
 appears in your index. The flip side is that you must `git add` your own new report and any new topic page before
 running `build`. Otherwise `build` leaves them out, and `check` does not lint them.
 
-`index.md` and the blocks between the generated markers, on topic pages and reports, are output. Never edit them by
-hand.
+`index.md`, `reports/index.md`, and the blocks between the generated markers, on topic pages and reports, are output.
+Never edit them by hand.
 
 `stale` drives the periodic topic review. That is a model pass that reads each listed topic page and the reports newer
 than its `reviewed` date. It then updates the current position or flags contradictions. It reads only new material, so
@@ -288,9 +318,12 @@ The `commit-msg` hook enforces the subject style. The `pre-commit` hook runs `bi
   2. Update the topic's "Current position" and `reviewed` when the finding changes it.
   3. Stage the new files: `git add -- <report> <new topic pages>`. The tool sees only tracked and staged files.
   4. Run `bin/wiki build`.
-  5. Commit the report, `index.md`, every touched topic page, and every earlier report whose later-reports block
-     changed, together.
-- Never hand-edit `index.md`, a topic's generated "Reports" block, or a report's later-reports block.
+  5. Commit the report, `index.md`, `reports/index.md`, every touched topic page, and every earlier report whose
+     later-reports block changed, together.
+- Before committing to a wiki that others can read, screen the content for that audience by `rules/disclosure.md`.
+  Git keeps whatever a commit carries, even after a revert.
+- Never hand-edit `index.md`, `reports/index.md`, a topic's generated "Reports" block, or a report's later-reports
+  block.
 - Never rewrite another session's committed report. Write a new one and link back.
 - To pick up an earlier line of work, read the topic page first, then the reports it links. Do not search history
   first.
