@@ -14,11 +14,11 @@ SOURCE = REPO / "claude"
 OUTPUT = REPO / "dist" / "codex"
 SKILLS = (
     "format-checker", "gitignore-maintainer", "go-code-reviewer", "lint-runner",
-    "makefile-helper", "release", "risk-assessment", "schedule-proposal", "session-report",
+    "makefile-helper", "proposal-reviewer", "release", "risk-assessment", "schedule-proposal", "session-report",
     "test-audit", "testing-specialist",
 )
 COMMANDS = ("next-pr", "summary", "work-on", "work-queue")
-ROLES = ("implementer", "reviewer", "adr-impact")
+ROLES = ("implementer", "reviewer", "adr-impact", "design-critic", "design-judge", "citation-verifier")
 UNSUPPORTED = re.compile(
     r"CLAUDE_[A-Z_]+|\$ARGUMENTS|EnterPlanMode|ExitPlanMode|SendMessage|"
     r"AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:|"
@@ -199,6 +199,10 @@ def main():
     explicit = {name for name, (_, only) in converted.items() if only}
     roles = {name: convert_role((SOURCE / "agents" / f"{name}.md").read_text(), name)
              for name in ROLES}
+    convergence = translate((SOURCE / "project-management" / "design-convergence.md").read_text(),
+                            "design-convergence")
+    if UNSUPPORTED.search(convergence):
+        raise ValueError("design-convergence: untranslated Claude dependency")
     if OUTPUT.is_symlink() or OUTPUT.parent.is_symlink():
         raise ValueError("refusing to build through a symlink at dist/ or dist/codex/")
     if OUTPUT.exists():
@@ -222,8 +226,7 @@ def main():
         (role_directory / f"{name}.md").write_text(text)
     for directory in ("rules", "project-management", "knowledge", "practices"):
         shutil.copytree(SOURCE / directory, OUTPUT / directory)
-    # No generated workflow uses the Claude critic/judge orchestration.
-    (OUTPUT / "project-management" / "design-convergence.md").unlink()
+    (OUTPUT / "project-management" / "design-convergence.md").write_text(convergence)
     # These references describe structured questions without requiring Claude's
     # tool name or its particular question-count limit.
     decisions = OUTPUT / "rules" / "decision-making.md"
@@ -283,7 +286,7 @@ def main():
         "The startup hook checks setup without editing global or project instructions.\n\n"
         "Included skills: " + ", ".join(converted) + ".\n\n"
         "Commands, and skills Claude marks explicit-only, are explicit-only skills.\n"
-        "work-queue and work-on use bundled role\n"
+        "proposal-reviewer, work-queue, and work-on use bundled role\n"
         "instructions with ordinary Codex subagents; no custom roles are installed.\n"
         "Run approval happens explicitly in chat. Progress uses update_plan when\n"
         "available, or commentary, with full state kept in session reports.\n"

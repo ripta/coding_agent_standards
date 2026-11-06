@@ -5,6 +5,116 @@ require reviewing the adaptation rather than silently shipping stale behavior.
 """
 
 REPLACEMENTS = {
+    'proposal-reviewer': (
+        ("Completes the proposal pipeline: research -> draft -> design review -> accepted.",
+         "Follows the proposal pipeline from research through drafting and design review to acceptance."),
+        ("Then ask the entry gates in one AskUserQuestion call:",
+         "Ask the entry gates together, splitting only when the available question tool's limits require it:"),
+        ("As soon as the call returns, update the proposal file for each decision.",
+         "As soon as explicit user answers arrive, update the proposal file for each answered decision."),
+        ("once a gate call returns with nothing\nreopened and nothing changed.",
+         "once explicit gate answers confirm nothing\nwas reopened and nothing changed."),
+        ("Write each round's decisions to the proposal file as soon as the call returns, so progress survives interruption",
+         "Write each round's decisions to the proposal file as soon as explicit answers arrive, so progress survives interruption"),
+        ("""## Workflow""",
+         """## Codex tools
+
+Use the session's exposed question tools within their supported mode and limits.
+Otherwise ask in chat. Collect independent questions in one batch where supported;
+split a round only when tool limits require it. Keep dependent questions in later rounds.
+For multiple selections, accept candidate IDs in text when the tool has no multi-select.
+Preserve the None option and contradiction checks. Always wait for explicit answers
+before dependent work. An asynchronous question returning is not an answer. An empty
+answer, preselected default, timeout, or tool permission grant is not consent.
+
+Delegate using ordinary Codex subagents and the bundled role instructions:
+
+- `${CLAUDE_PLUGIN_ROOT}/references/agents/adr-impact.md` for ADR conflicts
+- `${CLAUDE_PLUGIN_ROOT}/references/agents/design-critic.md` for independent critique
+- `${CLAUDE_PLUGIN_ROOT}/references/agents/design-judge.md` for convergence rulings
+- `${CLAUDE_PLUGIN_ROOT}/references/agents/citation-verifier.md` for citation checks
+- `${CLAUDE_PLUGIN_ROOT}/references/agents/reviewer.md` for the final ADR review
+
+Read the relevant role before delegating. Give the child the role instructions or
+their absolute path, the proposal and checkout paths, the absolute bundle path,
+and its task. Inherit session model settings. Use fresh critics with only the
+inputs the workflow permits; do not fork coordinator history into a blind review.
+Use available spawn, wait, status, and messaging tools. Run independent scans in
+parallel when capacity permits, otherwise sequentially. Release finished child
+slots when supported. These references do not register custom agent types.
+If a role cannot run, report it and follow the workflow's stated fallback. If the
+judge cannot run, return the unresolved question to the user; do not invent a ruling.
+Workflow authorization never bypasses session permissions or higher-priority instructions.
+
+## Workflow"""),
+        ("""3. Use Agent sub-tasks to scan the codebase for code relevant to the proposal's domain. Look for existing patterns,
+   types, interfaces, and conventions that will inform design choices. Scans are lookup work. Spawn `Explore` with
+   `model: sonnet` for them""",
+         """3. Use read-only exploration subagents to scan the codebase for code relevant to the proposal's domain. Look for
+   existing patterns, types, interfaces, and conventions that will inform design choices. If exploration delegation
+   is unavailable, scan directly"""),
+        ("""- Ask every question through the AskUserQuestion tool. Never ask a question as plain prose and wait for a typed reply.
+  Batching changes how many questions go in one call. It never replaces the tool""",
+         """- Ask using the Codex tools guidance above. Wait for explicit user answers before recording user decisions.
+  Keep all entry gates and review gates, including when questions must be asked in chat"""),
+        ("""A round
+   is the first eligible questions in foundational order, up to four.""",
+         """A round
+   is the first eligible questions in foundational order, up to four, reduced to the available tool's limit when needed."""),
+        ("""Do all three checks before asking. Then present every inconsistency, gap, and weak decision in one AskUserQuestion call.
+When there are more than four, ask in successive calls of up to four. Resolve inconsistencies before continuing. In
+autonomous mode, decide these instead, as "Autonomous Mode" describes.""",
+         """Do all three checks before asking. Present every inconsistency, gap, and weak decision together, splitting only
+when the available question tool's limits require it. Resolve inconsistencies before continuing. In autonomous mode,
+decide these instead, as "Autonomous Mode" describes."""),
+        ("whether to mitigate or accept. Batch these into one call, or successive calls of up to four.",
+         "whether to mitigate or accept. Batch these within the available question tool's limits, or ask in chat."),
+        ("Then ask in one AskUserQuestion call, or successive calls of up to four questions:",
+         "Then ask together, splitting only when the available question tool's limits require it:"),
+        ("decides. So it asks in rounds: one AskUserQuestion call per round of up to four independent questions.",
+         "decides. So it asks in rounds, batching independent questions within the available question tool's limits."),
+        ("""Never split a
+  round into one call per question. Never merge dependent questions into one round""",
+         """Split a
+  round only when the available tool's limits require it. Never merge dependent questions into one round"""),
+    ),
+    'design-convergence': (
+        ("""acceptable options, the `design-judge` agent rules. Under the plugin the agents are named
+`coding-standards:design-critic` and `coding-standards:design-judge`.""",
+         """acceptable options, the `design-judge` agent rules. Use ordinary Codex subagents with the bundled instructions at
+`../references/agents/design-critic.md` and `../references/agents/design-judge.md`. Resolve these paths relative to this
+document. Give each child the absolute bundle and checkout paths. Inherit session model settings. A fresh critic
+receives only its allowed inputs, without coordinator history. If the critic cannot run, the caller falls back to
+manual review. If the judge cannot run, ask the user to settle the unresolved question."""),
+        ("""## Models
+
+Use the deep model where the work is tracing a failure through code, and a cheaper one where it is lookup.
+
+- **`design-critic` and `design-judge`: Opus**, as their frontmatter sets. Re-check passes stay on Opus too. Finding a
+  defect in changed text, or one a fix caused elsewhere, takes the same tracing as the first pass
+- **Codebase scans and inventories: Sonnet.** Spawn `Explore` with `model: sonnet` for questions like "where is X
+  produced" or "map every caller of Y"
+- **File:line citations: `citation-verifier`** (Haiku), for citations in the proposal and in critic output you are about
+  to rely on. Do not spend a critic pass checking citations
+- **Proposal format**: check it yourself against `proposals.md`. It is not a critique""",
+         """## Delegation
+
+Inherit the session's model settings for all subagents. Use read-only exploration subagents for codebase scans and
+inventories. For file:line citations in the proposal and critic output, use the bundled instructions at
+`../references/agents/citation-verifier.md`; do not spend a critic pass checking citations. Check proposal format
+yourself against `proposals.md`. It is not a critique.
+
+Resolve the standard named `rules/decision-making.md` against the bundle root, one directory above this document.
+Use the caller's question handling and approval boundaries. This protocol never authorizes accepting a proposal,
+creating ADRs, or committing without the caller's required user choice."""),
+    ),
+    'citation-verifier': (
+        ("""- Read working-tree files with Read.
+- Read a file at a revision with `git show <rev>:<path>`. Use Bash for nothing
+  else. Never run a git command that changes state.""",
+         """- Read working-tree files with the session's file-reading tools or read-only shell commands.
+- Read a file at a revision with `git show <rev>:<path>`. Never run a command that changes state."""),
+    ),
     'work-queue': (
         ("""Start by calling the EnterPlanMode tool, before any other action. Skip this
 step if the session is already in plan mode.
@@ -355,4 +465,11 @@ def translate(text, name):
         text = text.replace("project's `CLAUDE.md`", "project's `AGENTS.md` and applicable `CLAUDE.md`")
     if name == "adr-impact":
         text = text.replace("project's `CLAUDE.md`", "project's `AGENTS.md` and applicable `CLAUDE.md`")
+    if name == "proposal-reviewer":
+        for role in ("adr-impact", "design-critic", "citation-verifier", "reviewer"):
+            text = text.replace(f" (`coding-standards:{role}` under the plugin)", "")
+        text = text.replace("Agent sub-task", "Codex subagent task")
+        text = text.replace("WebSearch/WebFetch", "the available web search and page-reading tools")
+        text = text.replace("AskUserQuestion", "available user-question")
+        text = text.replace("multiSelect", "multiple-selection")
     return text

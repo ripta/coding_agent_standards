@@ -73,7 +73,7 @@ class BaselineBuildTests(unittest.TestCase):
             documents = [moved / "skills" / name / "SKILL.md" for name in
                          ("work-queue", "work-on", "schedule-proposal", "session-report")]
             documents += sorted((moved / "references" / "agents").glob("*.md"))
-            self.assertEqual(len(documents), 7)
+            self.assertEqual(len(documents), 4 + len(self.builder["ROLES"]))
             for document in documents:
                 with self.subTest(document=document.relative_to(moved)):
                     contents = document.read_text()
@@ -102,6 +102,37 @@ class BaselineBuildTests(unittest.TestCase):
             self.assertIsNone(self.builder["UNSUPPORTED"].search(contents))
             policy = skill / "agents" / "openai.yaml"
             self.assertIn("allow_implicit_invocation: false", policy.read_text())
+
+    def test_proposal_review_dependencies_survive_relocation_without_claude_tools(self):
+        """Protect the portable review bundle; this does not execute a model-driven review."""
+        with tempfile.TemporaryDirectory(prefix="codex proposal ") as temporary:
+            output = Path(temporary) / "bundle"
+            with patch.dict(self.namespace, OUTPUT=output), patch("sys.argv", [str(BUILD)]):
+                self.builder["main"]()
+            moved = output.rename(Path(temporary) / "relocated bundle")
+            skill = moved / "skills" / "proposal-reviewer" / "SKILL.md"
+            self.assertTrue(skill.is_file(), "proposal-reviewer must be exported")
+            convergence = moved / "project-management" / "design-convergence.md"
+            documents = [skill, convergence]
+            documents += [moved / "references" / "agents" / f"{name}.md" for name in
+                          ("design-critic", "design-judge", "citation-verifier", "adr-impact", "reviewer")]
+            for document in documents:
+                with self.subTest(document=document.relative_to(moved)):
+                    contents = document.read_text()
+                    self.assertIsNone(self.builder["UNSUPPORTED"].search(contents))
+                    for relative in re.findall(r"(?:\./)?(?:\.\./)+[\w./-]+", contents):
+                        target = (document.parent / relative).resolve()
+                        self.assertTrue(target.is_relative_to(moved.resolve()))
+                        self.assertTrue(target.exists(), f"{document}: {relative}")
+            contents = skill.read_text()
+            for mode in ("Autonomous", "Converge, then ask", "Manual"):
+                self.assertIn(mode, contents)
+            self.assertIn("wait for explicit answers", contents)
+            self.assertNotIn("call returns", contents)
+            self.assertIn("Never read an empty answer as consent", contents)
+            self.assertIn("Never offer `accepted` in the same call as a reopen question", contents)
+            self.assertIn("fresh", convergence.read_text())
+            self.assertIn("At most three passes per question", convergence.read_text())
 
     def test_bundle_ships_the_test_cost_helper_the_makefile_practice_names(self):
         with tempfile.TemporaryDirectory(prefix="codex cost ") as temporary:

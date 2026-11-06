@@ -157,8 +157,9 @@ The builder does not install anything or write to your home directory. Edit `cla
 Codex-only skills in `codex/`.
 
 The generated `coding-standards-portable` plugin includes `format-checker`, `gitignore-maintainer`, `go-code-reviewer`,
-`lint-runner`, `makefile-helper`, `release`, `risk-assessment`, `schedule-proposal`, `session-report`, and
-`testing-specialist`. It also converts `summary`, `next-pr`, `work-on`, and `work-queue` into explicit-only skills.
+`lint-runner`, `makefile-helper`, `proposal-reviewer`, `release`, `risk-assessment`, `schedule-proposal`,
+`session-report`, and `testing-specialist`. It also converts `summary`, `next-pr`, `work-on`, and `work-queue` into
+explicit-only skills.
 Bundled paths resolve relative to each skill,
 so the package can be moved without depending on the source checkout.
 
@@ -168,6 +169,12 @@ roles. Delegation must be available; reviews run sequentially when there are too
 The complete run requires explicit approval in chat before edits. Command permissions still use the session's approval
 mechanism. Progress uses `update_plan` when available, or commentary otherwise. Full run statuses stay in the reports.
 The empty-queue handoff follows the bundled scheduling skill through its own approval before planning implementation.
+
+`proposal-reviewer` keeps manual, converge-then-ask, and autonomous review modes. It bundles the convergence protocol
+and critic, judge, and citation-verifier instructions for ordinary Codex subagents. Critics receive fresh contexts.
+Question rounds respect the available tool's limits, with chat and text selections as fallbacks. An asynchronous
+question must receive an explicit answer before dependent work continues. Autonomous mode keeps the final review
+gate, proposal acceptance, and ADR choices with the user. Commit choices remain explicit and apply to that review only.
 
 Platform-specific sections are adapted by `codex/scripts/translate.py`. Each replacement must match exactly once;
 when the source changes, review its adaptation before rebuilding. Shared workflow text continues to come from `claude/`.
