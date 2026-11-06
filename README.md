@@ -89,9 +89,9 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   verbatim references, plus the `bin/wiki` shim, git hooks, and `wiki.json` a wiki copies from `templates/wiki/`
 - **Rules** (`rules/`) -- decision-making boundaries, work discipline, git workflow, commit/PR style, writing voice,
   disclosure when promoting content to a more visible repo
-- **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. At session
-  start it keeps the plugin link that profiles import through, and names any passed revisit hook. The
-  `block-broad-find`, `block-redirection`, and `cg-check` guard scripts ship alongside it, plus opt-in hooks for
+- **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. At session start
+  it keeps the plugin link that profiles import through, and names any passed revisit hook. The `block-broad-find`,
+  `block-rm-rf`, `block-redirection`, and `cg-check` guard scripts ship alongside it, plus opt-in hooks for
   project-management references, golden files, and the Zig cache; see `claude/hooks/README.md` for which are wired by
   default. `hooks.json` also loads `work-queue-progress.tsx`, a mod that shows a `work-queue` run's progress above the
   prompt and in a `/queue` pane

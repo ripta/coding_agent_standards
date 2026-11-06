@@ -36,7 +36,13 @@
 - `SessionEnd` runs `guardian-session-end.sh`. When the session was a
   guardian that ran its start hooks, it runs that guardian's stop hooks,
   detached. See "Hooks" in `project-management/guardian.md`.
-- `PreToolUse` on `Bash` runs `block-broad-find.sh` and `block-private-terms.sh`. See "Private Terms" below.
+- `PreToolUse` on `Bash` runs `block-broad-find.sh`, `block-rm-rf.sh`, and `block-private-terms.sh`. See "Private Terms"
+  below. `block-rm-rf.sh` denies an `rm` that has both a recursive and a force flag, in any spelling. It sees inside
+  `sh -c`, `eval`, subshells, and command substitutions. Text that only mentions the command passes: a quoted string, a
+  comment, or a heredoc body that no shell reads. `rm-rf.py` does the work. Its reason checks each operand on disk. It
+  suggests `unlink` for a file or symlink and `rmdir` for an empty directory. A non-empty directory must be emptied
+  first, or deleted by the user. It catches accidents and is no sandbox. It does not follow `ssh`, `su -c`, or
+  variables.
 - `PreToolUse` on the file tools runs `standards-on-demand.py`. Profiles leave the project-management docs and
   `practices/makefile.md` out of startup context. The first time a session reads or changes a proposal, an ADR, the
   queue, or a Makefile, the hook names the docs to read. It matches a file's resolved path too, so a symlinked `spec/`
@@ -81,10 +87,6 @@ checkout's working tree.
   `~/.config` except `~/.config/coding_agent_standards`. It resolves `~`, `..`, and symlinks first. It also denies a
   Grep or Glob rooted above `~/.config`. `scripts/setup_permissions.py` wires it into the user's settings, through
   `~/.claude/coding-standards-current`, when those settings deny all of `~/.config`.
-- `block-rm-rf.sh` denies an `rm` that has both a recursive and a force flag,
-  in any spelling. Its reason checks each operand on disk. It suggests `unlink`
-  for a file or symlink and `rmdir` for an empty directory. A non-empty
-  directory must be emptied first, or deleted by the user. Wire it on `Bash`.
 
 ```json
 {
