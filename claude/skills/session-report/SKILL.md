@@ -122,25 +122,40 @@ Non-negotiable qualities, in addition to whatever the README specifies:
   or query run (verbatim, copy-pasteable) and the relevant slice of its
   output; file paths with line numbers; URLs to builds, dashboards, tickets,
   PRs; versions and identifiers (image tags, instance IDs, build IDs).
+- **Referenced in full.** Every ticket, PR, and commit carries its full URL,
+  not a bare key or "the PR". A source reference outside the report's own repo
+  is pinned to a commit, with line numbers, so it still points at the same
+  lines after the file moves on.
+- **Numbers carry their scope.** Every figure says what it covers: a time
+  window, a lifetime total, or a share of a named whole. Never add or compare
+  figures from different scopes. When a number will not reconcile with the
+  others, fix it or cut it.
 - **Reproducible.** A reader can redo the work: prerequisites (access, tools,
   profiles), query time ranges, and enough of the causal chain that each step
-  follows from recorded evidence rather than assertion.
+  follows from recorded evidence rather than assertion. List the
+  prerequisites. Give each step one command and its output, and never merge
+  several steps into one block.
 - **Honest about certainty.** Separate confirmed findings from hypotheses from
   open questions. They are three distinct buckets, never blended.
 - **Decision-ready.** If remediation or next steps exist, list the options
   with trade-offs and precedents; record decisions impersonally (what and why,
   never who).
-- **Bounded.** A `TL;DR` up top; a `Status` section at the bottom stating
-  exactly what was changed versus analysis-only, and what remains open.
+- **Bounded.** The verdict or summary leads, above any detail, in one or two
+  sentences. When the findings fall into categories, list them there, each
+  with its status. A `Status` section at the bottom states exactly what was
+  changed versus analysis-only, and what remains open.
 
 Standard skeleton (adapt, don't force): title; date + trigger/context with
-links; TL;DR; findings with evidence; causal analysis; remediation options or
-next steps; systemic/wider implications if any; status.
+links; verdict or summary; findings with evidence; causal analysis;
+remediation options or next steps; systemic/wider implications if any;
+status.
 
 Diagrams follow `${CLAUDE_PLUGIN_ROOT}/practices/diagrams.md`. Draw the causal
 analysis of an incident as an events and causal factors chart, in a `mermaid`
-fence. Charts of data follow the `data-visualization` skill. When the report
-also gets an HTML rendering, check it as "Checking a Rendered Page" says.
+fence. Charts of data follow the `data-visualization` skill.
+
+When the report also gets an HTML rendering, read
+`${CLAUDE_SKILL_DIR}/html-reports.md` before writing it.
 
 ## 5. After writing
 
