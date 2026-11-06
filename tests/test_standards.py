@@ -7,7 +7,9 @@ rule is still right stays with audits and the reviewer agent.
 
 from __future__ import annotations
 
+import os
 import re
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -170,6 +172,125 @@ def test_inline_commands_are_not_chained(path: Path) -> None:
         if content.split(" ", 1)[0] in COMMAND_WORDS and CHAIN.search(content)
     ]
     assert chained == [], "rules/shell-discipline.md forbids chaining in one invocation"
+
+
+# -- agent branch commands ------------------------------------------------------------------
+#
+# These run the commands the skills and rules document against a throwaway origin. A text match
+# could not show where a push lands, or that a lease still binds once the refspec is spelled out.
+#
+# The fixture is the setup that reroutes a push: `push.default=upstream`, and a branch tracking
+# the mainline. A branch started from a remote-tracking ref gets that tracking by default, and a
+# refspec with no colon then goes to the upstream instead of the branch's own name.
+
+BRANCH = "agent/topic/batch"
+
+
+def documented(prefix: str, needle: str) -> list[tuple[str, str]]:
+    return [
+        (f"{rel(path)}:{number}", content)
+        for path in INSTRUCTION_FILES
+        for number, content in spans(path)
+        if content.startswith(prefix) and needle in content and "--delete" not in content
+    ]
+
+
+FIRST_PUSHES = documented("git push -u", "<branch>")
+LEASE_PUSHES = documented("git push --force-with-lease", "<branch>")
+WORKTREE_ADDS = documented("git worktree add", " -b ")
+
+
+def run_git(cwd: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess:
+    env = {
+        "PATH": os.environ["PATH"],
+        "HOME": str(cwd),
+        "XDG_CONFIG_HOME": str(cwd),
+        "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_CONFIG_NOSYSTEM": "1",
+        "GIT_AUTHOR_NAME": "test",
+        "GIT_AUTHOR_EMAIL": "test@example.invalid",
+        "GIT_COMMITTER_NAME": "test",
+        "GIT_COMMITTER_EMAIL": "test@example.invalid",
+    }
+
+    return subprocess.run(["git", *args], cwd=cwd, env=env, check=check, capture_output=True, text=True)
+
+
+def remote_head(origin: Path, branch: str) -> str:
+    return run_git(origin, "for-each-ref", "--format=%(objectname)", f"refs/heads/{branch}").stdout.strip()
+
+
+@pytest.fixture
+def clone(tmp_path: Path) -> Path:
+    origin = tmp_path / "origin.git"
+    origin.mkdir()
+    run_git(origin, "init", "-q", "--bare", "-b", "main")
+
+    work = tmp_path / "work"
+    work.mkdir()
+    run_git(work, "init", "-q", "-b", "main")
+    run_git(work, "remote", "add", "origin", str(origin))
+    run_git(work, "config", "push.default", "upstream")
+    run_git(work, "commit", "-q", "--allow-empty", "-m", "base")
+    run_git(work, "push", "-q", "origin", "refs/heads/main:refs/heads/main")
+
+    return work
+
+
+def branch_tracking_mainline(work: Path) -> None:
+    run_git(work, "checkout", "-q", "-b", BRANCH, "--track", "origin/main")
+    run_git(work, "commit", "-q", "--allow-empty", "-m", "batch")
+
+
+def test_the_scan_finds_each_kind_of_command() -> None:
+    assert FIRST_PUSHES and LEASE_PUSHES and WORKTREE_ADDS
+
+
+@pytest.mark.parametrize("where,command", FIRST_PUSHES, ids=[w for w, _ in FIRST_PUSHES])
+def test_first_push_lands_on_the_branch_not_its_upstream(clone: Path, where: str, command: str) -> None:
+    """Catches a documented push that advances the mainline. Says nothing of a server's rules."""
+    origin = clone.parent / "origin.git"
+    mainline = remote_head(origin, "main")
+    branch_tracking_mainline(clone)
+
+    run_git(clone, *shlex.split(command.replace("<branch>", BRANCH))[1:])
+
+    assert remote_head(origin, "main") == mainline
+    assert remote_head(origin, BRANCH) == run_git(clone, "rev-parse", "HEAD").stdout.strip()
+
+
+@pytest.mark.parametrize("where,command", LEASE_PUSHES, ids=[w for w, _ in LEASE_PUSHES])
+def test_lease_push_lands_on_the_branch_and_stays_pinned(clone: Path, where: str, command: str) -> None:
+    """Catches a rebase push that reaches the mainline, or a refspec that stops the lease binding."""
+    origin = clone.parent / "origin.git"
+    mainline = remote_head(origin, "main")
+    branch_tracking_mainline(clone)
+    run_git(clone, "push", "-q", "origin", f"refs/heads/{BRANCH}:refs/heads/{BRANCH}")
+    pushed = remote_head(origin, BRANCH)
+    run_git(clone, "commit", "-q", "--amend", "--allow-empty", "-m", "rebased")
+
+    def args(sha: str) -> list[str]:
+        return shlex.split(command.replace("<branch>", BRANCH).replace("<sha>", sha))[1:]
+
+    assert run_git(clone, *args(mainline), check=False).returncode != 0
+    assert remote_head(origin, BRANCH) == pushed
+
+    run_git(clone, *args(pushed))
+
+    assert remote_head(origin, "main") == mainline
+    assert remote_head(origin, BRANCH) == run_git(clone, "rev-parse", "HEAD").stdout.strip()
+
+
+@pytest.mark.parametrize("where,command", WORKTREE_ADDS, ids=[w for w, _ in WORKTREE_ADDS])
+def test_new_worktree_branch_tracks_nothing(clone: Path, where: str, command: str) -> None:
+    """Catches a branch that inherits the mainline as its upstream from a remote-tracking start."""
+    words = shlex.split(re.sub(r"<[^>]+>", "x", command))
+    words[-1] = "origin/main"
+    branch = words[words.index("-b") + 1]
+
+    run_git(clone, *words[1:])
+
+    assert run_git(clone, "config", f"branch.{branch}.merge", check=False).stdout == ""
 
 
 # -- Makefile vocabulary --------------------------------------------------------------------

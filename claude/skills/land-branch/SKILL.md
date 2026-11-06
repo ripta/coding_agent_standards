@@ -124,8 +124,8 @@ Once the user approves, write the run file.
 ## Step 4: Stage the snapshot
 
 Create the staging branch and its worktree at the snapshot:
-`git worktree add -b agent/stage/<topic> .claude/worktrees/stage-<topic> <snapshot>`. It is never pushed. It holds the
-snapshot steady while the user's branch moves, and it is the reference the final check compares against.
+`git worktree add --no-track -b agent/stage/<topic> .claude/worktrees/stage-<topic> <snapshot>`. It is never pushed. It
+holds the snapshot steady while the user's branch moves, and it is the reference the final check compares against.
 
 ## Step 5: Land the batches
 
@@ -134,8 +134,8 @@ branch is pushed. For each ready batch:
 
 1. Run `git fetch origin`
 2. Create the batch branch in its own worktree. A serial batch starts from the current mainline:
-   `git worktree add -b agent/<topic>/<batch> .claude/worktrees/<topic>-<batch> origin/<mainline>`. A stacked batch
-   starts from its parent's tip, `origin/agent/<topic>/<parent>`
+   `git worktree add --no-track -b agent/<topic>/<batch> .claude/worktrees/<topic>-<batch> origin/<mainline>`. A stacked
+   batch starts from its parent's tip, `origin/agent/<topic>/<parent>`, also with `--no-track`
 3. Cherry-pick the batch's commits in order. A batch whose `after` batches merged, or whose parent branch it started
    from, already has their work, so it cherry-picks only its own commits. A conflict here means the mainline moved under
    the plan. Resolve it when the resolution is mechanical. When it needs a judgement, show the user both sides, and keep

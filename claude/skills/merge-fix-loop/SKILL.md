@@ -30,8 +30,9 @@ You work only on a branch you own. That rule is what lets this loop push without
 - Never push to, reset, rebase, or delete a branch you do not own. That includes the user's checked-out branch and
   the base branch.
 - Never merge the base into the branch. Bring it up to date by rebasing onto the base. Then push it with
-  `git push --force-with-lease=<branch>:<sha>`, where `<sha>` is the remote head the rebase started from. Never use a
-  bare `--force`. See `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` for why the lease is pinned.
+  `git push --force-with-lease=<branch>:<sha> origin refs/heads/<branch>:refs/heads/<branch>`, where `<sha>` is the
+  remote head the rebase started from. Never use a bare `--force`. See
+  `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` for why the lease is pinned and the refspec is spelled out.
 
 When the target is the user's branch, you do not push it. Create your own branch at the same commit, in its own
 worktree, and run the loop there. See Step 3.
@@ -139,13 +140,14 @@ Report what detection settled in a line or two, beside the question.
 
 ## Step 3: Prepare the branch
 
-1. When you do not own the branch, make one you do. Name it `agent/<topic>`, where the topic is a short kebab-case
-   name for the change. Create it in its own worktree at the target commit:
-   `git worktree add -b agent/<topic> .claude/worktrees/<topic> <commit>`. The user's branch is left as it was
+1. When you do not own the branch, make one you do. Name it `agent/<topic>`, where the topic is a short kebab-case name
+   for the change. Create it in its own worktree at the target commit:
+   `git worktree add --no-track -b agent/<topic> .claude/worktrees/<topic> <commit>`. The user's branch is left as it
+   was
 2. Work only in that worktree from here on. Never touch the user's checkout
 3. Run the local check command. When it fails, fix the cause and commit before pushing. Do not open a PR that fails
    locally. A failure that is already on the base is not this PR's to fix. Note it for the PR description
-4. Push with `git push -u origin <branch>`
+4. Push with `git push -u origin refs/heads/<branch>:refs/heads/<branch>`
 
 ## Step 4: Open the PR
 
@@ -226,7 +228,7 @@ review body with `pr_watch.py comment`.
 In the worktree, note the branch's remote head with `git rev-parse origin/<branch>`. Run `git fetch origin`, then
 `git rebase origin/<base>`. Resolve the conflicts commit by commit. When a resolution needs a judgement about what
 either side meant, show the user both sides before continuing the rebase. Run the local checks. Push with
-`git push --force-with-lease=<branch>:<sha> origin <branch>`, using the head you noted.
+`git push --force-with-lease=<branch>:<sha> origin refs/heads/<branch>:refs/heads/<branch>`, using the head you noted.
 
 ### The PR was behind its base
 
