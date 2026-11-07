@@ -888,11 +888,11 @@ def specs(tmp_path: Path) -> Path:
 FROZEN = _proposal("implemented", _milestone(1, "DONE", "- Done."))
 
 
-def _freeze_setup(specs: Path) -> tuple[Path, Path]:
+def _freeze_setup(specs: Path, frozen: str = FROZEN) -> tuple[Path, Path]:
     directory = specs / "proj" / "proposals"
-    path = _write(directory, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "IN PROGRESS")))
+    path = _write(directory, "PROJ-001-a.md", frozen.replace("**Status:** implemented", "**Status:** accepted"))
     _commit(specs, "accepted")
-    path.write_text(FROZEN)
+    path.write_text(frozen)
     _commit(specs, "unrelated subject")
     return directory, path
 
@@ -936,6 +936,72 @@ def test_freeze_counts_correction_entries(specs: Path) -> None:
     [result] = proposals.freeze(directory, [])
     assert result["corrections_logged"] == 1
     assert len(result["hunks"]) == 1
+
+
+def test_freeze_allows_a_correction_whose_entry_quotes_the_removed_text(specs: Path) -> None:
+    """A quoting entry passes its own hunk, even once committed, but never an unrelated edit.
+
+    Catches the freeze re-reporting a settled correction on every later run, and one entry
+    unlocking every text edit in the proposal.
+    """
+    directory, path = _freeze_setup(specs)
+    text = FROZEN.replace("Keys carry a version.", "Keys carry a schema version.")
+    entry = '- 2026-11-01: Correction of fact: the cache keys said\n  "Keys carry a version."\n'
+    path.write_text(text.replace("- 2026-10-01: Created.\n", "- 2026-10-01: Created.\n" + entry))
+    assert proposals.freeze(directory, []) == []
+
+    _commit(specs, "correct")
+    assert proposals.freeze(directory, []) == []
+
+    path.write_text(path.read_text().replace("### M1: Step 1", "### M1: Step one"))
+    [result] = proposals.freeze(directory, [])
+    assert [h["added"] for h in result["hunks"]] == [["### M1: Step one"]]
+
+
+ADR_LOGGED = _proposal(
+    "implemented",
+    _milestone(1, "DONE", "- Done."),
+    "- 2026-10-01: ADR candidate (hard to reverse): a session belongs to exactly one\n"
+    "  account. Undecided. Found in PROJ-007 M2.\n",
+)
+
+
+@pytest.mark.parametrize(
+    "outcome, allowed",
+    [
+        ("Written as ADR-07 on 2026-11-02.", True),
+        ("Declined on 2026-11-02: its README covers it.", True),
+        ("Declined: its README covers it.", False),
+        ("Rejected on 2026-11-02.", False),
+    ],
+)
+def test_freeze_allows_only_a_dated_adr_candidate_outcome(specs: Path, outcome: str, allowed: bool) -> None:
+    """design.md edits a candidate's outcome in place, with the date of the change.
+
+    The entry wraps, so this also catches a check that compares single lines.
+    """
+    directory, path = _freeze_setup(specs, ADR_LOGGED)
+    path.write_text(ADR_LOGGED.replace("Undecided. Found in PROJ-007 M2.", outcome))
+    assert (proposals.freeze(directory, []) == []) is allowed
+
+
+def test_freeze_reports_an_adr_candidate_whose_claim_changed(specs: Path) -> None:
+    directory, path = _freeze_setup(specs, ADR_LOGGED)
+    text = ADR_LOGGED.replace("exactly one\n  account. Undecided.", "one or more\n  accounts. Declined on 2026-11-02.")
+    path.write_text(text)
+    [result] = proposals.freeze(directory, [])
+    assert "outside the allowed edits" in result["hunks"][0]["kind"]
+
+
+@pytest.mark.parametrize(
+    "line, allowed",
+    [("- [ADR-07](../adrs/ADR-07.md)", True), ("- ADR-07, once written", False)],
+)
+def test_freeze_allows_a_new_reference_link(specs: Path, line: str, allowed: bool) -> None:
+    """A written ADR joins References, which proposals.md allows. Prose there stays frozen."""
+    directory, path = _freeze_setup(specs)
+    path.write_text(FROZEN.replace("- [ADR-01](../adrs/ADR-01.md)\n", f"- [ADR-01](../adrs/ADR-01.md)\n{line}\n"))
+    assert (proposals.freeze(directory, []) == []) is allowed
 
 
 def test_freeze_reports_other_decision_log_entries(specs: Path) -> None:

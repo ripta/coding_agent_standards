@@ -84,6 +84,12 @@ LINK_TARGET = re.compile(r"\]\([^)]*\)")
 AUDIT_ENTRY = re.compile(r"\brevisit\b", re.IGNORECASE)
 CORRECTION_ENTRY = re.compile(r"\bcorrection of fact\b", re.IGNORECASE)
 SUPERSESSION_ENTRY = re.compile(r"\bsuperseded (?:in part )?by [A-Z0-9]*[A-Z][A-Z0-9]*-\d+", re.IGNORECASE)
+# An ADR candidate entry and its outcome, per design.md "Recording ADR Candidates". The outcome
+# starts a sentence, so the claim before it may hold any text.
+ADR_CANDIDATE = re.compile(r"^- \d{4}-\d{2}-\d{2}: ADR candidate \([^)]*\): ")
+ADR_OUTCOME = re.compile(r"(?:(?<=\. )|(?<=\.\s{2}))(?:Written as [A-Z]*-?\d+|Declined|Waits on|Undecided)\b")
+ISO_DATE_ANYWHERE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+REFERENCE_LINE = re.compile(r"^\s*[-*] .*\[[^\]]+\]\([^)]+\)")
 UNCOMMITTED = "0" * 40
 QUEUE_FILE = "queue.md"
 HISTORY_FILE = "history.md"
@@ -858,7 +864,7 @@ def freeze_point(repo: Path, rel: str) -> tuple[str, str, str] | None:
 
 
 def _regions(lines: list[str]) -> list[str]:
-    """Label each line status, revisit, meta, as-built, decision-log, or text.
+    """Label each line status, revisit, meta, as-built, decision-log, references, or text.
 
     Only the header's metadata counts. A milestone's status line is text, since the freeze
     allows no milestone status change.
@@ -869,6 +875,11 @@ def _regions(lines: list[str]) -> list[str]:
     log_start, log_end = spans.get("Decision Log", (0, 0))
     for i in range(log_start + 1, log_end):
         labels[i] = "decision-log"
+
+    refs_start, refs_end = spans.get("References", (0, 0))
+    for i in range(refs_start + 1, refs_end):
+        labels[i] = "references"
+
     hooks = {i for start, (end, _) in hook_spans(lines).items() for i in range(start, end)}
     in_as_built = False
     for i, line in enumerate(lines):
@@ -910,6 +921,55 @@ def _marker_only(tag: str, old: list[str], new: list[str]) -> bool:
         if not m or m.end() != len(b.rstrip()) or b[: m.start()].rstrip() != a.rstrip():
             return False
     return True
+
+
+def _normalized(lines: list[str]) -> str:
+    return " ".join(" ".join(lines).split())
+
+
+def _quoted_by_correction(old: list[str], corrections: list[str]) -> bool:
+    """Whether a Correction of fact entry quotes the text this hunk removed.
+
+    The quote ties the entry to its edit, so one entry cannot pass unrelated edits elsewhere.
+    Whitespace is normalized, since a quote is rewrapped to fit the entry.
+    """
+    removed = _normalized([line for line in old if line.strip()])
+    return bool(removed) and any(removed in _normalized([entry]) for entry in corrections)
+
+
+def _adr_outcome_only(old: str, new: str) -> bool:
+    """Whether one ADR candidate entry changed only its outcome, to a dated one.
+
+    Everything through the claim must stay. design.md "Recording ADR Candidates" edits the
+    outcome in place and adds the date of the change.
+    """
+    if not ADR_CANDIDATE.match(old):
+        return False
+    outcome = ADR_OUTCOME.search(old, ADR_CANDIDATE.match(old).end())
+    if not outcome:
+        return False
+    prefix = old[: outcome.start()]
+    if not new.startswith(prefix) or not ADR_OUTCOME.match(new, len(prefix)):
+        return False
+
+    return ISO_DATE_ANYWHERE.search(new, len(prefix)) is not None
+
+
+def _entry_bounds(lines: list[str], labels: list[str], start: int, end: int) -> tuple[int, int]:
+    """Widen a Decision Log span to whole entries, since a wrapped entry spans lines."""
+    while start > 0 and labels[start - 1] == "decision-log" and not lines[start].startswith("- "):
+        start -= 1
+    while end < len(lines) and labels[end] == "decision-log" and lines[end].strip() and not lines[end].startswith("- "):
+        end += 1
+    return start, end
+
+
+def _adr_outcomes_only(old: list[str], new: list[str]) -> bool:
+    """Whether a Decision Log replace changes only ADR candidate outcomes."""
+    old_entries, new_entries = _entries(old), _entries(new)
+    if len(old_entries) != len(new_entries) or old_entries == new_entries:
+        return False
+    return all(a == b or _adr_outcome_only(a, b) for a, b in zip(old_entries, new_entries))
 
 
 def _status_allowed(old: list[str], new: list[str]) -> bool:
@@ -988,7 +1048,8 @@ def freeze(proposals_dir: Path, row_commits: list[str]) -> list[dict[str, Any]]:
         blame = _blame(repo, rel)
         opcodes = [op for op in difflib.SequenceMatcher(a=old, b=new, autojunk=False).get_opcodes() if op[0] != "equal"]
 
-        audits = corrections = 0
+        audits = 0
+        corrections: list[str] = []
         log_inserts: dict[int, bool] = {}
         hunk_labels = [
             _hunk_labels(old, old_labels, i1, i2) | _hunk_labels(new, new_labels, j1, j2)
@@ -999,7 +1060,7 @@ def freeze(proposals_dir: Path, row_commits: list[str]) -> list[dict[str, Any]]:
             if tag == "insert" and labels == {"decision-log"}:
                 entries = _entries(new[j1:j2])
                 audits += sum(1 for e in entries if AUDIT_ENTRY.search(e))
-                corrections += sum(1 for e in entries if CORRECTION_ENTRY.search(e))
+                corrections += [e for e in entries if CORRECTION_ENTRY.search(e)]
                 log_inserts[n] = all(
                     AUDIT_ENTRY.search(e) or CORRECTION_ENTRY.search(e) or SUPERSESSION_ENTRY.search(e)
                     for e in entries
@@ -1027,10 +1088,19 @@ def freeze(proposals_dir: Path, row_commits: list[str]) -> list[dict[str, Any]]:
                 if labels <= {"revisit", "meta"} and audits:
                     continue
                 kind = "revisit hook changed without a revisit audit in the Decision Log"
+            elif labels == {"decision-log"} and tag == "replace":
+                oi1, oi2 = _entry_bounds(old, old_labels, i1, i2)
+                nj1, nj2 = _entry_bounds(new, new_labels, j1, j2)
+                if _adr_outcomes_only(old[oi1:oi2], new[nj1:nj2]):
+                    continue
             elif (
                 labels <= {"meta", "as-built"}
                 or _link_only(old_part, new_part)
                 or _marker_only(tag, old_part, new_part)
+                or (tag == "insert" and labels == {"references"} and all(
+                    REFERENCE_LINE.match(line) for line in new_part if line.strip()
+                ))
+                or ("decision-log" not in labels and _quoted_by_correction(old_part, corrections))
             ):
                 continue
             authors = {blame[j] for j in range(j1, j2) if j < len(blame)}
@@ -1050,7 +1120,7 @@ def freeze(proposals_dir: Path, row_commits: list[str]) -> list[dict[str, Any]]:
                 "file": str(p.path),
                 "freeze_commit": commit,
                 "freeze_base": found,
-                "corrections_logged": corrections,
+                "corrections_logged": len(corrections),
                 "hunks": hunks,
             })
     return results

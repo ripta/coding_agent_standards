@@ -229,7 +229,8 @@ Once a proposal is `implemented`, only these edits are allowed:
 
 - Corrections of fact in its As built blocks
 - Correcting a wrong claim about what shipped
-- Links and references
+- Links and references, including a new line in References that links an ADR or another document
+- An ADR candidate's outcome, edited in place with the date of the change. See `design.md` "Recording ADR Candidates"
 - A "Superseded in part by PROJ-NNN; see Decision Log" marker on a replaced decision or milestone
 - Decision Log entries that record a supersession. Each says "superseded by PROJ-NNN" or "superseded in part by
   PROJ-NNN", naming the superseding proposal
@@ -241,12 +242,16 @@ Any other change goes to a new proposal.
 
 When the text and the shipped code disagree, the user says which is wrong. When the code is wrong, it is a bug, and the
 text stays. When the text is wrong, it is a correction of fact. Its Decision Log entry says "Correction of fact" and
-gives the prior meaning.
+quotes the text it replaces, word for word. The quote ties the entry to its edit. An entry that only paraphrases leaves
+the edit for the reviewer to judge.
 
 The freeze check enforces this. For each proposal a commit ever marked `implemented`, it diffs the file from that commit
 to the working tree, whatever the status says now. That commit is the base, so the commit that writes `implemented` and
 the last As built block is never a frozen edit. A proposal imported already `implemented` uses its first commit. A
 status change passes only to `superseded`, and a `**Revisit:**` change only with its audit in the Decision Log.
+
+A text edit outside As built passes when a Correction of fact entry quotes the removed text. An ADR candidate's outcome
+passes when the text through its claim is unchanged and the new outcome is dated.
 
 The check reports every change outside the list, and says whether the work under review made it. Uncommitted edits count
 as the work's own. A change someone else made goes to the user, never to the implementer. `scripts/proposals.py freeze`
