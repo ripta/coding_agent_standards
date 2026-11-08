@@ -508,3 +508,146 @@ def test_comment_with_repo_targets_that_repository(monkeypatch: pytest.MonkeyPat
     body.write_text("hello")
     assert pr_watch.main(["pr_watch.py", "--repo", REPO_SLUG, "comment", "--pr", "4", "--body-file", str(body)]) == 0
     assert calls[0][:5] == ["pr", "comment", "4", "-R", REPO_SLUG]
+
+
+def _step(name, status="completed", number=1):
+    return {"name": name, "status": status, "conclusion": "success" if status == "completed" else None,
+            "number": number}
+
+
+def _job(name, status="in_progress", steps=(), jid=11):
+    return {"id": jid, "name": name, "status": status, "conclusion": "success" if status == "completed" else None,
+            "html_url": f"https://example.test/job/{jid}", "steps": list(steps)}
+
+
+def _wait(polls, *, run=None, job="build", step=None, cancel=False, timeout=3600, cancel_result=True):
+    """Drive wait_job with scripted polls. Each poll is (run_or_None, jobs) or an exception to raise."""
+    clock = _Clock()
+    polls = iter(polls)
+    cancelled = []
+    out = []
+
+    def poll():
+        item = next(polls)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    def do_cancel(run_id):
+        cancelled.append(run_id)
+        return cancel_result
+
+    status = pr_watch.wait_job(poll, job, step, cancel, timeout, 30, do_cancel, out.append, clock, clock.sleep)
+    return status, out, cancelled, clock
+
+
+_RUN = {"id": 900, "status": "in_progress", "name": "ci", "html_url": "https://example.test/run/900"}
+_DONE_RUN = {**_RUN, "status": "completed"}
+
+
+def test_wait_job_cancels_once_the_step_finishes_while_the_job_runs():
+    status, out, cancelled, clock = _wait([
+        (None, []),
+        (_RUN, [_job("build", steps=[_step("unit", "in_progress")])]),
+        (_RUN, [_job("build", steps=[_step("unit"), _step("lint", "in_progress", 2)])]),
+    ], step="unit", cancel=True)
+    assert status == 0 and cancelled == [900] and clock.now == 60
+    assert _kinds(out) == ["run-found", "step-done"]
+    assert out[-1]["cancelled"] is True and out[-1]["job_id"] == 11
+    assert out[-1]["log_command"] == "gh run view 900 --job 11 --log"
+
+
+def test_wait_job_skips_the_cancel_when_the_run_already_finished():
+    status, out, cancelled, _ = _wait([(_DONE_RUN, [_job("build", "completed", [_step("unit")])])],
+                                      step="unit", cancel=True)
+    assert status == 0 and cancelled == [] and out[-1]["cancelled"] is False
+
+
+def test_wait_job_reports_a_cancel_that_lost_the_race_to_the_run_ending():
+    status, out, cancelled, _ = _wait([(_RUN, [_job("build", steps=[_step("unit")])])],
+                                      step="unit", cancel=True, cancel_result=False)
+    assert status == 0 and cancelled == [900] and out[-1]["cancelled"] is False
+
+
+def test_wait_job_without_a_step_waits_for_the_whole_job():
+    status, out, _, _ = _wait([
+        (_RUN, [_job("build", steps=[_step("unit")])]),
+        (_RUN, [_job("build", "completed", [_step("unit")])]),
+    ])
+    assert status == 0 and _kinds(out) == ["run-found", "job-done"]
+
+
+def test_wait_job_matches_matrix_names_exactly_and_lists_them_on_a_miss():
+    jobs = [_job("build (linux)", jid=1), _job("build (mac)", jid=2)]
+    status, out, _, _ = _wait([(_DONE_RUN, jobs)], job="build")
+    assert status == 1 and out[-1]["event"] == "not-found" and out[-1]["available"] == ["build (linux)", "build (mac)"]
+
+    status, out, _, _ = _wait([(_RUN, [_job("build (mac)", "completed", jid=2), jobs[0]])], job="build (mac)")
+    assert status == 0 and out[-1]["job_id"] == 2
+
+
+def test_wait_job_keeps_waiting_for_a_job_that_has_not_started_yet():
+    status, out, _, _ = _wait([
+        (_RUN, [_job("setup")]),
+        (_RUN, [_job("setup", "completed"), _job("build", "completed", jid=12)]),
+    ])
+    assert status == 0 and out[-1]["job_id"] == 12
+
+
+def test_wait_job_reports_a_missing_step_once_the_job_ends():
+    status, out, _, _ = _wait([
+        (_RUN, [_job("build", steps=[_step("unit", "in_progress")])]),
+        (_RUN, [_job("build", "completed", [_step("unit")])]),
+    ], step="integration")
+    assert status == 1 and out[-1] == {"event": "not-found", "kind": "step", "name": "integration",
+                                       "available": ["unit"]}
+
+
+def test_wait_job_times_out_waiting_for_the_run():
+    status, out, _, _ = _wait([(None, [])] * 3, timeout=60)
+    assert status == 124 and out == [{"event": "timeout", "after": 60}]
+
+
+def test_wait_job_tolerates_blips_but_reports_repeated_errors():
+    blip = pr_watch.GhError("HTTP 502")
+    status, out, _, _ = _wait([blip, blip, (_RUN, [_job("build", "completed")])])
+    assert status == 0 and _kinds(out) == ["run-found", "job-done"]
+
+    status, out, _, _ = _wait([blip, blip, blip])
+    assert status == 2 and out == [{"event": "error", "message": "HTTP 502", "consecutive": 3}]
+
+
+def _runs(*runs):
+    return [{"id": rid, "name": name, "path": f".github/workflows/{path}", "event": "push",
+             "status": "in_progress", "html_url": f"u/{rid}"} for rid, name, path in runs]
+
+
+def test_run_for_sha_picks_the_newest_run_of_the_named_workflow():
+    runs = _runs((5, "CI", "ci.yml"), (9, "CI", "ci.yml"), (7, "Lint", "lint.yml"))
+    assert pr_watch.pick_run(runs, "CI")["id"] == 9
+    assert pr_watch.pick_run(runs, "ci.yml")["id"] == 9
+    assert pr_watch.pick_run(runs, "lint")["id"] == 7
+    assert pr_watch.pick_run(runs, "deploy") is None
+    assert pr_watch.pick_run([], None) is None
+
+
+def test_run_for_sha_without_a_workflow_must_be_unambiguous():
+    assert pr_watch.pick_run(_runs((5, "CI", "ci.yml"), (9, "CI", "ci.yml")), None)["id"] == 9
+    with pytest.raises(pr_watch.Ambiguous) as e:
+        pr_watch.pick_run(_runs((5, "CI", "ci.yml"), (7, "Lint", "lint.yml")), None)
+    assert e.value.available == ["CI", "Lint"]
+
+
+def test_jobs_are_paged_past_the_first_hundred(monkeypatch: pytest.MonkeyPatch) -> None:
+    pages = {1: {"total_count": 101, "jobs": [_job(f"j{i}", jid=i) for i in range(100)]},
+             2: {"total_count": 101, "jobs": [_job("j100", jid=100)]}}
+    calls = []
+
+    def fake(args):
+        calls.append(args[1])
+        return pages[int(args[1].rsplit("page=", 1)[1])]
+
+    monkeypatch.setattr(pr_watch, "gh_json", fake)
+    jobs = pr_watch.fetch_jobs("o", "r", 900)
+    assert len(jobs) == 101 and len(calls) == 2
+    assert calls[0] == "repos/o/r/actions/runs/900/jobs?filter=latest&per_page=100&page=1"

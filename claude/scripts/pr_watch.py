@@ -9,8 +9,9 @@
     python3 pr_watch.py reply --thread ID --body-file FILE
     python3 pr_watch.py comment --pr N --body-file FILE
     python3 pr_watch.py resolve --thread ID
+    python3 pr_watch.py wait-job (--run ID | --sha SHA [--workflow NAME]) --job NAME [--step NAME] [--cancel] --timeout SECONDS
 
-Every subcommand prints JSON on stdout. `watch` prints one JSON object per line, one per event.
+Every subcommand prints JSON on stdout. `watch` and `wait-job` print one JSON object per line, one per event.
 Run it from inside the repository's checkout, or pass the global `--repo OWNER/NAME` before the
 subcommand to work on a repository without a checkout. One invocation names one repository, so a
 sweep over several repositories runs one process per repository. With `--repo`, `preflight` skips
@@ -810,6 +811,163 @@ def failures_of(pr: dict[str, Any]) -> list[dict[str, Any]]:
     return result
 
 
+# -- actions runs ----------------------------------------------------------------------------
+
+
+class Ambiguous(Exception):
+    def __init__(self, available: list[str]):
+        super().__init__("the commit has runs from several workflows; pass --workflow")
+        self.available = available
+
+
+def workflow_matches(run: dict[str, Any], workflow: str) -> bool:
+    """Match a workflow's display name, its file name, or its file name without the extension."""
+    filename = (run.get("path") or "").rsplit("/", 1)[-1]
+    stem = re.sub(r"\.ya?ml$", "", filename)
+    return workflow in (run.get("name"), filename, stem)
+
+
+def pick_run(runs: list[dict[str, Any]], workflow: str | None) -> dict[str, Any] | None:
+    """Return the newest run of the workflow, or None when it has not started yet.
+
+    One commit can start the same workflow more than once, such as on push and on pull_request.
+    The newest run wins. Without `workflow`, runs from more than one workflow are ambiguous.
+    """
+    if workflow is not None:
+        runs = [r for r in runs if workflow_matches(r, workflow)]
+    elif len({r.get("name") for r in runs}) > 1:
+        raise Ambiguous(sorted({r.get("name") or "" for r in runs}))
+    return max(runs, key=lambda r: r["id"]) if runs else None
+
+
+def fetch_jobs(owner: str, name: str, run_id: int) -> list[dict[str, Any]]:
+    """Return every job in the run's latest attempt. `filter=latest` drops the jobs a rerun replaced."""
+    jobs: list[dict[str, Any]] = []
+    page = 1
+    while True:
+        data = gh_json(["api", f"repos/{owner}/{name}/actions/runs/{run_id}/jobs?filter=latest&per_page=100&page={page}"])
+        batch = data.get("jobs") or []
+        jobs += batch
+        if not batch or len(jobs) >= data.get("total_count", 0):
+            return jobs
+        page += 1
+
+
+def cancel_run(owner: str, name: str, run_id: int) -> bool:
+    """Cancel the run. Return False when it already finished, which GitHub answers with HTTP 409."""
+    try:
+        gh(["api", "-X", "POST", f"repos/{owner}/{name}/actions/runs/{run_id}/cancel"])
+    except GhError as e:
+        if "HTTP 409" in str(e):
+            return False
+        raise
+    return True
+
+
+def job_progress(run: dict[str, Any], jobs: list[dict[str, Any]], job_name: str,
+                 step_name: str | None) -> dict[str, Any] | None:
+    """Return the event that ends the wait, or None to keep polling.
+
+    Names match exactly, so a matrix job is named in full, as in `build (ubuntu-latest)`. A job or
+    step that is missing is reported only once the run or job that would hold it has ended. Until
+    then it may simply not have started.
+    """
+    matches = [j for j in jobs if j.get("name") == job_name]
+    if not matches:
+        if run.get("status") == "completed":
+            return {"event": "not-found", "kind": "job", "name": job_name,
+                    "available": sorted(j.get("name") or "" for j in jobs)}
+        return None
+
+    job = matches[0]
+    job_done = job.get("status") == "completed"
+    done = {"run": run["id"], "run_status": run.get("status"), "job": job_name, "job_id": job["id"],
+            "job_status": job.get("status"), "job_conclusion": job.get("conclusion"), "url": job.get("html_url"),
+            "log_command": f"gh run view {run['id']} --job {job['id']} --log"}
+    if step_name is None:
+        return {"event": "job-done", **done} if job_done else None
+
+    steps = [s for s in job.get("steps") or [] if s.get("name") == step_name]
+    if not steps:
+        if job_done:
+            return {"event": "not-found", "kind": "step", "name": step_name,
+                    "available": [s.get("name") or "" for s in job.get("steps") or []]}
+        return None
+
+    step = steps[0]
+    if step.get("status") != "completed" and not job_done:
+        return None
+    return {"event": "step-done", **done, "step": step_name, "step_conclusion": step.get("conclusion")}
+
+
+def wait_job(
+    poll: Callable[[], tuple[dict[str, Any] | None, list[dict[str, Any]]]],
+    job_name: str,
+    step_name: str | None,
+    cancel: bool,
+    timeout: float,
+    interval: float,
+    do_cancel: Callable[[int], bool],
+    out: Callable[[dict[str, Any]], None],
+    clock: Callable[[], float] = time.time,
+    sleep: Callable[[float], None] = time.sleep,
+) -> int:
+    """Poll one Actions run until a job, or one step in it, finishes. Return the process exit status.
+
+    `poll` returns the run, or None while it has not started, and the run's jobs. Exits 0 when the
+    target finished, 1 when it does not exist, 2 on repeated errors or a failed cancel, and 124 on
+    timeout.
+
+    GitHub serves a job's log only once the job ends. To read an early step's log without waiting
+    out the rest of a long job, pass `cancel`. It cancels the whole run once the target finishes,
+    unless the run already ended. The finished job then serves its log, and `log_command` reads it.
+    """
+    deadline = clock() + timeout
+    failures = 0
+    announced = False
+
+    while True:
+        result = None
+        try:
+            run, jobs = poll()
+            failures = 0
+            if run is not None:
+                if not announced:
+                    announced = True
+                    out({"event": "run-found", "run": run["id"], "workflow": run.get("name"), "url": run.get("html_url")})
+                result = job_progress(run, jobs, job_name, step_name)
+        except Ambiguous as e:
+            out({"event": "not-found", "kind": "workflow", "message": str(e), "available": e.available})
+            return 1
+        except GhError as e:
+            failures += 1
+            if failures >= ERROR_THRESHOLD:
+                out({"event": "error", "message": str(e), "consecutive": failures})
+                return 2
+
+        if result is not None:
+            if result["event"] == "not-found":
+                out(result)
+                return 1
+
+            result["cancelled"] = False
+            if cancel and result["run_status"] != "completed":
+                try:
+                    result["cancelled"] = do_cancel(result["run"])
+                except GhError as e:
+                    result["cancel_error"] = str(e)
+                    out(result)
+                    return 2
+            out(result)
+            return 0
+
+        remaining = deadline - clock()
+        if remaining <= 0:
+            out({"event": "timeout", "after": int(timeout)})
+            return 124
+        sleep(min(interval, remaining))
+
+
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(prog="pr_watch.py", description=__doc__.split("\n\n")[0])
     parser.add_argument("--repo", metavar="OWNER/NAME",
@@ -850,7 +1008,20 @@ def main(argv: list[str]) -> int:
     p = sub.add_parser("resolve", help="resolve a review thread")
     p.add_argument("--thread", required=True)
 
+    p = sub.add_parser("wait-job", help="wait for an Actions job, or one step in it, to finish; optionally cancel the run")
+    target = p.add_mutually_exclusive_group(required=True)
+    target.add_argument("--run", type=int, help="the run's ID")
+    target.add_argument("--sha", help="find the run by its head commit, waiting for it to start")
+    p.add_argument("--workflow", help="with --sha: the workflow's name or file name; needed when the commit runs several")
+    p.add_argument("--job", required=True, help="the job's full name, as in 'build (ubuntu-latest)' for a matrix job")
+    p.add_argument("--step", help="a step's name; without it, wait for the whole job")
+    p.add_argument("--cancel", action="store_true", help="cancel the run once the target finishes, so the job's log is served")
+    p.add_argument("--timeout", type=float, required=True, help="seconds before printing a timeout event")
+    p.add_argument("--interval", type=float, default=30, help="seconds between polls (default 30)")
+
     args = parser.parse_args(argv[1:])
+    if args.command == "wait-job" and args.workflow and not args.sha:
+        parser.error("--workflow goes with --sha")
 
     def emit(obj: Any) -> None:
         print(json.dumps(obj), flush=True)
@@ -879,6 +1050,19 @@ def main(argv: list[str]) -> int:
             emit({"url": url})
         elif args.command == "resolve":
             emit(graphql(RESOLVE_MUTATION, thread=args.thread)["resolveReviewThread"]["thread"])
+        elif args.command == "wait-job":
+            owner, name = repo_slug(args.repo)
+
+            def poll() -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+                if args.run is not None:
+                    run = gh_json(["api", f"repos/{owner}/{name}/actions/runs/{args.run}"])
+                else:
+                    runs = gh_json(["api", f"repos/{owner}/{name}/actions/runs?head_sha={args.sha}&per_page=100"])
+                    run = pick_run(runs.get("workflow_runs") or [], args.workflow)
+                return (run, fetch_jobs(owner, name, run["id"])) if run else (None, [])
+
+            return wait_job(poll, args.job, args.step, args.cancel, args.timeout, args.interval,
+                            lambda run_id: cancel_run(owner, name, run_id), emit)
     except (GhError, OSError) as e:
         print(f"pr_watch: {e}", file=sys.stderr)
         return 1

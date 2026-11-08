@@ -53,6 +53,10 @@ poll loop by hand. Its subcommands print JSON:
 - `pr_watch.py reply --thread ID --body-file FILE` replies in a review thread
 - `pr_watch.py comment --pr N --body-file FILE` posts a conversation comment
 - `pr_watch.py resolve --thread ID` resolves a review thread
+- `pr_watch.py wait-job --run ID --job NAME --step NAME --timeout SECONDS` waits for one Actions job, or one step in
+  it, to finish. Pass `--sha SHA --workflow NAME` in place of `--run` to wait for the commit's run to start. GitHub
+  serves a job's log only once the job ends. To read an early step's log without waiting out a long job, add
+  `--cancel`. It cancels the run once the step finishes, and the result carries the `gh run view` command for the log
 
 `gh` reads its credentials from `~/.config/gh`, which the Bash sandbox blocks. Run every `gh` and `pr_watch.py` command
 through `cg_run`, which runs outside the sandbox. Run them from the PR's worktree, so `gh` finds the repository. Without
