@@ -20,14 +20,17 @@ MODEL_SONNET=anthropic/claude-sonnet-5-5
 MODEL_OPUS=anthropic/claude-opus-5-5
 
 AGENTS=(adr-impact implementer reviewer)
-COMMANDS=(migrate-era next-pr summary work-on work-queue)
+COMMANDS=(migrate-era next-pr pr-description summary work-on work-queue)
 SKILLS=(
   bug-triage
+  debug-ci
   format-checker
   gitignore-maintainer
   go-code-reviewer
+  land-branch
   lint-runner
   makefile-helper
+  merge-fix-loop
   new-proposal
   open-questions-audit
   proposal-cleanup
@@ -84,6 +87,26 @@ convert_frontmatter() {
   mv "$file.tmp" "$file"
 }
 
+# Rewrites passages in one file, from pairs read on stdin. Each pair is the old
+# text, a line holding only `--->`, and the new text. A line holding only `===`
+# ends a pair. Every old text must match exactly once, so a source edit under a
+# rewrite fails the build instead of shipping stale text.
+rewrite() {
+  python3 -c '
+import sys
+path = sys.argv[1]
+text = open(path).read()
+for pair in sys.stdin.read().split("\n===\n"):
+    if not pair.strip():
+        continue
+    old, new = pair.strip("\n").split("\n--->\n")
+    if text.count(old) != 1:
+        sys.exit(f"error: {path}: rewrite matched {text.count(old)} times: {old[:80]!r}")
+    text = text.replace(old, new)
+open(path, "w").write(text)
+' "$1"
+}
+
 # Rewrites Claude-specific paths and tool names in the body.
 convert_body() {
   local file="$1"
@@ -121,7 +144,10 @@ for name in "${SKILLS[@]}"; do
   cp -R "$SRC/skills/$name" "$OUT/skills/$name"
   file="$OUT/skills/$name/SKILL.md"
   convert_frontmatter skill "$file"
-  SKILL_DIR="$OUT/skills/$name" convert_body "$file"
+  # A skill's companion docs carry the same paths and tool names as its SKILL.md.
+  while IFS= read -r doc; do
+    SKILL_DIR="$OUT/skills/$name" convert_body "$doc"
+  done < <(find "$OUT/skills/$name" -name '*.md')
   # OpenCode skills take no arguments; the request itself carries them.
   perl -pi -e 's{`?\$ARGUMENTS`?}{the arguments in the user'"'"'s request}g' "$file"
 done
@@ -175,11 +201,172 @@ SRC="$SRC" OUT="$OUT" perl -0pi -e '
   s{\Q$ENV{SRC}\E/commands/work-on\.md}{$ENV{OUT}/commands/work-on.md}g;
 ' "$OUT/commands/work-queue.md"
 
+# land-branch and merge-fix-loop put worktrees under .claude/worktrees/, which
+# Claude projects ignore. An OpenCode project usually ignores nothing under
+# .claude/, so the worktrees move out of the checkout. Claude's sandbox, cg, its
+# scratchpad, and its slash commands have no OpenCode equivalent.
+worktrees_section() {
+  cat <<EOF
+## Worktrees
+
+Create every worktree outside the user's checkout, under
+\`~/.local/state/coding_agent_standards/worktrees/<owner>-<repo>/\`. Below, \`<worktrees>\` names that directory. Use
+\`\$TMPDIR/worktrees/<owner>-<repo>/\` when it cannot be written. Nothing then appears in the user's checkout, whatever
+its gitignore says.
+
+Record each worktree's path in $1. On resume, use the recorded path, and never recompute it. A run that
+another tool started may record a worktree inside the checkout. Resume it where it is.
+
+EOF
+}
+
+rewrite "$OUT/skills/land-branch/SKILL.md" <<EOF
+## Step 1: Detect, without asking
+--->
+$(worktrees_section "the run file")
+
+## Step 1: Detect, without asking
+EOF
+
+rewrite "$OUT/skills/land-branch/SKILL.md" <<'EOF'
+The user's next `/land-branch <branch>` is then
+--->
+The user's next `land-branch` run on
+   `<branch>` is then
+===
+5. Run `pr_watch.py preflight --base <mainline>` through `cg_run`, as `merge-fix-loop` describes
+--->
+5. Run `pr_watch.py preflight --base <mainline>` as `merge-fix-loop` "Scripts" describes
+===
+5. Write the plan to the scratchpad as JSON.
+--->
+5. Write the plan as JSON to a file under `$TMPDIR`.
+===
+.claude/worktrees/stage-<topic>
+--->
+<worktrees>/stage-<topic>
+===
+.claude/worktrees/<topic>-<batch>
+--->
+<worktrees>/<topic>-<batch>
+===
+re-entry command, `/land-branch <snapshot>`, which resumes from the run file. A squash merge leaves no trace of the
+original commits
+--->
+re-entry request: run the `land-branch` skill again with `<snapshot>`. It resumes from the run file.
+A squash merge leaves no trace of the original commits
+===
+Use the session scratchpad when the
+directory cannot be written.
+--->
+Use `$TMPDIR` when the
+directory cannot be written.
+EOF
+
+rewrite "$OUT/skills/merge-fix-loop/SKILL.md" <<EOF
+## Scripts
+--->
+$(worktrees_section "the \`.loop.json\` file")
+
+## Scripts
+===
+$SRC/commands/pr-description.md
+--->
+$OUT/commands/pr-description.md
+EOF
+
+rewrite "$OUT/skills/merge-fix-loop/SKILL.md" <<'EOF'
+`gh` reads its credentials from `~/.config/gh`, which the Bash sandbox blocks. Run every `gh` and `pr_watch.py` command
+through `cg_run`, which runs outside the sandbox. Run them from the PR's worktree, so `gh` finds the repository. Without
+a checkout, pass the global `--repo OWNER/NAME` before the subcommand, as in `pr_watch.py --repo OWNER/NAME snapshot`.
+When cg is unavailable, run them through Bash with the sandbox disabled.
+--->
+Run every `gh` and `pr_watch.py` command from the PR's worktree, so `gh` finds the repository. Without a checkout,
+pass the global `--repo OWNER/NAME` before the subcommand, as in `pr_watch.py --repo OWNER/NAME snapshot`.
+===
+3. **The tool call.** Run `watch` through `cg_run` with `wait_timeout_ms` about 60 seconds above the script's timeout.
+   If cg returns `timed_out`, resume it with `cg_wait`, and do not start a second watcher.
+--->
+3. **The tool call.** When a tool whose name ends in `cg_run` is available, run `watch` through it with
+   `wait_timeout_ms` about 60 seconds above the script's timeout. If it returns `timed_out`, resume it with `cg_wait`.
+   Otherwise run `watch` with the shell tool, and set its `timeout` about 60000 milliseconds above the script's
+   timeout. The default two-minute timeout would end the wait early. Never start a second watcher.
+===
+Use the
+session scratchpad when that directory cannot be written.
+--->
+Use
+`$TMPDIR` when that directory cannot be written.
+===
+which the user runs as `! gcloud auth login`.
+--->
+which the user runs in their own terminal.
+===
+.claude/worktrees/<topic>
+--->
+<worktrees>/<topic>
+===
+against the base. Write
+   the body to a file in the scratchpad
+--->
+against the base. Write
+   the body to a file under `$TMPDIR`
+===
+`gh run view <run> --log-failed --job <job>`, through `cg_run`. The captured stdout is the log
+--->
+`gh run view <run> --log-failed --job <job>`. Through `cg_run`, the captured stdout is
+     the log. Otherwise send the output to a file under `$TMPDIR`, and read that file
+===
+Skip its plan-mode step.
+--->
+Skip its planning and approval step.
+===
+Write each reply to a file in the scratchpad
+--->
+Write each reply to a file under `$TMPDIR`
+===
+command, `/merge-fix-loop <number>`, which resumes from the state files.
+--->
+request: run the `merge-fix-loop` skill again with `<number>`. It resumes from the state files.
+===
+Never hand a
+  background subagent its own watcher or Monitor. Claude Code can drop the second report of a background subagent that
+  still has background work running, and the loop then stalls with nothing left to wake it
+--->
+Never hand a
+  subagent its own watcher. This session owns the only watcher, so a lost or late subagent report cannot leave the
+  loop with nothing to wake it
+===
+- Run `gh`, `gcloud`, and `pr_watch.py` through `cg_run`.
+--->
+- Run `gh`, `gcloud`, and `pr_watch.py` from the PR's worktree, as "Scripts" says.
+EOF
+
+# OpenCode has no plan mode tool. debug-ci plans and holds edits until the user
+# approves, as /work-on does.
+rewrite "$OUT/skills/debug-ci/SKILL.md" <<'EOF'
+or enters plan mode to debug real failures.
+--->
+or plans a debug session for real failures.
+===
+`gcloud builds log <build-id> --region=<region>` through `cg_run`. The run's
+   captured stdout file is the log.
+--->
+`gcloud builds log <build-id> --region=<region>`. Through `cg_run`, the run's
+   captured stdout file is the log. Otherwise send the output to a file under
+   `$TMPDIR`. That file is the log.
+===
+3. Enter plan mode via `EnterPlanMode` to conduct a full debug session:
+--->
+3. Plan a full debug session. Do not edit any file until the user approves
+   the plan with the question tool:
+EOF
+
 # The SendMessage fallback works around a Claude Code bug and has no OpenCode
 # equivalent.
 perl -ni -e 'print unless /Workaround for bugs\/20261005|SendMessage/' "$OUT/agents/implementer.md"
 
-leftovers="$(grep -rnE 'CLAUDE_[A-Z_]+|EnterPlanMode|ExitPlanMode|SendMessage|TaskStop|[Pp]lan mode|AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:|disable-model-invocation' \
+leftovers="$(grep -rnE 'CLAUDE_[A-Z_]+|EnterPlanMode|ExitPlanMode|SendMessage|TaskStop|[Pp]lan mode|plan-mode|AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:|disable-model-invocation|scratchpad|\.claude/worktrees|Bash sandbox|Bash with the sandbox disabled|watcher or Monitor|! gcloud|/land-branch |/merge-fix-loop ' \
   --include='*.md' "$OUT" || true)"
 if [ -n "$leftovers" ]; then
   echo "error: Claude-only references survived translation:" >&2

@@ -134,6 +134,39 @@ class BaselineBuildTests(unittest.TestCase):
             self.assertIn("fresh", convergence.read_text())
             self.assertIn("At most three passes per question", convergence.read_text())
 
+    def test_landing_dependencies_survive_relocation_without_claude_tools(self):
+        """Protect the portable land-branch bundle: every file it reads ships, and no Claude-only step survives.
+
+        This cannot prove a live landing works under Codex. That needs a GitHub remote and a Codex session.
+        """
+        with tempfile.TemporaryDirectory(prefix="codex landing ") as temporary:
+            output = Path(temporary) / "bundle"
+            with patch.dict(self.namespace, OUTPUT=output), patch("sys.argv", [str(BUILD)]):
+                self.builder["main"]()
+            moved = output.rename(Path(temporary) / "relocated bundle")
+            for name in ("land-branch", "merge-fix-loop", "debug-ci", "pr-description"):
+                document = moved / "skills" / name / "SKILL.md"
+                with self.subTest(document=document.relative_to(moved)):
+                    contents = document.read_text()
+                    self.assertIsNone(self.builder["UNSUPPORTED"].search(contents))
+                    self.assertNotIn("`the arguments in the user's request`", contents)
+                    # The lookbehind skips elided state paths such as `.../land-branch/v2/`.
+                    for relative in re.findall(r"(?<![.\w])(?:\./)?(?:\.\./)+[\w./-]+", contents):
+                        target = (document.parent / relative).resolve()
+                        self.assertTrue(target.is_relative_to(moved.resolve()))
+                        self.assertTrue(target.exists(), f"{document}: {relative}")
+            for name in ("land-branch", "merge-fix-loop"):
+                with self.subTest(worktrees=name):
+                    contents = (moved / "skills" / name / "SKILL.md").read_text()
+                    self.assertIn("## Worktrees", contents)
+                    self.assertIn("<worktrees>/", contents)
+                    self.assertIn("~/.local/state/coding_agent_standards/worktrees/", contents)
+            for script in ("pr_watch.py", "batch_plan.py"):
+                self.assertTrue((moved / "scripts" / script).is_file())
+            self.assertIn("allow_implicit_invocation: false",
+                          (moved / "skills" / "pr-description" / "agents" / "openai.yaml").read_text())
+            self.assertFalse((moved / "skills" / "land-branch" / "agents").exists())
+
     def test_bundle_ships_the_test_cost_helper_the_makefile_practice_names(self):
         with tempfile.TemporaryDirectory(prefix="codex cost ") as temporary:
             output = Path(temporary) / "bundle"

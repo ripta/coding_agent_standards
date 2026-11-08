@@ -4,7 +4,120 @@ Every platform-specific replacement must match exactly once. Source changes
 require reviewing the adaptation rather than silently shipping stale behavior.
 """
 
+
+def _worktrees(state_file):
+    """Return the section that moves worktrees out of the checkout.
+
+    Claude projects already ignore `.claude/worktrees/`, so the Claude skills keep their worktrees there. A Codex project
+    usually ignores nothing under `.claude/`, so a worktree there shows up as untracked in the user's checkout.
+    """
+    return f"""## Worktrees
+
+Create every worktree outside the user's checkout, under
+`~/.local/state/coding_agent_standards/worktrees/<owner>-<repo>/`. Below, `<worktrees>` names that directory. Use
+`$TMPDIR/worktrees/<owner>-<repo>/` when it cannot be written. Nothing then appears in the user's checkout, whatever
+its gitignore says.
+
+Record each worktree's path in {state_file}. On resume, use the recorded path, and never recompute it. A run that
+another tool started may record a worktree inside the checkout. Resume it where it is.
+
+"""
+
+
+QUESTIONS = ("Use a supported question tool within its limits, or ask in chat.\nWait for explicit answers. An empty "
+             "answer, preselected default, timeout, or tool permission grant is not consent.\n")
+
+
 REPLACEMENTS = {
+    'land-branch': (
+        ("""## Step 1: Detect, without asking""",
+         _worktrees("the run file") + """## Step 1: Detect, without asking"""),
+        ("""5. Run `pr_watch.py preflight --base <mainline>` through `cg_run`, as `merge-fix-loop` describes""",
+         """5. Run `pr_watch.py preflight --base <mainline>` as `merge-fix-loop` "Scripts" describes"""),
+        ("""The user's next `/land-branch <branch>` is then""",
+         """The user's next `land-branch` run on
+   `<branch>` is then"""),
+        ("""5. Write the plan to the scratchpad as JSON.""",
+         """5. Write the plan as JSON to a file under `$TMPDIR`."""),
+        ("""Put every question into one AskUserQuestion call. The plan approval is part of it.""",
+         """Collect every question into one batch. The plan approval is part of it.\n""" + QUESTIONS.rstrip()),
+        ("""names. It authorizes nothing else.""",
+         """names. It authorizes nothing else.\nIt does not bypass the session's sandbox or command approvals."""),
+        (""".claude/worktrees/stage-<topic>""", """<worktrees>/stage-<topic>"""),
+        (""".claude/worktrees/<topic>-<batch>""", """<worktrees>/<topic>-<batch>"""),
+        ("""re-entry command, `/land-branch <snapshot>`, which resumes from the run file. A squash merge leaves no trace of the
+original commits""",
+         """re-entry request: run the `land-branch` skill again with `<snapshot>`. It resumes from the run file.
+A squash merge leaves no trace of the original commits"""),
+        ("""Use the session scratchpad when the
+directory cannot be written.""",
+         """Use `$TMPDIR` when the
+directory cannot be written."""),
+    ),
+    'merge-fix-loop': (
+        ("""## Scripts""",
+         _worktrees("the `.loop.json` file") + """## Scripts"""),
+        ("""`gh` reads its credentials from `~/.config/gh`, which the Bash sandbox blocks. Run every `gh` and `pr_watch.py` command
+through `cg_run`, which runs outside the sandbox. Run them from the PR's worktree, so `gh` finds the repository. Without
+a checkout, pass the global `--repo OWNER/NAME` before the subcommand, as in `pr_watch.py --repo OWNER/NAME snapshot`.
+When cg is unavailable, run them through Bash with the sandbox disabled.""",
+         """`gh` and `pr_watch.py` need network access and `gh`'s credentials in `~/.config/gh`. So do `git fetch` and
+`git push`. When the session's sandbox blocks any of them, request escalated permissions through the session's
+approval mechanism. Run them from the PR's worktree, so `gh` finds the repository. Without a checkout, pass the global
+`--repo OWNER/NAME` before the subcommand, as in `pr_watch.py --repo OWNER/NAME snapshot`."""),
+        ("""3. **The tool call.** Run `watch` through `cg_run` with `wait_timeout_ms` about 60 seconds above the script's timeout.
+   If cg returns `timed_out`, resume it with `cg_wait`, and do not start a second watcher.""",
+         """3. **The tool call.** When a tool whose name ends in `cg_run` is available, run `watch` through it with
+   `wait_timeout_ms` about 60 seconds above the script's timeout. If it returns `timed_out`, resume it with `cg_wait`.
+   Otherwise run `watch` with the session's shell tool. When the call returns with a running session ID, keep waiting
+   on that same command with the corresponding tool. Never start a second watcher."""),
+        ("""Use the
+session scratchpad when that directory cannot be written.""",
+         """Use
+`$TMPDIR` when that directory cannot be written."""),
+        ("""Put every question this run needs into one AskUserQuestion call. """,
+         """Collect every question this run needs into one batch.\n""" + QUESTIONS),
+        ("""which the user runs as `! gcloud auth login`.""",
+         """which the user runs in their own terminal."""),
+        (""".claude/worktrees/<topic>""", """<worktrees>/<topic>"""),
+        ("""`${CLAUDE_SKILL_DIR}/../../commands/pr-description.md`, against the base. Write
+   the body to a file in the scratchpad""",
+         """`${CLAUDE_SKILL_DIR}/../pr-description/SKILL.md`, against the base. Write
+   the body to a file under `$TMPDIR`"""),
+        ("""`gh run view <run> --log-failed --job <job>`, through `cg_run`. The captured stdout is the log""",
+         """`gh run view <run> --log-failed --job <job>`. Through `cg_run`, the captured stdout is
+     the log. Otherwise send the output to a file under `$TMPDIR`, and read that file"""),
+        ("""Skip its plan-mode step.""",
+         """Skip its planning and approval step."""),
+        ("""Write each reply to a file in the scratchpad""",
+         """Write each reply to a file under `$TMPDIR`"""),
+        ("""command, `/merge-fix-loop <number>`, which resumes from the state files.""",
+         """request: run the `merge-fix-loop` skill again with `<number>`. It resumes from the state files."""),
+        ("""Never hand a
+  background subagent its own watcher or Monitor. Claude Code can drop the second report of a background subagent that
+  still has background work running, and the loop then stalls with nothing left to wake it""",
+         """Never hand a
+  subagent its own watcher. This session owns the only watcher, so a lost or late subagent report cannot leave the
+  loop with nothing to wake it"""),
+        ("""- Run `gh`, `gcloud`, and `pr_watch.py` through `cg_run`.""",
+         """- Run `gh`, `gcloud`, and `pr_watch.py` with network access, as "Scripts" says."""),
+    ),
+    'debug-ci': (
+        ("""or enters plan mode to debug real failures.""",
+         """or plans a debug session for real failures."""),
+        ("""use AskUserQuestion:""",
+         """ask the user with a supported question tool, or in chat:"""),
+        ("""`gcloud builds log <build-id> --region=<region>` through `cg_run`. The run's
+   captured stdout file is the log.""",
+         """`gcloud builds log <build-id> --region=<region>`. Through `cg_run`, the run's
+   captured stdout file is the log. Otherwise send the output to a file under
+   `$TMPDIR`. That file is the log."""),
+        ("""3. Enter plan mode via `EnterPlanMode` to conduct a full debug session:""",
+         """3. Plan a full debug session. Do not edit any file until the user approves
+   the plan:"""),
+        ("""Use Explore agents if needed""",
+         """Use read-only exploration subagents if needed"""),
+    ),
     'proposal-reviewer': (
         ("Completes the proposal pipeline: research -> draft -> design review -> accepted.",
          "Follows the proposal pipeline from research through drafting and design review to acceptance."),

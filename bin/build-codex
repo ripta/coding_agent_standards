@@ -13,16 +13,19 @@ REPO = Path(__file__).resolve().parent.parent
 SOURCE = REPO / "claude"
 OUTPUT = REPO / "dist" / "codex"
 SKILLS = (
-    "format-checker", "gitignore-maintainer", "go-code-reviewer", "lint-runner",
-    "makefile-helper", "proposal-reviewer", "release", "risk-assessment", "schedule-proposal", "session-report",
-    "test-audit", "testing-specialist",
+    "debug-ci", "format-checker", "gitignore-maintainer", "go-code-reviewer", "land-branch", "lint-runner",
+    "makefile-helper", "merge-fix-loop", "proposal-reviewer", "release", "risk-assessment", "schedule-proposal",
+    "session-report", "test-audit", "testing-specialist",
 )
-COMMANDS = ("next-pr", "summary", "work-on", "work-queue")
+COMMANDS = ("next-pr", "pr-description", "summary", "work-on", "work-queue")
+SCRIPTS = ("batch_plan.py", "detect_era.py", "pr_watch.py", "proposals.py", "test_cost.py")
 ROLES = ("implementer", "reviewer", "adr-impact", "design-critic", "design-judge", "citation-verifier")
 UNSUPPORTED = re.compile(
     r"CLAUDE_[A-Z_]+|\$ARGUMENTS|EnterPlanMode|ExitPlanMode|SendMessage|"
     r"AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:|"
-    r"agent_liveness\.py|TaskStop|<output-file>|Skill tool"
+    r"agent_liveness\.py|TaskStop|<output-file>|Skill tool|scratchpad|\.claude/worktrees|"
+    r"Bash sandbox|Bash with the sandbox disabled|watcher or Monitor|! gcloud|plan-mode|/land-branch |"
+    r"/merge-fix-loop "
 )
 translate = runpy.run_path(str(REPO / "codex" / "scripts" / "translate.py"))["translate"]
 
@@ -140,7 +143,7 @@ def convert_skill(text, name, command=False):
         kept.insert(0, f"name: {name}\n")
     body = parts[2].replace("${CLAUDE_PLUGIN_ROOT}", "../..")
     body = body.replace("${CLAUDE_SKILL_DIR}", ".")
-    body = body.replace("$ARGUMENTS", "the arguments in the user's request")
+    body = body.replace("`$ARGUMENTS`", "$ARGUMENTS").replace("$ARGUMENTS", "the arguments in the user's request")
     preamble = (
         "\nResolve bundled paths relative to this SKILL.md, not the project's working\n"
         "directory. Run project commands in the project being worked on.\n"
@@ -237,9 +240,8 @@ def main():
     tracking = OUTPUT / "project-management" / "tracking.md"
     tracking.write_text(tracking.read_text().replace("claude/rules/", "rules/"))
     (OUTPUT / "scripts").mkdir()
-    shutil.copy2(SOURCE / "scripts" / "proposals.py", OUTPUT / "scripts" / "proposals.py")
-    shutil.copy2(SOURCE / "scripts" / "detect_era.py", OUTPUT / "scripts" / "detect_era.py")
-    shutil.copy2(SOURCE / "scripts" / "test_cost.py", OUTPUT / "scripts" / "test_cost.py")
+    for name in SCRIPTS:
+        shutil.copy2(SOURCE / "scripts" / name, OUTPUT / "scripts" / name)
     shutil.copy2(REPO / "codex" / "scripts" / "setup.py", OUTPUT / "scripts" / "setup.py")
     shutil.copy2(REPO / "codex" / "scripts" / "verify_hooks.py", OUTPUT / "scripts" / "verify_hooks.py")
     write_baseline(baseline, on_demand)

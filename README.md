@@ -156,10 +156,11 @@ the plugin manifest, skills, companion scripts, and referenced standards. Rebuil
 The builder does not install anything or write to your home directory. Edit `claude/`, then rebuild; keep authored
 Codex-only skills in `codex/`.
 
-The generated `coding-standards-portable` plugin includes `format-checker`, `gitignore-maintainer`, `go-code-reviewer`,
-`lint-runner`, `makefile-helper`, `proposal-reviewer`, `release`, `risk-assessment`, `schedule-proposal`,
-`session-report`, and `testing-specialist`. It also converts `summary`, `next-pr`, `work-on`, and `work-queue` into
-explicit-only skills.
+The generated `coding-standards-portable` plugin includes `debug-ci`, `format-checker`, `gitignore-maintainer`,
+`go-code-reviewer`, `land-branch`, `lint-runner`, `makefile-helper`, `merge-fix-loop`, `proposal-reviewer`, `release`,
+`risk-assessment`, `schedule-proposal`, `session-report`, and `testing-specialist`. `test-audit` ships explicit-only, as
+in Claude. It also converts `summary`, `next-pr`, `pr-description`, `work-on`, and `work-queue` into explicit-only
+skills.
 Bundled paths resolve relative to each skill,
 so the package can be moved without depending on the source checkout.
 
@@ -175,6 +176,12 @@ and critic, judge, and citation-verifier instructions for ordinary Codex subagen
 Question rounds respect the available tool's limits, with chat and text selections as fallbacks. An asynchronous
 question must receive an explicit answer before dependent work continues. Autonomous mode keeps the final review
 gate, proposal acceptance, and ADR choices with the user. Commit choices remain explicit and apply to that review only.
+
+`land-branch` and `merge-fix-loop` keep the batch plan, its verification, the run files, and the review policy. They
+bundle `pr_watch.py` and `batch_plan.py`. Their worktrees go under `~/.local/state/coding_agent_standards/worktrees/`
+instead of `.claude/worktrees/`, so nothing appears in a checkout that does not ignore `.claude/`. `gh`, `git fetch`,
+and `git push` need network access, which the session's sandbox may require approving. Plan approval does not bypass it.
+The OpenCode build makes the same moves.
 
 Platform-specific sections are adapted by `codex/scripts/translate.py`. Each replacement must match exactly once;
 when the source changes, review its adaptation before rebuilding. Shared workflow text continues to come from `claude/`.
