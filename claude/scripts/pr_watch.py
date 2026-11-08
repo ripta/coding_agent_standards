@@ -820,23 +820,30 @@ class Ambiguous(Exception):
         self.available = available
 
 
-def workflow_matches(run: dict[str, Any], workflow: str) -> bool:
-    """Match a workflow's display name, its file name, or its file name without the extension."""
-    filename = (run.get("path") or "").rsplit("/", 1)[-1]
-    stem = re.sub(r"\.ya?ml$", "", filename)
-    return workflow in (run.get("name"), filename, stem)
+def workflow_paths(workflows: list[dict[str, Any]], workflow: str) -> set[str]:
+    """Return the paths of the workflows named by display name, file name, or file name without the extension.
+
+    A run's own `name` is its run name, which `run-name:` can set per run, so runs are matched to a
+    workflow by path instead.
+    """
+    paths = set()
+    for w in workflows:
+        filename = (w.get("path") or "").rsplit("/", 1)[-1]
+        if workflow in (w.get("name"), filename, re.sub(r"\.ya?ml$", "", filename)):
+            paths.add(w.get("path") or "")
+    return paths
 
 
-def pick_run(runs: list[dict[str, Any]], workflow: str | None) -> dict[str, Any] | None:
-    """Return the newest run of the workflow, or None when it has not started yet.
+def pick_run(runs: list[dict[str, Any]], paths: set[str] | None) -> dict[str, Any] | None:
+    """Return the newest run of the workflow at one of `paths`, or None when none has started yet.
 
     One commit can start the same workflow more than once, such as on push and on pull_request.
-    The newest run wins. Without `workflow`, runs from more than one workflow are ambiguous.
+    The newest run wins. Without `paths`, runs from more than one workflow are ambiguous.
     """
-    if workflow is not None:
-        runs = [r for r in runs if workflow_matches(r, workflow)]
-    elif len({r.get("name") for r in runs}) > 1:
-        raise Ambiguous(sorted({r.get("name") or "" for r in runs}))
+    if paths is not None:
+        runs = [r for r in runs if r.get("path") in paths]
+    elif len({r.get("path") for r in runs}) > 1:
+        raise Ambiguous(sorted({r.get("path") or "" for r in runs}))
     return max(runs, key=lambda r: r["id"]) if runs else None
 
 
@@ -934,7 +941,8 @@ def wait_job(
             if run is not None:
                 if not announced:
                     announced = True
-                    out({"event": "run-found", "run": run["id"], "workflow": run.get("name"), "url": run.get("html_url")})
+                    out({"event": "run-found", "run": run["id"], "workflow": run.get("path"), "run_name": run.get("name"),
+                         "url": run.get("html_url")})
                 result = job_progress(run, jobs, job_name, step_name)
         except Ambiguous as e:
             out({"event": "not-found", "kind": "workflow", "message": str(e), "available": e.available})
@@ -1012,7 +1020,8 @@ def main(argv: list[str]) -> int:
     target = p.add_mutually_exclusive_group(required=True)
     target.add_argument("--run", type=int, help="the run's ID")
     target.add_argument("--sha", help="find the run by its head commit, waiting for it to start")
-    p.add_argument("--workflow", help="with --sha: the workflow's name or file name; needed when the commit runs several")
+    p.add_argument("--workflow", help="with --sha: the workflow's file name, as in ci.yml or ci, or its name; "
+                        "needed when the commit runs several")
     p.add_argument("--job", required=True, help="the job's full name, as in 'build (ubuntu-latest)' for a matrix job")
     p.add_argument("--step", help="a step's name; without it, wait for the whole job")
     p.add_argument("--cancel", action="store_true", help="cancel the run once the target finishes, so the job's log is served")
@@ -1052,13 +1061,21 @@ def main(argv: list[str]) -> int:
             emit(graphql(RESOLVE_MUTATION, thread=args.thread)["resolveReviewThread"]["thread"])
         elif args.command == "wait-job":
             owner, name = repo_slug(args.repo)
+            paths = None
+            if args.workflow:
+                workflows = gh_json(["api", f"repos/{owner}/{name}/actions/workflows?per_page=100"]).get("workflows") or []
+                paths = workflow_paths(workflows, args.workflow)
+                if not paths:
+                    emit({"event": "not-found", "kind": "workflow", "name": args.workflow,
+                          "available": sorted(w.get("name") or "" for w in workflows)})
+                    return 1
 
             def poll() -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
                 if args.run is not None:
                     run = gh_json(["api", f"repos/{owner}/{name}/actions/runs/{args.run}"])
                 else:
                     runs = gh_json(["api", f"repos/{owner}/{name}/actions/runs?head_sha={args.sha}&per_page=100"])
-                    run = pick_run(runs.get("workflow_runs") or [], args.workflow)
+                    run = pick_run(runs.get("workflow_runs") or [], paths)
                 return (run, fetch_jobs(owner, name, run["id"])) if run else (None, [])
 
             return wait_job(poll, args.job, args.step, args.cancel, args.timeout, args.interval,

@@ -622,20 +622,32 @@ def _runs(*runs):
              "status": "in_progress", "html_url": f"u/{rid}"} for rid, name, path in runs]
 
 
+_WORKFLOWS = [{"name": "CI", "path": ".github/workflows/ci.yml"}, {"name": "Lint", "path": ".github/workflows/lint.yaml"}]
+
+
+def test_workflow_is_named_by_display_name_file_name_or_stem():
+    ci = {".github/workflows/ci.yml"}
+    assert pr_watch.workflow_paths(_WORKFLOWS, "CI") == ci
+    assert pr_watch.workflow_paths(_WORKFLOWS, "ci.yml") == ci
+    assert pr_watch.workflow_paths(_WORKFLOWS, "ci") == ci
+    assert pr_watch.workflow_paths(_WORKFLOWS, "lint") == {".github/workflows/lint.yaml"}
+    assert pr_watch.workflow_paths(_WORKFLOWS, "deploy") == set()
+
+
 def test_run_for_sha_picks_the_newest_run_of_the_named_workflow():
-    runs = _runs((5, "CI", "ci.yml"), (9, "CI", "ci.yml"), (7, "Lint", "lint.yml"))
-    assert pr_watch.pick_run(runs, "CI")["id"] == 9
-    assert pr_watch.pick_run(runs, "ci.yml")["id"] == 9
-    assert pr_watch.pick_run(runs, "lint")["id"] == 7
-    assert pr_watch.pick_run(runs, "deploy") is None
+    runs = _runs((5, "CI", "ci.yml"), (9, "CI", "ci.yml"), (7, "Lint", "lint.yaml"))
+    assert pr_watch.pick_run(runs, {".github/workflows/ci.yml"})["id"] == 9
+    assert pr_watch.pick_run(runs, {".github/workflows/lint.yaml"})["id"] == 7
+    assert pr_watch.pick_run(runs[:2], {".github/workflows/lint.yaml"}) is None
     assert pr_watch.pick_run([], None) is None
 
 
 def test_run_for_sha_without_a_workflow_must_be_unambiguous():
-    assert pr_watch.pick_run(_runs((5, "CI", "ci.yml"), (9, "CI", "ci.yml")), None)["id"] == 9
+    # `run-name:` gives each run of one workflow its own name, so ambiguity is judged by path.
+    assert pr_watch.pick_run(_runs((5, "CI for main", "ci.yml"), (9, "CI for pr", "ci.yml")), None)["id"] == 9
     with pytest.raises(pr_watch.Ambiguous) as e:
-        pr_watch.pick_run(_runs((5, "CI", "ci.yml"), (7, "Lint", "lint.yml")), None)
-    assert e.value.available == ["CI", "Lint"]
+        pr_watch.pick_run(_runs((5, "CI", "ci.yml"), (7, "Lint", "lint.yaml")), None)
+    assert e.value.available == [".github/workflows/ci.yml", ".github/workflows/lint.yaml"]
 
 
 def test_jobs_are_paged_past_the_first_hundred(monkeypatch: pytest.MonkeyPatch) -> None:
