@@ -22,7 +22,7 @@ help: ## Show this help
 ##@ Test
 
 .PHONY: test
-test: test-python test-python-floor test-js test-plugin ## Run every test suite
+test: test-python test-python-floor test-js test-plugin test-opencode ## Run every test suite
 
 .PHONY: test-python
 test-python: ## Run the pytest suites, including the standards checker
@@ -35,6 +35,11 @@ test-python-floor: ## Run the pytest suites under the oldest supported Python, P
 .PHONY: test-js
 test-js: ## Run the architecture-exploration workflow tests
 	node claude/skills/architecture-exploration/workflow.test.mjs
+
+# Builds into a temporary directory, so ci stays read-only and leaves opencode/ alone.
+.PHONY: test-opencode
+test-opencode: ## Check that the OpenCode build translates every item cleanly
+	@out="$$(mktemp -d)"; trap 'rm -rf "$$out"' EXIT; OPENCODE_OUT="$$out/opencode" bin/build-opencode
 
 # Needs the claude CLI. Validates the plugin manifest and runs the hooks module's tests.
 .PHONY: test-plugin

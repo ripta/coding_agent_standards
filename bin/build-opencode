@@ -8,11 +8,15 @@
 #
 # The build fails if a Claude-only token survives translation. That usually
 # means a source file changed under one of the file-specific rewrites below.
+#
+# OPENCODE_OUT overrides the output directory. `make test-opencode` builds into
+# a temporary one, so the check never replaces the opencode/ tree that a running
+# OpenCode session may be reading through the links.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 SRC="$REPO/claude"
-OUT="$REPO/opencode"
+OUT="${OPENCODE_OUT:-$REPO/opencode}"
 OPENCODE_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
 
 MODEL_HAIKU=anthropic/claude-haiku-5-5
