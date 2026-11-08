@@ -195,7 +195,9 @@ off. Turn it on only when the PR's `base` equals `merge_into`, per Step 5.
    - **Already failing on the base.** Check the same check on the base's latest commit. When it fails there too, it is
      not this PR's. Tell the user, and do not fix it here unless the user says so
    - **Flaky.** Only with evidence: the same test passes on a rerun with no change, or the log shows a known transient
-     such as a registry timeout. Rerun once with `gh run rerun <run> --failed`. A second failure is not flaky
+     such as a registry timeout. Rerun once with `gh run rerun <run> --failed`. A second failure is not flaky.
+     Re-arm `watch` with the same state file. A rerun starts its check over on the same head, so `watch` reports its
+     `check-failed` and `checks-done` again
    - **Infrastructure or permissions.** A missing secret, quota, or credential. Report it to the user. Do not work
      around it
 3. Commit each fix in the worktree with a message that follows the repository's commit style. Run the local check

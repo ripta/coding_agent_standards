@@ -61,6 +61,51 @@ def test_failure_is_reported_before_the_rest_finish_and_only_once():
     assert events[0]["failed"] == ["lint"] and events[0]["passed"] == ["test"]
 
 
+def test_rerun_on_the_same_head_reports_again():
+    """A rerun keeps the head SHA. Its pending state starts the check over, so its result is reported again.
+
+    Catches a watch that keys reported checks by head alone and goes silent after `gh run rerun`.
+    """
+    state = {}
+    first = _pr([_run("test", conclusion="FAILURE", url="job/1")])
+    assert _kinds(pr_watch.pr_events(state, first, 0, 600)) == ["check-failed", "checks-done"]
+
+    rerun = _pr([_run("test", status="QUEUED", conclusion=None, url="job/2")])
+    assert pr_watch.pr_events(state, rerun, 1, 600) == []
+
+    again = _pr([_run("test", conclusion="FAILURE", url="job/2")])
+    events = pr_watch.pr_events(state, again, 2, 600)
+    assert _kinds(events) == ["check-failed", "checks-done"]
+    assert events[0]["url"] == "job/2" and events[1]["failed"] == ["test"]
+
+
+def test_rerun_that_finishes_between_polls_is_reported_by_its_new_url():
+    """A rerun can finish inside one poll interval, so no poll sees it pending. Its new URL marks it.
+
+    Catches a reset that only watches for a check returning to pending.
+    """
+    state = {}
+    pr_watch.pr_events(state, _pr([_run("test", conclusion="FAILURE", url="job/1")]), 0, 600)
+
+    events = pr_watch.pr_events(state, _pr([_run("test", url="job/2")]), 1, 600)
+    assert _kinds(events) == ["checks-done"]
+    assert events[0]["passed"] == ["test"] and events[0]["failed"] == []
+    assert pr_watch.pr_events(state, _pr([_run("test", url="job/2")]), 2, 600) == []
+
+
+def test_watch_until_checks_waits_out_a_rerun_on_a_finished_head(tmp_path):
+    """A state file that saw the head finish must not end a watch armed while a rerun is pending."""
+    clock = _Clock()
+    state = tmp_path / "s.json"
+    pr_watch.watch([7], state, 3600, 60, 600, "checks", lambda n: _pr([_run("t", conclusion="FAILURE", url="job/1")]),
+                   [].append, clock, clock.sleep)
+
+    polls = iter([_pr([_run("t", status="IN_PROGRESS", conclusion=None, url="job/2")]), _pr([_run("t", url="job/2")])])
+    out = []
+    status = pr_watch.watch([7], state, 3600, 60, 600, "checks", lambda n: next(polls), out.append, clock, clock.sleep)
+    assert status == 0 and _kinds(out) == ["checks-done"] and out[0]["passed"] == ["t"]
+
+
 def test_new_head_starts_the_checks_over():
     state = {}
     pr_watch.pr_events(state, _pr([_run("test", conclusion="FAILURE")]), 0, 600)

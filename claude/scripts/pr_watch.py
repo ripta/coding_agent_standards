@@ -222,6 +222,11 @@ def pr_events(state: dict[str, Any], pr: dict[str, Any], now: float, appear_time
     `state` is mutated to record what was reported, so the same event is never emitted twice, even
     across separate runs that share a state file. Check events are keyed by head SHA, so a push
     starts the checks over.
+
+    A rerun keeps the head SHA, so it starts one check over instead. A check is a rerun when it
+    returns to pending, or when its URL changes. The URL catches a rerun that finished between two
+    polls. The pending state catches a status whose URL stays the same. Either one clears that
+    check's report and the head's `done`, so the rerun's result is reported again.
     """
     number = pr["number"]
     events: list[dict[str, Any]] = []
@@ -245,11 +250,19 @@ def pr_events(state: dict[str, Any], pr: dict[str, Any], now: float, appear_time
     sha = pr.get("headRefOid") or ""
     head = per_pr.setdefault("heads", {}).setdefault(sha, {"first_seen": now, "reported": {}})
     checks, _ = checks_of(pr)
+    urls = head.setdefault("urls", {})
 
     for check in checks:
-        if check["bucket"] == FAIL and head["reported"].get(check["name"]) != FAIL:
-            head["reported"][check["name"]] = FAIL
-            emit("check-failed", sha=sha, name=check["name"], detail=check["detail"], url=check["url"])
+        name = check["name"]
+        moved = name in urls and urls[name] != check["url"]
+        urls[name] = check["url"]
+        if moved or check["bucket"] == PENDING:
+            head["reported"].pop(name, None)
+            head.pop("done", None)
+
+        if check["bucket"] == FAIL and head["reported"].get(name) != FAIL:
+            head["reported"][name] = FAIL
+            emit("check-failed", sha=sha, name=name, detail=check["detail"], url=check["url"])
 
     if checks and all(c["bucket"] != PENDING for c in checks) and not head.get("done"):
         head["done"] = True
