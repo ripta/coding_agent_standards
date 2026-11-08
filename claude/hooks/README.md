@@ -43,6 +43,9 @@
   suggests `unlink` for a file or symlink and `rmdir` for an empty directory. A non-empty directory must be emptied
   first, or deleted by the user. It catches accidents and is no sandbox. It does not follow `ssh`, `su -c`, or
   variables.
+- `PreToolUse` on `Bash`, `cg_run`, and `cg_run_many` runs `block-gcloud-project-number.sh`. It denies a `gcloud` call
+  that names its project by number, in `--project`, `gcloud config set project`, or `CLOUDSDK_CORE_PROJECT`. Its reason
+  gives the `gcloud projects describe` command that resolves the number to an ID. See `practices/gcloud.md`.
 - `PreToolUse` on the file tools runs `standards-on-demand.py`. Profiles leave the project-management docs and
   `practices/makefile.md` out of startup context. The first time a session reads or changes a proposal, an ADR, the
   queue, or a Makefile, the hook names the docs to read. It matches a file's resolved path too, so a symlinked `spec/`

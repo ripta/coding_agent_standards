@@ -307,14 +307,6 @@ default branch.
 
 ## Verified gcloud behavior
 
-These cost round trips if you assume otherwise:
-
-- `gcloud builds list` and `gcloud builds triggers list` default to the `global`
-  region. Regional triggers do not appear. Always pass `--region`.
-- `--region=-` is rejected. There is no all-regions listing.
-- There is no `gcloud builds triggers export`. Use `describe --format=yaml`.
-- `gcloud developer-connect` takes `--location`, not `--region`.
-- The `duration` output field on `gcloud builds list` comes back empty. Compute
-  from `startTime` and `finishTime`.
-- `gcloud` reads `~/.config/gcloud`. If that path is sandbox-denied, gcloud
-  fails with a Python traceback about `active_config` rather than a clean error.
+Read `${CLAUDE_PLUGIN_ROOT}/practices/gcloud.md` before the first `gcloud`
+call. It lists the behaviors that cost round trips when assumed otherwise:
+project IDs versus numbers, regions, missing subcommands, and the sandbox.

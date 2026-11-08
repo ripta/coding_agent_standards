@@ -161,8 +161,8 @@ Read the failing log before choosing anything. For GitHub Actions use `gh run vi
 Cloud Build use `gcloud builds log ID --region REGION --project PROJECT_ID`. `pr_watch.py --repo O/N failures --pr N`
 gives the IDs.
 
-- gcloud rejects a project number. Resolve it with `gcloud projects describe NUMBER --format='value(projectId)'`
-- Read a trigger's config with `gcloud builds triggers describe`. GA has no `export`
+- `${CLAUDE_PLUGIN_ROOT}/practices/gcloud.md` lists the gcloud behaviors that cost round trips. Read it before the
+  first `gcloud` call. A Cloud Build URL names the project by number, which `--project` rejects
 - A trigger with `filename: cloudbuild.yaml` reads the file from the repo. In `cloudbuild.yaml` the step image is under
   `name:`, not `image:`
 

@@ -39,6 +39,9 @@ If `$ARGUMENTS` is a number, that is the PR number. Otherwise:
 
 ### Step 4: Download Build Logs
 
+Read `${CLAUDE_PLUGIN_ROOT}/practices/gcloud.md` first. It lists the gcloud
+behaviors that cost round trips, such as `--project` rejecting a project number.
+
 1. Get the head commit SHA of the PR:
    `gh pr view <number> --json headRefOid --jq .headRefOid`
 2. Find the build's region. Builds from regional triggers do not appear in the

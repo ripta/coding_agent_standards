@@ -91,10 +91,10 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   disclosure when promoting content to a more visible repo
 - **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. At session start
   it keeps the plugin link that profiles import through, and names any passed revisit hook. The `block-broad-find`,
-  `block-rm-rf`, `block-redirection`, and `cg-check` guard scripts ship alongside it, plus opt-in hooks for
-  project-management references, golden files, and the Zig cache; see `claude/hooks/README.md` for which are wired by
-  default. `hooks.json` also loads `work-queue-progress.tsx`, a mod that shows a `work-queue` run's progress above the
-  prompt and in a `/queue` pane
+  `block-rm-rf`, `block-gcloud-project-number`, `block-redirection`, and `cg-check` guard scripts ship alongside it,
+  plus opt-in hooks for project-management references, golden files, and the Zig cache; see `claude/hooks/README.md` for
+  which are wired by default. `hooks.json` also loads `work-queue-progress.tsx`, a mod that shows a `work-queue` run's
+  progress above the prompt and in a `/queue` pane
 - **Settings** (`settings/`) -- permission whitelist templates to copy into a project's `.claude/settings.local.json`,
   one per language ecosystem
 - **Scripts** (`scripts/`) -- standalone scripts not tied to a hook: the statusline; `proposals.py`, which checks

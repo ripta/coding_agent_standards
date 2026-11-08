@@ -72,6 +72,16 @@
         ]
       },
       {
+        "matcher": "Bash|mcp__cg__cg_run|mcp__cg__cg_run_many",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/block-gcloud-project-number.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
         "matcher": "Read|Edit|Write|MultiEdit|NotebookEdit",
         "hooks": [
           {
