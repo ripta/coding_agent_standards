@@ -2,9 +2,10 @@
 """Point the session at the standards a file needs, the first time it touches such a file.
 
 A PreToolUse hook for Read, Edit, Write, MultiEdit, and NotebookEdit, and a SessionStart hook.
-Profiles leave the project-management docs and makefile.md out of every session's startup
-context, since most sessions never need them. This hook names them when a session first reads
-or changes a proposal, an ADR, the queue, or a Makefile.
+Profiles leave the project-management docs, makefile.md, and the UI docs out of every session's
+startup context, since most sessions never need them. This hook names them when a session first
+reads or changes a proposal, an ADR, the queue, a Makefile, a web UI file, or a Swift file that
+imports SwiftUI or AppKit.
 
 It names the files instead of inlining them. Hook context is capped at 10,000 characters, and
 proposals.md alone is larger.
@@ -15,7 +16,8 @@ or /clear removes the session's markers, since the docs left context with everyt
 
 Paths match on both their spelling and their resolved target. A spec/ directory is often a
 symlink into another checkout, and Claude Code's own path-scoped rules miss files reached that
-way. The hook never blocks a tool call, and fails silent.
+way. A Swift file matches by its imports, read from the content a Write carries or else from
+the file on disk. The hook never blocks a tool call, and fails silent.
 """
 
 from __future__ import annotations
@@ -39,6 +41,10 @@ FILE_KEYS = {
 PM_DIRS = {"proposals", "adrs", "adr"}
 ADR_FILE = re.compile(r"^adr-\d+.*\.md$", re.IGNORECASE)
 MAKEFILES = {"Makefile", "makefile", "GNUmakefile"}
+WEB_UI_SUFFIXES = {".svelte", ".css", ".html", ".jsx", ".tsx"}
+UI_IMPORT = re.compile(r"^[ \t]*(?:@\w+[ \t]+)*import[ \t]+(?:SwiftUI|AppKit)\b", re.MULTILINE)
+# Imports sit at the top of a Swift file, so the head is enough.
+IMPORT_SCAN_BYTES = 64 * 1024
 
 GROUPS = {
     "project-management": (
@@ -52,6 +58,14 @@ GROUPS = {
         ],
     ),
     "makefile": ("a Makefile", ["practices/makefile.md"]),
+    "web-ui": (
+        "a web UI file",
+        ["practices/ui-design.md", "practices/ui-web.md", "languages/css.md"],
+    ),
+    "macos-ui": (
+        "a Swift file that imports SwiftUI or AppKit",
+        ["practices/ui-design.md", "practices/ui-macos.md"],
+    ),
 }
 
 STATE = Path.home() / ".local" / "state" / "coding_agent_standards" / "on-demand"
@@ -60,14 +74,30 @@ STALE_SECONDS = 7 * 24 * 3600
 SESSION_ID = re.compile(r"^[A-Za-z0-9_-]+$")
 
 
-def group_for(path: str) -> str | None:
+def imports_ui_framework(path: str, content: object) -> bool:
+    if isinstance(content, str):
+        return bool(UI_IMPORT.search(content[:IMPORT_SCAN_BYTES]))
+    try:
+        with open(path, "rb") as f:
+            head = f.read(IMPORT_SCAN_BYTES)
+    except OSError:
+        return False
+    return bool(UI_IMPORT.search(head.decode("utf-8", errors="replace")))
+
+
+def group_for(path: str, content: object = None) -> str | None:
     for spelling in {path, os.path.realpath(path)}:
         parts = Path(spelling).parts
         name = parts[-1] if parts else ""
+        suffix = Path(name).suffix.lower()
         if PM_DIRS & {p.lower() for p in parts[:-1]} or ADR_FILE.match(name):
             return "project-management"
         if name in MAKEFILES or name.endswith(".mk"):
             return "makefile"
+        if suffix in WEB_UI_SUFFIXES:
+            return "web-ui"
+    if path.endswith(".swift") and imports_ui_framework(path, content):
+        return "macos-ui"
     return None
 
 
@@ -98,12 +128,13 @@ def prune() -> None:
 
 def on_tool(payload: dict) -> str | None:
     key = FILE_KEYS.get(payload.get("tool_name", ""))
-    path = (payload.get("tool_input") or {}).get(key) if key else None
+    tool_input = payload.get("tool_input") or {}
+    path = tool_input.get(key) if key else None
     root = os.environ.get("CLAUDE_PLUGIN_ROOT")
     if not isinstance(path, str) or not root:
         return None
 
-    group = group_for(path)
+    group = group_for(path, tool_input.get("content"))
     if group is None or not claim(session_dir(payload.get("session_id")), group):
         return None
 

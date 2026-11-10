@@ -17,6 +17,8 @@ import pytest
 
 HOOK = Path(__file__).parent / "standards-on-demand.py"
 PM_DOCS = ["glossary.md", "proposals.md", "plans.md", "tracking.md", "design.md"]
+WEB_UI_DOCS = ["ui-design.md", "ui-web.md", "css.md"]
+MACOS_UI_DOCS = ["ui-design.md", "ui-macos.md"]
 
 
 @pytest.fixture
@@ -37,13 +39,18 @@ def call(env: dict, payload: object) -> str | None:
     return out["additionalContext"]
 
 
-def tool(env: dict, path: Path | str, *, name: str = "Read", session: str = "s1") -> str | None:
+def tool(
+    env: dict, path: Path | str, *, name: str = "Read", session: str = "s1", content: str | None = None
+) -> str | None:
     key = "notebook_path" if name == "NotebookEdit" else "file_path"
+    tool_input = {key: str(path)}
+    if content is not None:
+        tool_input["content"] = content
     payload = {
         "hook_event_name": "PreToolUse",
         "session_id": session,
         "tool_name": name,
-        "tool_input": {key: str(path)},
+        "tool_input": tool_input,
     }
     return call(env, payload)
 
@@ -70,6 +77,34 @@ def test_project_management_files_name_the_pm_docs(env: dict, tmp_path: Path, re
 @pytest.mark.parametrize("name", ["Makefile", "GNUmakefile", "rust.mk"])
 def test_makefiles_name_the_makefile_practice(env: dict, tmp_path: Path, name: str) -> None:
     assert named(tool(env, tmp_path / "app" / name)) == ["makefile.md"]
+
+
+@pytest.mark.parametrize("relative", ["src/App.svelte", "web/site.css", "public/index.html", "ui/Nav.jsx", "ui/Nav.tsx"])
+def test_web_ui_files_name_the_web_ui_docs(env: dict, tmp_path: Path, relative: str) -> None:
+    assert named(tool(env, tmp_path / "app" / relative)) == WEB_UI_DOCS
+
+
+@pytest.mark.parametrize("module", ["SwiftUI", "AppKit"])
+def test_swift_files_that_import_a_ui_framework_name_the_macos_ui_docs(
+    env: dict, tmp_path: Path, module: str
+) -> None:
+    source = tmp_path / "app" / "Sources" / "ContentView.swift"
+    source.parent.mkdir(parents=True)
+    source.write_text(f"import Foundation\n@preconcurrency import {module}\n\nstruct ContentView {{}}\n")
+    assert named(tool(env, source)) == MACOS_UI_DOCS
+
+
+def test_a_new_swift_file_matches_by_the_content_being_written(env: dict, tmp_path: Path) -> None:
+    source = tmp_path / "app" / "Sources" / "SettingsView.swift"
+    assert named(tool(env, source, name="Write", content="import SwiftUI\n")) == MACOS_UI_DOCS
+
+
+def test_a_swift_file_without_a_ui_framework_adds_nothing(env: dict, tmp_path: Path) -> None:
+    source = tmp_path / "app" / "Sources" / "Parser.swift"
+    source.parent.mkdir(parents=True)
+    source.write_text("import Foundation\n// import SwiftUI is mentioned only in this comment\n")
+    assert tool(env, source) is None
+    assert tool(env, tmp_path / "app" / "Sources" / "Missing.swift") is None
 
 
 @pytest.mark.parametrize("relative", ["src/main.go", "claude/project-management/proposals.md", "README.md"])
