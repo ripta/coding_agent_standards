@@ -21,7 +21,10 @@ ROOT = Path(__file__).resolve().parents[1]
 CLAUDE = ROOT / "claude"
 SCRIPTS = CLAUDE / "scripts"
 
-INSTRUCTION_DIRS = ("agents", "commands", "skills", "rules", "project-management", "knowledge", "hooks")
+INSTRUCTION_DIRS = (
+    "agents", "commands", "skills", "rules", "project-management", "knowledge", "hooks",
+    "practices", "languages", "profiles",
+)
 INSTRUCTION_FILES = sorted(p for d in INSTRUCTION_DIRS for p in (CLAUDE / d).rglob("*.md"))
 
 FENCE = re.compile(r"^\s*(```|~~~)")

@@ -9,7 +9,9 @@
 
 - Build via `make` targets, not raw `zig build`
   - `make build` / `make release` for building
-  - `make integration-test` / `make unit-test` / `make fmt-test` for tests
+  - `make test-integration` / `make test-unit` / `make test-fmt` for tests. These follow the vocabulary in
+    `practices/makefile.md`. A 1z checkout that still has `integration-test`, `unit-test`, and `fmt-test` predates
+    it: rename those targets and their callers to match.
   - `make update-golden` / `make update-fmt-golden` for golden files
 - Symlink standard library to `zig-out/lib/` so the interpreter can find it at runtime
 
