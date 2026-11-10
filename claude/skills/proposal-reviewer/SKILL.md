@@ -366,9 +366,12 @@ summary first. See "The Closing Summary". Skip it when the review gate has just 
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
 
 Before asking about ADRs, check each noted decision against "What Earns an ADR" again, now that the whole design is
-settled. Drop any that no longer pass all three tests. A dropped decision never appears in the question. A decision that
-fails only Record, because it may still shift, waits for a later review. If none remain, say in one line that no
-decision earns an ADR, and do not ask.
+settled. Check the candidates found in Step 3 the same way. Their wording came from whoever recorded them, not from this
+review. For each, name one other mechanism that would serve the same goal, per "Architecture" in `design.md`. When that
+alternative would break the candidate's wording without harming its goal, lift the claim to the invariant. Reword the
+claim in its Decision Log entry to match, and keep the entry's date. Drop any that no longer pass all three tests. A
+dropped decision never appears in the question. A decision that fails only Record, because it may still shift, waits for
+a later review. If none remain, say in one line that no decision earns an ADR, and do not ask.
 
 Otherwise ask via AskUserQuestion which should get an ADR, as a multiSelect question. Build it this way:
 

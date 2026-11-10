@@ -106,8 +106,14 @@ old and new readers working. That rule is a constraint, so it belongs. The migra
 so the Decision test keeps them out.
 
 To tell the two apart, ask what would force the ADR to change. Adding another instance of the same kind must not.
-Changing the concrete format must not. When either would, the candidate is implementation. Lift it to the invariant
-behind it before weighing it.
+Changing the concrete format must not. Replacing the mechanism with another that serves the same goal must not. When
+any of these would, the candidate is implementation. Lift it to the invariant behind it before weighing it.
+
+To apply the last test, name one other mechanism that would serve the same goal. When that alternative would break the
+candidate's wording without harming its goal, the wording names a mechanism. Lift it again. For example, "the
+coordinator never writes code" is a mechanism. A design that kept the coordinator reachable while a reviewed fix ran
+elsewhere would break it. The invariants behind it are that the coordinator stays reachable, and that someone other
+than the session that made a claim checks it.
 
 For example, a name syntax that callers store is implementation. The ADR behind it says that identities shared across
 machines carry stable identifiers. It also says how a migration that breaks an identifier must proceed. A new kind of
@@ -149,7 +155,9 @@ A candidate is a decision that passes the Architecture and Decision tests. Recor
 proposal's Decision Log, whatever happens to it. Then a later reader can tell a decision that was weighed and declined
 from one nobody weighed. A decision with no candidate entry did not pass the bar, or predates this rule.
 
-Each candidate gets one entry. It names the Architecture criterion it meets and ends with its outcome:
+Each candidate gets one entry. Its claim names the invariant, lifted per "Architecture" above, never the mechanism or
+format that serves it. Later reviews inherit the entry's wording, so a mechanism recorded here tends to reach the
+user's list unchanged. The entry names the Architecture criterion it meets and ends with its outcome:
 
 ```markdown
 - 2026-10-17: ADR candidate (hard to reverse): stored events stay readable by every later version. Written as ADR-07.
