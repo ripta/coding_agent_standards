@@ -6,6 +6,7 @@ For Python command-line tools built with Typer.
 @../languages/python.md
 @../practices/error-handling.md
 @../practices/security.md
+@../practices/terminal-ui.md
 
 ## CLI Framework
 

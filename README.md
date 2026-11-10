@@ -67,6 +67,11 @@ Cross-cutting concerns that apply regardless of language:
 - **Security** -- input validation, parameterized queries, secret management
 - **Makefiles** -- help target, per-target `.PHONY`, common target vocabulary
 - **Game Simulation** -- fixed timestep, sim/render split, determinism, offline replay
+- **UI Design** -- hierarchy, typography, contrast, forms, view states, keyboard and focus, WCAG 2.2 AA baseline
+- **Web UI** -- semantic HTML, ARIA, live regions, responsive layout, axe checks
+- **macOS UI** -- menu commands, semantic text styles and colors, SwiftUI accessibility modifiers, audits
+- **Game UI** -- HUD legibility, color-independent signals, motion toggles, remapping, canvas menus
+- **Terminal UI** -- `NO_COLOR`, width and wrapping, progress on stderr, terminal restore
 
 ### Project Management
 

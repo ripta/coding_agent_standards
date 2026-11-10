@@ -6,6 +6,7 @@ For Go command-line tools built with Cobra.
 @../languages/go.md
 @../practices/error-handling.md
 @../practices/security.md
+@../practices/terminal-ui.md
 
 ## CLI Framework
 
