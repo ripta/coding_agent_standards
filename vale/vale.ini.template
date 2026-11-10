@@ -54,7 +54,12 @@ BasedOnStyles = Standards
 #
 # The durable fix is to write them as real list items (`- ✅ **...**: ...`).
 # This ignore keeps the pattern from blocking adoption in the meantime.
-BlockIgnores = (?m)^(?:[^\x00-\x7F]️?[ \t]+\*\*.*(?:\r?\n|$))+
+#
+# The second pattern skips runs of `@path` import lines, as in a CLAUDE.md or a
+# coding-standards profile. Each import reads as a sentence, so a block of seven
+# of them is reported as an overlong paragraph.
+BlockIgnores = (?m)^(?:[^\x00-\x7F]️?[ \t]+\*\*.*(?:\r?\n|$))+, \
+               (?m)^(?:@\S+[ \t]*(?:\r?\n|$))+
 
 [*.{c,cpp,cs,go,h,java,js,lua,php,proto,py,rb,rs,scala,swift,ts,tsx}]
 BasedOnStyles = Standards
