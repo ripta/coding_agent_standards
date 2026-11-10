@@ -14,8 +14,9 @@ type scale, and `:focus-visible`, live in `languages/css.md`.
 - Headings form an outline. One `<h1>` per page, and no skipped levels. Pick the level by structure, then style it.
 - Use `<ul>` and `<ol>` for lists, and `<table>` with `<th scope>` and a `<caption>` for tabular data. Never use a
   table for layout.
-- Use `<dialog>` with `showModal()` for modals. It traps focus, closes on Escape, and makes the rest of the page
-  inert.
+- Use `<dialog>` with `showModal()` for modals. It makes the rest of the page inert, closes on Escape, and returns
+  focus to the opener when it closes. Tab does not wrap inside it: focus moves on to the browser's own controls, which
+  is the intended platform behavior. Do not add a scripted focus trap to a native dialog.
 - Use `<details>` and `<summary>` for a simple disclosure before building one
 
 ## ARIA
@@ -24,6 +25,7 @@ type scale, and `:focus-visible`, live in `languages/css.md`.
 - When a custom widget is unavoidable, follow its pattern in the WAI-ARIA Authoring Practices Guide, including the
   keyboard behavior. A `role` alone does not add the behavior it promises.
 - `aria-label` replaces the visible name. Prefer `aria-labelledby` pointing at visible text, so both stay the same.
+  When `aria-label` is unavoidable, it contains the visible label text, ideally at the start.
 - Keep state attributes such as `aria-expanded`, `aria-selected`, and `aria-current` in sync with the UI. CSS styles
   state from them. See "Selectors and Naming" in `languages/css.md`.
 - Hide decoration with `aria-hidden="true"`. Never put it on something focusable.
@@ -63,7 +65,8 @@ type scale, and `:focus-visible`, live in `languages/css.md`.
 ## Svelte
 
 - Treat the Svelte compiler's a11y warnings as errors. Run `svelte-check --fail-on-warnings` in CI.
-- Do not silence an a11y warning with `svelte-ignore` unless a comment beside it says why the rule does not apply
+- Do not silence an a11y warning with `svelte-ignore` unless the comment says why the rule does not apply, as in
+  `<!-- svelte-ignore a11y_autofocus (reason) -->`
 
 ## Checking a Page
 

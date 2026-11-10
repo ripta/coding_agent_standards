@@ -61,7 +61,8 @@ what one platform needs on top of this one:
 - Never use color alone to carry meaning. Pair it with text, an icon, a pattern, or position. Red and green are the
   pair color-blind users most often cannot tell apart.
 - Name colors by role, such as text, muted text, surface, accent, danger. The platform docs say how.
-- Disabled controls may fall below 3:1, but the reason they are disabled must still be discoverable.
+- Disabled controls are exempt from the contrast minimums, but the reason they are disabled must still be
+  discoverable.
 
 ## Controls and Affordances
 
@@ -73,8 +74,9 @@ what one platform needs on top of this one:
   name and a visible tooltip.
 - Every control shows its states: rest, hover where there is a pointer, focus, pressed, disabled, and selected or
   checked where they apply.
-- Targets are at least 24 by 24 CSS pixels, or have enough spacing that a 24-pixel circle around each does not
-  overlap a neighbor. Primary touch targets should reach 44 by 44.
+- Targets are at least 24 by 24 CSS pixels. A smaller target passes only when a 24-pixel circle centered on it does
+  not intersect another target, or another small target's circle. Primary touch targets should reach 44 by 44, which
+  matches Apple's 44-point minimum on iPhone and iPad.
 - Guard destructive actions. Prefer undo over a confirmation dialog. When an action cannot be undone, the confirmation
   names what will be lost, and its button repeats the verb.
 
@@ -99,8 +101,9 @@ Every view that shows data has more than one state. Design each one before calli
 
 - **Empty:** say why it is empty, and offer the action that fills it. A first-use empty state differs from a "no
   results" empty state. Both differ from "you have deleted everything".
-- **Loading:** respond within 100 ms, even if only by marking the control pressed. Past about one second, show
-  progress. Use a determinate bar when the total is known. A skeleton that matches the final layout beats a spinner.
+- **Loading:** respond within 100 ms, even if only by marking the control pressed. Past about one second, show that
+  work is happening. Past about ten seconds, show progress, with a determinate bar when the total is known. A
+  skeleton that matches the final layout beats a spinner.
 - **Error:** say what failed, why if known, and what the user can do. Offer retry when retry can work. Keep any data
   that did load visible.
 - **Partial:** some items load and some fail, or the result is truncated. Say so, and say how many.
@@ -126,9 +129,10 @@ Layout does not jump when a state changes. Reserve space for content that arrive
 - Focus is always visible, and never fully hidden behind a sticky header, footer, or overlay.
 - Focus order follows the reading order.
 - Opening a dialog or panel moves focus into it. Closing it returns focus to the control that opened it.
-- A modal traps focus until it closes. Nothing else may trap focus. Escape closes a dialog or menu.
+- A modal keeps focus out of the content behind it until it closes. Nothing else may confine focus. Escape closes a
+  dialog or menu.
 - Offer shortcuts for frequent actions, and make them discoverable in menus or tooltips. A single-key shortcut needs a
-  way to turn it off or remap it.
+  way to turn it off or remap it, unless it is active only while its control has focus.
 
 ## Assistive Technology
 

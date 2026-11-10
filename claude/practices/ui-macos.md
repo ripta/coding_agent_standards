@@ -14,7 +14,8 @@ the guidelines.
 - Support multiple windows when documents or items are independent. Windows restore their size, position, and state
   on relaunch.
 - Selection-based UI follows the platform: Command-click and Shift-click extend a selection, and Delete acts on it.
-- Prefer undo to confirmation. Register undo with the `UndoManager` from the environment.
+- Prefer undo to confirmation. Register undo with the `UndoManager` from `\.undoManager`. It is `nil` where the
+  context does not support undo.
 - Use system controls and SF Symbols before custom ones. They follow accent color, vibrancy, and accessibility
   settings without extra work.
 
@@ -30,7 +31,8 @@ the guidelines.
 
 ## Keyboard and Focus
 
-- The app works with Keyboard navigation turned on in System Settings. Tab reaches every control.
+- The app works with Keyboard navigation turned on in System Settings > Keyboard. Tab reaches every control.
+  A custom view needs `.focusable()` before Tab reaches it.
 - Manage focus with `@FocusState` and `.focused`. Set the initial focus of a sheet or window to its first field.
 - Custom controls that act on keys use `.focusable()` and `.onKeyPress`
 - The default button of a sheet takes `.keyboardShortcut(.defaultAction)`. Cancel takes `.cancelAction`.
@@ -43,14 +45,17 @@ the guidelines.
   `.accessibilityHidden(true)`.
 - Expose a custom control's value with `.accessibilityValue`, and its actions with `.accessibilityAction`
 - Read `\.accessibilityReduceMotion`, and replace movement with a fade or an instant change when it is set
-- Post an announcement for a change that happens away from focus, such as a finished background task
+- Post an announcement for a change that happens away from focus, such as a finished background task. Use
+  `AccessibilityNotification.Announcement("...").post()`, which needs macOS 14 or later.
 
 ## Checking an App
 
 These are the macOS versions of the steps in "Checking a UI" in `practices/ui-design.md`:
 
 - Inspect each new screen with Accessibility Inspector, and run its audit
-- Call `XCUIApplication().performAccessibilityAudit()` in a UI test for each main screen. It needs Xcode 15 and macOS
-  14 or later.
-- Use each new screen with VoiceOver, toggled with Command-F5
-- Check under Increase Contrast, Reduce Transparency, Reduce Motion, and both appearances
+- Call `try XCUIApplication().performAccessibilityAudit()` in a UI test for each main screen. It throws when the
+  audit finds an issue, and needs Xcode 15 and macOS 14 or later. Pass an issue handler that returns `true` only to
+  ignore a known issue.
+- Use each new screen with VoiceOver, toggled with Command-F5, or by holding Command and pressing Touch ID three times
+- Check under Increase Contrast, Reduce Transparency, Reduce Motion, and both appearances. On macOS 26, Liquid Glass
+  changes under the first two, so check custom glass effects there too.
