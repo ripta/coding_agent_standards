@@ -164,3 +164,5 @@ Check a change in the running app before reporting it done. See "Running the App
 6. Run the platform's automated accessibility check. It catches only part of the problems, so it does not replace the
    steps above
 7. For a new screen or a custom control, use it with the platform's screen reader
+
+A review loop that scores the UI and fixes it over several rounds follows `practices/ui-review.md`.
