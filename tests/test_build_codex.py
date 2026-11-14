@@ -161,7 +161,7 @@ class BaselineBuildTests(unittest.TestCase):
                     self.assertIn("## Worktrees", contents)
                     self.assertIn("<worktrees>/", contents)
                     self.assertIn("~/.local/state/coding_agent_standards/worktrees/", contents)
-            for script in ("pr_watch.py", "batch_plan.py"):
+            for script in ("pr_watch.py", "batch_plan.py", "snips.py"):
                 self.assertTrue((moved / "scripts" / script).is_file())
             self.assertIn("allow_implicit_invocation: false",
                           (moved / "skills" / "pr-description" / "agents" / "openai.yaml").read_text())

@@ -43,6 +43,22 @@ is the user's, including the checked-out branch and the mainline.
   merge stops `git branch -d` from seeing the work, so the merge record is the evidence. Delete the remote branch too
 - Never push to, reset, rebase, or delete a user's branch. `git fetch` is fine. `git pull` into a user's branch is not
 
+## Snip Commits
+
+A snip commit marks the end of a run of work that is ready to land. It has the subject `8< --- snip ---` and no change
+of its own: its tree equals its parent's tree. A commit with that subject and a change is not a snip. Flag it to the
+user, and never drop it.
+
+- Leave snips out of everything that lands. They never go into a PR, a merge, a chunk, or a batch
+- A snip is redundant when the commit right before it is also a snip. Only the first snip of such a run marks anything.
+  A snip with other commits before it is not redundant. Neither is a snip sitting directly on the base
+- A rebase can put snips next to each other, when the work between them already landed. After any rebase you run,
+  drop the redundant snips. This does not grant a rebase. A user's branch is rebased only when the user asks
+- `scripts/snips.py` in the plugin does both. `list --base <base>` reports the snips, the redundant ones, and any
+  commit with the snip subject that is not empty. `drop --base <base> --redundant` rebases the checked-out branch onto
+  the same base without the redundant snips, and `--all` drops every snip. A drop leaves the tip's tree unchanged. When
+  it reports `tree_matches` false, stop and tell the user. It refuses a range with merge commits
+
 ## Destructive Operations
 
 - Do not run `git reset --hard`, `git checkout .`, `git clean -f`, `git push --force`, or `git branch -D` unless the

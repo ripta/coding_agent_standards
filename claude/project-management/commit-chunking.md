@@ -25,13 +25,19 @@ Find the oldest unmerged commits on `<integration>` that should merge into
 
 ## Commit Discovery
 
-List the oldest 50 unmerged commits:
+List the unmerged commits, oldest first:
 
 ```text
-git log <mainline>..<integration> --reverse --format='%h %G? %ae %s' -n 50
+git log <mainline>..<integration> --reverse --format='%h %G? %ae %s'
 ```
 
-Stop if there are no unmerged commits.
+Do not add `-n 50`. Git applies the limit before `--reverse`, so it returns the newest 50.
+
+Leave out snip commits, as "Snip Commits" in `rules/git-workflow.md` defines them. To check that a commit with the snip
+subject is empty, run `git log -1 --format= --name-only <hash>`. Empty output means it is a snip. A commit with the snip
+subject and changes stays in the list. Flag it under "Flagging Judgment Calls".
+
+Work from the oldest 50 commits that remain. Snips do not count toward the 50. Stop if no commits remain.
 
 ## Chunk Boundary Heuristics
 
@@ -55,6 +61,7 @@ Stop if there are no unmerged commits.
 ## Constraints
 
 - Chronological order only. Never reorder, combine, or split commits.
+- Never put a snip commit in a chunk or its commit list. A snip may still hint at a chunk boundary.
 
 ## Flagging Judgment Calls
 

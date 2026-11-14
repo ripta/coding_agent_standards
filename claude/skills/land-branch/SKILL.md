@@ -114,9 +114,11 @@ No question belongs in this step. A rebase conflict in item 9 is a stop, not a q
 7. When a batch does not apply, it depends on something its `after` list lacks. Add the dependency, or merge it into
    that stream. When the tree does not match, or `missing` or `extra` is not empty, the plan lost or added work. Fix the
    plan and verify again. Never ask the user to approve a plan that fails verification
-8. The range may hold empty marker commits that the user wants left out of PRs and merges, such as Step 1's snip
-   markers. List their full hashes in the plan's `exclude` array. Only a commit with no change of its own
-   belongs there. Never put a non-empty commit in `exclude`, and never drop one the user did not mark. `verify` reports
+8. Leave snip commits out, as "Snip Commits" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` defines them. Run
+   `${CLAUDE_SKILL_DIR}/../../scripts/snips.py list --base <onto> --tip <batch tip>`, and list every `snips` hash in
+   the plan's `exclude` array. Show each `not_empty` commit to the user in Step 3. It stays in its batch. Only a commit
+   with no change of its own belongs in `exclude`. Never put a non-empty commit there, and never drop an empty commit
+   that is not a snip unless the user marked it. `verify` reports
    the accepted ones under `excluded`. It lists an entry that is not empty, or not on the range, under
    `exclude_errors`, and the plan then fails. An empty commit not in `exclude` still counts as `missing`
 
@@ -224,7 +226,8 @@ When every batch has merged:
 3. Tell the user which commits landed: those up to the batch tip. Their branch still holds the originals. Rebasing it
    onto the mainline is their call. A later run on the same branch drops the landed commits in its rebase. List the
    segments left after the batch tip. When any remain, say that the next `land-branch` run on the branch ships the next
-   batch
+   batch. A rebase of their branch can leave its snips next to each other. When you run that rebase at their request,
+   drop the redundant snips afterwards, per "Snip Commits" in `git-workflow.md`
 
 ## Stopping
 

@@ -18,7 +18,7 @@ SKILLS = (
     "session-report", "test-audit", "testing-specialist",
 )
 COMMANDS = ("next-pr", "pr-description", "summary", "work-on", "work-queue")
-SCRIPTS = ("batch_plan.py", "detect_era.py", "pr_watch.py", "proposals.py", "test_cost.py")
+SCRIPTS = ("batch_plan.py", "detect_era.py", "pr_watch.py", "proposals.py", "snips.py", "test_cost.py")
 ROLES = ("implementer", "reviewer", "adr-impact", "design-critic", "design-judge", "citation-verifier")
 UNSUPPORTED = re.compile(
     r"CLAUDE_[A-Z_]+|\$ARGUMENTS|EnterPlanMode|ExitPlanMode|SendMessage|"

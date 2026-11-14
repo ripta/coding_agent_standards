@@ -149,9 +149,14 @@ Report what detection settled in a line or two, beside the question.
    `git worktree add --no-track -b agent/<topic> .claude/worktrees/<topic> <commit>`. The user's branch is left as it
    was
 2. Work only in that worktree from here on. Never touch the user's checkout
-3. Run the local check command. When it fails, fix the cause and commit before pushing. Do not open a PR that fails
+3. Drop snip commits, as "Snip Commits" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` defines them. They never
+   go into a PR. In the worktree, run `${CLAUDE_SKILL_DIR}/../../scripts/snips.py list --base <merge base>`. When it
+   finds snips, run `snips.py drop --base <merge base> --all`. Stop and tell the user when the drop fails, reports
+   `tree_matches` false, or `list` reports a `not_empty` commit. Do this before the first push, so no push rewrites
+   anything
+4. Run the local check command. When it fails, fix the cause and commit before pushing. Do not open a PR that fails
    locally. A failure that is already on the base is not this PR's to fix. Note it for the PR description
-4. Push with `git push -u origin refs/heads/<branch>:refs/heads/<branch>`
+5. Push with `git push -u origin refs/heads/<branch>:refs/heads/<branch>`
 
 ## Step 4: Open the PR
 
