@@ -357,6 +357,22 @@ def test_adr_impact_names_only_adr_statuses() -> None:
     assert named <= tracking_vocabulary("ADRs")
 
 
+def test_bug_triage_sets_only_bug_statuses() -> None:
+    text = (CLAUDE / "skills" / "bug-triage" / "SKILL.md").read_text()
+    named = set(re.findall(r"[Ss]tatus(?:es)? to `([a-z-]+)", text))
+    assert named, "bug-triage names no status it sets"
+    assert named <= tracking_vocabulary("Bugs")
+
+
+@pytest.mark.parametrize(
+    "path", sorted(p for p in (ROOT / "bugs").glob("*.md") if p.name != "index.md"), ids=rel
+)
+def test_bug_files_use_bug_statuses(path: Path) -> None:
+    status = re.search(r"^\*\*Status:\*\* *([a-z-]+)", path.read_text(), re.M)
+    assert status, f"{rel(path)} has no **Status:** line"
+    assert status.group(1) in tracking_vocabulary("Bugs")
+
+
 # -- workaround markers ---------------------------------------------------------------------
 
 MARKER = re.compile(r"<!-- Workaround for (bugs/[^ ]+\.md)")

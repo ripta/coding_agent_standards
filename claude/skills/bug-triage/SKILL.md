@@ -14,8 +14,9 @@ You verify and triage one bug per invocation, starting from the oldest open one.
 action, then report and stop.
 
 Bug reports are files named `YYYYMMDD-short-name.md`, where the date is when the bug was first observed. Each carries a
-status line, and the directory carries an index table with one row per bug. The project's own bug index or README
-describes its format. Read that first and follow it over anything here.
+status line, and the directory carries an index table with one row per bug. The default format is "Bugs" in
+`${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. The project's own bug index or README may describe its own
+format. Read that first and follow it over anything here.
 
 ## Step 1: Detect, without asking
 
@@ -59,7 +60,8 @@ step may raise.
 ## Step 3: Verify whether it still reproduces
 
 1. Read the whole bug file: the observed behavior, the repro, the files involved, any workaround, and any chosen or
-   possible fix.
+   possible fix. A `Validation:` line means the filer could not confirm the bug. Once this run classifies it as FIXED
+   or STILL A BUG, remove that line. An INCONCLUSIVE outcome keeps it.
 2. **Look for an existing regression test first.** Search the test directories for one that exercises this bug. Grep
    for the repro's distinctive input, the error string, or the bug's short name. If such a test exists, run just that
    test against the current build. A passing regression test is strong evidence the bug is fixed.

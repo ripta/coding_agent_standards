@@ -49,6 +49,7 @@ Each artifact type uses inline markdown metadata (not YAML frontmatter), but the
 - Proposal milestones: `**Status:**`, under the milestone's heading, and `**Live after:**` on the line after it when
   the milestone's checks need another deploy unit's deployment
 - ADRs: `**Status:**`, `**Date:**`
+- Bugs: `**Status:**`, plus `**Validation:**`, `**Triaged:**`, `**Estimate:**`, and `**Fixed:**` when they apply
 
 The colon goes inside the bold, in every artifact type and every field.
 
@@ -63,6 +64,8 @@ is deliberate, not drift.
   `retracted`
 - Proposal milestones use uppercase: `NOT STARTED`, `IN PROGRESS`, `DONE`,
   `DROPPED`
+- Bugs use lowercase words: `open`, `accepted`, `proposed`, `fixed`,
+  `not-reproducible`
 
 Each vocabulary is closed. A value outside it is an error, not a synonym. A
 check reports it. See `proposals.md` "Milestone Status".
@@ -97,13 +100,45 @@ commands look for `spec/proposals/` and `docs/proposals/` as common locations. T
 ADRs are usually named `spec/adrs/`, although legacy projects have no fixed subdirectory name; place them alongside any
 existing ADRs, or ask where they should live if none exist yet.
 
+Bugs live in `spec/bugs/` (or the `docs/` equivalent). Some projects use `bugs/` at the repo root. Use the directory
+that exists. When none does, create `bugs/` beside the proposals directory, such as `spec/bugs/` next to
+`spec/proposals/`. When the project has no proposals directory either, ask the user where bugs go.
+
+In a repo with
+several components, a bug goes with the component that owns the code, when components keep their own specs. See
+"Bugs" below for the format.
+
 ### Index File Name
 
-A proposals directory has exactly one index. It is named `index.md` or `README.md`. A new index is
-`index.md`. Skills and commands accept either name.
+A proposals directory has exactly one index. So does a bugs directory. It is named `index.md` or `README.md`. A new
+index is `index.md`. Skills and commands accept either name.
 
 A directory holding both is out of standard. Consolidate it before any tool updates its index. Merge the rows and any
 prose into one file, then delete the other. A tool that finds both stops before editing either one and tells the user.
+
+## Bugs
+
+Each bug is one file, named `YYYYMMDD-short-name.md`. The date is when the bug was first observed. Filing it is covered
+by `rules/found-bugs.md`. Verifying it later is the `bug-triage` skill's job.
+
+The file opens with a title that states the wrong behavior in one line. The `**Status:**` line comes right after it.
+The status vocabulary is under "Status Vocabularies" above. The sections follow:
+
+- `## Observed`: what goes wrong, as a user or caller sees it
+- `## Cause`: the code that produces it, by file and line. Leave this out when the cause is unknown
+- `## Repro`: the commands or input that show it, with the expected and the actual result
+- `## Fix`: the suggested fix. Name each design call it needs, with its options. A partial fix that already landed is
+  recorded here by commit subject
+- `## Workarounds`: what works around the bug today, and what to remove once it is fixed. Leave this out when nothing
+  does
+
+A bug the filer could not confirm stays `open`. A `**Validation:**` line under the status says what was tried, and that
+it did not confirm the bug, such as `**Validation:** not confirmed; the repro needs a second node`. `bug-triage`
+reproduces it later.
+
+The directory's index opens with a short note on the format, then a table with one row per bug. The columns are Bug,
+Status, and Summary. The Bug cell links the file. The file's `**Status:**` line is the authority, and the index mirrors
+it. Change both in the same commit.
 
 ## Markdown Quality
 

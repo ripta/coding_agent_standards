@@ -386,7 +386,14 @@ For each milestone picked:
    status for the proposal. Leave the run's session reports out of this
    comparison. Ask the implementer about any mismatch before committing.
 
-6. Add the milestone's ADR candidates to the proposal's Decision Log as
+6. Handle the implementer's Bugs found, per
+   `${CLAUDE_PLUGIN_ROOT}/rules/found-bugs.md`. Commit each fixed bug's files
+   by path, in its own commit before the milestone's, when the fix is
+   separable. File each open bug in the project's bugs directory, and commit
+   the bug files by path in their own commit. A bug that blocks the milestone
+   and needs a design call the documents do not cover falls under section 5.
+
+   Add the milestone's ADR candidates to the proposal's Decision Log as
    `Undecided`, per "Recording ADR Candidates" in `design.md`. Skip one the log
    already holds.
 
@@ -470,6 +477,8 @@ The report records, per milestone:
   deferred, or left for the user. When the implementer's Traces report a
   finding as not confirmed, record its diagnosis as unresolved, here and in any
   Decision Log entry, whatever verdict the reviewer gave
+- Each bug found, and whether it was fixed, with the commit subject, or
+  filed, with its bug file
 - Any deviation from the proposal, and anything left open
 
 The first row report of the run also carries the run state, near the top. It

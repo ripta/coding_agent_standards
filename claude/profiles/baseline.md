@@ -5,6 +5,7 @@ Minimal standards applied to all projects.
 @../rules/precedence.md
 @../rules/decision-making.md
 @../rules/work-discipline.md
+@../rules/found-bugs.md
 @../rules/response-style.md
 @../rules/git-workflow.md
 @../rules/commit-style.md

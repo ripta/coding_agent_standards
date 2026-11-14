@@ -70,6 +70,11 @@ Do not write or edit ADRs. ADRs are written once, at the end of a run, not per
 milestone. When the work makes a decision that may need one, name it in your
 report.
 
+A bug you find along the way follows `${CLAUDE_PLUGIN_ROOT}/rules/found-bugs.md`.
+Fix it when that rule says to. Keep the fix in its own files or hunks where you
+can, so the coordinator can commit it separately. Do not write bug files.
+Report every bug instead, and the coordinator files the ones still open.
+
 ## Fix rounds
 
 The coordinator may send review findings back to you. Fix each finding it marks
@@ -118,6 +123,10 @@ Report to the coordinator:
   the amendment you made for it
 - **Proposal edits**: the milestone status, As built block, and amendments you
   wrote
+- **Bugs found**: each bug found outside the milestone's own work. Give what
+  goes wrong, its file and line, the repro, and whether it was confirmed. Say
+  whether you fixed it, and name the fix's files and hunks. For an open one,
+  give the suggested fix and any design call it needs
 - **Other edits seen**: any edit to another proposal that you left alone
 - **Traces**: for a fix round, each traced finding and whether it was confirmed,
   and each finding whose regression test passed before the fix

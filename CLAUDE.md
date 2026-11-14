@@ -95,6 +95,7 @@ profile's on-demand docs are left out here too. When the plugin's hook names one
 @claude/rules/precedence.md
 @claude/rules/decision-making.md
 @claude/rules/work-discipline.md
+@claude/rules/found-bugs.md
 @claude/rules/response-style.md
 @claude/rules/git-workflow.md
 @claude/rules/commit-style.md
