@@ -25,12 +25,42 @@ def run(tmp_path: Path, stub: str) -> str:
     env.pop("GIT_DIR", None)
 
     result = subprocess.run([HOOK], cwd=tmp_path, env=env, capture_output=True, text=True, check=True)
-    return result.stdout
+    return strip_root(result.stdout, root)
+
+
+def root_line(root: Path) -> str:
+    return f"coding-standards: The plugin root is {root}. Run its scripts from there."
+
+
+def strip_root(out: str, root: Path) -> str:
+    """Drop the plugin root line, which every session with a root gets, so tests see only the rest."""
+    lines = out.splitlines(keepends=True)
+    assert lines and lines[0] == root_line(root) + "\n", f"missing plugin root line in {out!r}"
+    return "".join(lines[1:])
 
 
 @pytest.mark.parametrize("code", [0, 3])
-def test_complete_settings_print_nothing(tmp_path: Path, code: int) -> None:
+def test_complete_settings_print_nothing_else(tmp_path: Path, code: int) -> None:
     assert run(tmp_path, f"import sys; sys.exit({code})") == ""
+
+
+def test_the_plugin_root_is_named_as_resolved(tmp_path: Path) -> None:
+    """Rules get no CLAUDE_PLUGIN_ROOT, so an agent following one would build a script path from the link.
+
+    That path misses permission rules written for the real snapshot, and in a --plugin-dir session it
+    runs another snapshot's scripts. The line gives the agent the root this session actually loaded.
+    """
+    root = tmp_path / "plugin"
+    (root / "scripts").mkdir(parents=True)
+    (root / "scripts" / "setup_permissions.py").write_text("import sys; sys.exit(0)")
+    home = tmp_path / "home"
+    home.mkdir()
+    env = {**os.environ, "HOME": str(home), "CLAUDE_PLUGIN_ROOT": str(root)}
+    env.pop("GIT_DIR", None)
+
+    out = subprocess.run([HOOK], cwd=tmp_path, env=env, capture_output=True, text=True, check=True).stdout
+
+    assert out == root_line(root) + "\n"
 
 
 def test_missing_entries_ask_for_setup(tmp_path: Path) -> None:
@@ -107,7 +137,9 @@ class World:
         env.pop("GIT_DIR", None)
         env.update(env_overrides)
         result = subprocess.run([HOOK], cwd=cwd or self.project, env=env, capture_output=True, text=True, check=True)
-        return result.stdout
+        if not env["CLAUDE_PLUGIN_ROOT"]:
+            return result.stdout
+        return strip_root(result.stdout, Path(env["CLAUDE_PLUGIN_ROOT"]))
 
 
 @pytest.fixture
@@ -115,8 +147,8 @@ def world(tmp_path: Path) -> World:
     return World(tmp_path)
 
 
-def test_a_project_in_order_prints_nothing(world: World) -> None:
-    """The hook runs at every session start, so a good project must cost the user no context."""
+def test_a_project_in_order_prints_nothing_else(world: World) -> None:
+    """The hook runs at every session start, so a good project costs only the plugin root line."""
     world.write({"CLAUDE.md": GOOD})
 
     assert world.run() == ""

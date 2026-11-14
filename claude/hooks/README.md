@@ -11,7 +11,9 @@
   runs `revisit-notice.sh`, which prints one line when a revisit hook in the
   project's proposals has passed, and nothing otherwise. Last, `check-setup.sh`
   creates `~/.local/state/coding_agent_standards/`, and checks that the
-  machine and the project are set up. It prints nothing when they are. In a
+  machine and the project are set up. It always prints the plugin root, since
+  rules that run a plugin script get no `CLAUDE_PLUGIN_ROOT`. It prints
+  nothing else when the setup is complete. In a
   project it runs `standards_imports.py check`. Four warnings name imports
   that load nothing, or load only by accident, and give the fix
   `/update-profile`. An old `profiles/`, `languages/`, `practices/`,

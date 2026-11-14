@@ -441,8 +441,9 @@ can adopt them without a burn-down first. See `rumdl/README.md` and `vale/README
 
 ### Setup Validation
 
-The Claude plugin checks setup at every session start, through `claude/hooks/check-setup.sh`. It prints nothing when all
-is well. Otherwise it names what is missing:
+The Claude plugin checks setup at every session start, through `claude/hooks/check-setup.sh`. It prints one line naming
+the plugin root, which rules use to run plugin scripts. It prints nothing else when all is well. Otherwise it names what
+is missing:
 
 - Settings entries that `setup_permissions.py` adds
 - A project with no standards import in `CLAUDE.md` or `CLAUDE.local.md`

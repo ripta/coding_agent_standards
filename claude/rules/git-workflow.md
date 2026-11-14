@@ -57,7 +57,9 @@ Flag it to the user, and never drop it.
 - A rebase can put snips next to each other, when the work between them already landed. After any rebase you run,
   drop the redundant snips right after it, in the same task. This does not grant a rebase. A user's branch is rebased
   only when the user asks
-- `scripts/snips.py` in the plugin does both. `list --base <base>` reports the snips, the redundant ones, and any
+- `scripts/snips.py` in the plugin does both. Run it as `python3 <root>/scripts/snips.py`, where `<root>` is the
+  plugin root that the `coding-standards:` line at session start names. Do not build the path from the
+  `coding-standards-current` link. `list --base <base>` reports the snips, the redundant ones, and any
   commit with the snip subject that is not empty. `drop --base <base> --redundant` drops the redundant snips from the
   checked-out branch, and `--all` drops every snip. `<base>` must be an ancestor of HEAD, such as the commit the rebase
   just moved onto. A drop leaves the tip's tree unchanged. When it reports `tree_matches` false, stop and tell the user.

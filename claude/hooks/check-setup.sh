@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # Checks that this machine and this project are set up for the coding standards. Runs on
-# SessionStart, and prints nothing when everything is in place.
+# SessionStart. When everything is in place, it prints only the plugin root.
 #
 # Output goes to stdout and is visible to Claude as hook context.
+#
+# Rules get no CLAUDE_PLUGIN_ROOT, so a rule that runs a plugin script needs the root line. Without
+# it, the agent builds the path from the coding-standards-current link. That path misses permission
+# rules written for the snapshot path, and in a --plugin-dir session it names another snapshot.
 #
 # Hooks run outside the sandbox, so this can create the state directory even before the
 # settings allow it. Creating it means writing ~/.local/state, which the allowance itself never
@@ -61,6 +65,10 @@ if git rev-parse --is-inside-work-tree &>/dev/null; then
       fi
     fi
   fi
+fi
+
+if [ -n "$root" ]; then
+  echo "coding-standards: The plugin root is $root. Run its scripts from there."
 fi
 
 # A notice is not a setup problem, so it stays out of the setup list.
