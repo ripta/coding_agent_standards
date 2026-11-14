@@ -25,21 +25,29 @@ Find the oldest unmerged commits on `<integration>` that should merge into
 
 ## Commit Discovery
 
-List the unmerged commits, oldest first:
+Count the unmerged commits with `git rev-list --count <mainline>..<integration>`. Call it N. List the oldest 50:
 
 ```text
-git log <mainline>..<integration> --reverse --format='%h %G? %ae %s'
+git log <mainline>..<integration> --reverse --skip=<N-50> --format='%h %G? %ae %s'
 ```
 
-Do not add `-n 50`. Git applies the limit before `--reverse`, so it returns the newest 50.
+Use `--skip=0` when N is 50 or less. Do not use `-n 50`. Git applies the limit before `--reverse`, so it returns the
+newest 50. `--skip` drops the newest N-50 instead.
 
-Leave out snip commits, as "Snip Commits" in `rules/git-workflow.md` defines them. To check that a commit with the snip
-subject is empty, run `git log -1 --format= --name-only <hash>`. Empty output means it is a snip. A commit with the snip
-subject and changes stays in the list. Flag it under "Flagging Judgment Calls".
+Find the snip commits in the window, as "Snip Commits" in `rules/git-workflow.md` defines them. For each commit whose
+subject starts with `8< --- snip ---`, run `git log -1 --format=%P <hash>` and
+`git log -1 --format= --name-only <hash>`. It is a snip when the first prints one parent and the second prints nothing.
+A merge, or a commit with such a subject and changes, is not a snip. It stays in the list. Flag it under "Flagging
+Judgment Calls".
 
-Work from the oldest 50 commits that remain. Snips do not count toward the 50. Stop if no commits remain.
+Stop if no commits other than snips remain.
 
 ## Chunk Boundary Heuristics
+
+Snips come first. The user placed each one at the end of work that is ready to land. Every snip ends a chunk, and no
+chunk spans a snip. The heuristics below only split the work between two snips into smaller chunks. They never join
+work across a snip. A snip at the front of the window ends nothing, since the work it marked has already merged.
+Skip it. A snip right after another snip ends nothing either. Treat a run of snips as one boundary.
 
 1. **Primary**: map commits to the project's queue rows. Read `queue.md`,
    `history.md`, and the proposals they name, as described in `plans.md`.
@@ -61,7 +69,7 @@ Work from the oldest 50 commits that remain. Snips do not count toward the 50. S
 ## Constraints
 
 - Chronological order only. Never reorder, combine, or split commits.
-- Never put a snip commit in a chunk or its commit list. A snip may still hint at a chunk boundary.
+- Never put a snip commit in a chunk or its commit list. Snips never go into a PR.
 
 ## Flagging Judgment Calls
 
@@ -97,7 +105,8 @@ Build up chunks one at a time from the 50-commit window:
   safe to include. The 5-chunk cap caused the stop, not the commit window.
 - If you exhaust all 50 commits before reaching five chunks, drop the last
   chunk. The 50-commit window may have cut it short. Output the chunks that
-  remain.
+  remain. A chunk that ends at a snip is complete, so never drop it. Drop the
+  last chunk only when no snip ends it.
 - Dropping the last chunk can leave nothing, which happens when the window holds
   a single chunk. Output that chunk anyway. Mark it as possibly truncated by the
   50-commit window so the user knows it may not be complete.
@@ -105,7 +114,9 @@ Build up chunks one at a time from the 50-commit window:
 ## Statefulness
 
 This process is stateless. It always diffs `<integration>` against
-`<mainline>`, so already-merged commits disappear on their own.
+`<mainline>`, so already-merged commits disappear on their own. Snips never
+merge, so they stay until the user rebases. That is why a snip at the front of
+the window is skipped.
 
 ## Scope
 

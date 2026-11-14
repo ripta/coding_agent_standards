@@ -152,3 +152,40 @@ def test_cli_list_prints_json(repo, capsys):
     snip = _snip(repo)
     assert snips.main(["snips.py", "list", "--base", base]) == 0
     assert f'"{snip}"' in capsys.readouterr().out
+
+
+def test_list_accepts_a_merge_and_it_breaks_a_snip_run(repo):
+    """Catches a list that refuses a mainline merge, which land-branch ranges can hold, or counts a merge as a snip."""
+    base = _commit(repo, "a.txt", "a0\n")
+    _git(repo, "checkout", "-q", "-b", "side")
+    _commit(repo, "b.txt", "b\n")
+    _git(repo, "checkout", "-q", "main")
+    first = _snip(repo)
+    _git(repo, "merge", "-q", "--no-edit", "side")
+    second = _snip(repo)
+
+    result = snips.list_snips(base, "HEAD")
+    assert result["snips"] == [first, second]
+    assert result["redundant"] == []
+
+
+def test_drop_refuses_a_base_that_is_not_an_ancestor(repo):
+    """Catches a drop that turns into a real rebase onto a moved mainline."""
+    _commit(repo, "a.txt", "a0\n")
+    _git(repo, "checkout", "-q", "-b", "other")
+    elsewhere = _commit(repo, "c.txt", "c\n")
+    _git(repo, "checkout", "-q", "main")
+    _snip(repo)
+    _snip(repo)
+    head = _git(repo, "rev-parse", "HEAD")
+
+    with pytest.raises(snips.SnipError, match="ancestor"):
+        snips.drop(elsewhere, "redundant")
+    assert _git(repo, "rev-parse", "HEAD") == head
+
+
+def test_a_subject_that_starts_with_the_marker_is_a_snip(repo):
+    """Catches an exact-subject match, which would miss a snip whose subject carries a note after the marker."""
+    base = _commit(repo, "a.txt", "a0\n")
+    snip = _snip(repo, f"{snips.SUBJECT} end of parser work")
+    assert snips.list_snips(base, "HEAD")["snips"] == [snip]

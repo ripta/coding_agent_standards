@@ -45,19 +45,23 @@ is the user's, including the checked-out branch and the mainline.
 
 ## Snip Commits
 
-A snip commit marks the end of a run of work that is ready to land. It has the subject `8< --- snip ---` and no change
-of its own: its tree equals its parent's tree. A commit with that subject and a change is not a snip. Flag it to the
-user, and never drop it.
+A snip commit marks the end of a run of work that is ready to land. Its subject starts with `8< --- snip ---`, and it
+has no change of its own: its tree equals its parent's tree. A commit with such a subject and a change is not a snip.
+Flag it to the user, and never drop it.
 
 - Leave snips out of everything that lands. They never go into a PR, a merge, a chunk, or a batch
 - A snip is redundant when the commit right before it is also a snip. Only the first snip of such a run marks anything.
   A snip with other commits before it is not redundant. Neither is a snip sitting directly on the base
+- Each snip ends a chunk of work. Choosing the next chunk or batch to land starts from the snips. See
+  `project-management/commit-chunking.md`
 - A rebase can put snips next to each other, when the work between them already landed. After any rebase you run,
-  drop the redundant snips. This does not grant a rebase. A user's branch is rebased only when the user asks
+  drop the redundant snips right after it, in the same task. This does not grant a rebase. A user's branch is rebased
+  only when the user asks
 - `scripts/snips.py` in the plugin does both. `list --base <base>` reports the snips, the redundant ones, and any
-  commit with the snip subject that is not empty. `drop --base <base> --redundant` rebases the checked-out branch onto
-  the same base without the redundant snips, and `--all` drops every snip. A drop leaves the tip's tree unchanged. When
-  it reports `tree_matches` false, stop and tell the user. It refuses a range with merge commits
+  commit with the snip subject that is not empty. `drop --base <base> --redundant` drops the redundant snips from the
+  checked-out branch, and `--all` drops every snip. `<base>` must be an ancestor of HEAD, such as the commit the rebase
+  just moved onto. A drop leaves the tip's tree unchanged. When it reports `tree_matches` false, stop and tell the user.
+  `drop` refuses a range with merge commits
 
 ## Destructive Operations
 

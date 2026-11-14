@@ -88,7 +88,7 @@ No question belongs in this step. A rebase conflict in item 9 is a stop, not a q
     `8< --- snip ---`. The markers in `<onto>..HEAD` cut it into segments: before the first marker, between markers,
     and after the last one. Drop the segments with no commits, such as one whose work all landed. When no commit is
     left outside the markers, the work has landed. Stop and say so, and list the branches with unlanded work as item 4
-    does.
+    does, ignoring snips. The segments make a drop of redundant snips unneeded on the staging branch.
 
     When `$ARGUMENTS` named a commit, or the range has no marker, the batch tip is `HEAD`. Otherwise it is the marker
     that closes the oldest segment. When no marker closes it, the batch tip is `HEAD`, and that segment may still be in
@@ -96,14 +96,19 @@ No question belongs in this step. A rebase conflict in item 9 is a stop, not a q
 
 ## Step 2: Plan the batches
 
+Find the snips before grouping anything. Run
+`${CLAUDE_SKILL_DIR}/../../scripts/snips.py list --base <onto> --tip <batch tip>`. Every `snips` hash goes in the plan's
+`exclude` array and in no batch, including when the range lands as one PR. Each snip still marks a batch boundary for
+item 2. Show each `not_empty` commit to the user in Step 3. It is not a snip, so it stays in its batch.
+
 1. Group the range into streams. A stream is a run of commits that depend on each other. Two commits are in one stream
    when one touches lines the other changed, or uses something the other adds, such as a function, a config key, or a
    migration. Commits that share neither land independently, so they go in separate streams. When you cannot tell,
    put them in one stream
 2. Within each stream, keep the commits in their original order. Cut the stream into batches with the boundary
-   heuristics in `commit-chunking.md`. One queue row of work is one batch. Its "never reorder" constraint holds
-   inside a stream. Splitting the range into streams is this skill's own step, and its "Output only" scope belongs to
-   `next-pr`, not to this skill
+   heuristics in `commit-chunking.md`. A snip is a hard boundary there, so no batch holds commits from both sides of a
+   snip. One queue row of work is one batch. Its "never reorder" constraint holds inside a stream. Splitting the range
+   into streams is this skill's own step, and its "Output only" scope belongs to `next-pr`, not to this skill
 3. A batch after the first in a stream lands behind the batch before it. Record that in its `after` list. A batch in a
    kind the repository fast-tracks may land ahead of others, but only when its stream allows it
 4. A range that forms one batch is the small case. Land it as one PR. Everything below still applies
@@ -114,13 +119,11 @@ No question belongs in this step. A rebase conflict in item 9 is a stop, not a q
 7. When a batch does not apply, it depends on something its `after` list lacks. Add the dependency, or merge it into
    that stream. When the tree does not match, or `missing` or `extra` is not empty, the plan lost or added work. Fix the
    plan and verify again. Never ask the user to approve a plan that fails verification
-8. Leave snip commits out, as "Snip Commits" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` defines them. Run
-   `${CLAUDE_SKILL_DIR}/../../scripts/snips.py list --base <onto> --tip <batch tip>`, and list every `snips` hash in
-   the plan's `exclude` array. Show each `not_empty` commit to the user in Step 3. It stays in its batch. Only a commit
-   with no change of its own belongs in `exclude`. Never put a non-empty commit there, and never drop an empty commit
-   that is not a snip unless the user marked it. `verify` reports
-   the accepted ones under `excluded`. It lists an entry that is not empty, or not on the range, under
-   `exclude_errors`, and the plan then fails. An empty commit not in `exclude` still counts as `missing`
+8. Snip commits are in the plan's `exclude` array, never in a batch. See the start of this step. Only a commit with no
+   change of its own belongs in `exclude`. Never put a non-empty commit there, and never drop an empty commit that is
+   not a snip unless the user marked it. `verify` reports the accepted ones under `excluded`. It lists an entry that is
+   not empty, or not on the range, under `exclude_errors`, and the plan then fails. An empty commit not in `exclude`
+   still counts as `missing`
 
 By default a batch that depends on another waits for it to merge, then opens against the mainline. That is a serial
 batch.

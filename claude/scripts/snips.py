@@ -4,9 +4,9 @@
     python3 snips.py list --base REV [--tip REV]
     python3 snips.py drop --base REV (--redundant | --all)
 
-A snip commit marks the end of a run of work. It has the subject `8< --- snip ---` and no change of
-its own: its tree equals its parent's tree. A commit with that subject and a change is not a snip.
-`list` reports it under `not_empty` so a person can look at it.
+A snip commit marks the end of a run of work. Its subject starts with `8< --- snip ---`, and it has
+no change of its own: its tree equals its parent's tree. A commit with such a subject and a change
+is not a snip. `list` reports it under `not_empty` so a person can look at it.
 
 A snip is redundant when the commit right before it on the range is also a snip. A rebase that
 drops landed work can leave snips next to each other, and only the first of each run marks
@@ -23,8 +23,9 @@ keep their hashes. It prints `{"dropped", "previous_head", "head", "tree_matches
 empty commits go, the tree of HEAD must not change. `tree_matches` false means it did, and
 `previous_head` is the commit to recover from.
 
-Both refuse a range with merge commits, since a linear rebase would flatten them. Errors go to
-stderr with exit status 1. A drop that changed the tree exits 3.
+`drop` refuses a range with merge commits, since a linear rebase would flatten them. It also refuses a
+`base` that is not an ancestor of HEAD, since the drop would then rebase onto it. `list` accepts
+merges, and a merge is never a snip. Errors go to stderr with exit status 1. A drop that changed the tree exits 3.
 """
 
 from __future__ import annotations
@@ -65,17 +66,16 @@ def range_commits(base: str, tip: str) -> list[dict[str, Any]]:
     """Return `base..tip` oldest first, each with its hash, tree, parents, and subject."""
     out = git(["log", "--reverse", "--format=%H%x00%T%x00%P%x00%s", f"{base}..{tip}"]).stdout
     commits = []
-    for line in out.splitlines():
+    for line in out.split("\n"):
+        if not line:
+            continue
         sha, tree, parents, subject = line.split("\0", 3)
         commits.append({"sha": sha, "tree": tree, "parents": parents.split(), "subject": subject})
-
-    merges = [c["sha"] for c in commits if len(c["parents"]) > 1]
-    if merges:
-        raise SnipError(f"the range holds merge commits, which a linear rebase would flatten: {merges}")
     return commits
 
 
 def list_snips(base: str, tip: str = "HEAD") -> dict[str, list[str]]:
+    """A merge is never a snip, and it ends a run of snips like any other commit."""
     commits = range_commits(resolve(base), resolve(tip))
     trees = {c["sha"]: c["tree"] for c in commits}
 
@@ -85,7 +85,7 @@ def list_snips(base: str, tip: str = "HEAD") -> dict[str, list[str]]:
     previous_was_snip = False
     for commit in commits:
         is_snip = False
-        if commit["subject"] == SUBJECT:
+        if commit["subject"].startswith(SUBJECT) and len(commit["parents"]) <= 1:
             parent = commit["parents"][0] if commit["parents"] else None
             parent_tree = trees.get(parent) if parent else None
             if parent and parent_tree is None:
@@ -129,6 +129,13 @@ def edit_todo(drop_file: Path, todo: Path) -> int:
 def drop(base: str, mode: str) -> dict[str, Any]:
     base = resolve(base)
     previous_head = resolve("HEAD")
+    if git(["merge-base", "--is-ancestor", base, previous_head], check=False).returncode != 0:
+        raise SnipError(f"{base} is not an ancestor of HEAD, so a drop would rebase onto it")
+
+    merges = [c["sha"] for c in range_commits(base, previous_head) if len(c["parents"]) > 1]
+    if merges:
+        raise SnipError(f"the range holds merge commits, which a linear rebase would flatten: {merges}")
+
     found = list_snips(base, previous_head)
     targets = found["redundant"] if mode == "redundant" else found["snips"]
     if not targets:
@@ -141,7 +148,7 @@ def drop(base: str, mode: str) -> dict[str, Any]:
         editor = " ".join(shlex.quote(p) for p in (sys.executable, str(Path(__file__).resolve()), "_edit-todo",
                                                     str(drop_file)))
         env = {**os.environ, "GIT_SEQUENCE_EDITOR": editor, "GIT_EDITOR": "true"}
-        rebased = git(["-c", "rebase.autoSquash=false", "-c", "rebase.updateRefs=false",
+        rebased = git(["-c", "core.abbrev=40", "-c", "rebase.autoSquash=false", "-c", "rebase.updateRefs=false",
                        "-c", "rebase.abbreviateCommands=false", "rebase", "-i", "--keep-empty", "--empty=keep",
                        "--no-autosquash", base], env=env, check=False)
 

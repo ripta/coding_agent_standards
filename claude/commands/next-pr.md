@@ -1,6 +1,6 @@
 ---
 description: Find the next chunk of unmerged commits to merge into the mainline branch
-allowed-tools: Bash(git log:*), Bash(git symbolic-ref:*), Bash(git branch:*), Read, Glob, Grep
+allowed-tools: Bash(git log:*), Bash(git rev-list:*), Bash(git symbolic-ref:*), Bash(git branch:*), Read, Glob, Grep
 ---
 
 Read `${CLAUDE_PLUGIN_ROOT}/project-management/commit-chunking.md` and follow it
