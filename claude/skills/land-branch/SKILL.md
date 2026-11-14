@@ -3,11 +3,13 @@ name: land-branch
 description: |
   Land a branch, or the branch up to a given commit, into the mainline through
   PRs, without touching the user's branch. Snapshots it onto an agent-owned
-  staging branch in a worktree, splits a large range into batches that land
-  concurrently when they are independent, and runs the merge-fix loop on each
-  batch until every one merges. Triggers: "land this branch", "land up to
-  <commit>", "ship this branch as PRs", "split this branch into PRs and get
-  them merged". DO NOT trigger on: listing the next chunk without acting (use
+  staging branch in a worktree, rebased onto the mainline so work that already
+  landed drops out. On a branch divided by snip markers, it lands the oldest
+  batch. It splits a large range into batches that land concurrently when they
+  are independent, and runs the merge-fix loop on each batch until every one
+  merges. Triggers: "land this branch", "land up to <commit>", "ship this
+  branch as PRs", "split this branch into PRs and get them merged", "ship the
+  next batch". DO NOT trigger on: listing the next chunk without acting (use
   next-pr), or driving one existing PR to merged (use merge-fix-loop).
 argument-hint: "[branch | commit] [budget, e.g. 6h]"
 allowed-tools: Bash, Read, Write, Edit, Glob, Grep, AskUserQuestion, Agent, Skill, mcp__cg__cg_run, mcp__cg__cg_wait
@@ -28,7 +30,7 @@ user's branch and the mainline are the user's. Read them and fetch them, but nev
 
 ## Step 1: Detect, without asking
 
-No question belongs in this step.
+No question belongs in this step. A rebase conflict in item 9 is a stop, not a question.
 
 1. Establish the mainline and the source branch, per "Establishing the Branch Pair" in
    `${CLAUDE_SKILL_DIR}/../../project-management/commit-chunking.md`. The source is the branch the user named, or the
@@ -63,6 +65,34 @@ No question belongs in this step.
    history shape. Offer it with that stated, and do not recommend it. `deleteBranchOnMerge` is not a condition, since
    Step 5 retargets children before the parent branch is deleted
 8. Do the rest of `merge-fix-loop` Step 1: the local check command, and who reviews here
+9. Stage the snapshot and rebase it. A branch landed before still holds the commits that landed, since landing copies
+   them and leaves the user's branch alone. The rebase drops them, so every run plans against today's mainline. Create
+   the staging branch and its worktree at the snapshot:
+   `git worktree add --no-track -b agent/stage/<topic> .claude/worktrees/stage-<topic> <snapshot>`. It is never pushed.
+   Record `git rev-parse origin/<mainline>` as `onto`. Then run `git rebase <onto>` in that worktree. Git skips each
+   commit the mainline already has, and drops each one that becomes empty because it landed with edits. It keeps
+   commits that were empty to begin with, such as snip markers. On a conflict, never resolve a file wholesale with
+   `--ours` or `--theirs`:
+   - First check whether the mainline already has the commit in edited form: `git log <onto> -F --grep=<subject>`, or
+     cherry-pick it onto `<onto>` in a throwaway detached worktree. An empty pick means its content already landed.
+     When it has, show the conflicting hunk beside the mainline's version, and stop. Ask the user whether to run
+     `git rebase --skip`
+   - Regenerate a generated file, such as a lockfile, with the project's own tool. Never merge one by hand
+   - Stop on any other conflict. Show it, and ask the user. `git rebase --abort` returns the staging branch to the
+     snapshot
+10. Run the clobber guard. List the files the rebased range touches with `git diff --name-only <onto>..HEAD`. For each
+    one, every difference in `git diff <snapshot> HEAD -- <file>` must also show in
+    `git diff $(git merge-base <snapshot> <onto>) <onto> -- <file>`, because it came from the mainline. Stop on any
+    difference that did not, and show it to the user
+11. Pick the batch. A snip marker is an empty commit, its tree equal to its parent's, whose subject starts with
+    `8< --- snip ---`. The markers in `<onto>..HEAD` cut it into segments: before the first marker, between markers,
+    and after the last one. Drop the segments with no commits, such as one whose work all landed. When no commit is
+    left outside the markers, the work has landed. Stop and say so, and list the branches with unlanded work as item 4
+    does.
+
+    When `$ARGUMENTS` named a commit, or the range has no marker, the batch tip is `HEAD`. Otherwise it is the marker
+    that closes the oldest segment. When no marker closes it, the batch tip is `HEAD`, and that segment may still be in
+    progress. From here on, the range is `<onto>..<batch tip>`, and its markers are its excluded commits
 
 ## Step 2: Plan the batches
 
@@ -78,14 +108,14 @@ No question belongs in this step.
    kind the repository fast-tracks may land ahead of others, but only when its stream allows it
 4. A range that forms one batch is the small case. Land it as one PR. Everything below still applies
 5. Write the plan to the scratchpad as JSON. `${CLAUDE_SKILL_DIR}/../../scripts/batch_plan.py` defines the format in its
-   docstring. `base` is the merge base and `tip` is the snapshot
+   docstring. `base` is `onto` and `tip` is the batch tip
 6. Run `batch_plan.py verify --plan <file>`. It proves two things in a throwaway worktree. Each batch applies on the
    base plus only the batches it is `after`. Every batch applied in order rebuilds the snapshot's tree exactly
 7. When a batch does not apply, it depends on something its `after` list lacks. Add the dependency, or merge it into
    that stream. When the tree does not match, or `missing` or `extra` is not empty, the plan lost or added work. Fix the
    plan and verify again. Never ask the user to approve a plan that fails verification
-8. The branch may hold empty marker commits that the user wants left out of PRs and merges, such as one with the subject
-   `8< --- snip ---`. List their full hashes in the plan's `exclude` array. Only a commit with no change of its own
+8. The range may hold empty marker commits that the user wants left out of PRs and merges, such as Step 1's snip
+   markers. List their full hashes in the plan's `exclude` array. Only a commit with no change of its own
    belongs there. Never put a non-empty commit in `exclude`, and never drop one the user did not mark. `verify` reports
    the accepted ones under `excluded`. It lists an entry that is not empty, or not on the range, under
    `exclude_errors`, and the plan then fails. An empty commit not in `exclude` still counts as `missing`
@@ -111,6 +141,11 @@ Put every question into one AskUserQuestion call. The plan approval is part of i
   ways, stacked and serial, and mark which batches stack on which. Use Step 1's recommendation. When the mainline
   requires up-to-date branches, say that every child rebuilds after its parent merges. Stacking then gains early failure
   detection and early review, not a shorter total time
+- **The snip batches.** Say how many commits the rebase dropped because they had already landed. When the batch tip
+  is not a marker, say the batch has no closing marker, so its last commits may still be in progress. List each later
+  segment with its commits. When a later segment is closed by a marker, offer to widen the run to every closed
+  segment. Widening moves the batch tip to the last closing marker, then Steps 2 and 3 run again on the wider range. A
+  trailing segment with no closing marker joins only when the user asks for it through "Other"
 - **Review policy**, in the order `merge-fix-loop` Step 2 gives. One answer covers every batch
 - **Budget** for the whole run, not per batch. Offer 4 hours, 8 hours (recommended for more than two batches), and 12
   hours
@@ -119,13 +154,10 @@ Put every question into one AskUserQuestion call. The plan approval is part of i
 Report what detection settled in a line or two. Approving the plan authorizes every branch, push, PR, and merge it
 names. It authorizes nothing else.
 
-Once the user approves, write the run file.
+## Step 4: Record the run
 
-## Step 4: Stage the snapshot
-
-Create the staging branch and its worktree at the snapshot:
-`git worktree add --no-track -b agent/stage/<topic> .claude/worktrees/stage-<topic> <snapshot>`. It is never pushed. It
-holds the snapshot steady while the user's branch moves, and it is the reference the final check compares against.
+Once the user approves, write the run file. The staging branch from Step 1 holds the rebased snapshot steady while the
+user's branch moves. Its batch tip is the reference the final check compares against.
 
 ## Step 5: Land the batches
 
@@ -184,13 +216,15 @@ The rules here add to `merge-fix-loop`. They apply only to a run that stacked.
 
 When every batch has merged:
 
-1. Run `git fetch origin`. Compare the snapshot with the mainline over the files the range touched:
-   `git diff <snapshot> origin/<mainline> -- <files>`. Every difference must trace to a fix this run pushed or to other
+1. Run `git fetch origin`. Compare the batch tip with the mainline over the files the range touched:
+   `git diff <batch tip> origin/<mainline> -- <files>`. Every difference must trace to a fix this run pushed or to other
    work merged into the mainline meanwhile. Report anything else as lost work
 2. Remove the staging worktree with `git worktree remove`, and delete the staging branch with `git branch -D`. The
    comparison above showed its work landed. Delete the run file and its watch state file
-3. Tell the user their branch's commits up to the snapshot have landed. Their branch still holds the originals.
-   Rebasing it onto the mainline is their call
+3. Tell the user which commits landed: those up to the batch tip. Their branch still holds the originals. Rebasing it
+   onto the mainline is their call. A later run on the same branch drops the landed commits in its rebase. List the
+   segments left after the batch tip. When any remain, say that the next `land-branch` run on the branch ships the next
+   batch
 
 ## Stopping
 
@@ -209,9 +243,10 @@ snapshot's short hash. A run that stacked keeps it in `.../land-branch/v2/` with
 version starts fresh instead of misreading it. Resume looks in both places. Use the session scratchpad when the
 directory cannot be written.
 
-The file holds the snapshot, the verified plan, the review policy, and the deadline. Per batch, it holds the branch,
-worktree, PR number, `pr_base`, and whether the retarget is done. It also holds the batch's status: not started, open,
-merged, or stopped. Update it whenever a batch changes status. Delete it in Step 6, after the comparison passes.
+The file holds the snapshot, `onto`, the batch tip, the verified plan, the review policy, and the deadline. Per batch,
+it holds the branch, worktree, PR number, `pr_base`, and whether the retarget is done. It also holds the batch's status:
+not started, open, merged, or stopped. Update it whenever a batch changes status. Delete it in Step 6, after the
+comparison passes.
 
 On resume, reconcile each batch with its live PR. When a parent merged while the run was stopped, retarget its
 children before deleting anything.
