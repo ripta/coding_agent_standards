@@ -468,7 +468,9 @@ Then ask in one AskUserQuestion call, or successive calls of up to four question
 1. Each `USER'S CALL`, first, with its options. Put the judge's lean in its description, unmarked
 2. Which red-flagged additions and contested decisions to reopen, as multiSelect questions of two to four each. With a
    single one, ask "Reopen <decision>?" as yes or no instead. With none, skip this. The user names any other decision
-   to reopen through "Other"
+   to reopen through "Other". Each multiSelect question ends with an option labeled `Keep all`, whose description says
+   no decision in that question is reopened. Never word the question as "pick none to keep them all." The tool reports
+   an empty pick as no answer
 3. Each gated item from "What the user authorizes by choosing it" that the review produced, except `accepted` and ADRs
 
 Record every answer at once. Add a Decision Log entry for the gate itself: `- YYYY-MM-DD: Review gate: <kept all, or

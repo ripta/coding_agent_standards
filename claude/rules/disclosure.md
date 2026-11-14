@@ -40,7 +40,8 @@ Before committing a promotion:
    Replace a reference with a generic one, such as "a project" or `~/projects/example`, when the text needs one.
 3. Ask the user about each substantive topic the content draws from the source. Topics include findings, incidents,
    measurements, and details of a product or an employer. List them in one AskUserQuestion call with `multiSelect`, so
-   the user picks the topics that may be disclosed. Remove or generalize the rest.
+   the user picks the topics that may be disclosed. Add a last option labeled `None`, for disclosing no topic. Remove or
+   generalize the rest.
 4. Report every removal and every approved topic in your response.
 
 The plugin's `block-private-terms.sh` hook backs this up. It denies a commit to a public or unknown repo when the

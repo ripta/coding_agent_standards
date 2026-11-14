@@ -59,7 +59,9 @@ Ask nothing in this step.
 
 Present every batch in one AskUserQuestion call, with `multiSelect`, so the user picks which to apply. Each option's
 description carries the coverage given up and the time and upkeep saved. When there are more batches than fit, offer
-the batches with the most value, and list the rest in the report. A batch that gives up coverage says so first.
+the batches with the most value, and list the rest in the report. A batch that gives up coverage says so first. End
+the question with an option labeled `None`, whose description says no batch is applied. The tool reports an empty pick
+as no answer.
 
 ## Step 4: Apply
 

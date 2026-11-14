@@ -37,6 +37,10 @@ Use the AskUserQuestion tool for structured questions when encountering:
 - Recommend an option when you have a clear preference (mark it)
 - Put every question the task needs into a single AskUserQuestion call (up to 4 questions), not just the related ones
 - Never ask open-ended questions when structured options work
+- Give every multiSelect question an explicit option for picking nothing, such as `Keep all` or `None`. The tool
+  reports an empty pick as "The user did not answer the questions." That is indistinguishable from a user who is away.
+  Never tell the user to pick none
+- Read a pick of that option together with another option as a contradiction, and ask that question again
 - When the user asks to chat after a question, do not immediately ask another question; do not assume the user is done
   discussing
 
