@@ -7,8 +7,11 @@ allowed-tools: Read, Bash(git log:*), Bash(git diff:*), Bash(git merge-base:*), 
 Write a PR title and description for the changes on the current branch.
 
 Compare against `$ARGUMENTS` when given. Otherwise use the mainline branch from
-`git symbolic-ref refs/remotes/origin/HEAD`, falling back to `main` or `master`.
-Diff from the merge base, not the tip of the base branch.
+`git symbolic-ref refs/remotes/<remote>/HEAD`, falling back to `main` or `master`.
+The `<remote>` holds the repo PRs land in. In a fork checkout that is usually
+`upstream`, and `origin` is the fork. See "Establishing the Branch Pair" in
+`${CLAUDE_PLUGIN_ROOT}/project-management/commit-chunking.md`. Diff from the
+merge base, not the tip of the base branch.
 
 Read `${CLAUDE_PLUGIN_ROOT}/rules/pr-style.md` for the description and
 `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md` for the title. Treat the title as a

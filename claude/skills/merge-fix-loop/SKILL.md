@@ -271,9 +271,9 @@ Otherwise leave it.
 1. Remove the worktree with `git worktree remove <path>`
 2. Delete the local branch. GitHub reports the PR merged, so the work is on the base even when a squash merge stops
    `git branch -d` from seeing it. Use `git branch -D <branch>` for a branch you own
-3. Delete the remote branch with `git push <push-remote> --delete <branch>`, unless the repository already deletes
-   merged branches and the branch is in that repository. GitHub does not delete a fork's branch. When open PRs are
-   stacked on this branch, retarget them first. See `land-branch`
+3. When open PRs are stacked on this branch, retarget them first. See `land-branch`. Then check for the remote branch
+   with `git ls-remote --heads <push-remote> refs/heads/<branch>`. The repository may have deleted it already. When it
+   is still there, delete it with `git push <push-remote> --delete <branch>`
 4. Delete the `.loop.json` file and the state file
 
 ### The PR closed without merging
