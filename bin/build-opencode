@@ -23,7 +23,7 @@ MODEL_HAIKU=anthropic/claude-haiku-5-5
 MODEL_SONNET=anthropic/claude-sonnet-5-5
 MODEL_OPUS=anthropic/claude-opus-5-5
 
-AGENTS=(adr-impact implementer reviewer)
+AGENTS=(adr-impact design-critic implementer reviewer)
 COMMANDS=(migrate-era next-pr pr-description summary work-on work-queue)
 SKILLS=(
   bug-triage
@@ -47,7 +47,7 @@ SKILLS=(
 )
 # Claude skills marked disable-model-invocation. OpenCode skills cannot opt out
 # of model invocation, so these ship as commands, which only the user starts.
-EXPLICIT_SKILLS=(test-audit)
+EXPLICIT_SKILLS=(bug-sweep test-audit)
 
 LINK=false
 for arg in "$@"; do
@@ -168,6 +168,60 @@ perl -0pi -e '
   s{ may start it and then pause on it\. Keep that field\.}{ may start it and then pause on it. Keep it a command.}s;
   s{The scope is the argument:}{The scope is the argument, `\$ARGUMENTS`:}s;
 ' "$OUT/commands/test-audit.md"
+
+# /bug-sweep is a command, so its skill-relative paths resolve here. It reads
+# the translated bug-triage skill, whose paths are already absolute. OpenCode
+# picks a subagent's model from its agent config, not per call, and runs every
+# subagent in the background.
+perl -pi -e 's{\$\{CLAUDE_SKILL_DIR\}/\.\./bug-triage/}{'"$OUT"'/skills/bug-triage/}g' "$OUT/commands/bug-sweep.md"
+rewrite "$OUT/commands/bug-sweep.md" <<'EOF2'
+Work the list oldest first. Run one subagent at a time, in the foreground.
+--->
+Work the list oldest first. Run one subagent at a time, and wait for its report before starting the next.
+===
+This skill is the coordinator.
+--->
+The build command, when the user gives one, is `$ARGUMENTS`.
+
+This command is the coordinator.
+===
+Every brief that names `bug-triage` gives the absolute path of its directory. It also says that `${CLAUDE_SKILL_DIR}` in
+that file means that directory, since a subagent reads the file raw.
+--->
+Every brief that names `bug-triage` gives the absolute path of its `SKILL.md`, as above.
+===
+Start a fresh `general-purpose` agent with model
+   `sonnet`.
+--->
+Start a fresh `general`
+   subagent.
+===
+Start a second fresh `general-purpose` agent with model
+   `sonnet`.
+--->
+Start a second fresh `general`
+   subagent.
+===
+Start a `design-critic` agent.
+--->
+Start a `coding-standards/design-critic` subagent.
+===
+to `bug-sweep-run.md` in the session's scratchpad.
+--->
+to `bug-sweep-run.md` under `$TMPDIR`.
+===
+- This skill runs only when the user types `/bug-sweep`. Its frontmatter sets `disable-model-invocation: true`, so an
+  autonomous run elsewhere cannot start it. Do not remove that field.
+--->
+- This ships as a command, so it runs only when the user types `/bug-sweep`. An autonomous run elsewhere cannot start
+  it. Keep it a command.
+EOF2
+
+rewrite "$OUT/skills/bug-triage/SKILL.md" <<'EOF2'
+the `bug-sweep` skill is the caller.
+--->
+the `/bug-sweep` command is the caller.
+EOF2
 
 # OpenCode has no plan mode tool. Its plan agent cannot edit, so /work-on stays
 # in the current agent and holds edits until the plan is approved.
@@ -382,7 +436,7 @@ EOF
 # equivalent.
 perl -ni -e 'print unless /Workaround for bugs\/20261005|SendMessage/' "$OUT/agents/implementer.md"
 
-leftovers="$(grep -rnE 'CLAUDE_[A-Z_]+|EnterPlanMode|ExitPlanMode|SendMessage|TaskStop|[Pp]lan mode|plan-mode|AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:|disable-model-invocation|scratchpad|\.claude/worktrees|Bash sandbox|Bash with the sandbox disabled|watcher or Monitor|! gcloud|/land-branch |/merge-fix-loop ' \
+leftovers="$(grep -rnE 'CLAUDE_[A-Z_]+|general-purpose|EnterPlanMode|ExitPlanMode|SendMessage|TaskStop|[Pp]lan mode|plan-mode|AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:|disable-model-invocation|scratchpad|\.claude/worktrees|Bash sandbox|Bash with the sandbox disabled|watcher or Monitor|! gcloud|/land-branch |/merge-fix-loop ' \
   --include='*.md' "$OUT" || true)"
 if [ -n "$leftovers" ]; then
   echo "error: Claude-only references survived translation:" >&2
