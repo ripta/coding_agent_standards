@@ -674,11 +674,15 @@ def test_jobs_are_paged_past_the_first_hundred(monkeypatch: pytest.MonkeyPatch) 
     ("https://github.com/acme/widget/", "acme/widget"),
     ("git@github.com:acme/widget.git", "acme/widget"),
     ("ssh://git@github.com/acme/widget.git", "acme/widget"),
-    ("https://gitlab.example/acme/widget.git", None),
+    ("git@gh-work:acme/widget.git", "acme/widget"),
+    ("https://user@github.com/acme/widget.git", "acme/widget"),
+    ("https://ghe.example.invalid/acme/widget.git", "acme/widget"),
+    ("ssh://git@ghe.example.invalid:2222/acme/widget.git", "acme/widget"),
     ("/srv/git/widget.git", None),
+    ("widget", None),
 ])
-def test_github_slug(url, slug):
-    assert pr_watch.github_slug(url) == slug
+def test_remote_slug(url, slug):
+    assert pr_watch.remote_slug(url) == slug
 
 
 def _lookup(table):
@@ -692,6 +696,15 @@ def _lookup(table):
         return value
 
     return lookup, calls
+
+
+@pytest.mark.parametrize("url", ["git@gh-work:acme/widget.git", "https://user@github.com/acme/widget.git",
+                                 "https://ghe.example.invalid/acme/widget.git"])
+def test_single_remote_on_any_host_is_the_mainline(url):
+    """Regression: matching only literal github.com URLs left an SSH alias or GHE checkout with no mainline."""
+    lookup, _ = _lookup({})
+    got = pr_watch.resolve_remotes({"origin": url}, "acme/widget", None, None, lookup)
+    assert (got["mainline"], got["push"], got["needs"]) == ("origin", "origin", [])
 
 
 def test_same_repo_checkout_pushes_where_it_fetches():

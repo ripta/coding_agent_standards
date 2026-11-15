@@ -505,11 +505,14 @@ def stacking_summary(methods: dict[str, Any], fork: bool = False) -> dict[str, A
 
 # -- remotes ---------------------------------------------------------------------------------
 
-GITHUB_URL = re.compile(r"^(?:https://|ssh://git@|git@)github\.com[/:]([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$")
+# A remote URL names its repo by its last two path segments, on any host. SSH host aliases, user
+# names in the URL, and GitHub Enterprise hosts all leave those segments alone, and gh reports the
+# repo as the same owner/name.
+REMOTE_URL = re.compile(r"^(?:[a-z+]+://[^/]+/|[^/:]+:)(?:.*/)?([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$")
 
 
-def github_slug(url: str) -> str | None:
-    match = GITHUB_URL.match(url.strip())
+def remote_slug(url: str) -> str | None:
+    match = REMOTE_URL.match(url.strip())
     return f"{match.group(1)}/{match.group(2)}" if match else None
 
 
@@ -546,7 +549,7 @@ def resolve_remotes(urls: dict[str, str], base: str, resolved: str | None, push_
     Anything this cannot settle goes in `needs` with what to run, and its remote stays None. A
     guess here would fetch a stale mainline or push to a repo nobody reviews.
     """
-    slugs = {name: github_slug(url) for name, url in urls.items()}
+    slugs = {name: remote_slug(url) for name, url in urls.items()}
     report: dict[str, Any] = {"mainline": None, "push": None, "push_repo": None, "fork": False,
                               "head_prefix": "", "needs": []}
 
@@ -881,7 +884,7 @@ def preflight(base: str | None, repo_override: str | None = None) -> dict[str, A
     report["stacking"] = stacking_summary(report["merge_methods"], fork=remotes["fork"])
 
     parent = (repo.get("parent") or {}).get("nameWithOwner")
-    if repo.get("isFork") and parent and any((github_slug(u) or "").lower() == parent.lower() for u in urls.values()):
+    if repo.get("isFork") and parent and any((remote_slug(u) or "").lower() == parent.lower() for u in urls.values()):
         report["needs"].append(f"gh resolves this checkout to {slug}, a fork of {parent}, which a remote here "
                                f"also holds. Confirm the PRs should land in {slug}, or run "
                                f"`gh repo set-default {parent}`.")
