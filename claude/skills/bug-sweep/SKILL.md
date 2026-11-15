@@ -48,7 +48,8 @@ that is checked out. Never create or switch branches. Never commit an edit this 
 
 1. Walk the index as `bug-triage` Step 2 does, but keep every bug it would select instead of stopping at the first.
    Skip the ones its `Triaged:` rule shields.
-2. Reconcile stale index rows as it does. Commit the reconciliation by itself, before any bug's work.
+2. Note each stale index row it would reconcile. Edit nothing yet. Step 4 shows them, and the run fixes them only once
+   approved.
 3. Write the list, oldest first, to `bug-sweep-run.md` in the session's scratchpad. One line per bug: its path and an
    empty outcome. Update the line after each bug, so the run survives compaction.
 
@@ -62,26 +63,36 @@ command. A suite that is already red cannot show whether a fix broke something.
 
 ## Step 4: Approve the run
 
-Ask once, in one AskUserQuestion call. Show the list, the build and test commands, and the repos commits will go to.
-Say what approving authorizes, in a sentence for each rule above. When Step 1 found no build command and none was
-passed, ask for it in the same call. The options are `Start the sweep` and `Cancel`. Nothing after this step asks.
+Ask once, in one AskUserQuestion call. Show the list, the stale index rows, the build and test commands, and the repos
+commits will go to. Say what approving authorizes, in a sentence for each rule above. When Step 1 found no build
+command and none was passed, ask for it in the same call.
+
+The options are `Start the sweep` and `Cancel`. Nothing after this step asks. A cancel leaves the tree as the run found
+it.
+
+Once approved, reconcile the stale rows as `bug-triage` Step 2 does. Commit them by themselves, before any bug's work.
 
 ## Step 5: Work each bug
 
 Work the list oldest first. Run one subagent at a time, in the foreground. Two subagents in one checkout would write
 over each other's edits.
 
-1. **Triage.** Start a fresh `general-purpose` agent with model `sonnet`. Tell it to read
-   `${CLAUDE_SKILL_DIR}/../bug-triage/SKILL.md` and run it as `unattended <bug file> <build command>`. Tell it to report
-   any other bug it finds instead of filing it.
-2. **Check the edits.** Run `git status` in each repo. Every changed file must be in the agent's report, and must not
-   be one Step 1 noted. Check that the bug file's status line and the index row agree. When anything else changed, stop
-   the run. Report the stray files, and leave them in place.
+Every brief that names `bug-triage` gives the absolute path of its directory. It also says that `${CLAUDE_SKILL_DIR}` in
+that file means that directory, since a subagent reads the file raw.
+
+1. **Triage.** Run `git status` in each repo and keep the output. Start a fresh `general-purpose` agent with model
+   `sonnet`. Tell it to read `bug-triage/SKILL.md` and run it as `unattended <bug file> <build command>`. Tell it to
+   report any other bug it finds instead of filing it.
+2. **Check the edits.** Run `git status` in each repo again. Compare it with the output kept before the agent started.
+   Every file that changed since then must be in the agent's report. Check that the bug file's status line and the
+   index row agree. When anything else changed, stop the run. Report the stray files, and leave them in place.
 3. **Act on the outcome.**
    - `closed`, `needs-design`, `inconclusive`: commit the bug file, and the index when it changed.
    - `already-closed`: the index was right after all, or another session closed the bug mid-run. Note it and move on.
    - `blocked`: stop the run.
-   - `fix-candidate`: go to step 4.
+   - `fix-candidate`: commit the bug file with its estimate. When the bug file already has a `## Sweep Attempts` entry,
+     an earlier sweep failed to fix it. Treat it as `needs-design`, and name that attempt in the final report. A person
+     decides whether to try again. Otherwise go to step 4.
 4. **Check the estimate.** Start a `design-critic` agent. Give it the bug file with its estimate, the decisions the
    triage agent judged trivial with its reasons, and the files the fix would touch. Give it the definition of trivial
    and non-trivial from `bug-triage` Step 4. Ask it to find any decision that is non-trivial, missing, or more than a
@@ -89,11 +100,15 @@ over each other's edits.
    - When it finds one, add it to the bug's `Estimate:` line by name. The bug is now `needs-design`. Commit the bug
      file.
    - When it finds none, go to step 5.
-5. **Fix.** Start a second fresh `general-purpose` agent with model `sonnet`. Tell it to read
-   `${CLAUDE_SKILL_DIR}/../bug-triage/SKILL.md` and run it as `unattended fix <bug file> <build command>`. Do not
-   resume the triage agent. Give it the triage report in its brief instead.
-6. **Check the fix.** Do step 2's check again. Then act on its report:
-   - `fixed`: run the full suite yourself. When it passes, commit. When the bug file is in the same repo as the code,
+5. **Fix.** Run `git status` in each repo and keep the output. Start a second fresh `general-purpose` agent with model
+   `sonnet`. Tell it to read `bug-triage/SKILL.md` and run it as `unattended fix <bug file> <build command>`. Do not
+   resume the triage agent. Give it the triage report in its brief instead. Ask it to name the regression test and the
+   files of the fix apart from the test.
+6. **Check the fix.** Do step 2's check again, against the output kept in step 5. Then act on its report:
+   - `fixed`: confirm the regression test yourself. Stash the fix's files apart from the test, by path, with
+     `git stash push -m "bug-sweep check: <bug file name>" -- <paths>`. Run the regression test. It must fail. Then run
+     `git stash pop`. When the test passes without the fix, treat the report as `test-did-not-fail`. Then run the full
+     suite yourself. When it passes, commit. When the bug file is in the same repo as the code,
      commit the fix, its test, the bug file, and the index together. When the bugs are in a specs repo, commit the fix
      and its test in the code repo, then the bug file and the index in the specs repo. The fix commit's body says what
      the bug was and how it showed, per `${CLAUDE_SKILL_DIR}/../../rules/found-bugs.md`. When the suite fails, treat
@@ -117,6 +132,7 @@ Stop the whole run on any of these:
 - The build breaks.
 - A commit is refused.
 - A rollback leaves the suite off its baseline.
+- A `git stash pop` does not apply cleanly.
 - An agent edits a file it did not report.
 - A subagent ends without an outcome word.
 
