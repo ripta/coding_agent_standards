@@ -17,7 +17,8 @@ script owns the steps between them, and it never waits on CI or reviews:
   runs the local checks, pushes to the push remote, and opens the PR. Re-run it after any commit
   or rebase in the worktree: it reruns the checks on the new head and pushes it, with a lease
   pinned to the head it last pushed when a rebase rewrote the branch
-- `merge` turns on merging once the PR's checks finished and none failed
+- `merge` turns on merging once every check on the pushed head finished and no required check
+  failed. It names the failed checks that are not required, for the coordinator to look at
 - `finish` cleans up a merged batch and names the batches it made ready
 
 Each command prints one JSON object. Exit 0 means the step is done. Exit 3 means the script
@@ -33,13 +34,15 @@ The run file is JSON, and this script is its only writer:
      "plan": <the plan batch_plan.py verified>,
      "mainline": "main",
      "remotes": {"mainline": "upstream", "push": "origin", "head_prefix": "someone:", "fork": true},
-     "merge_method": "MERGE", "auto_merge": true, "delete_branch_on_merge": true,
+     "merge_method": "MERGE", "required_checks": ["ci"], "auto_merge": true, "delete_branch_on_merge": true,
      "check_command": "make ci", "review_policy": "...", "deadline": "<ISO 8601>",
      "topic": "<topic>", "worktrees": "<dir>",
      "batches": {"<name>": {"status": "not-started", "branch": null, "worktree": null, "start": null,
                             "picked": false, "checked_head": null, "pushed_head": null, "pr": null}}}
 
-`status` is one of not-started, open, merged, and stopped. `init` writes the file at
+`required_checks` is null when preflight could not read the base's protection, and every check
+then counts as required. `status` is one of not-started, open, merged, and stopped. A batch whose
+PR closed without merging is stopped. `init` writes the file at
 `<state-dir>/land-branch/v3/<owner>-<repo>-<snapshot>.json`, with the snapshot's short hash.
 Hand-kept run files from older plugins live in `land-branch/` and `land-branch/v2/`, and this
 script never reads them. The run's watch state file sits beside the run file with a `.watch.json`
@@ -218,6 +221,8 @@ def init(args: argparse.Namespace) -> dict[str, Any]:
         "mainline": args.mainline,
         "remotes": {k: remotes[k] for k in ("mainline", "push", "head_prefix", "fork")},
         "merge_method": args.merge_method,
+        "required_checks": (None if preflight.get("protection_unreadable")
+                            else sorted((preflight.get("protection") or {}).get("required_checks") or [])),
         "auto_merge": bool(repo.get("autoMergeAllowed")),
         "delete_branch_on_merge": bool(repo.get("deleteBranchOnMerge")),
         "check_command": args.check_command,
@@ -380,7 +385,8 @@ def merge(args: argparse.Namespace) -> dict[str, Any]:
     if snap["merged"]:
         return {"event": "merged", "batch": args.batch, "pr": pr}
     if snap["state"] != "OPEN":
-        raise Stop("pr-not-open", state=snap["state"])
+        update(Path(args.run), args.batch, status="stopped")
+        raise Stop("pr-closed", state=snap["state"])
 
     # `gh pr merge --auto` merges at once on a CLEAN PR, so every gate holds before any merge command.
     if snap["base"] != run["mainline"]:
@@ -391,19 +397,22 @@ def merge(args: argparse.Namespace) -> dict[str, Any]:
         raise Stop("no-checks")
     if snap["pending"]:
         raise Stop("checks-pending", pending=snap["pending"])
-    if snap["failed"]:
-        raise Stop("checks-failed", failed=snap["failed"])
+    required = run["required_checks"]
+    blocking = [c for c in snap["failed"] if required is None or c in required]
+    if blocking:
+        raise Stop("checks-failed", failed=blocking)
 
+    done = {"batch": args.batch, "pr": pr, "failed_not_required": [c for c in snap["failed"] if c not in blocking]}
     method = "--" + run["merge_method"].lower()
     if snap["auto_merge"]:
-        return {"event": "auto-merge-on", "batch": args.batch, "pr": pr}
+        return {"event": "auto-merge-on", **done}
     if run["auto_merge"]:
         gh(["pr", "merge", str(pr), "--repo", run["repo"], "--auto", method])
-        return {"event": "auto-merge-on", "batch": args.batch, "pr": pr}
+        return {"event": "auto-merge-on", **done}
     if snap["merge_state"] != "CLEAN":
         raise Stop("not-clean", merge_state=snap["merge_state"])
     gh(["pr", "merge", str(pr), "--repo", run["repo"], method])
-    return {"event": "merge-requested", "batch": args.batch, "pr": pr}
+    return {"event": "merge-requested", **done}
 
 
 def finish(args: argparse.Namespace) -> dict[str, Any]:
@@ -414,7 +423,11 @@ def finish(args: argparse.Namespace) -> dict[str, Any]:
     remotes = run["remotes"]
     root = checkout_root(run)
 
-    if not snapshot(run["repo"], pr)["merged"]:
+    snap = snapshot(run["repo"], pr)
+    if not snap["merged"]:
+        if snap["state"] != "OPEN":
+            update(path, args.batch, status="stopped")
+            raise Stop("pr-closed", state=snap["state"])
         raise Stop("not-merged", pr=pr)
     children = json.loads(gh(["pr", "list", "--repo", run["repo"], "--base", state["branch"], "--state", "open",
                               "--json", "number"]) or "[]")

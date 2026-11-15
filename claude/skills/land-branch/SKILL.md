@@ -198,7 +198,7 @@ For each ready serial batch:
 
 1. Write its PR title and body to files in the scratchpad. The title comes from the plan. Write the body from that
    batch's own diff, by following `${CLAUDE_SKILL_DIR}/../../commands/pr-description.md`. Name the batches it lands
-   after
+   after. Pass `<mainline-remote>/<mainline>` as its base
 2. Run `land_batch.py open --run <run> --batch <name> --title-file <file> --body-file <file>`. Set the cg wait above
    the local checks' usual duration. It fetches the remotes and creates the batch branch from
    `<mainline-remote>/<mainline>` in its own worktree. Then it cherry-picks the batch's commits, runs the local checks,
@@ -209,8 +209,10 @@ Then watch every open batch PR with one watcher: `pr_watch.py watch --pr N --pr 
 `--pr` per open PR, and the run's watch state file. Re-arm it after every step below. Act on each event as
 `merge-fix-loop` Step 6 describes, in that batch's worktree, with these additions:
 
-- **`checks-done` with nothing failed.** Run `land_batch.py merge --run <run> --batch <name>`. It turns on merging only
-  when the PR's base is the mainline, its head is the one `open` pushed, and every check finished with none failed
+- **`checks-done`.** Run `land_batch.py merge --run <run> --batch <name>`, whatever failed. It turns on merging only
+  when the PR's base is the mainline, its head is the one `open` pushed, and every check finished with no required
+  check failed. Handle each check in its `failed_not_required` list, or in a `checks-failed` stop, as `merge-fix-loop`
+  "A check failed" says
 - **`merged`.** Run `land_batch.py finish --run <run> --batch <name>`. It removes the worktree, the local branch, and
   the pushed branch, and deletes the PR's state files. Its `ready` list names the batches to `open` next
 - **Any change to a batch branch.** A fix for a failed check or a review comment, and a rebase after a conflict, all
@@ -224,9 +226,16 @@ Act on each `stop` by its name:
   mechanical, and finish with `git cherry-pick --continue`. When it needs a judgement, show the user both sides, and
   keep landing the other batches. A pick that came out empty already landed. Show it to the user. Skip it only with
   their answer, then re-run `open` with `--picked`
+- `cherry-pick-in-progress` means a pick is still unfinished in the worktree. Finish it as above
+- `pick-count-mismatch` means the worktree holds a different number of picked commits than the batch. Compare them
+  with the plan. Re-run `open` with `--picked` only when every commit is there or the user agreed to skip one
+- `branch-without-worktree` means the batch branch exists with no worktree. Show the user, and land that batch by hand
 - `local-checks-failed` names a log. Classify the failure as `merge-fix-loop` "A check failed" says, and fix it as above
+- `checks-failed` names required checks that failed. Fix them as above. `merge` runs again on the next `checks-done`
 - `checks-pending` and `not-clean` wait for the next event. `no-checks` follows `merge-fix-loop` Step 5.2
-- `not-ready`, `not-merged`, and `not-open` mean the command came too early or too late. Check `status`
+- `not-ready`, `not-merged`, `not-open`, and `batch-done` mean the command came too early or too late. Check `status`
+- `pr-closed` means the PR closed without merging, and the batch is now stopped. Follow `merge-fix-loop` "The PR closed
+  without merging". The batches after it cannot start
 - `head-moved` and `base-not-mainline` mean someone else changed the PR. Stop that batch and tell the user
 - `open-prs-on-branch` means a PR is based on the batch's branch. Report it before anything deletes the branch
 

@@ -100,6 +100,7 @@ def world(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
         {"name": "one", "commits": [first], "after": []},
         {"name": "two", "commits": [second], "after": ["one"]}]}
     preflight = {"repo": {"nameWithOwner": REPO, "autoMergeAllowed": True, "deleteBranchOnMerge": True},
+                 "protection": {"required_checks": ["ci"]}, "protection_unreadable": [],
                  "merge_methods": {"allowed": ["MERGE", "SQUASH"]},
                  "remotes": {"mainline": "upstream", "push": "origin", "push_repo": "someone/widget",
                              "head_prefix": "someone:", "fork": True}}
@@ -269,6 +270,34 @@ def test_merge_refuses_until_the_pushed_head_passed_its_checks(world, checks, fi
     code, result = call("merge", "--run", str(world["run"]), "--batch", "one")
     assert code == 3 and result["stop"] == stop
     assert not any(c[:2] == ["pr", "merge"] for c in world["gh"].calls)
+
+
+def test_merge_turns_on_while_only_a_check_that_is_not_required_failed(world):
+    """Regression: a red optional check held the batch forever, where the hand procedure merges past it."""
+    open_one(world)
+    head = run_state(world)["batches"]["one"]["pushed_head"]
+    world["gh"].set(40, [("ci", "COMPLETED", "SUCCESS"), ("lint-docs", "COMPLETED", "FAILURE")], headRefOid=head)
+    code, result = call("merge", "--run", str(world["run"]), "--batch", "one")
+    assert code == 0 and result["event"] == "auto-merge-on" and result["failed_not_required"] == ["lint-docs"]
+
+
+def test_unreadable_protection_counts_every_check_as_required(world):
+    run = run_state(world)
+    run["required_checks"] = None
+    world["run"].write_text(json.dumps(run))
+    open_one(world)
+    head = run_state(world)["batches"]["one"]["pushed_head"]
+    world["gh"].set(40, [("ci", "COMPLETED", "SUCCESS"), ("lint-docs", "COMPLETED", "FAILURE")], headRefOid=head)
+    code, result = call("merge", "--run", str(world["run"]), "--batch", "one")
+    assert code == 3 and result["stop"] == "checks-failed" and result["failed"] == ["lint-docs"]
+
+
+def test_a_closed_pr_stops_its_batch(world):
+    open_one(world)
+    world["gh"].set(40, state="CLOSED")
+    code, result = call("merge", "--run", str(world["run"]), "--batch", "one")
+    assert code == 3 and result["stop"] == "pr-closed"
+    assert run_state(world)["batches"]["one"]["status"] == "stopped"
 
 
 def test_merge_turns_on_auto_merge_with_the_runs_method(world):
