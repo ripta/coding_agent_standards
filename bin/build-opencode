@@ -238,9 +238,9 @@ The user's next `/land-branch <branch>` is then
 The user's next `land-branch` run on
    `<branch>` is then
 ===
-5. Run `pr_watch.py preflight --base <mainline>` through `cg_run`, as `merge-fix-loop` describes
+1. Run `pr_watch.py preflight` through `cg_run`, as `merge-fix-loop` describes, with no `--base` yet.
 --->
-5. Run `pr_watch.py preflight --base <mainline>` as `merge-fix-loop` "Scripts" describes
+1. Run `pr_watch.py preflight` as `merge-fix-loop` "Scripts" describes, with no `--base` yet.
 ===
 5. Write the plan to the scratchpad as JSON.
 --->

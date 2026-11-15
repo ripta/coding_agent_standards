@@ -12,8 +12,11 @@ Never assume branch names. Determine the pair before anything else:
 
 1. Use the branch names the user gave, if they gave any.
 2. Otherwise infer the mainline from the remote head:
-   `git symbolic-ref refs/remotes/origin/HEAD`. Then look for a long-running
-   branch that is ahead of it.
+   `git symbolic-ref refs/remotes/<remote>/HEAD`. The `<remote>` is the one
+   that holds the repo PRs land in. That is `origin` in most checkouts. In a
+   fork checkout it is usually `upstream`, and `origin` is the fork.
+   `pr_watch.py preflight` names it as `remotes.mainline`. Then look for a
+   long-running branch that is ahead of it.
 3. If the pair is still ambiguous, ask the user.
 
 The rest of this document writes the pair as `<mainline>` and `<integration>`.

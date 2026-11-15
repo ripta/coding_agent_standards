@@ -663,3 +663,148 @@ def test_jobs_are_paged_past_the_first_hundred(monkeypatch: pytest.MonkeyPatch) 
     jobs = pr_watch.fetch_jobs("o", "r", 900)
     assert len(jobs) == 101 and len(calls) == 2
     assert calls[0] == "repos/o/r/actions/runs/900/jobs?filter=latest&per_page=100&page=1"
+
+
+# -- remotes ------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("url, slug", [
+    ("https://github.com/acme/widget.git", "acme/widget"),
+    ("https://github.com/acme/widget", "acme/widget"),
+    ("https://github.com/acme/widget/", "acme/widget"),
+    ("git@github.com:acme/widget.git", "acme/widget"),
+    ("ssh://git@github.com/acme/widget.git", "acme/widget"),
+    ("https://gitlab.example/acme/widget.git", None),
+    ("/srv/git/widget.git", None),
+])
+def test_github_slug(url, slug):
+    assert pr_watch.github_slug(url) == slug
+
+
+def _lookup(table):
+    calls = []
+
+    def lookup(slug):
+        calls.append(slug)
+        value = table[slug]
+        if isinstance(value, Exception):
+            raise value
+        return value
+
+    return lookup, calls
+
+
+def test_same_repo_checkout_pushes_where_it_fetches():
+    """A checkout whose only remote is the base must keep today's behavior: no fork, no head prefix."""
+    lookup, calls = _lookup({})
+    got = pr_watch.resolve_remotes({"origin": "git@github.com:acme/widget.git"}, "acme/widget", None, None, lookup)
+    assert got == {"mainline": "origin", "push": "origin", "push_repo": "acme/widget", "fork": False,
+                   "head_prefix": "", "needs": []}
+    assert calls == []
+
+
+def test_fork_checkout_fetches_upstream_and_pushes_to_the_fork():
+    """Regression: the skills read the mainline from origin and opened the PR with a bare head branch."""
+    remotes = {"origin": "https://github.com/someone/widget.git", "upstream": "https://github.com/acme/widget.git"}
+    lookup, _ = _lookup({"someone/widget": {"parent": "acme/widget", "can_push": True}})
+    got = pr_watch.resolve_remotes(remotes, "acme/widget", "upstream", None, lookup)
+    assert got == {"mainline": "upstream", "push": "origin", "push_repo": "someone/widget", "fork": True,
+                   "head_prefix": "someone:", "needs": []}
+
+
+def test_push_default_names_the_push_remote():
+    remotes = {"origin": "https://github.com/someone/widget.git", "upstream": "https://github.com/acme/widget.git"}
+    lookup, calls = _lookup({})
+    got = pr_watch.resolve_remotes(remotes, "acme/widget", None, "upstream", lookup)
+    assert (got["push"], got["fork"], got["head_prefix"]) == ("upstream", False, "")
+    assert calls == []
+
+
+def test_unrelated_remote_is_not_a_push_target():
+    remotes = {"origin": "https://github.com/acme/widget.git", "mirror": "https://github.com/other/thing.git"}
+    lookup, _ = _lookup({"other/thing": {"parent": None, "can_push": True}})
+    got = pr_watch.resolve_remotes(remotes, "acme/widget", None, None, lookup)
+    assert (got["mainline"], got["push"], got["fork"]) == ("origin", "origin", False)
+
+
+def test_no_remote_for_the_base_is_a_need():
+    lookup, _ = _lookup({})
+    got = pr_watch.resolve_remotes({"origin": "https://github.com/someone/widget.git"}, "acme/widget", None, None,
+                                   lookup)
+    assert got["mainline"] is None and got["push"] is None
+    assert "acme/widget" in got["needs"][0] and "git remote add" in got["needs"][0]
+
+
+def test_two_forks_without_origin_among_them_is_a_need():
+    remotes = {"upstream": "https://github.com/acme/widget.git",
+               "a": "https://github.com/one/widget.git", "b": "https://github.com/two/widget.git"}
+    fork = {"parent": "acme/widget", "can_push": True}
+    lookup, _ = _lookup({"one/widget": fork, "two/widget": fork})
+    got = pr_watch.resolve_remotes(remotes, "acme/widget", None, None, lookup)
+    assert got["push"] is None and "remote.pushDefault" in got["needs"][0]
+
+
+def test_fork_the_viewer_cannot_push_to_is_a_need():
+    remotes = {"origin": "https://github.com/someone/widget.git", "upstream": "https://github.com/acme/widget.git"}
+    lookup, _ = _lookup({"someone/widget": {"parent": "acme/widget", "can_push": False}})
+    got = pr_watch.resolve_remotes(remotes, "acme/widget", None, None, lookup)
+    assert got["push"] == "origin" and "someone/widget" in got["needs"][0]
+
+
+def test_unreadable_remote_is_a_need_not_a_guess():
+    remotes = {"origin": "https://github.com/someone/widget.git", "upstream": "https://github.com/acme/widget.git"}
+    lookup, _ = _lookup({"someone/widget": pr_watch.GhError("HTTP 404")})
+    got = pr_watch.resolve_remotes(remotes, "acme/widget", None, None, lookup)
+    assert got["push"] is None and "HTTP 404" in got["needs"][0]
+
+
+def test_git_remotes_reads_urls_resolution_and_push_default(tmp_path):
+    import subprocess
+    for args in (["init", "-q"], ["remote", "add", "origin", "https://github.com/someone/widget.git"],
+                 ["remote", "add", "upstream", "https://github.com/acme/widget.git"],
+                 ["config", "remote.upstream.gh-resolved", "base"], ["config", "remote.pushDefault", "origin"]):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True)
+    assert pr_watch.git_remotes(tmp_path) == (
+        {"origin": "https://github.com/someone/widget.git", "upstream": "https://github.com/acme/widget.git"},
+        "upstream", "origin")
+
+
+def test_fork_push_makes_stacking_unviable():
+    methods = pr_watch.merge_methods(REPO, [])
+    assert pr_watch.stacking_summary(methods, fork=True) == {
+        "viable": False, "reasons": ["branches push to a fork, and a PR's base must be a branch of the base repo"]}
+
+
+def test_preflight_reports_fork_remotes_and_takes_stacking_off(monkeypatch, tmp_path):
+    """Callers read `remotes` from preflight, so a fork checkout must surface there and veto stacking."""
+    import subprocess
+    for args in (["init", "-q"], ["remote", "add", "origin", "git@github.com:someone/widget.git"],
+                 ["remote", "add", "upstream", "https://github.com/acme/widget.git"],
+                 ["config", "remote.upstream.gh-resolved", "base"]):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True)
+    monkeypatch.chdir(tmp_path)
+
+    repo = {"nameWithOwner": "acme/widget", "viewerPermission": "WRITE", "autoMergeAllowed": True,
+            "mergeCommitAllowed": True, "squashMergeAllowed": True, "rebaseMergeAllowed": False,
+            "deleteBranchOnMerge": True, "viewerDefaultMergeMethod": "MERGE", "defaultBranchRef": {"name": "main"},
+            "isFork": False, "parent": None}
+
+    def fake_gh(args):
+        return "acme/widget\n" if args[:2] == ["repo", "view"] else ""
+
+    def fake_gh_json(args):
+        if args == ["api", "repos/someone/widget"]:
+            return {"parent": {"full_name": "acme/widget"}, "permissions": {"push": True}}
+        if args[1].endswith("/protection"):
+            raise pr_watch.GhError("HTTP 404")
+        return []
+
+    monkeypatch.setattr(pr_watch, "gh", fake_gh)
+    monkeypatch.setattr(pr_watch, "gh_json", fake_gh_json)
+    monkeypatch.setattr(pr_watch, "graphql", lambda query, **kw: {"repository": repo})
+
+    report = pr_watch.preflight("main")
+    assert report["remotes"] == {"mainline": "upstream", "push": "origin", "push_repo": "someone/widget",
+                                 "fork": True, "head_prefix": "someone:"}
+    assert report["needs"] == []
+    assert report["stacking"]["viable"] is False

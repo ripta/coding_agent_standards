@@ -79,6 +79,7 @@ query($owner: String!, $name: String!) {
   repository(owner: $owner, name: $name) {
     nameWithOwner viewerPermission autoMergeAllowed mergeCommitAllowed squashMergeAllowed
     rebaseMergeAllowed deleteBranchOnMerge viewerDefaultMergeMethod defaultBranchRef { name }
+    isFork parent { nameWithOwner }
   }
 }
 """
@@ -490,14 +491,118 @@ def strict_from_classic(protection: dict[str, Any]) -> bool:
     return bool((protection.get("required_status_checks") or {}).get("strict"))
 
 
-def stacking_summary(methods: dict[str, Any]) -> dict[str, Any]:
+def stacking_summary(methods: dict[str, Any], fork: bool = False) -> dict[str, Any]:
     """Report the stacking conditions a script can read. CI and the run's merge method are not among them."""
     reasons = []
     if "MERGE" not in methods["allowed"]:
         reasons.append("merge commits are not allowed on the base")
     if methods["merge_queue"]:
         reasons.append("the base uses a merge queue")
+    if fork:
+        reasons.append("branches push to a fork, and a PR's base must be a branch of the base repo")
     return {"viable": not reasons, "reasons": reasons}
+
+
+# -- remotes ---------------------------------------------------------------------------------
+
+GITHUB_URL = re.compile(r"^(?:https://|ssh://git@|git@)github\.com[/:]([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$")
+
+
+def github_slug(url: str) -> str | None:
+    match = GITHUB_URL.match(url.strip())
+    return f"{match.group(1)}/{match.group(2)}" if match else None
+
+
+def git_remotes(root: Path) -> tuple[dict[str, str], str | None, str | None]:
+    """Return the checkout's remote URLs, the remote gh resolved as the base, and remote.pushDefault."""
+
+    def config(*args: str) -> list[str]:
+        result = subprocess.run(["git", "config", *args], cwd=root, capture_output=True, text=True)
+        return result.stdout.splitlines() if result.returncode == 0 else []
+
+    urls = {}
+    for line in config("--get-regexp", r"^remote\..*\.url$"):
+        key, _, url = line.partition(" ")
+        urls[key[len("remote."):-len(".url")]] = url
+
+    resolved = None
+    for line in config("--get-regexp", r"^remote\..*\.gh-resolved$"):
+        key, _, value = line.partition(" ")
+        if value == "base":
+            resolved = key[len("remote."):-len(".gh-resolved")]
+
+    push_default = (config("--get", "remote.pushDefault") or [None])[0]
+    return urls, resolved, push_default
+
+
+def resolve_remotes(urls: dict[str, str], base: str, resolved: str | None, push_default: str | None,
+                    lookup: Callable[[str], dict[str, Any]]) -> dict[str, Any]:
+    """Name the remote that holds the base repo and the remote that agent branches push to.
+
+    A fork checkout fetches the mainline from one remote, often `upstream`, and pushes to the fork,
+    often `origin`. A PR from a fork names its head as `owner:branch`, so `head_prefix` carries the
+    owner. `lookup(slug)` returns the repo's `parent` slug and whether the viewer `can_push` to it.
+
+    Anything this cannot settle goes in `needs` with what to run, and its remote stays None. A
+    guess here would fetch a stale mainline or push to a repo nobody reviews.
+    """
+    slugs = {name: github_slug(url) for name, url in urls.items()}
+    report: dict[str, Any] = {"mainline": None, "push": None, "push_repo": None, "fork": False,
+                              "head_prefix": "", "needs": []}
+
+    holders = sorted(name for name, slug in slugs.items() if slug and slug.lower() == base.lower())
+    if not holders:
+        report["needs"].append(f"no git remote points at {base}. Add one with "
+                               f"`git remote add upstream https://github.com/{base}.git`, then fetch it.")
+        return report
+    mainline = resolved if resolved in holders else "origin" if "origin" in holders else holders[0]
+    report["mainline"] = mainline
+
+    def settle(push: str, info: dict[str, Any] | None) -> dict[str, Any]:
+        push_repo = slugs.get(push) or base
+        fork = push_repo.lower() != base.lower()
+        report.update(push=push, push_repo=push_repo, fork=fork,
+                      head_prefix=push_repo.split("/")[0] + ":" if fork else "")
+        if fork and info is not None and not info.get("can_push"):
+            report["needs"].append(f"the viewer cannot push to {push_repo}, the fork on remote {push}.")
+        return report
+
+    if push_default:
+        if push_default not in urls:
+            report["needs"].append(f"remote.pushDefault names {push_default}, which is not a remote here.")
+            return report
+        return settle(push_default, None)
+
+    forks = {}
+    for name in sorted(urls):
+        slug = slugs[name]
+        if name in holders or not slug:
+            continue
+        try:
+            info = lookup(slug)
+        except GhError as e:
+            report["needs"].append(f"cannot tell whether remote {name} ({slug}) is a fork of {base}: {e}. "
+                                   f"Set `git config remote.pushDefault <remote>` to name the push remote.")
+            return report
+        if (info.get("parent") or "").lower() == base.lower():
+            forks[name] = info
+
+    if not forks:
+        return settle(mainline, None)
+    if len(forks) == 1:
+        name = next(iter(forks))
+        return settle(name, forks[name])
+    if "origin" in forks:
+        return settle("origin", forks["origin"])
+    report["needs"].append(f"remotes {', '.join(sorted(forks))} are all forks of {base}. "
+                           f"Set `git config remote.pushDefault <remote>` to name the one to push to.")
+    return report
+
+
+def lookup_repo(slug: str) -> dict[str, Any]:
+    repo = gh_json(["api", f"repos/{slug}"])
+    return {"parent": (repo.get("parent") or {}).get("full_name"),
+            "can_push": bool((repo.get("permissions") or {}).get("push"))}
 
 
 COMMENT = re.compile(r"\s+#.*$")
@@ -733,7 +838,7 @@ def preflight(base: str | None, repo_override: str | None = None) -> dict[str, A
     report["repo"] = {k: v for k, v in repo.items() if k != "defaultBranchRef"}
     report["base"] = base
     if repo.get("viewerPermission") not in ("WRITE", "MAINTAIN", "ADMIN"):
-        report["needs"].append(f"viewer permission is {repo.get('viewerPermission')}; pushing a branch needs WRITE.")
+        report["needs"].append(f"viewer permission is {repo.get('viewerPermission')}; merging a PR, and pushing a branch to it, need WRITE.")
     if not repo.get("autoMergeAllowed"):
         report["needs"].append("auto-merge is off for this repo; the loop must merge with `gh pr merge` once green.")
 
@@ -760,13 +865,26 @@ def preflight(base: str | None, repo_override: str | None = None) -> dict[str, A
     report["merge_methods"] = merge_methods(repo, rules)
     strict = strict_from_rules(rules or []) or strict_from_classic(classic or {})
     report["strict_up_to_date"] = strict or (None if unknown else False)
-    report["stacking"] = stacking_summary(report["merge_methods"])
 
     if repo_override:
+        report["remotes"] = None
+        report["stacking"] = stacking_summary(report["merge_methods"])
         report["ci"] = []
         report["ci_builds_other_bases"] = {"answer": "unknown",
                                            "reason": "--repo names a repository without a checkout to read"}
         return report
+
+    urls, resolved, push_default = git_remotes(Path.cwd())
+    remotes = resolve_remotes(urls, slug, resolved, push_default, lookup_repo)
+    report["needs"] += remotes.pop("needs")
+    report["remotes"] = remotes
+    report["stacking"] = stacking_summary(report["merge_methods"], fork=remotes["fork"])
+
+    parent = (repo.get("parent") or {}).get("nameWithOwner")
+    if repo.get("isFork") and parent and any((github_slug(u) or "").lower() == parent.lower() for u in urls.values()):
+        report["needs"].append(f"gh resolves this checkout to {slug}, a fork of {parent}, which a remote here "
+                               f"also holds. Confirm the PRs should land in {slug}, or run "
+                               f"`gh repo set-default {parent}`.")
 
     report["ci"] = ci_systems(Path.cwd())
     cloud_build = None

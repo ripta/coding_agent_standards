@@ -32,8 +32,8 @@ REPLACEMENTS = {
     'land-branch': (
         ("""## Step 1: Detect, without asking""",
          _worktrees("the run file") + """## Step 1: Detect, without asking"""),
-        ("""5. Run `pr_watch.py preflight --base <mainline>` through `cg_run`, as `merge-fix-loop` describes""",
-         """5. Run `pr_watch.py preflight --base <mainline>` as `merge-fix-loop` "Scripts" describes"""),
+        ("""1. Run `pr_watch.py preflight` through `cg_run`, as `merge-fix-loop` describes, with no `--base` yet.""",
+         """1. Run `pr_watch.py preflight` as `merge-fix-loop` "Scripts" describes, with no `--base` yet."""),
         ("""The user's next `/land-branch <branch>` is then""",
          """The user's next `land-branch` run on
    `<branch>` is then"""),

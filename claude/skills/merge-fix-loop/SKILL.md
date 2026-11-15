@@ -30,12 +30,26 @@ You work only on a branch you own. That rule is what lets this loop push without
 - Never push to, reset, rebase, or delete a branch you do not own. That includes the user's checked-out branch and
   the base branch.
 - Never merge the base into the branch. Bring it up to date by rebasing onto the base. Then push it with
-  `git push --force-with-lease=<branch>:<sha> origin refs/heads/<branch>:refs/heads/<branch>`, where `<sha>` is the
-  remote head the rebase started from. Never use a bare `--force`. See
+  `git push --force-with-lease=<branch>:<sha> <push-remote> refs/heads/<branch>:refs/heads/<branch>`, where `<sha>` is
+  the remote head the rebase started from. Never use a bare `--force`. See
   `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` for why the lease is pinned and the refspec is spelled out.
 
 When the target is the user's branch, you do not push it. Create your own branch at the same commit, in its own
 worktree, and run the loop there. See Step 3.
+
+## Remotes
+
+A checkout may fetch the base from one remote and push to another. In a fork checkout, `upstream` holds the repo the PR
+lands in, and `origin` is the user's fork. `pr_watch.py preflight` names both in its `remotes` block:
+
+- `<mainline-remote>` is `remotes.mainline`. Fetch the base from it, and rebase onto `<mainline-remote>/<base>`
+- `<push-remote>` is `remotes.push`. Push your branch to it, read your branch's remote head from
+  `<push-remote>/<branch>`, and delete the branch there
+- `<head>` is `remotes.head_prefix` followed by the branch, such as `someone:agent/topic` from a fork. Pass it to
+  `gh pr create --head`. A bare branch name there names a branch in the base repo, which a fork push never creates
+
+In a checkout with one remote, both remotes are `origin`, and `<head>` is the bare branch. When preflight leaves a
+remote null, its `needs` says why. Ask the user in Step 2, and never guess a remote.
 
 ## Scripts
 
@@ -43,9 +57,9 @@ worktree, and run the loop there. See Step 3.
 poll loop by hand. Its subcommands print JSON:
 
 - `pr_watch.py preflight --base BRANCH` reports gh access, merge settings, required checks and reviews, the CI systems
-  the checkout configures, and a `needs` list of what is missing. It also reports the facts stacked PRs depend on:
-  the merge methods the base allows, a merge queue, strict up-to-date branches, and whether CI builds PRs against
-  other bases
+  the checkout configures, the remotes to fetch from and push to, and a `needs` list of what is missing. It also reports
+  the facts stacked PRs depend on: the merge methods the base allows, a merge queue, strict up-to-date branches, and
+  whether CI builds PRs against other bases
 - `pr_watch.py snapshot --pr N` prints the PR's state, checks, merge state, and unresolved thread count
 - `pr_watch.py watch --pr N --state FILE --timeout SECONDS` waits and prints one JSON line per new event
 - `pr_watch.py failures --pr N` lists failing checks, with the Actions run and job, or the Cloud Build build and region
@@ -106,7 +120,9 @@ No question belongs in this step.
 1. Resolve the target from `$ARGUMENTS`:
    - A PR number: read it with `pr_watch.py snapshot --pr N`. Its head branch is the branch
    - A branch name, or nothing: use the named branch, or the checked-out branch. Look for an open PR with
-     `gh pr list --head <branch> --state open --json number,url`
+     `gh pr list --head <branch> --state open --json number,url,headRepositoryOwner`. Several forks can hold a branch
+     of one name. Keep only the PR whose `headRepositoryOwner.login` owns preflight's `remotes.push_repo`, once item 4
+     ran preflight
    - A duration such as `3h` or `90m` is the budget
 2. Look for this PR's `.loop.json` file. When it exists, this is a resume. Take the branch, worktree, policy, and
    deadline from it, report them in one line, and go to Step 6
@@ -114,7 +130,7 @@ No question belongs in this step.
 4. Set `merge_into`. When `land-branch` did not pass it, use the PR's base. Refuse and report when that base is the head
    of another open PR: `gh pr list --head <base> --state open --json number` is not empty. Merging would land this
    PR in that PR's branch, not in the mainline. Run `pr_watch.py preflight --base <merge_into>` and read every entry
-   in `needs`
+   in `needs`. Take the remotes from its `remotes` block, per "Remotes"
 5. Read the repository's own guidance on PRs: `CONTRIBUTING.md`, the PR template, and the project's `CLAUDE.md` or
    `AGENTS.md`. Note what it says about review, merge method, and checks
 6. Find the local check command. Prefer `make ci` when the Makefile has it, since CI runs the same target. Otherwise
@@ -149,8 +165,8 @@ Report what detection settled in a line or two, beside the question.
    `git worktree add --no-track -b agent/<topic> .claude/worktrees/<topic> <commit>`. The user's branch is left as it
    was
 2. Work only in that worktree from here on. Never touch the user's checkout
-3. Drop snip commits, as "Snip Commits" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` defines them. They never
-   go into a PR. The base for both commands is `git merge-base origin/<merge_into> HEAD`. In the worktree, run
+3. Drop snip commits, as "Snip Commits" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` defines them. They never go
+   into a PR. The base for both commands is `git merge-base <mainline-remote>/<merge_into> HEAD`. In the worktree, run
    `${CLAUDE_SKILL_DIR}/../../scripts/snips.py list --base <base>`. When it finds snips, run
    `snips.py drop --base <base> --all`. Stop and tell the user when the drop fails, reports `tree_matches` false, or
    `list` reports a `not_empty` commit. Drop snips only from a branch that is not pushed yet. When the branch is already
@@ -158,7 +174,7 @@ Report what detection settled in a line or two, beside the question.
    pushed branch to drop them
 4. Run the local check command. When it fails, fix the cause and commit before pushing. Do not open a PR that fails
    locally. A failure that is already on the base is not this PR's to fix. Note it for the PR description
-5. Push with `git push -u origin refs/heads/<branch>:refs/heads/<branch>`
+5. Push with `git push -u <push-remote> refs/heads/<branch>:refs/heads/<branch>`
 
 ## Step 4: Open the PR
 
@@ -166,7 +182,7 @@ When a PR is already open, skip to Step 5.
 
 1. Write the title and body by following `${CLAUDE_SKILL_DIR}/../../commands/pr-description.md`, against the base. Write
    the body to a file in the scratchpad
-2. Run `gh pr create --base <base> --head <branch> --title <title> --body-file <file>`
+2. Run `gh pr create --base <base> --head <head> --title <title> --body-file <file>`, with `<head>` from "Remotes"
 3. Write the `.loop.json` file: PR number, branch, worktree, base, review policy, and deadline
 
 ## Step 5: Confirm the checks, then turn on merging
@@ -238,10 +254,12 @@ review body with `pr_watch.py comment`.
 
 ### The PR conflicts with its base
 
-In the worktree, note the branch's remote head with `git rev-parse origin/<branch>`. Run `git fetch origin`, then
-`git rebase origin/<base>`. Resolve the conflicts commit by commit. When a resolution needs a judgement about what
-either side meant, show the user both sides before continuing the rebase. Run the local checks. Push with
-`git push --force-with-lease=<branch>:<sha> origin refs/heads/<branch>:refs/heads/<branch>`, using the head you noted.
+In the worktree, note the branch's remote head with `git rev-parse <push-remote>/<branch>`. Run
+`git fetch <mainline-remote>`, then `git rebase <mainline-remote>/<base>`. Resolve the conflicts commit by commit. When
+a resolution needs a judgement about what either side meant, show the user both sides before continuing the rebase. Run
+the local checks. Push with
+`git push --force-with-lease=<branch>:<sha> <push-remote> refs/heads/<branch>:refs/heads/<branch>`, using the head you
+noted.
 
 ### The PR was behind its base
 
@@ -253,8 +271,9 @@ Otherwise leave it.
 1. Remove the worktree with `git worktree remove <path>`
 2. Delete the local branch. GitHub reports the PR merged, so the work is on the base even when a squash merge stops
    `git branch -d` from seeing it. Use `git branch -D <branch>` for a branch you own
-3. Delete the remote branch with `git push origin --delete <branch>`, unless the repository already deletes merged
-   branches. When open PRs are stacked on this branch, retarget them first. See `land-branch`
+3. Delete the remote branch with `git push <push-remote> --delete <branch>`, unless the repository already deletes
+   merged branches and the branch is in that repository. GitHub does not delete a fork's branch. When open PRs are
+   stacked on this branch, retarget them first. See `land-branch`
 4. Delete the `.loop.json` file and the state file
 
 ### The PR closed without merging

@@ -30,33 +30,38 @@ user's branch and the mainline are the user's. Read them and fetch them, but nev
 
 ## Step 1: Detect, without asking
 
-No question belongs in this step. A rebase conflict in item 9 is a stop, not a question.
+No question belongs in this step. A rebase conflict in item 10 is a stop, not a question.
 
-1. Establish the mainline and the source branch, per "Establishing the Branch Pair" in
-   `${CLAUDE_SKILL_DIR}/../../project-management/commit-chunking.md`. The source is the branch the user named, or the
-   checked-out branch. Run `git fetch origin` first, so the mainline is current
-2. Look for a run file, described in "Run state" below, whose snapshot is on the source branch. When one exists, this
+1. Run `pr_watch.py preflight` through `cg_run`, as `merge-fix-loop` describes, with no `--base` yet. Take
+   `<mainline-remote>`, `<push-remote>`, and `<head>` from its `remotes` block, per "Remotes" in `merge-fix-loop`. Run
+   `git fetch <mainline-remote>`, so the mainline is current. Also fetch `<push-remote>` when it differs
+2. Establish the mainline and the source branch, per "Establishing the Branch Pair" in
+   `${CLAUDE_SKILL_DIR}/../../project-management/commit-chunking.md`. Preflight's `base` is the repo's default branch.
+   The source is the branch the user named, or the checked-out branch
+3. Look for a run file, described in "Run state" below, whose snapshot is on the source branch. When one exists, this
    is a resume. Take the plan, PRs, policy, and deadline from it, report them in one line, and go to Step 5
-3. Fix the snapshot. When `$ARGUMENTS` names a commit, the snapshot is that commit, and it must be on the source branch.
+4. Fix the snapshot. When `$ARGUMENTS` names a commit, the snapshot is that commit, and it must be on the source branch.
    Otherwise it is the source branch's tip, now. Record its full hash. Commits the user adds later are not part of this
    run. Uncommitted changes in the user's checkout are never part of it
-4. Find the range: `git merge-base origin/<mainline> <snapshot>`, then
+5. Find the range: `git merge-base <mainline-remote>/<mainline> <snapshot>`, then
    `git log --reverse --no-merges --format='%h %s' <base>..<snapshot>`. A range with merge commits from the
    mainline is fine, since `--no-merges` leaves them out. A range with other merges needs the user. Report it and stop.
    Stop too when the range is empty. In that stop message, list the local branches that hold work the mainline lacks.
-   For each branch from `git for-each-ref refs/heads`, run `git cherry origin/<mainline> <branch>`. Keep the branch
-   when any line starts with `+`, and show its count of `+` lines. The user's next `/land-branch <branch>` is then
-   obvious
-5. Run `pr_watch.py preflight --base <mainline>` through `cg_run`, as `merge-fix-loop` describes
-6. Read what the repository says about kinds of change that merge differently. Look in `CONTRIBUTING.md`, the project's
+   For each branch from `git for-each-ref refs/heads`, run `git cherry <mainline-remote>/<mainline> <branch>`. Keep the
+   branch when any line starts with `+`, and show its count of `+` lines.
+   The user's next `/land-branch <branch>` is then obvious
+6. When the mainline is not preflight's `base`, run `pr_watch.py preflight --base <mainline>` again
+7. Read what the repository says about kinds of change that merge differently. Look in `CONTRIBUTING.md`, the project's
    `CLAUDE.md` or `AGENTS.md`, `CODEOWNERS`, the rulesets and branch protection preflight reported, and the `paths` and
    `paths-ignore` filters in CI workflows. Note each kind that merges with fewer checks or without review, such as docs
    whose CI skips the test job. Only what the repository states counts. When it states nothing, there is no such kind
-7. Decide whether stacking is on offer. Stacked PRs need merge commits. All of these must hold:
+8. Decide whether stacking is on offer. Stacked PRs need merge commits. All of these must hold:
    - The merge method this run will use is MERGE. Take it from the repository's guidance, else from
      `viewerDefaultMergeMethod`, as `merge-fix-loop` Step 5.3 does. It applies to parents and children alike
    - Preflight's `merge_methods.allowed` includes MERGE
    - Preflight reports no `merge_queue`
+   - Preflight's `remotes.fork` is false. A PR's base must be a branch in the base repo, and a fork push never puts one
+     there
 
    Then preflight's `ci_builds_other_bases` sets the recommendation. `yes` recommends stacking. `unknown` offers it
    without a recommendation. `no` does not offer it. Name the failed condition in the report.
@@ -64,30 +69,30 @@ No question belongs in this step. A rebase conflict in item 9 is a stop, not a q
    When guidance is silent and the viewer default is not MERGE, stacking would force MERGE. That changes the mainline's
    history shape. Offer it with that stated, and do not recommend it. `deleteBranchOnMerge` is not a condition, since
    Step 5 retargets children before the parent branch is deleted
-8. Do the rest of `merge-fix-loop` Step 1: the local check command, and who reviews here
-9. Stage the snapshot and rebase it. A branch landed before still holds the commits that landed, since landing copies
-   them and leaves the user's branch alone. The rebase drops them, so every run plans against today's mainline. Create
-   the staging branch and its worktree at the snapshot:
-   `git worktree add --no-track -b agent/stage/<topic> .claude/worktrees/stage-<topic> <snapshot>`. It is never pushed.
-   Record `git rev-parse origin/<mainline>` as `onto`. Then run `git rebase <onto>` in that worktree. Git skips each
-   commit the mainline already has, and drops each one that becomes empty because it landed with edits. It keeps
-   commits that were empty to begin with, such as snip markers. On a conflict, never resolve a file wholesale with
-   `--ours` or `--theirs`:
-   - First check whether the mainline already has the commit in edited form: `git log <onto> -F --grep=<subject>`, or
-     cherry-pick it onto `<onto>` in a throwaway detached worktree. An empty pick means its content already landed.
-     When it has, show the conflicting hunk beside the mainline's version, and stop. Ask the user whether to run
-     `git rebase --skip`
-   - Regenerate a generated file, such as a lockfile, with the project's own tool. Never merge one by hand
-   - Stop on any other conflict. Show it, and ask the user. `git rebase --abort` returns the staging branch to the
-     snapshot
-10. Run the clobber guard. List the files the rebased range touches with `git diff --name-only <onto>..HEAD`. For each
+9. Do the rest of `merge-fix-loop` Step 1: the local check command, and who reviews here
+10. Stage the snapshot and rebase it. A branch landed before still holds the commits that landed, since landing copies
+    them and leaves the user's branch alone. The rebase drops them, so every run plans against today's mainline. Create
+    the staging branch and its worktree at the snapshot:
+    `git worktree add --no-track -b agent/stage/<topic> .claude/worktrees/stage-<topic> <snapshot>`. It is never
+    pushed. Record `git rev-parse <mainline-remote>/<mainline>` as `onto`. Then run `git rebase <onto>` in that
+    worktree. Git skips each commit the mainline already has, and drops each one that becomes empty because it landed
+    with edits. It keeps commits that were empty to begin with, such as snip markers. On a conflict, never resolve a
+    file wholesale with `--ours` or `--theirs`:
+    - First check whether the mainline already has the commit in edited form: `git log <onto> -F --grep=<subject>`,
+      or cherry-pick it onto `<onto>` in a throwaway detached worktree. An empty pick means its content already
+      landed. When it has, show the conflicting hunk beside the mainline's version, and stop. Ask the user whether to
+      run `git rebase --skip`
+    - Regenerate a generated file, such as a lockfile, with the project's own tool. Never merge one by hand
+    - Stop on any other conflict. Show it, and ask the user. `git rebase --abort` returns the staging branch to the
+      snapshot
+11. Run the clobber guard. List the files the rebased range touches with `git diff --name-only <onto>..HEAD`. For each
     one, every difference in `git diff <snapshot> HEAD -- <file>` must also show in
     `git diff $(git merge-base <snapshot> <onto>) <onto> -- <file>`, because it came from the mainline. Stop on any
     difference that did not, and show it to the user
-11. Pick the batch. A snip marker is an empty commit, its tree equal to its parent's, whose subject starts with
+12. Pick the batch. A snip marker is an empty commit, its tree equal to its parent's, whose subject starts with
     `8< --- snip ---`. The markers in `<onto>..HEAD` cut it into segments: before the first marker, between markers,
     and after the last one. Drop the segments with no commits, such as one whose work all landed. When no commit is
-    left outside the markers, the work has landed. Stop and say so, and list the branches with unlanded work as item 4
+    left outside the markers, the work has landed. Stop and say so, and list the branches with unlanded work as item 5
     does, ignoring snips. The segments make a drop of redundant snips unneeded on the staging branch.
 
     When `$ARGUMENTS` named a commit, or the range has no marker, the batch tip is `HEAD`. Otherwise it is the marker
@@ -169,10 +174,10 @@ user's branch moves. Its batch tip is the reference the final check compares aga
 A serial batch is ready when every batch in its `after` list has merged. A stacked batch is ready once its parent's
 branch is pushed. For each ready batch:
 
-1. Run `git fetch origin`
+1. Run `git fetch <mainline-remote>`
 2. Create the batch branch in its own worktree. A serial batch starts from the current mainline:
-   `git worktree add --no-track -b agent/<topic>/<batch> .claude/worktrees/<topic>-<batch> origin/<mainline>`. A stacked
-   batch starts from its parent's tip, `origin/agent/<topic>/<parent>`, also with `--no-track`
+   `git worktree add --no-track -b agent/<topic>/<batch> .claude/worktrees/<topic>-<batch> <mainline-remote>/<mainline>`.
+   A stacked batch starts from its parent's tip, `<push-remote>/agent/<topic>/<parent>`, also with `--no-track`
 3. Cherry-pick the batch's commits in order. A batch whose `after` batches merged, or whose parent branch it started
    from, already has their work, so it cherry-picks only its own commits. A conflict here means the mainline moved under
    the plan. Resolve it when the resolution is mechanical. When it needs a judgement, show the user both sides, and keep
@@ -197,8 +202,8 @@ The rules here add to `merge-fix-loop`. They apply only to a run that stacked.
   `gh pr edit N --base <mainline>`. GitHub may have retargeted it already, so the edit is safe to repeat. A retarget
   changes no SHA, so no `checks-done` fires again. Run `pr_watch.py snapshot` on the child to read its checks
 - **Reuse or rebase.** Reuse the child's passing checks, unless one of these holds. Then rebase the child onto the
-  mainline in its worktree with `git rebase origin/<mainline>`, run the local checks, and push with a pinned lease as
-  `merge-fix-loop` "The PR conflicts with its base" says:
+  mainline in its worktree with `git rebase <mainline-remote>/<mainline>`, run the local checks, and push with a pinned
+  lease as `merge-fix-loop` "The PR conflicts with its base" says:
   - a required check is missing, `ACTION_REQUIRED`, or failing on the head
   - the mainline requires up-to-date branches, so the child is `BEHIND`
   - a parent fix has not reached the child
@@ -211,9 +216,9 @@ The rules here add to `merge-fix-loop`. They apply only to a run that stacked.
   never a worse one. Never close and reopen a PR to start a build. The watcher treats closed as final
 - **A parent was pushed to.** Every push to a parent batch must reach each open child. That covers a fix, and a rebase
   of the parent onto the mainline that resolved a conflict. Before the parent's push, note its old head. Then rebase
-  each child onto the new parent with `git rebase --onto origin/<parent> <old parent head>`, run the local checks, and
-  push with a pinned lease. Never merge the parent into the child. The child must not merge until that is done and its
-  required checks pass on the new head. A conflict that needs a judgement goes to the user, as in Step 5.3
+  each child onto the new parent with `git rebase --onto <push-remote>/<parent> <old parent head>`, run the local
+  checks, and push with a pinned lease. Never merge the parent into the child. The child must not merge until that is
+  done and its required checks pass on the new head. A conflict that needs a judgement goes to the user, as in Step 5.3
 - **A parent closed without merging.** Mark its stacked children stopped. Never retarget them, since they carry the
   parent's unmerged commits. Report it to the user
 
@@ -221,9 +226,9 @@ The rules here add to `merge-fix-loop`. They apply only to a run that stacked.
 
 When every batch has merged:
 
-1. Run `git fetch origin`. Compare the batch tip with the mainline over the files the range touched:
-   `git diff <batch tip> origin/<mainline> -- <files>`. Every difference must trace to a fix this run pushed or to other
-   work merged into the mainline meanwhile. Report anything else as lost work
+1. Run `git fetch <mainline-remote>`. Compare the batch tip with the mainline over the files the range touched:
+   `git diff <batch tip> <mainline-remote>/<mainline> -- <files>`. Every difference must trace to a fix this run pushed
+   or to other work merged into the mainline meanwhile. Report anything else as lost work
 2. Remove the staging worktree with `git worktree remove`, and delete the staging branch with `git branch -D`. The
    comparison above showed its work landed. Delete the run file and its watch state file
 3. Tell the user which commits landed: those up to the batch tip. Their branch still holds the originals. Rebasing it

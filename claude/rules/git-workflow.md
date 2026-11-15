@@ -34,7 +34,8 @@ is the user's, including the checked-out branch and the mainline.
   A branch started from a remote-tracking ref otherwise tracks that ref
 - Push an agent-owned branch by full refspec: `git push -u origin refs/heads/<branch>:refs/heads/<branch>`. A short
   name is not safe. Under `push.default=upstream`, it pushes to the branch's upstream. That upstream can be the mainline
-  or a parent branch
+  or a parent branch. `origin` in these commands is the remote the branch pushes to. In a fork checkout, that is the
+  fork, and the mainline comes from another remote. `pr_watch.py preflight` names both
 - Push a rebased agent-owned branch with
   `git push --force-with-lease=<branch>:<sha> origin refs/heads/<branch>:refs/heads/<branch>`. The `<sha>` is the remote
   head the rebase started from. A bare `--force-with-lease` checks against the remote-tracking ref, and any `git fetch`

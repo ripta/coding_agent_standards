@@ -199,6 +199,16 @@ def documented(prefix: str, needle: str) -> list[tuple[str, str]]:
 
 
 FIRST_PUSHES = documented("git push -u", "<branch>")
+
+# The test clone has one remote, so the remote a branch pushes to is `origin`. In a fork checkout the
+# skills push to the fork instead, but the refspec must still land on the branch.
+PUSH_REMOTE = {"<push-remote>": "origin"}
+
+
+def fill(command: str, **values: str) -> list[str]:
+    for placeholder, value in {**PUSH_REMOTE, **{f"<{k}>": v for k, v in values.items()}}.items():
+        command = command.replace(placeholder, value)
+    return shlex.split(command)[1:]
 LEASE_PUSHES = documented("git push --force-with-lease", "<branch>")
 WORKTREE_ADDS = documented("git worktree add", " -b ")
 
@@ -256,7 +266,7 @@ def test_first_push_lands_on_the_branch_not_its_upstream(clone: Path, where: str
     mainline = remote_head(origin, "main")
     branch_tracking_mainline(clone)
 
-    run_git(clone, *shlex.split(command.replace("<branch>", BRANCH))[1:])
+    run_git(clone, *fill(command, branch=BRANCH))
 
     assert remote_head(origin, "main") == mainline
     assert remote_head(origin, BRANCH) == run_git(clone, "rev-parse", "HEAD").stdout.strip()
@@ -273,7 +283,7 @@ def test_lease_push_lands_on_the_branch_and_stays_pinned(clone: Path, where: str
     run_git(clone, "commit", "-q", "--amend", "--allow-empty", "-m", "rebased")
 
     def args(sha: str) -> list[str]:
-        return shlex.split(command.replace("<branch>", BRANCH).replace("<sha>", sha))[1:]
+        return fill(command, branch=BRANCH, sha=sha)
 
     assert run_git(clone, *args(mainline), check=False).returncode != 0
     assert remote_head(origin, BRANCH) == pushed
