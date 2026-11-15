@@ -9,7 +9,9 @@ import time
 from pathlib import Path
 
 SCRIPT = Path(__file__).parent / "guardian_hooks.py"
-DOMAIN = {"entries": [{"checkout": "/work/cas", "scopes": ["claude/"]}]}
+POLICY = {"branch": "main", "push": False, "style": "rules/commit-style.md"}
+ENTRY = {"checkout": "/work/cas", "scopes": ["claude/"], "commit_policy": POLICY, "visibility": "public"}
+DOMAIN = {"entries": [ENTRY]}
 
 
 SESSION_END = Path(__file__).parent.parent / "hooks" / "guardian-session-end.sh"
@@ -128,17 +130,83 @@ def test_a_failing_hook_does_not_stop_the_others(tmp_path: Path) -> None:
 def test_scopes_default_to_the_whole_checkout(tmp_path: Path) -> None:
     add_hook(tmp_path, "start", "echo", "cat")
 
-    result = run(tmp_path, "start", "cas", stdin=json.dumps({"entries": [{"checkout": "/work/cas"}]}))
+    entry = {k: v for k, v in ENTRY.items() if k != "scopes"}
+    result = run(tmp_path, "start", "cas", stdin=json.dumps({"entries": [entry]}))
 
     [item] = json.loads(result.stdout)
-    assert json.loads(item["stdout"])["entries"] == [{"checkout": "/work/cas", "scopes": []}]
+    assert json.loads(item["stdout"])["entries"] == [dict(ENTRY, scopes=[])]
 
 
 def test_a_relative_checkout_is_rejected(tmp_path: Path) -> None:
-    result = run(tmp_path, "start", "cas", stdin=json.dumps({"entries": [{"checkout": "cas"}]}))
+    result = run(tmp_path, "start", "cas", stdin=json.dumps({"entries": [dict(ENTRY, checkout="cas")]}))
 
     assert result.returncode == 1
     assert "absolute" in result.stderr
+
+
+def saved_path(home: Path) -> Path:
+    return home / ".local" / "state" / "coding_agent_standards" / "guardians" / "cas" / "domain.json"
+
+
+def test_start_rejects_an_entry_without_its_commit_policy_or_visibility(tmp_path: Path) -> None:
+    """Catches a start that saves a domain a restart could not reuse without asking."""
+    bare = {"checkout": "/work/cas", "scopes": []}
+
+    result = run(tmp_path, "start", "cas", stdin=json.dumps({"entries": [bare]}))
+
+    assert result.returncode == 1
+    assert "commit_policy" in result.stderr
+    assert "visibility" in result.stderr
+    assert not saved_path(tmp_path).exists()
+
+
+def test_saved_reports_a_complete_domain_with_no_problems(tmp_path: Path) -> None:
+    checkout = tmp_path / "cas"
+    checkout.mkdir()
+    domain = {"entries": [dict(ENTRY, checkout=str(checkout))]}
+    run(tmp_path, "start", "cas", stdin=json.dumps(domain))
+
+    result = run(tmp_path, "saved", "cas")
+
+    assert result.returncode == 0
+    assert json.loads(result.stdout) == {"domain": domain, "problems": []}
+
+
+def test_saved_names_each_missing_setting_and_vanished_checkout(tmp_path: Path) -> None:
+    """Catches a restart that reuses a domain saved before policy and visibility were recorded."""
+    present = tmp_path / "present"
+    present.mkdir()
+    saved_path(tmp_path).parent.mkdir(parents=True)
+    saved_path(tmp_path).write_text(json.dumps({"entries": [
+        {"checkout": str(present), "scopes": []},
+        dict(ENTRY, checkout=str(tmp_path / "gone")),
+    ]}))
+
+    report = json.loads(run(tmp_path, "saved", "cas").stdout)
+
+    assert report["problems"] == [
+        f"{present} has no commit_policy with branch, push, and style",
+        f"{present} has no visibility of private, protected, public",
+        f"{tmp_path / 'gone'} no longer exists",
+    ]
+
+
+def test_saved_without_a_domain_says_so(tmp_path: Path) -> None:
+    report = json.loads(run(tmp_path, "saved", "cas").stdout)
+
+    assert report["domain"] is None
+    assert report["problems"][0].startswith("no saved domain")
+
+
+def test_stop_still_reads_a_domain_saved_before_policy_and_visibility(tmp_path: Path) -> None:
+    saved_path(tmp_path).parent.mkdir(parents=True)
+    saved_path(tmp_path).write_text(json.dumps({"entries": [{"checkout": "/work/cas", "scopes": []}]}))
+    add_hook(tmp_path, "stop", "release", "cat")
+
+    result = run(tmp_path, "stop", "cas")
+
+    [item] = json.loads(result.stdout)
+    assert item["status"] == 0
 
 
 def test_usage_errors(tmp_path: Path) -> None:
@@ -146,6 +214,7 @@ def test_usage_errors(tmp_path: Path) -> None:
     assert run(tmp_path, "start").returncode == 1
     assert run(tmp_path, "start", "../x", stdin=json.dumps(DOMAIN)).returncode == 1
     assert run(tmp_path, "start", "cas", "--detach", stdin=json.dumps(DOMAIN)).returncode == 1
+    assert run(tmp_path, "saved", "cas", "--detach").returncode == 1
 
 
 def test_session_end_runs_the_stop_hooks_for_the_session_that_started(tmp_path: Path) -> None:

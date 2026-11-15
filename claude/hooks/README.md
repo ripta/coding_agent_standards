@@ -29,7 +29,8 @@
   gets a check of the link, and a one-line notice when the project's imports
   read the installed snapshot while the tools come from the working tree.
   `guardian-session-start.sh` tells a `<domain name>_guardian` session that
-  comes back by resume, `/clear`, or fork to re-run its Starting steps.
+  comes back by resume, `/clear`, or fork to re-run its Starting steps. It
+  passes on the saved domain, so a complete one is reused without asking.
   `standards-on-demand.py` forgets which docs it named once the session
   compacts or clears. See `PreToolUse` below.
 - `UserPromptSubmit` runs `name-guardian.sh`. When the prompt is `/guardian`
@@ -177,8 +178,9 @@ insufficient:
   It guards the wrong boundary. A guardian needs a request's private evidence to verify it, and
   nothing is disclosed until a commit. It would also first need a check that a `PreToolUse`
   matcher fires on `SendMessage`.
-- Recording each entry's visibility in the `domain.json` that the guardian start hooks save beside
-  the ledger. The commit-time guard reads the repo's own visibility instead, so it needs none.
+- Reading each entry's visibility from the `domain.json` that the guardian start hooks save beside
+  the ledger. The file records it so a restarted guardian can reuse it, but the commit-time guard
+  reads the repo's own visibility instead.
 
 ## Tests
 

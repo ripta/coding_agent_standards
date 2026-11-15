@@ -15,7 +15,8 @@ Do not enter plan mode. A guardian edits and commits as requests settle.
 1. Work through the guide's Starting section. When $ARGUMENTS does not start
    with a domain name, stop and ask the user to rerun this command with one.
    Only the typed command line names the session. When $ARGUMENTS gives no
-   checkouts, ask for them via AskUserQuestion.
+   checkouts, reuse the saved domain as the guide says. Ask via
+   AskUserQuestion only for what the saved domain and the ledger both lack.
 
 2. Wait. Each cross-session message is a request. Handle it by the guide's
    Handling a Request section, and keep the ledger current.

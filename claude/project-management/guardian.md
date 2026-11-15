@@ -32,10 +32,14 @@ starting reads only what is still open.
 1. Settle the domain. The domain name is the first argument to `/guardian`. Without one, stop before any other step.
    Tell the user to rerun it as `/guardian <domain name>`, followed by any checkouts and scopes. A first argument that
    is a path is a checkout, not a name. Do not ask for the name instead. A name given as an answer cannot name the
-   session. See step 2. Take the checkouts and scopes from the arguments when given. Otherwise ask the user, via
-   AskUserQuestion, for each checkout and its scopes. Ask for each entry's commit policy too, and offer the default
-   first. Read each entry's visibility from its host, and ask the user to confirm it in the same call. See
-   `rules/disclosure.md` "Visibility".
+   session. See step 2. Take the checkouts and scopes from the arguments when given. Otherwise reuse the saved domain.
+   `python3 <plugin root>/scripts/guardian_hooks.py saved <domain name>` prints it with a list of problems. With no
+   problems, reuse every entry as saved, its commit policy and visibility included, and ask the user nothing. A repo's
+   visibility changes only by the user's own act, so a saved visibility is never rechecked. For each problem, take the
+   missing setting from the ledger header first. Ask only for what neither holds, or for an entry the arguments add. Ask
+   in one AskUserQuestion call. With no saved domain, ask for each checkout and its scopes. Ask for each new entry's
+   commit policy too, and offer the default first. Read each entry's visibility from its host, and ask the user to
+   confirm it in the same call. See `rules/disclosure.md` "Visibility".
 2. Check the session name. Call ListAgents. Its first line names this session. Only a prompt the user types can name a
    session. The session itself never can, at any point. The plugin's `name-guardian.sh` hook reads the `/guardian`
    line before the command runs, and names the session `<domain name>_guardian`. The user's `/rename` is the only
@@ -47,25 +51,31 @@ starting reads only what is still open.
    cannot be written, use the session's scratchpad instead, and tell the user that the ledger will not outlive the
    session. When a ledger already exists, read it. Its open requests are still open. Leave `ledger-archive.md` beside it
    unread. See "Ledger Format". The ledger opens with the domain, and each entry's commit policy and visibility.
+   Rewrite that header only when the domain changes. A restart adds nothing to it.
 5. Run the start hooks. See "Hooks". Pass the domain on stdin with a heredoc:
 
    ```sh
    python3 <plugin root>/scripts/guardian_hooks.py start <domain name> <<'EOF'
-   {"entries": [{"checkout": "/abs/path/to/checkout", "scopes": ["claude/"]}]}
+   {"entries": [{"checkout": "/abs/path/to/checkout", "scopes": ["claude/"],
+                 "commit_policy": {"branch": "main", "push": false, "style": "rules/commit-style.md"},
+                 "visibility": "public"}]}
    EOF
    ```
 
    The plugin root is the directory that holds this file's `project-management/`. An entry with no scopes covers the
-   whole checkout. The script prints one result per hook. Report each hook that
-   failed to the user, and carry on.
+   whole checkout. Every entry needs its commit policy and visibility, which a restart reuses. The `branch` is the
+   branch commits go on, `push` says whether pushing is allowed, and `style` names where the commit style comes from.
+   The script prints one result per hook. Report each hook that failed to the user, and carry on.
 6. Tell the user the domain, each entry's commit policy and visibility, the ledger's path, and which hooks ran. Then
    wait for requests.
 
-A guardian session that comes back by resume, `/clear`, or fork re-runs every step above before it handles a request.
-Leaving the session ran its stop hooks, so the start hooks must run again. A fork also claims its parent's name, so the
-rival check must run. The plugin's `guardian-session-start.sh` SessionStart hook tells the session to do this. It
-finds a guardian by its `<domain name>_guardian` title. A session that cannot re-run Starting is not resumed. Its user
-starts a fresh one with `/guardian <domain name>`.
+A guardian session that comes back by resume, `/clear`, or fork re-runs every step above before it handles a request. It
+reuses the saved domain in step 1, so a restart with a complete one asks the user nothing. Leaving the session ran its
+stop hooks, so the start hooks must run again. A fork also claims its parent's name, so the rival check must run.
+
+The plugin's `guardian-session-start.sh` SessionStart hook tells the session to do this. It finds a guardian by its
+`<domain name>_guardian` title, and passes on the saved domain and its problems. A session that cannot re-run Starting
+is not resumed. Its user starts a fresh one with `/guardian <domain name>`.
 
 ## Handling a Request
 
