@@ -552,6 +552,39 @@ Ask in chat when the tool cannot represent the batch or multiple selections.""")
         ("""No code reads, no Agent sub-tasks for codebase exploration,""",
          """No code reads, no subagents for codebase exploration,"""),
     ),
+    'bug-sweep': (
+        ("""This skill is the coordinator. Subagents triage and fix. You check their work, commit it, and roll back what fails.""",
+         """This skill is the coordinator. Subagents triage and fix. You check their work, commit it, and roll back what fails.
+
+Use the session's exposed spawn and wait tools. Tool names and schemas vary between Codex surfaces. Each subagent is
+an ordinary Codex subagent, and it inherits the session's model settings. If delegation is unavailable, stop before
+Step 5 and explain the missing capability. Do not triage or fix in this session instead."""),
+        ("""to `bug-sweep-run.md` in the session's scratchpad.""",
+         """to `bug-sweep-run.md` under `$TMPDIR`."""),
+        ("""The options are `Start the sweep` and `Cancel`.""",
+         """The options are `Start the sweep` and `Cancel`. Wait for an explicit answer. An empty answer, preselected
+default, timeout, or tool permission grant is not approval."""),
+        ("""Work the list oldest first. Run one subagent at a time, in the foreground.""",
+         """Work the list oldest first. Run one subagent at a time, and wait for its report before starting the next."""),
+        ("""Every brief that names `bug-triage` gives the absolute path of its directory. It also says that `${CLAUDE_SKILL_DIR}` in
+that file means that directory, since a subagent reads the file raw.""",
+         """Every brief that names `bug-triage` gives the absolute path of its `SKILL.md`. It also says to resolve that file's
+relative paths against its directory."""),
+        ("""Start a fresh `general-purpose` agent with model
+   `sonnet`.""",
+         """Start a fresh subagent."""),
+        ("""Start a second fresh `general-purpose` agent with model
+   `sonnet`.""",
+         """Start a second fresh
+   subagent."""),
+        ("""Start a `design-critic` agent.""",
+         """Start a fresh subagent with the role instructions at
+   `${CLAUDE_PLUGIN_ROOT}/references/agents/design-critic.md`."""),
+        ("""- This skill runs only when the user types `/bug-sweep`. Its frontmatter sets `disable-model-invocation: true`, so an
+  autonomous run elsewhere cannot start it. Do not remove that field.""",
+         """- This skill runs only when the user invokes it explicitly. Its `agents/openai.yaml` disallows implicit
+  invocation, so an autonomous run elsewhere cannot start it."""),
+    ),
     'test-audit': (
         ("""Present every batch in one AskUserQuestion call, with `multiSelect`, so the user picks which to apply. Each option's
 description carries the coverage given up and the time and upkeep saved. When there are more batches than fit, offer
@@ -580,7 +613,7 @@ def translate(text, name):
         if text.count(old) != 1:
             raise ValueError(f"{name}: stale Codex adaptation for {old[:80]!r}")
         text = text.replace(old, new, 1)
-    if name in ("work-queue", "work-on", "schedule-proposal"):
+    if name in ("work-queue", "work-on", "schedule-proposal", "bug-triage", "bug-sweep"):
         text = text.replace("Use Explore agents", "Use read-only exploration subagents")
         text = text.replace("AskUserQuestion", "available user-question")
         text = text.replace("multi-select question", "question accepting IDs in text")

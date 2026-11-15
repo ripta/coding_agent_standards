@@ -13,9 +13,9 @@ REPO = Path(__file__).resolve().parent.parent
 SOURCE = REPO / "claude"
 OUTPUT = REPO / "dist" / "codex"
 SKILLS = (
-    "debug-ci", "format-checker", "gitignore-maintainer", "go-code-reviewer", "land-branch", "lint-runner",
-    "makefile-helper", "merge-fix-loop", "proposal-reviewer", "release", "risk-assessment", "schedule-proposal",
-    "session-report", "test-audit", "testing-specialist",
+    "bug-sweep", "bug-triage", "debug-ci", "format-checker", "gitignore-maintainer", "go-code-reviewer", "land-branch",
+    "lint-runner", "makefile-helper", "merge-fix-loop", "proposal-reviewer", "release", "risk-assessment",
+    "schedule-proposal", "session-report", "test-audit", "testing-specialist",
 )
 COMMANDS = ("next-pr", "pr-description", "summary", "work-on", "work-queue")
 SCRIPTS = ("batch_plan.py", "detect_era.py", "land_batch.py", "pr_watch.py", "proposals.py", "snips.py", "test_cost.py")
@@ -25,7 +25,7 @@ UNSUPPORTED = re.compile(
     r"AskUserQuestion|Agent tool|Agent sub-tasks|coding-standards:|"
     r"agent_liveness\.py|TaskStop|<output-file>|Skill tool|scratchpad|\.claude/worktrees|"
     r"Bash sandbox|Bash with the sandbox disabled|watcher or Monitor|! gcloud|plan-mode|/land-branch |"
-    r"/merge-fix-loop "
+    r"/merge-fix-loop |general-purpose"
 )
 translate = runpy.run_path(str(REPO / "codex" / "scripts" / "translate.py"))["translate"]
 

@@ -103,6 +103,30 @@ class BaselineBuildTests(unittest.TestCase):
             policy = skill / "agents" / "openai.yaml"
             self.assertIn("allow_implicit_invocation: false", policy.read_text())
 
+    def test_bug_sweep_reaches_bug_triage_and_its_critic_after_relocation(self):
+        """Protect the bug-sweep bundle: the triage skill, critic role, and rules it reads ship, and it stays explicit.
+
+        This does not run a sweep, so it cannot prove the subagent briefs work in Codex.
+        """
+        with tempfile.TemporaryDirectory(prefix="codex bug sweep ") as temporary:
+            output = Path(temporary) / "bundle"
+            with patch.dict(self.namespace, OUTPUT=output), patch("sys.argv", [str(BUILD)]):
+                self.builder["main"]()
+            moved = output.rename(Path(temporary) / "relocated bundle")
+            for name in ("bug-sweep", "bug-triage"):
+                document = moved / "skills" / name / "SKILL.md"
+                with self.subTest(skill=name):
+                    contents = document.read_text()
+                    self.assertIsNone(self.builder["UNSUPPORTED"].search(contents))
+                    for relative in re.findall(r"(?:\./)?(?:\.\./)+[\w./-]+", contents):
+                        target = (document.parent / relative).resolve()
+                        self.assertTrue(target.is_relative_to(moved.resolve()))
+                        self.assertTrue(target.exists(), f"{document}: {relative}")
+            sweep = (moved / "skills" / "bug-sweep" / "SKILL.md").read_text()
+            self.assertIn("references/agents/design-critic.md", sweep)
+            policy = moved / "skills" / "bug-sweep" / "agents" / "openai.yaml"
+            self.assertIn("allow_implicit_invocation: false", policy.read_text())
+
     def test_proposal_review_dependencies_survive_relocation_without_claude_tools(self):
         """Protect the portable review bundle; this does not execute a model-driven review."""
         with tempfile.TemporaryDirectory(prefix="codex proposal ") as temporary:
