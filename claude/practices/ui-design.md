@@ -77,8 +77,11 @@ what one platform needs on top of this one:
 - Targets are at least 24 by 24 CSS pixels. A smaller target passes only when a 24-pixel circle centered on it does
   not intersect another target, or another small target's circle. Primary touch targets should reach 44 by 44, which
   matches Apple's 44-point minimum on iPhone and iPad.
-- Guard destructive actions. Prefer undo over a confirmation dialog. When an action cannot be undone, the confirmation
-  names what will be lost, and its button repeats the verb.
+- Guard destructive actions. Prefer undo or reopen over a confirmation dialog. Users learn to accept confirmations
+  without reading them, so a confirmation protects little. When the loss falls on a program rather than on the user,
+  notify that program and do not confirm. For example, when the user closes a prompt a script is waiting on, tell the
+  script the prompt was dismissed. Keep a confirmation only for user work that nothing can restore. It names what will
+  be lost, and its button repeats the verb.
 
 ## Forms
 

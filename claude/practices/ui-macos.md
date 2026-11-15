@@ -14,8 +14,8 @@ the guidelines.
 - Support multiple windows when documents or items are independent. Windows restore their size, position, and state
   on relaunch.
 - Selection-based UI follows the platform: Command-click and Shift-click extend a selection, and Delete acts on it.
-- Prefer undo to confirmation. Register undo with the `UndoManager` from `\.undoManager`. It is `nil` where the
-  context does not support undo.
+- Prefer undo or reopen to confirmation. Register undo with the `UndoManager` from `\.undoManager`. It is `nil` where
+  the context does not support undo.
 - Use system controls and SF Symbols before custom ones. They follow accent color, vibrancy, and accessibility
   settings without extra work.
 
