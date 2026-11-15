@@ -166,32 +166,89 @@ names. It authorizes nothing else.
 
 ## Step 4: Record the run
 
-Once the user approves, write the run file. The staging branch from Step 1 holds the rebased snapshot steady while the
+Once the user approves, record the run. The staging branch from Step 1 holds the rebased snapshot steady while the
 user's branch moves. Its batch tip is the reference the final check compares against.
+
+A serial run records itself with `${CLAUDE_SKILL_DIR}/../../scripts/land_batch.py`. Save preflight's output and the
+verified plan to files in the scratchpad. Then run, through `cg_run`:
+
+```sh
+python3 land_batch.py init --plan <plan> --preflight <preflight> --snapshot <snapshot> --onto <onto> \
+  --batch-tip <batch tip> --mainline <mainline> --merge-method <method> --topic <topic> \
+  --worktrees .claude/worktrees --staging-branch agent/stage/<topic> --staging-worktree <staging worktree> \
+  --check-command '<local check command>' --review-policy <policy> --deadline <ISO 8601 time>
+```
+
+The merge method is the one Step 1 item 8 settled. The script's docstring defines the run file. `init` prints the run
+file's path and the watch state file's path. From then on, only `land_batch.py` writes the run file. A run that stacks
+keeps its run file by hand instead. See "Run state".
 
 ## Step 5: Land the batches
 
 A serial batch is ready when every batch in its `after` list has merged. A stacked batch is ready once its parent's
-branch is pushed. For each ready batch:
+branch is pushed. A serial run lands each batch through `land_batch.py`, as below. A run that stacks lands each batch by
+hand, as "By hand" describes.
+
+Run every `land_batch.py` command through `cg_run` from the user's checkout. Each prints one JSON object. Exit 0 means
+the step is done. Exit 3 is a `stop` for you to act on. The worktree, branch, and PR stay in place. Re-run the same
+command once you have acted, and it picks up from the live state. Exit 2 is a git or gh command that failed. Read its
+`error`.
+
+For each ready serial batch:
+
+1. Write its PR title and body to files in the scratchpad. The title comes from the plan. Write the body from that
+   batch's own diff, by following `${CLAUDE_SKILL_DIR}/../../commands/pr-description.md`. Name the batches it lands
+   after
+2. Run `land_batch.py open --run <run> --batch <name> --title-file <file> --body-file <file>`. Set the cg wait above
+   the local checks' usual duration. It fetches the remotes and creates the batch branch from
+   `<mainline-remote>/<mainline>` in its own worktree. Then it cherry-picks the batch's commits, runs the local checks,
+   pushes to `<push-remote>`, opens the PR against the mainline, and writes the PR's `merge-fix-loop` `.loop.json`.
+   `land_batch.py status --run <run>` lists the ready batches
+
+Then watch every open batch PR with one watcher: `pr_watch.py watch --pr N --pr M --state FILE --timeout T`, one
+`--pr` per open PR, and the run's watch state file. Re-arm it after every step below. Act on each event as
+`merge-fix-loop` Step 6 describes, in that batch's worktree, with these additions:
+
+- **`checks-done` with nothing failed.** Run `land_batch.py merge --run <run> --batch <name>`. It turns on merging only
+  when the PR's base is the mainline, its head is the one `open` pushed, and every check finished with none failed
+- **`merged`.** Run `land_batch.py finish --run <run> --batch <name>`. It removes the worktree, the local branch, and
+  the pushed branch, and deletes the PR's state files. Its `ready` list names the batches to `open` next
+- **Any change to a batch branch.** A fix for a failed check or a review comment, and a rebase after a conflict, all
+  start in the batch's worktree. Commit or rebase there, then re-run `open`. It reruns the local checks on the new head
+  and pushes it, with a lease pinned to the head it last pushed when a rebase rewrote the branch. Never push a batch
+  branch by hand in a serial run. The run file would not know the new head, and `merge` refuses a head it did not push
+
+Act on each `stop` by its name:
+
+- `cherry-pick-conflict` means the mainline moved under the plan. Resolve it in the worktree when the resolution is
+  mechanical, and finish with `git cherry-pick --continue`. When it needs a judgement, show the user both sides, and
+  keep landing the other batches. A pick that came out empty already landed. Show it to the user. Skip it only with
+  their answer, then re-run `open` with `--picked`
+- `local-checks-failed` names a log. Classify the failure as `merge-fix-loop` "A check failed" says, and fix it as above
+- `checks-pending` and `not-clean` wait for the next event. `no-checks` follows `merge-fix-loop` Step 5.2
+- `not-ready`, `not-merged`, and `not-open` mean the command came too early or too late. Check `status`
+- `head-moved` and `base-not-mainline` mean someone else changed the PR. Stop that batch and tell the user
+- `open-prs-on-branch` means a PR is based on the batch's branch. Report it before anything deletes the branch
+
+### By hand
+
+A run that stacks lands each ready batch with these steps:
 
 1. Run `git fetch <mainline-remote>`
 2. Create the batch branch in its own worktree. A serial batch starts from the current mainline:
    `git worktree add --no-track -b agent/<topic>/<batch> .claude/worktrees/<topic>-<batch> <mainline-remote>/<mainline>`.
    A stacked batch starts from its parent's tip, `<push-remote>/agent/<topic>/<parent>`, also with `--no-track`
 3. Cherry-pick the batch's commits in order. A batch whose `after` batches merged, or whose parent branch it started
-   from, already has their work, so it cherry-picks only its own commits. A conflict here means the mainline moved under
-   the plan. Resolve it when the resolution is mechanical. When it needs a judgement, show the user both sides, and keep
-   landing the other batches
+   from, already has their work, so it cherry-picks only its own commits. A conflict here is handled as
+   `cherry-pick-conflict` above
 4. Run `merge-fix-loop` Steps 3 through 5 for the batch: local checks, push, PR, confirm checks, turn on merging. The PR
-   title comes from the plan. Write each PR body from that batch's own diff, and name the batches it lands after.
-   Every watch uses the run's watch state file, so no event is reported twice. Pass `merge_into`, the mainline. Each
-   batch's `merge_into` lives in that PR's `merge-fix-loop` `.loop.json`. The run file does not copy it. Open a
-   stacked batch's PR with `--base` set to the parent's branch. Never turn on merging for a stacked batch. The
-   `merge_into` gate refuses it while the base is the parent branch
+   title and body come as step 1 of the serial steps says. Pass `merge_into`, the mainline. Each batch's `merge_into`
+   lives in that PR's `merge-fix-loop` `.loop.json`. The run file does not copy it. Open a stacked batch's PR with
+   `--base` set to the parent's branch. Never turn on merging for a stacked batch. The `merge_into` gate refuses it
+   while the base is the parent branch
 
-Then watch every open batch PR with one watcher: `pr_watch.py watch --pr N --pr M --state FILE --timeout T`, one
-`--pr` per open PR, and the run's watch state file. Act on each event as `merge-fix-loop` Step 6 describes, in that
-batch's worktree. When a batch merges, clean it up as that step describes, then start every batch it made ready.
+Watch with one watcher and the run's watch state file, as above. When a batch merges, clean it up as `merge-fix-loop`
+"The PR merged" describes, then start every batch it made ready.
 
 ### Stacked batches
 
@@ -218,7 +275,8 @@ The rules here add to `merge-fix-loop`. They apply only to a run that stacked.
   of the parent onto the mainline that resolved a conflict. Before the parent's push, note its old head. Then rebase
   each child onto the new parent with `git rebase --onto <push-remote>/<parent> <old parent head>`, run the local
   checks, and push with a pinned lease. Never merge the parent into the child. The child must not merge until that is
-  done and its required checks pass on the new head. A conflict that needs a judgement goes to the user, as in Step 5.3
+  done and its required checks pass on the new head. A conflict that needs a judgement goes to the user, as
+  `cherry-pick-conflict` says
 - **A parent closed without merging.** Mark its stacked children stopped. Never retarget them, since they carry the
   parent's unmerged commits. Report it to the user
 
@@ -230,7 +288,8 @@ When every batch has merged:
    `git diff <batch tip> <mainline-remote>/<mainline> -- <files>`. Every difference must trace to a fix this run pushed
    or to other work merged into the mainline meanwhile. Report anything else as lost work
 2. Remove the staging worktree with `git worktree remove`, and delete the staging branch with `git branch -D`. The
-   comparison above showed its work landed. Delete the run file and its watch state file
+   comparison above showed its work landed. Delete the run file, its watch state file, and the files beside them that
+   share its name, such as `land_batch.py`'s lock and check logs
 3. Tell the user which commits landed: those up to the batch tip. Their branch still holds the originals. Rebasing it
    onto the mainline is their call. A later run on the same branch drops the landed commits in its rebase. List the
    segments left after the batch tip. When any remain, say that the next `land-branch` run on the branch ships the next
@@ -249,17 +308,21 @@ not to merge it by hand, and not to squash its parent.
 
 ## Run state
 
-Keep the run file at `~/.local/state/coding_agent_standards/land-branch/<owner>-<repo>-<snapshot>.json`, with the
-snapshot's short hash. A run that stacked keeps it in `.../land-branch/v2/` with the same name, so an older plugin
-version starts fresh instead of misreading it. Resume looks in both places. Use the session scratchpad when the
-directory cannot be written.
+A serial run's file lives at `~/.local/state/coding_agent_standards/land-branch/v3/<owner>-<repo>-<snapshot>.json`,
+with the snapshot's short hash. `land_batch.py` writes it and keeps it current. Its docstring defines the format. Never
+edit it by hand. Use the session scratchpad when the
+directory cannot be written. Pass it to `init` as `--state-dir`.
 
-The file holds the snapshot, `onto`, the batch tip, the verified plan, the review policy, and the deadline. Per batch,
-it holds the branch, worktree, PR number, `pr_base`, and whether the retarget is done. It also holds the batch's status:
-not started, open, merged, or stopped. Update it whenever a batch changes status. Delete it in Step 6, after the
-comparison passes.
+A run that stacked keeps its run file by hand, in `.../land-branch/v2/` with the same name. Older plugin versions kept
+serial runs by hand in `.../land-branch/`. `land_batch.py` refuses both kinds, so land their batches by hand. A
+hand-kept file holds the snapshot, `onto`, the batch tip, the verified plan, the review policy, and the deadline. Per
+batch, it holds the branch, worktree, PR number, `pr_base`, and whether the retarget is done. It also holds the batch's
+status: not started, open, merged, or stopped. Update it whenever a batch changes status.
 
-On resume, reconcile each batch with its live PR. When a parent merged while the run was stopped, retarget its
+Resume looks in all three places. Delete the run file in Step 6, after the comparison passes.
+
+On resume, reconcile each batch with its live PR. For a serial run, `land_batch.py status` lists each batch, and
+re-running a batch's last command picks it up. When a parent merged while a stacked run was stopped, retarget its
 children before deleting anything.
 
 Each open PR also has `merge-fix-loop`'s state files. Use one watch state file for the run, beside the run file, with a

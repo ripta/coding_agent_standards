@@ -254,6 +254,18 @@ The user's next `land-branch` run on
 --->
 <worktrees>/<topic>-<batch>
 ===
+--worktrees .claude/worktrees 
+--->
+--worktrees <worktrees> 
+===
+1. Write its PR title and body to files in the scratchpad.
+--->
+1. Write its PR title and body to files under `$TMPDIR`.
+===
+verified plan to files in the scratchpad.
+--->
+verified plan to files under `$TMPDIR`.
+===
 re-entry command, `/land-branch <snapshot>`, which resumes from the run file. A squash merge leaves no trace of the
 original commits
 --->

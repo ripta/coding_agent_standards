@@ -45,6 +45,15 @@ REPLACEMENTS = {
          """names. It authorizes nothing else.\nIt does not bypass the session's sandbox or command approvals."""),
         (""".claude/worktrees/stage-<topic>""", """<worktrees>/stage-<topic>"""),
         (""".claude/worktrees/<topic>-<batch>""", """<worktrees>/<topic>-<batch>"""),
+        ("""--worktrees .claude/worktrees """, """--worktrees <worktrees> """),
+        ("""Save preflight's output and the
+verified plan to files in the scratchpad.""",
+         """Save preflight's output and the
+verified plan to files under `$TMPDIR`."""),
+        ("""1. Write its PR title and body to files in the scratchpad.""",
+         """1. Write its PR title and body to files under `$TMPDIR`."""),
+        ("""`${CLAUDE_SKILL_DIR}/../../commands/pr-description.md`. Name the batches it lands""",
+         """`${CLAUDE_SKILL_DIR}/../pr-description/SKILL.md`. Name the batches it lands"""),
         ("""re-entry command, `/land-branch <snapshot>`, which resumes from the run file. A squash merge leaves no trace of the
 original commits""",
          """re-entry request: run the `land-branch` skill again with `<snapshot>`. It resumes from the run file.

@@ -108,7 +108,8 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   and checks a wiki's generated index and topic report lists; `pr_watch.py`, which polls PRs for CI and review events
   and replies to review threads for `merge-fix-loop`; `dependabot_sweep.py`, which inventories, verifies, and buckets an
   owner's dependabot PRs for `dependabot-sweep`; `batch_plan.py`, which checks that `land-branch`'s batches rebuild
-  the branch they came from; `update_profile.py`, which edits a project's profile imports for `update-profile`; and
+  the branch they came from; `land_batch.py`, which runs the steps of landing one `land-branch` batch and keeps its
+  run file; `update_profile.py`, which edits a project's profile imports for `update-profile`; and
   `standards_imports.py`, the parser it uses, which `check-setup.sh` reuses through its `check` command
 - **Skills** (`skills/`) -- specialized agents for code review, testing, linting, Makefile maintenance, releases,
   proposals, landing a branch through PRs (`land-branch`), driving one PR to merged (`merge-fix-loop`), sweeping an
@@ -183,9 +184,10 @@ question must receive an explicit answer before dependent work continues. Autono
 gate, proposal acceptance, and ADR choices with the user. Commit choices remain explicit and apply to that review only.
 
 `land-branch` and `merge-fix-loop` keep the batch plan, its verification, the run files, and the review policy. They
-bundle `pr_watch.py` and `batch_plan.py`. Their worktrees go under `~/.local/state/coding_agent_standards/worktrees/`
-instead of `.claude/worktrees/`, so nothing appears in a checkout that does not ignore `.claude/`. `gh`, `git fetch`,
-and `git push` need network access, which the session's sandbox may require approving. Plan approval does not bypass it.
+bundle `pr_watch.py`, `batch_plan.py`, and `land_batch.py`. Their worktrees go under
+`~/.local/state/coding_agent_standards/worktrees/` instead of `.claude/worktrees/`, so nothing appears in a checkout
+that does not ignore `.claude/`. `gh`, `git fetch`, and `git push` need network access, which the session's sandbox
+may require approving. Plan approval does not bypass it.
 The OpenCode build makes the same moves.
 
 Platform-specific sections are adapted by `codex/scripts/translate.py`. Each replacement must match exactly once;
