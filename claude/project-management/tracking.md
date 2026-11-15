@@ -119,7 +119,8 @@ prose into one file, then delete the other. A tool that finds both stops before 
 ## Bugs
 
 Each bug is one file, named `YYYYMMDD-short-name.md`. The date is when the bug was first observed. Filing it is covered
-by `rules/found-bugs.md`. Verifying it later is the `bug-triage` skill's job.
+by `rules/found-bugs.md`. Verifying it later is the `bug-triage` skill's job. `bug-sweep` runs `bug-triage` over every
+open bug in one unattended run.
 
 The file opens with a title that states the wrong behavior in one line. The `**Status:**` line comes right after it.
 The status vocabulary is under "Status Vocabularies" above. The sections follow:

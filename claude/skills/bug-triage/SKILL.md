@@ -6,12 +6,26 @@ description: |
   fix's size and design decisions, then recommend fixing it now or opening a
   proposal. Reconciles the bug index when a bug file is already closed. Works one
   bug per run.
+argument-hint: "[unattended [fix] <bug file> [build command]]"
 model: sonnet
 allowed-tools: Read, Edit, Write, Bash, Grep, Glob, AskUserQuestion
 ---
 
 You verify and triage one bug per invocation, starting from the oldest open one. Work a single bug, take the matching
 action, then report and stop.
+
+## Modes
+
+With no arguments, the run is interactive. It picks the bug and asks the user what to do with it.
+
+With `unattended <bug file>`, the `bug-sweep` skill is the caller. That skill already picked the bug. A build command
+may follow the path. `unattended fix` is the second run for a fix the caller approved. See "Unattended outcomes".
+Unattended mode changes these steps, and nothing else:
+
+- Step 1 asks nothing. When the caller passed no build command and you cannot find one, report `blocked` and stop.
+- Step 2 checks only the named file. When the file reads as closed, report `already-closed` and stop.
+- Step 4 asks nothing. It acts by "Unattended outcomes" below.
+- Unattended mode never commits, stashes, or reverts. The caller does those.
 
 Bug reports are files named `YYYYMMDD-short-name.md`, where the date is when the bug was first observed. Each carries a
 status line, and the directory carries an index table with one row per bug. The default format is "Bugs" in
@@ -151,6 +165,33 @@ With either choice, add or update a `Triaged:` line next to the status with toda
 `**Triaged:** 2026-07-16 (not reproducible; see investigation notes)`. The bug stays open, but the next month of
 runs skips it.
 
+### Unattended outcomes
+
+In unattended mode, Step 4 acts by this table instead of asking. Every outcome ends the run with the report in Step 5.
+
+| Outcome                                                     | Action                                                                  | Report             |
+|-------------------------------------------------------------|-------------------------------------------------------------------------|--------------------|
+| FIXED                                                       | Close it, as "FIXED: close it" says                                     | `closed`           |
+| STILL A BUG, small or medium, every decision trivial        | Record the estimate. Write no fix yet                                   | `fix-candidate`    |
+| STILL A BUG, large, or any non-trivial decision             | Record the estimate. Add no `Triaged:` line                             | `needs-design`     |
+| INCONCLUSIVE                                                | Append Investigation Notes and a `Triaged:` line, as above              | `inconclusive`     |
+
+A `needs-design` bug gets no `Triaged:` line on purpose. The line would also hide it from the user's interactive runs
+for a month, and those runs are where its design gets settled. The estimate keeps the next run from redoing the
+analysis.
+
+A `fix-candidate` report lists each design decision and why it is trivial, and the files the fix would touch. The
+caller has the estimate checked. Then it may run you again as `unattended fix <bug file> [build command]`. In that run,
+skip Steps 2 through 4. Read the bug file and its estimate, then follow "Fix now" steps 1 through 4. Report one of
+these:
+
+- `fixed`: the regression test failed before the fix and passes after it, and the full suite passes. List every file
+  you changed.
+- `test-did-not-fail`: the regression test passed on the unfixed code. Stop there. Write no fix.
+- `suite-failed`: the fix is in, but the regression test or the full suite fails. Name each failing test.
+
+On `test-did-not-fail` and `suite-failed`, leave every edit in place for the caller to stash.
+
 ## Step 5: Report
 
 Summarize concisely:
@@ -159,11 +200,15 @@ Summarize concisely:
 - The verification outcome, and how you reached it: what you built and ran.
 - The action taken: closed as fixed, fix offered and its result, proposal opened, or inconclusive.
 
+In unattended mode, the first line of the report is the outcome word from "Unattended outcomes", alone. Follow it with
+the bug file's path and every file this run edited.
+
 ## Rules
 
 - One bug per run. After acting on the selected bug, stop.
 - Step 4 asks after verification on purpose, because what to offer depends on the outcome. This is an exception to
-  the ask-once flow in `skills/README.md`. Step 1 asks only for a build command it cannot find.
+  the ask-once flow in `skills/README.md`. Step 1 asks only for a build command it cannot find. Unattended mode asks
+  nothing.
 - Never stage or push. Do not commit unless the user asks, or the project's rules allow commits on the user's behalf.
   Otherwise stop and let the user commit.
 - Resolve a trivial design decision yourself and state why in the question. Ask about every non-trivial one. Never

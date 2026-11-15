@@ -367,10 +367,11 @@ def test_adr_impact_names_only_adr_statuses() -> None:
     assert named <= tracking_vocabulary("ADRs")
 
 
-def test_bug_triage_sets_only_bug_statuses() -> None:
-    text = (CLAUDE / "skills" / "bug-triage" / "SKILL.md").read_text()
-    named = set(re.findall(r"[Ss]tatus(?:es)? to `([a-z-]+)", text))
-    assert named, "bug-triage names no status it sets"
+@pytest.mark.parametrize("skill", ["bug-triage", "bug-sweep"])
+def test_bug_skills_set_only_bug_statuses(skill: str) -> None:
+    text = (CLAUDE / "skills" / skill / "SKILL.md").read_text()
+    named = set(re.findall(r"(?:[Ss]tatus(?:es)?|row|both) (?:to|back to) `([a-z-]+)", text))
+    assert named, f"{skill} names no status it sets"
     assert named <= tracking_vocabulary("Bugs")
 
 
