@@ -63,7 +63,18 @@ word-split them.
 }
 ```
 
-- `repo` is the normalized origin URL, so every clone and worktree shares it.
+- `repo` is the normalized URL of the remote that holds the base repo, the one
+  PRs land in. Every clone, fork checkout, and worktree of that repo shares it.
+  In a fork checkout the base repo is on another remote, often `upstream`.
+  `origin` is the fork there.
+- The script finds the base remote the way `pr_watch.py` does. A checkout with
+  one remote uses it. With several, it asks `gh` for the base repo and takes
+  the remote whose URL names it. When `gh` is missing, signed out, or offline,
+  it falls back to a remote named `upstream`, then `origin`.
+- Older versions keyed mappings by the `origin` URL. When no mapping has the
+  base key yet, the script moves mappings saved under the `origin` key to the
+  base key and saves the config. A clone whose `origin` is the base repo sees
+  no change.
 - A mapping ties a set of paths to a set of groups. Several mappings may share
   a path or a group, so the relationship is many-to-many.
 - Each group carries its own watermark. A group that fails to sync never holds
@@ -86,9 +97,10 @@ word-split them.
 ### Step 1: Scope
 
 1. Run `$SCOPE scope [--since REV] [args...]` from inside the repository.
-2. `behind_origin > 0`: tell the user their default branch is behind origin
-   and ask whether to continue on the local state. Never pull, fetch into the
-   branch, or switch branches yourself.
+2. `behind_origin > 0`: tell the user their default branch is behind the base
+   remote, which `base_remote` names. The field keeps its old name for
+   compatibility. Ask whether to continue on the local state. Never pull, fetch
+   into the branch, or switch branches yourself.
 3. `unmapped.paths` or `unmapped.refs` present: offer to save the mapping.
    - A new tracker needs
      `$SCOPE add-tracker --name N --type T --assignee WHO [--site S]`.

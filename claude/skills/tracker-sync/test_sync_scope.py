@@ -44,6 +44,12 @@ def repo(tmp_path: Path) -> Path:
     return repo
 
 
+@pytest.fixture(autouse=True)
+def no_gh(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep every test off the network. A test that wants gh's answer sets its own."""
+    monkeypatch.setattr(sync_scope, "gh_base_slug", lambda root: None)
+
+
 @pytest.fixture
 def config(tmp_path: Path) -> Path:
     return tmp_path / "cfg" / "tracker-sync.json"
@@ -240,6 +246,109 @@ def test_behind_origin_counts_without_fetching(capsys, config, repo) -> None:
     _git(repo, "reset", "-q", "--hard", base)
     _, out, _ = run(capsys, config, repo, "scope")
     assert out["behind_origin"] == 1
+
+
+BASE_URL = "git@github.com:Acme/Mono.git"
+FORK_URL = "git@github.com:me/Mono.git"
+BASE_KEY = "github.com/Acme/Mono"
+FORK_KEY = "github.com/me/Mono"
+
+
+@pytest.fixture
+def fork(tmp_path: Path, repo: Path) -> Path:
+    """A clone whose origin is the fork and whose upstream is the base repo.
+
+    The fork lags the base by one commit and names `dev` as its default branch. The base names
+    `main`. The remotes carry fake URLs and are fetched from bare repos by path.
+    """
+    base_bare = tmp_path / "base.git"
+    fork_bare = tmp_path / "fork.git"
+    for bare in (base_bare, fork_bare):
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(bare)], check=True)
+
+    _git(repo, "branch", "dev")
+    _git(repo, "push", "-q", str(fork_bare), "main:main", "main:dev")
+    _commit(repo, "apps/a/base.py", "base only work")
+    _git(repo, "push", "-q", str(base_bare), "main:main")
+    _commit(repo, "apps/a/base2.py", "more base only work")
+    _git(repo, "push", "-q", str(base_bare), "main:main")
+    _git(repo, "reset", "-q", "--hard", "HEAD~2")
+
+    _git(repo, "remote", "set-url", "origin", FORK_URL)
+    _git(repo, "remote", "add", "upstream", BASE_URL)
+    _git(repo, "fetch", "-q", str(fork_bare), "+refs/heads/*:refs/remotes/origin/*")
+    _git(repo, "fetch", "-q", str(base_bare), "+refs/heads/*:refs/remotes/upstream/*")
+    _git(repo, "symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/dev")
+    _git(repo, "symbolic-ref", "refs/remotes/upstream/HEAD", "refs/remotes/upstream/main")
+    return repo
+
+
+def test_fork_checkout_keys_mappings_by_the_base_remote(
+    capsys, config, fork, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(sync_scope, "gh_base_slug", lambda root: "Acme/Mono")
+    setup_jira(capsys, config, fork)
+    run(capsys, config, fork, "add-mapping", "--path", "apps/a", "--group", "j", "epic", "CI-1")
+
+    assert json.loads(config.read_text())["mappings"][0]["repo"] == BASE_KEY
+
+    _, out, _ = run(capsys, config, fork, "scope")
+    assert out["repo"] == BASE_KEY
+    assert out["default_branch"] == "main"
+    assert len(out["selected"]) == 1
+
+
+def test_fork_checkout_without_gh_falls_back_to_upstream(capsys, config, fork) -> None:
+    _, out, _ = run(capsys, config, fork, "scope")
+    assert out["repo"] == BASE_KEY
+    assert out["default_branch"] == "main"
+
+
+def test_fork_checkout_counts_behind_against_the_base_remote(capsys, config, fork) -> None:
+    _, out, _ = run(capsys, config, fork, "scope")
+    assert out["behind_origin"] == 2
+
+
+def test_mapping_saved_under_the_fork_key_moves_to_the_base_key(capsys, config, fork) -> None:
+    setup_jira(capsys, config, fork)
+    saved = json.loads(config.read_text())
+    saved["mappings"] = [
+        {
+            "repo": FORK_KEY,
+            "paths": ["apps/a"],
+            "groups": [{"tracker": "j", "kind": "epic", "id": "CI-1", "last_synced_commit": None}],
+        }
+    ]
+    config.write_text(json.dumps(saved))
+
+    _, out, _ = run(capsys, config, fork, "scope")
+    assert len(out["selected"]) == 1
+    assert json.loads(config.read_text())["mappings"][0]["repo"] == BASE_KEY
+
+
+def test_fork_key_mappings_stay_when_the_base_key_already_has_mappings(
+    capsys, config, fork
+) -> None:
+    setup_jira(capsys, config, fork)
+    run(capsys, config, fork, "add-mapping", "--path", "apps/a", "--group", "j", "epic", "CI-1")
+    saved = json.loads(config.read_text())
+    saved["mappings"].append({**saved["mappings"][0], "repo": FORK_KEY, "paths": ["apps/b"]})
+    config.write_text(json.dumps(saved))
+
+    run(capsys, config, fork, "scope")
+    assert [m["repo"] for m in json.loads(config.read_text())["mappings"]] == [BASE_KEY, FORK_KEY]
+
+
+def test_single_remote_clone_keeps_its_key_and_leaves_the_config_alone(
+    capsys, config, repo
+) -> None:
+    setup_jira(capsys, config, repo)
+    run(capsys, config, repo, "add-mapping", "--path", "apps/a", "--group", "j", "epic", "CI-1")
+    before = config.read_text()
+
+    _, out, _ = run(capsys, config, repo, "scope")
+    assert out["repo"] == BASE_KEY
+    assert config.read_text() == before
 
 
 @pytest.mark.parametrize(

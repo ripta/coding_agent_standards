@@ -11,8 +11,10 @@ working directory) and on the config at --config (default:
 ~/.config/coding_agent_standards/tracker-sync.json). Results are JSON on stdout.
 Errors go to stderr with exit status 1.
 
-Mappings are keyed by the normalized origin URL, so every clone and worktree of a
-repository shares them. `scope` reads the local default branch and never fetches.
+Mappings are keyed by the normalized URL of the remote that holds the base repo, so every
+clone, fork checkout, and worktree of a repository shares them. In a fork checkout that remote
+is not `origin`. See base_remote.py for how it is found. `scope` reads the local default branch
+and never fetches.
 """
 
 from __future__ import annotations
@@ -27,6 +29,10 @@ import tempfile
 import urllib.parse
 from pathlib import Path
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
+
+from base_remote import find_base_remote, gh_base_slug  # noqa: E402
 
 DEFAULT_CONFIG = Path.home() / ".config" / "coding_agent_standards" / "tracker-sync.json"
 
@@ -90,27 +96,43 @@ def normalize_remote(url: str) -> str:
     return f"{host.lower()}/{path}"
 
 
-def repo_id(root: Path) -> str:
+def base_remote(root: Path) -> str:
+    remote = find_base_remote(root, gh_base_slug)
+    if not remote:
+        raise SyncError(
+            "no remote holds the base repo; add one named upstream or origin. "
+            "tracker-sync keys mappings by that remote's URL"
+        )
+    return remote
+
+
+def repo_id(root: Path, remote: str) -> str:
+    return normalize_remote(_git(root, "remote", "get-url", remote))
+
+
+def legacy_repo_id(root: Path) -> str | None:
+    """The key older versions saved: the normalized origin URL, which is the fork in a fork checkout."""
     url = _git(root, "remote", "get-url", "origin", check=False)
-    if not url:
-        raise SyncError("no origin remote; tracker-sync keys mappings by the origin URL")
-    return normalize_remote(url)
+    try:
+        return normalize_remote(url) if url else None
+    except SyncError:
+        return None
 
 
-def default_branch(root: Path) -> str:
-    ref = _git(root, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD", check=False)
-    if ref.startswith("origin/"):
-        return ref.removeprefix("origin/")
+def default_branch(root: Path, remote: str) -> str:
+    ref = _git(root, "symbolic-ref", "--quiet", "--short", f"refs/remotes/{remote}/HEAD", check=False)
+    if ref.startswith(f"{remote}/"):
+        return ref.removeprefix(f"{remote}/")
     for name in ("main", "master"):
         if _git_ok(root, "rev-parse", "--verify", "--quiet", f"refs/heads/{name}"):
             return name
-    raise SyncError("cannot determine the default branch (no origin/HEAD, main, or master)")
+    raise SyncError(f"cannot determine the default branch (no {remote}/HEAD, main, or master)")
 
 
-def behind_origin(root: Path, branch: str) -> int | None:
-    if not _git_ok(root, "rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{branch}"):
+def behind_base(root: Path, remote: str, branch: str) -> int | None:
+    if not _git_ok(root, "rev-parse", "--verify", "--quiet", f"refs/remotes/{remote}/{branch}"):
         return None
-    return int(_git(root, "rev-list", "--count", f"{branch}..origin/{branch}"))
+    return int(_git(root, "rev-list", "--count", f"{branch}..{remote}/{branch}"))
 
 
 def is_commit(root: Path, rev: str) -> bool:
@@ -222,6 +244,26 @@ def _same_repo(a: str, b: str) -> bool:
     return a.casefold() == b.casefold()
 
 
+def migrate_legacy_key(root: Path, config: dict[str, Any], rid: str) -> bool:
+    """Move mappings saved under the origin URL to the base repo's key. True when any moved.
+
+    A clone whose origin is the base repo has the same key either way. Mappings move only when
+    the base key holds none, so a key the user already has under both is never merged silently.
+    """
+    old = legacy_repo_id(root)
+    if old is None or _same_repo(old, rid):
+        return False
+    if any(_same_repo(m["repo"], rid) for m in config["mappings"]):
+        return False
+
+    moved = False
+    for mapping in config["mappings"]:
+        if _same_repo(mapping["repo"], old):
+            mapping["repo"] = rid
+            moved = True
+    return moved
+
+
 # -- argument parsing ----------------------------------------------------
 
 
@@ -273,9 +315,11 @@ def _ref_matches(ref: dict[str, str | None], group: dict[str, Any], trackers: di
 # -- subcommands ---------------------------------------------------------
 
 
-def cmd_scope(args: argparse.Namespace, root: Path, config: dict[str, Any]) -> dict[str, Any]:
-    rid = repo_id(root)
-    branch = default_branch(root)
+def cmd_scope(
+    args: argparse.Namespace, root: Path, config: dict[str, Any], remote: str | None, rid: str | None
+) -> dict[str, Any]:
+    assert remote and rid
+    branch = default_branch(root, remote)
     head = _git(root, "rev-parse", branch)
     override = resolve_since(root, branch, args.since) if args.since else None
 
@@ -309,7 +353,8 @@ def cmd_scope(args: argparse.Namespace, root: Path, config: dict[str, Any]) -> d
         "root": str(root),
         "default_branch": branch,
         "head": head,
-        "behind_origin": behind_origin(root, branch),
+        "base_remote": remote,
+        "behind_origin": behind_base(root, remote, branch),
         "selected": selected,
         "unmapped": {"paths": unmapped_paths, "refs": unmapped_refs},
     }
@@ -349,8 +394,10 @@ def _scan(
     return entry
 
 
-def cmd_advance(args: argparse.Namespace, root: Path, config: dict[str, Any]) -> dict[str, Any]:
-    rid = repo_id(root)
+def cmd_advance(
+    args: argparse.Namespace, root: Path, config: dict[str, Any], remote: str | None, rid: str | None
+) -> dict[str, Any]:
+    assert rid
     mappings = config["mappings"]
     if not 0 <= args.mapping < len(mappings) or not _same_repo(mappings[args.mapping]["repo"], rid):
         raise SyncError(f"mapping {args.mapping} does not belong to {rid}; rerun scope")
@@ -374,7 +421,9 @@ def cmd_advance(args: argparse.Namespace, root: Path, config: dict[str, Any]) ->
     return {"mapping": args.mapping, "group": args.id, "from": old, "to": new}
 
 
-def cmd_add_tracker(args: argparse.Namespace, root: Path, config: dict[str, Any]) -> dict[str, Any]:
+def cmd_add_tracker(
+    args: argparse.Namespace, root: Path, config: dict[str, Any], remote: str | None, rid: str | None
+) -> dict[str, Any]:
     if args.type == "jira" and not args.site:
         raise SyncError("a jira tracker needs --site (for example example.atlassian.net)")
     tracker: dict[str, Any] = {"type": args.type, "assignee": args.assignee}
@@ -385,8 +434,10 @@ def cmd_add_tracker(args: argparse.Namespace, root: Path, config: dict[str, Any]
     return {"tracker": args.name, "action": action}
 
 
-def cmd_add_mapping(args: argparse.Namespace, root: Path, config: dict[str, Any]) -> dict[str, Any]:
-    rid = repo_id(root)
+def cmd_add_mapping(
+    args: argparse.Namespace, root: Path, config: dict[str, Any], remote: str | None, rid: str | None
+) -> dict[str, Any]:
+    assert rid
     paths = sorted({normalize_path(root, p) for p in args.path})
     groups = []
     for tracker, kind, gid in args.group:
@@ -446,8 +497,14 @@ def main(argv: list[str] | None = None) -> int:
     try:
         root = repo_root(args.repo_dir)
         config = load_config(args.config)
-        result = handlers[args.command](args, root, config)
-        if args.command != "scope":
+        remote = rid = None
+        migrated = False
+        if args.command != "add-tracker":
+            remote = base_remote(root)
+            rid = repo_id(root, remote)
+            migrated = migrate_legacy_key(root, config, rid)
+        result = handlers[args.command](args, root, config, remote, rid)
+        if args.command != "scope" or migrated:
             save_config(args.config, config)
     except SyncError as err:
         print(f"sync_scope: {err}", file=sys.stderr)

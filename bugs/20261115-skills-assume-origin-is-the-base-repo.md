@@ -1,6 +1,6 @@
 # Four skills take the base repo from `origin`, which is the fork in a fork checkout
 
-**Status:** open
+**Status:** fixed 2026-11-15
 
 **Component:** this repo's plugin. The `cloudbuild`, `risk-assessment`, `walkthrough`, and `tracker-sync` skills.
 
@@ -8,9 +8,12 @@
 finds the base remote. The fix touches `sync_scope.py` (`repo_id`, `default_branch`, `behind_origin`), its tests, and
 `SKILL.md`. Reproduced by reading the code path against a fork checkout's remotes. No skill was run against one.
 
-**Partly fixed:** 2026-11-15. `cloudbuild`, `risk-assessment`, and `walkthrough` now read the base repo from
+**Fixed:** 2026-11-15. `cloudbuild`, `risk-assessment`, and `walkthrough` read the base repo from
 `pr_watch.py preflight`. `test_the_base_repo_is_not_read_from_origin` in `tests/test_standards.py` keeps them there.
-Items 1 to 3 below describe the bug as it was. Only `tracker-sync` stays open.
+`tracker-sync` finds the base remote through `claude/scripts/base_remote.py`, which `pr_watch.py` shares. It keys
+mappings by that remote's URL, and moves mappings saved under the `origin` URL when the base key holds none. Its default
+branch and `behind_origin` count read the base remote. The `behind_origin` field keeps its name, and `scope` adds
+`base_remote`. Items 1 to 4 below describe the bug as it was.
 
 ## Observed
 
