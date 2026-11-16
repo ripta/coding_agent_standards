@@ -11,4 +11,4 @@ oldest open one.
 | [20261027-fmt-hook-formats-wrong-repo](20261027-fmt-hook-formats-wrong-repo.md) | fixed | The format hook runs `make fmt` over the session's whole repo, whichever file was edited |
 | [20261027-rumdl-fix-rewrites-unflagged-text](20261027-rumdl-fix-rewrites-unflagged-text.md) | fixed | rumdl's fix mode rewrites fenced markdown examples, and joins lines on a false MD038 |
 | [20261115-skills-assume-origin-is-the-base-repo](20261115-skills-assume-origin-is-the-base-repo.md) | open | Four skills take the base repo from `origin`, which is the fork in a fork checkout |
-| [20261115-work-queue-band-test-missing-iscollapsed](20261115-work-queue-band-test-missing-iscollapsed.md) | open | The work-queue progress band test fails, because `AbovePrompt` now requires `isCollapsed` |
+| [20261115-work-queue-band-test-missing-iscollapsed](20261115-work-queue-band-test-missing-iscollapsed.md) | fixed | The work-queue progress band test fails, because `AbovePrompt` now requires `isCollapsed` |

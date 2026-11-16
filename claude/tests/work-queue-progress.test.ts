@@ -31,6 +31,7 @@ function band(bodyColumns = 100, maxRows = 6) {
     viewport: { columns: bodyColumns, rows: 40 },
     props: {
       hasSurvey: false,
+      isCollapsed: false,
       isWorking: true,
       maxRows,
       bodyColumns,
@@ -42,8 +43,11 @@ function band(bodyColumns = 100, maxRows = 6) {
 
 // The engine beneath the plugin: its own band, so a test sees the
 // fall-through, and a clock.
+//
+// The band asks every plugin that hooks it for a row of its own, the test included. Matching on
+// the plugin keeps the stub beneath this plugin's row instead of drawing a row beside it.
 function engine(on: On) {
-  on('ui.render', ($, e) => {
+  on('ui.render', { plugin: PLUGIN }, ($, e) => {
     const { Text } = $.ui.resolve(e)
     return h(Text, { key: 'engine-band' }, 'engine band') as RenderElement
   })
