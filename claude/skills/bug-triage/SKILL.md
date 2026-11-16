@@ -185,10 +185,11 @@ caller has the estimate checked. Then it may run you again as `unattended fix <b
 skip Steps 2 through 4. Read the bug file and its estimate, then follow "Fix now" steps 1 through 4. Report one of
 these:
 
-- `fixed`: the regression test failed before the fix and passes after it, and the full suite passes. List every file
-  you changed.
+- `fixed`: the regression test failed before the fix and passes after it, and the full suite passes. A failure among
+  the known-red tests the caller named does not count. List every file you changed.
 - `test-did-not-fail`: the regression test passed on the unfixed code. Stop there. Write no fix.
-- `suite-failed`: the fix is in, but the regression test or the full suite fails. Name each failing test.
+- `suite-failed`: the fix is in, but the regression test fails, or the full suite fails a test outside the known-red
+  ones. Name each failing test.
 
 On `test-did-not-fail` and `suite-failed`, leave every edit in place for the caller to stash.
 

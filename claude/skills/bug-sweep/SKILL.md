@@ -53,24 +53,43 @@ that is checked out. Never create or switch branches. Never commit an edit this 
 3. Write the list, oldest first, to `bug-sweep-run.md` in the session's scratchpad. One line per bug: its path and an
    empty outcome. Update the line after each bug, so the run survives compaction.
 
-This list is the whole run. Each bug on it is visited once. A bug filed during the run is not added. It waits for the
-next run. That is what makes the run end: a skipped or failed bug stays open, but the run never picks it again.
+This list is the whole run. Each bug on it is visited once. Step 3 may add to it before approval, for a red baseline.
+A bug filed during the run is not added. It waits for the next run. That is what makes the run end: a skipped or failed
+bug stays open, but the run never picks it again.
 
 ## Step 3: Record the baseline
 
-Build the project, then run the full suite. When either fails, stop before any bug. Report the failure and the
-command. A suite that is already red cannot show whether a fix broke something.
+Build the project, then run the full suite. Keep the result. It is the baseline every later check compares against.
+
+A red baseline is a bug, and fixing bugs is what the run is for. Do not stop for it. Work it first:
+
+1. Match each failure to a bug on the list. A bug matches when its repro or its observed behavior names the failing
+   test, the failing target, or the error. A bug the `Triaged:` rule shielded rejoins the list when it matches. A
+   failure in the suite outranks the shield.
+2. A failure that no listed bug covers gets a new bug file, drafted now and filed once the run is approved. Draft it
+   per "Bugs" in `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`, with the failing command as its repro.
+3. Move the matched bugs and the drafted ones to the front of the list, in date order. They run before every other
+   bug, since a fix to one of the others cannot be judged while the suite is red.
+
+After each of these bugs, run the full suite again and take the result as the new baseline. A red bug that ends in
+anything but a landed fix leaves its failing tests in the baseline. Record them as the known-red tests in the run file.
+From then on a check passes when the suite fails only those tests. A fix may never add a failure.
+
+A build that fails is worked the same way. When its bug ends without a fix, nothing after it can be checked. Stop the
+run there.
 
 ## Step 4: Approve the run
 
 Ask once, in one AskUserQuestion call. Show the list, the stale index rows, the build and test commands, and the repos
-commits will go to. Say what approving authorizes, in a sentence for each rule above. When Step 1 found no build
-command and none was passed, ask for it in the same call.
+commits will go to. When the baseline is red, show each failure and the bug that covers it, drafted ones included. Say
+what approving authorizes, in a sentence for each rule above. When Step 1 found no build command and none was passed,
+ask for it in the same call.
 
 The options are `Start the sweep` and `Cancel`. Nothing after this step asks. A cancel leaves the tree as the run found
 it.
 
 Once approved, reconcile the stale rows as `bug-triage` Step 2 does. Commit them by themselves, before any bug's work.
+Then file each drafted bug, with its index row, in a commit of its own.
 
 ## Step 5: Work each bug
 
@@ -102,17 +121,17 @@ that file means that directory, since a subagent reads the file raw.
    - When it finds none, go to step 5.
 5. **Fix.** Run `git status` in each repo and keep the output. Start a second fresh `general-purpose` agent with model
    `sonnet`. Tell it to read `bug-triage/SKILL.md` and run it as `unattended fix <bug file> <build command>`. Do not
-   resume the triage agent. Give it the triage report in its brief instead. Ask it to name the regression test and the
-   files of the fix apart from the test.
+   resume the triage agent. Give it the triage report in its brief instead, and the known-red tests when there are any.
+   Ask it to name the regression test and the files of the fix apart from the test.
 6. **Check the fix.** Do step 2's check again, against the output kept in step 5. Then act on its report:
    - `fixed`: confirm the regression test yourself. Stash the fix's files apart from the test, by path, with
      `git stash push -m "bug-sweep check: <bug file name>" -- <paths>`. Run the regression test. It must fail. Then run
      `git stash pop`. When the test passes without the fix, treat the report as `test-did-not-fail`. Then run the full
-     suite yourself. When it passes, commit. When the bug file is in the same repo as the code,
-     commit the fix, its test, the bug file, and the index together. When the bugs are in a specs repo, commit the fix
-     and its test in the code repo, then the bug file and the index in the specs repo. The fix commit's body says what
-     the bug was and how it showed, per `${CLAUDE_SKILL_DIR}/../../rules/found-bugs.md`. When the suite fails, treat
-     the report as `suite-failed`.
+     suite yourself. When it fails no test outside the known-red ones, commit. When the bug file is in the same repo as
+     the code, commit the fix, its test, the bug file, and the index together. When the bugs are in a specs repo, commit
+     the fix and its test in the code repo, then the bug file and the index in the specs repo. The fix commit's body
+     says what the bug was and how it showed, per `${CLAUDE_SKILL_DIR}/../../rules/found-bugs.md`. When the suite fails,
+     treat the report as `suite-failed`.
    - `test-did-not-fail` or `suite-failed`: roll it back, as step 7 says.
 7. **Roll back a failed fix.** Stash every file the fix agent changed, by path, with
    `git stash push --include-untracked -m "bug-sweep: <bug file name>" -- <paths>`. The bug file and the index stay out
@@ -146,15 +165,17 @@ Keep it short. Give one line per bug: its file, its outcome, and its commit subj
   the user did not see. `decision-making.md` requires that the user see each one.
 - Each `needs-design` bug with the decisions its estimate names. These are the bugs to take to `/bug-triage`.
 - Each stash, and the bug it belongs to.
+- Each known-red test, and the bug that holds it.
 - Each bug filed during the run.
 - Why the run stopped, when it stopped early.
 
 ## Rules
 
-- The snapshot is the run. Never add a bug to it, and never visit a bug twice.
+- The snapshot is the run. Never add a bug to it after approval, and never visit a bug twice. Step 3's drafted bugs
+  join it before approval.
 - Never shield a skipped bug with a `Triaged:` line. `bug-triage` writes one only for `inconclusive`. The user's next
   interactive run must still find the rest.
-- A fix lands only with a regression test that failed before it, a full suite that passes, and a critic that found no
-  non-trivial decision.
+- A fix lands only with a regression test that failed before it, a full suite that fails no test outside the known-red
+  ones, and a critic that found no non-trivial decision.
 - This skill runs only when the user types `/bug-sweep`. Its frontmatter sets `disable-model-invocation: true`, so an
   autonomous run elsewhere cannot start it. Do not remove that field.
