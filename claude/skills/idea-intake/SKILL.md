@@ -5,9 +5,9 @@ description: |
   existing feature, a planned proposal, or already captured in the ideas file.
   Otherwise researches its feasibility lightly and writes it to the ideas file,
   or asks the user when it needs clarification. Invoked as `/idea-intake
-  <ideas>`. Triggers: "capture these ideas", "add this to the ideas file",
-  "do we already have X". DO NOT trigger on: writing a proposal (use
-  new-proposal), or filing a bug.
+  <ideas>`. Triggers: "capture these ideas", "add this to the ideas file".
+  DO NOT trigger on: a question about whether a feature exists, writing a
+  proposal (use new-proposal), or filing a bug.
 argument-hint: "<ideas>"
 allowed-tools: Agent, AskUserQuestion, Read, Edit, Write, Bash, Grep, Glob
 ---
@@ -26,7 +26,8 @@ Every idea ends with exactly one outcome:
 - `existing`: the code already does it. Evidence: a `file:line` that shows the behavior
 - `planned`: a proposal covers it. Evidence: the proposal ID and its status
 - `captured`: the ideas file already holds it. Evidence: the section heading. A match on an `unclear` section is
-  `unclear` again instead. Its questions go to Step 7, and Step 6 rewrites that section in place
+  `unclear` again instead. Its questions go to Step 7, and Step 6 rewrites that section in place. A match on an
+  `infeasible` section reports that verdict and its reason
 - `new`: written to the ideas file as `open`
 - `infeasible`: written to the ideas file as `infeasible`, with the reason
 - `delta`: something above covers only part of it. The missing part is written to the ideas file, with an
@@ -54,7 +55,7 @@ Do all of this before any question.
 4. **Reach.** List the repos this session can read: the working directory and any added directories. An idea that
    needs a repo outside them can only be `existing` or `planned` for what is visible. The report says so.
 5. **Git state.** Run `git status` in the repo that holds the ideas file. When the ideas file already has uncommitted
-   changes, note it. Step 6 writes on top of them but never commits them.
+   changes, note it. Step 6 writes on top of them, and Step 8 does not commit the file.
 6. **Commit style.** Read the specs repo's commit style, per `${CLAUDE_SKILL_DIR}/../../rules/commit-style.md`.
 
 ## Step 2: Split the input
@@ -78,9 +79,12 @@ Ask every question you can answer without research, in one AskUserQuestion call:
 - Which component an idea belongs to, when its text does not say
 - Where the ideas file goes, when Step 1 found no proposals directory
 
-Skip this step when there is nothing to ask. When there are more than four questions, ask the four that unblock the most
-ideas. Mark the rest `unclear` now, and carry their questions to Step 7. Ideas with no question go on to Step 4 while
-the user answers. Do not hold them back.
+Before you ask, start Step 4's subagents for every idea that has no question. They run in the background while the
+question is open. Do not hold them back.
+
+Skip the question when there is nothing to ask. When there are more than four questions, ask the four that unblock the
+most ideas. Mark the rest `unclear` now, and carry their questions to Step 7. When the user does not answer, mark each
+idea it asked about `unclear` the same way, and go on. The run never stops for an answer.
 
 ## Step 4: Classify and research
 
@@ -148,8 +152,8 @@ rounds of four, with no pause between rounds.
 ## Step 8: Commit and report
 
 Commit the ideas file only where `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` allows it. Name the path in the
-commit. Never commit changes that were in the file before this run. Where committing is not allowed, leave the file
-and name it in the report.
+commit. A commit by path takes the whole file, so skip the commit when Step 1 found the file already changed. Where the
+commit is skipped or not allowed, leave the file and name it in the report.
 
 Report one line per idea, in input order: its name, its outcome, and its evidence or the heading it was written under.
 Then list:
