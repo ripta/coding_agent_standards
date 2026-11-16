@@ -4,7 +4,19 @@
 
 **Component:** this repo's plugin. The `cloudbuild`, `risk-assessment`, `walkthrough`, and `tracker-sync` skills.
 
-**Validation:** confirmed by reading each code path against a fork checkout's remotes. No skill was run against one.
+**Estimate:** medium overall; one non-trivial design decision, in `tracker-sync`. Per skill:
+
+- `cloudbuild`: small. Two prose lines in `SKILL.md`. No design decision.
+- `risk-assessment`: small. Two prose lines in `SKILL.md`. No design decision.
+- `walkthrough`: small. Two prose spots in `SKILL.md`. No design decision.
+- `tracker-sync`: medium. `sync_scope.py` (`repo_id`, `default_branch`, `behind_origin`), its tests, and `SKILL.md`. One
+  non-trivial decision: the mapping key. The options are equally correct and the choice shows in the saved config. It
+  also has to settle how `scope` finds the base remote, since `scope` never fetches and `pr_watch.py preflight` asks
+  `gh` for the base repo.
+
+The three small skills need a way to name the base repo before the remote. `pr_watch.py preflight` does this with `gh`.
+The fix can point each skill at `remotes.mainline`, as the bug's Fix section says. Reproduced by reading the code path
+against a fork checkout's remotes. No skill was run against one.
 
 ## Observed
 
