@@ -9,12 +9,16 @@ landed. The open item is the upstream fix.
 
 **Reproduces on:** Claude Code 2.1.284, 2.1.310, and 2.1.325 (re-checked 2026-11-15 with the repro below). The
 2.1.325 run used a haiku subagent. REPORT-1 arrived. The SendMessage reported "Resuming agent". The subagent's second
-SubagentHandback was refused, and the "finished" notification pointed at the first report. The refusal text on 2.1.325
-reads "Nothing was sent: an earlier report of yours was already delivered (SubagentHandback delivers one report), so
-this one did not reach your caller." REPORT-2 did not arrive through SubagentHandback. It arrived later, as a
-SendMessage from the subagent, after the refusal. That is the fallback the implementer workaround below uses, so
-the bug is not fixed. Reported upstream
-with `/feedback`, receipt `260e8f59-b601-4b81-b896-e7cf15d01045`.
+SubagentHandback was refused. The "finished" notification pointed at the first report. On 2.1.325 the refusal reads:
+
+```text
+Nothing was sent: an earlier report of yours was already delivered (SubagentHandback delivers one report), so this one
+did not reach your caller.
+```
+
+REPORT-2 did not arrive through SubagentHandback. It arrived later, as a SendMessage from the subagent, after the
+refusal. That is the fallback the implementer workaround below uses, so the bug is not fixed. Reported upstream with
+`/feedback`, receipt `260e8f59-b601-4b81-b896-e7cf15d01045`.
 
 ## Observed behavior
 
