@@ -92,10 +92,15 @@ Interpret `$ARGUMENTS`:
 - **Empty**: assess the working tree against `HEAD`.
 - **A ref or branch name**: assess the working tree against that base.
 - **A PR number (or `#N`)**: resolve via
-  `gh pr view <N> --json title,baseRefName,headRefName,headRefOid`, then
-  `git fetch origin <headRefName>` (or `git fetch origin pull/<N>/head` if
-  the branch is from a fork). Assess `origin/<baseRefName>...<headRefOid>`.
-  Never check out the PR branch or otherwise mutate the working tree.
+  `gh pr view <N> --json title,baseRefName,headRefName,headRefOid`. Take
+  `<mainline-remote>` from `remotes.mainline` in the output of
+  `python3 ${CLAUDE_SKILL_DIR}/../../scripts/pr_watch.py preflight`. It is the
+  remote that holds the repo the PR lands in. In a fork checkout that is
+  usually `upstream`, not `origin`. Run `git fetch <mainline-remote> <baseRefName>`,
+  then `git fetch <mainline-remote> pull/<N>/head`. Only the base repo holds
+  the PR ref, so this works whether or not the branch is from a fork. Assess
+  `<mainline-remote>/<baseRefName>...<headRefOid>`. Never check out the PR
+  branch or otherwise mutate the working tree.
 
 State the resolved target before proceeding.
 

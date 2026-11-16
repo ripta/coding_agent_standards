@@ -177,6 +177,30 @@ def test_inline_commands_are_not_chained(path: Path) -> None:
     assert chained == [], "rules/shell-discipline.md forbids chaining in one invocation"
 
 
+# -- the base repo's remote -----------------------------------------------------------------
+#
+# In a fork checkout `origin` is the user's fork, and the repo PRs land in is usually `upstream`.
+# An instruction that reads the base repo, its default branch, or a PR from `origin` then works on
+# the fork. `pr_watch.py preflight` names the right remote as `remotes.mainline`.
+#
+# This catches a skill that goes back to reading `origin` by one of these commands. It cannot catch
+# prose that names `origin` some other way.
+
+ORIGIN_AS_BASE = re.compile(
+    r"git remote get-url origin|refs/remotes/origin/HEAD|git fetch origin|origin/<baseRefName>"
+)
+
+
+@pytest.mark.parametrize("path", INSTRUCTION_FILES, ids=rel)
+def test_the_base_repo_is_not_read_from_origin(path: Path) -> None:
+    found = [
+        f"{rel(path)}:{number}: {content}"
+        for number, content in spans(path)
+        if ORIGIN_AS_BASE.search(content)
+    ]
+    assert found == [], "read the base repo's remote from `pr_watch.py preflight`'s `remotes.mainline`"
+
+
 # -- agent branch commands ------------------------------------------------------------------
 #
 # These run the commands the skills and rules document against a throwaway origin. A text match

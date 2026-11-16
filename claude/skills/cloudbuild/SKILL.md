@@ -89,9 +89,12 @@ Detection fallbacks, in order:
 
 Do all of this before any question. Most answers are already on disk.
 
-1. `git remote get-url origin` gives the GitHub owner and repo.
-2. `git symbolic-ref refs/remotes/origin/HEAD` gives the default branch. Fall
-   back to `git branch --show-current`.
+1. Run `python3 ${CLAUDE_SKILL_DIR}/../../scripts/pr_watch.py preflight`. Its
+   `repo.nameWithOwner` gives the GitHub owner and repo. In a fork checkout
+   that is the base repo, not the fork on `origin`. Triggers belong on the base
+   repo, since a fork builds nothing.
+2. Preflight's `base` gives the default branch. When preflight cannot reach
+   `gh`, ask the user for the repo and the branch.
 3. Glob for `cloudbuild*.yaml`. If one exists, this is an audit, not an author.
 4. Read the `Makefile` and list its targets. Note whether `ci`, `test`, `lint`,
    `build`, and `dist` exist.

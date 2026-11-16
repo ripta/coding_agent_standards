@@ -4,19 +4,13 @@
 
 **Component:** this repo's plugin. The `cloudbuild`, `risk-assessment`, `walkthrough`, and `tracker-sync` skills.
 
-**Estimate:** medium overall; one non-trivial design decision, in `tracker-sync`. Per skill:
+**Estimate:** medium, for `tracker-sync` alone. It has two non-trivial decisions: the mapping key, and how `scope`
+finds the base remote. The fix touches `sync_scope.py` (`repo_id`, `default_branch`, `behind_origin`), its tests, and
+`SKILL.md`. Reproduced by reading the code path against a fork checkout's remotes. No skill was run against one.
 
-- `cloudbuild`: small. Two prose lines in `SKILL.md`. No design decision.
-- `risk-assessment`: small. Two prose lines in `SKILL.md`. No design decision.
-- `walkthrough`: small. Two prose spots in `SKILL.md`. No design decision.
-- `tracker-sync`: medium. `sync_scope.py` (`repo_id`, `default_branch`, `behind_origin`), its tests, and `SKILL.md`. One
-  non-trivial decision: the mapping key. The options are equally correct and the choice shows in the saved config. It
-  also has to settle how `scope` finds the base remote, since `scope` never fetches and `pr_watch.py preflight` asks
-  `gh` for the base repo.
-
-The three small skills need a way to name the base repo before the remote. `pr_watch.py preflight` does this with `gh`.
-The fix can point each skill at `remotes.mainline`, as the bug's Fix section says. Reproduced by reading the code path
-against a fork checkout's remotes. No skill was run against one.
+**Partly fixed:** 2026-11-15. `cloudbuild`, `risk-assessment`, and `walkthrough` now read the base repo from
+`pr_watch.py preflight`. `test_the_base_repo_is_not_read_from_origin` in `tests/test_standards.py` keeps them there.
+Items 1 to 3 below describe the bug as it was. Only `tracker-sync` stays open.
 
 ## Observed
 
@@ -49,10 +43,14 @@ skill names the base repo and its mainline. Actual: each names the fork.
 ## Fix
 
 `pr_watch.py preflight` already reports the base repo's remote as `remotes.mainline`. "Establishing the Branch Pair" in
-`claude/project-management/commit-chunking.md` says how to pick the remote by hand. The first three skills can read the
-remote the same way, and need no design call.
+`claude/project-management/commit-chunking.md` says how to pick the remote by hand. The first three skills now read the
+remote the same way.
 
 `tracker-sync` needs one. Its mapping key must stay stable for clones that already saved mappings. The options:
 
 - Key by the base repo's remote, and migrate keys saved under a fork's URL
 - Keep the `origin` key, and add the base repo's URL as an alias that finds the same mappings
+
+It also needs a way to find the base remote. `scope` never fetches and never calls `gh`, while `pr_watch.py preflight`
+asks `gh` for the base repo. The options are to call `gh` from `sync_scope.py`, to prefer a remote named `upstream`
+over `origin`, or to take the remote from a setting. They differ offline, and when a fork checkout has no `upstream`.

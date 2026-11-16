@@ -58,10 +58,15 @@ or a PR. Classify it, then resolve it to concrete evidence. All git use is
 | A branch `git rev-parse --verify` resolves | `git merge-base <default> <branch>`, then `git diff <base>...<branch>` and `git log --oneline <base>..<branch>` |
 | Anything else | A feature or concept: locate it in the repo by search |
 
-Find the default branch with `git symbolic-ref --quiet
-refs/remotes/origin/HEAD`, falling back to `main` then `master`. If `gh` is
-missing or unauthenticated, say so and ask how to proceed. Do not fetch or
-mutate the repo to work around it.
+Find the base repo with `python3 ${CLAUDE_SKILL_DIR}/../../scripts/pr_watch.py preflight`.
+Its `base` is the default branch, `remotes.mainline` is the remote that holds
+the base repo, and `repo.nameWithOwner` names it. In a fork checkout that
+remote is usually `upstream`, not `origin`. Take `<default>` as
+`<mainline-remote>/<base>`.
+
+When preflight leaves the remote null, fall back to
+`main` then `master`. If `gh` is missing or unauthenticated, say so and ask how
+to proceed. Do not fetch or mutate the repo to work around it.
 
 A **feature** names a capability that exists in the code. Find its entry
 points, its tests, and the commits that introduced it (`git log -S` on a
@@ -138,11 +143,15 @@ The beats, adapted to the target:
 - **External**: when the target leans on a library, protocol, or published
   algorithm, fetch the upstream documentation. Use `WebSearch` and `WebFetch`.
 
-Also establish the link base. If `git remote get-url origin` is a GitHub
-remote, build permalinks pinned to the resolved sha:
+Also establish the link base. If preflight named the base repo, build
+permalinks to it, pinned to the resolved sha:
 `https://github.com/<owner>/<repo>/blob/<sha>/<path>#L42-L58`. Pinning to a sha
-keeps the links correct after the branch moves. With no usable remote, cite
-repo-relative paths as plain text instead of broken links.
+keeps the links correct after the branch moves.
+
+Link only a sha the base repo holds: `git branch -r --contains <sha>` lists a `<mainline-remote>/` branch. A
+sha that only the fork holds would 404 there. Cite it as a repo-relative path
+instead. With no usable remote, cite repo-relative paths as plain text instead
+of broken links.
 
 ### Step 4: Verify every claim
 
