@@ -113,7 +113,8 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   `standards_imports.py`, the parser it uses, which `check-setup.sh` reuses through its `check` command
 - **Skills** (`skills/`) -- specialized agents for code review, testing, linting, Makefile maintenance, releases,
   proposals, landing a branch through PRs (`land-branch`), driving one PR to merged (`merge-fix-loop`), sweeping an
-  owner's dependabot PRs (`dependabot-sweep`), triaging every open bug in one run (`bug-sweep`), etc.
+  owner's dependabot PRs (`dependabot-sweep`), triaging every open bug in one run (`bug-sweep`), sorting new ideas
+  against the code, proposals, and ideas file (`idea-intake`), etc.
 - **Agents** (`agents/`) -- subagent definitions invoked by name: `implementer`, which writes one milestone for
   `work-queue`; `reviewer`, for post-milestone diff review and the end-of-run ADR review; `adr-impact`, which checks a
   diff or proposal against the project's ADRs; `design-critic`, which critiques design options and whole proposals for

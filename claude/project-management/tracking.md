@@ -66,6 +66,7 @@ is deliberate, not drift.
   `DROPPED`
 - Bugs use lowercase words: `open`, `accepted`, `proposed`, `fixed`,
   `not-reproducible`
+- Ideas use lowercase words: `open`, `unclear`, `infeasible`
 
 Each vocabulary is closed. A value outside it is an error, not a synonym. A
 check reports it. See `proposals.md` "Milestone Status".
@@ -108,6 +109,9 @@ In a repo with
 several components, a bug goes with the component that owns the code, when components keep their own specs. See
 "Bugs" below for the format.
 
+Ideas live in one file, `ideas.md`, beside the proposals directory, such as `spec/ideas.md` next to `spec/proposals/`.
+Use the file that exists. See "Ideas" below for the format.
+
 ### Index File Name
 
 A proposals directory has exactly one index. So does a bugs directory. It is named `index.md` or `README.md`. A new
@@ -140,6 +144,30 @@ reproduces it later.
 The directory's index opens with a short note on the format, then a table with one row per bug. The columns are Bug,
 Status, and Summary. The Bug cell links the file. The file's `**Status:**` line is the authority, and the index mirrors
 it. Change both in the same commit.
+
+## Ideas
+
+An idea is a feature or concern that no proposal covers yet. The ideas file holds them until one becomes a proposal or
+is dropped. `idea-intake` checks new ideas against the code, the proposals, and this file, then writes the ones that are
+new. `proposal-cleanup` removes an idea once a proposal covers it.
+
+The file opens with a short intro paragraph. Each idea is one `##` section with no sub-headings. A section runs to the
+next `##` heading, so a sub-heading would cut it short when it is removed. Each section holds:
+
+- The heading: a short name for the idea
+- A `**Status:**` line. The vocabulary is under "Status Vocabularies" above
+- A `**Captured:**` line with the date it was written, as `YYYY-MM-DD`
+- An `**Extends:**` line, only when the idea adds to something that already exists. It names the feature by file and
+  line, the proposal by ID, or the idea by heading. The idea covers only what that thing lacks
+- A paragraph on the problem: what the idea is for, and who wants it
+- A paragraph on context: the related code by file and line, related proposals, and prior art
+- A paragraph on feasibility: a sketch of the approach, its risks, and its open questions
+
+An `infeasible` idea's feasibility paragraph says why, and what would change the verdict. It stays in the file, so the
+same idea is not researched again. An `unclear` idea lists the questions it still needs answered. A section with no
+status line reads as `open`. Older ideas files are free-form, and a project's own format overrides this one.
+
+In a repo with several components that keep their own specs, an idea goes in the file of the component it changes.
 
 ## Markdown Quality
 

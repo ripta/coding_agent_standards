@@ -4,7 +4,7 @@ description: |
   Reconcile a project's proposals, proposal index, and queue after milestones
   finish. Marks proposals implemented when every milestone is finished, syncs
   the index, moves finished queue rows to history.md, and reports drift it may not
-  fix. Also trims the proposal dependency graph and prunes captured ideas, when
+  fix. Also trims the proposal dependency graph and prunes covered ideas, when
   the project has them.
 model: sonnet
 allowed-tools: AskUserQuestion, Read, Edit, Glob, Grep, Bash
@@ -86,14 +86,18 @@ Skip this step if the proposal index has no dependency graph. The graph lists ac
 "Proposal Index". Remove each proposal that this run moved to `implemented`. Drop any edge that only connected
 implemented proposals. Keep the edges among proposals that are still active.
 
-### Step 7 (optional): Prune Captured Ideas
+### Step 7 (optional): Prune Covered Ideas
 
-Skip this step if the specs directory has no ideas file, such as `spec/ideas.md`. Each idea there is a `##` section. An
-idea is captured when a numbered proposal, in any status, has a title or summary that clearly covers the same feature
-or concern. Check each idea against the proposal index. When in doubt, keep the idea.
+Skip this step if the specs directory has no ideas file, such as `spec/ideas.md`. Its format is "Ideas" in
+`${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. Each idea there is a `##` section. An idea is covered when a
+numbered proposal, in any status, has a title or summary that clearly covers the same feature or concern. Check each
+idea against the proposal index. When in doubt, keep the idea.
 
-Remove each captured idea's whole section, from its `##` heading to the next heading. Keep the file's intro paragraphs.
-Leave a trailing newline at the end of the file.
+An idea whose `**Extends:**` line names a proposal is not covered by that proposal. It holds only what the proposal
+lacks. It is covered only when a proposal covers that part. An `infeasible` idea stays unless a proposal covers it.
+
+Remove each covered idea's whole section, from its `##` heading to the next `##` heading. Keep the file's intro
+paragraphs. Leave a trailing newline at the end of the file.
 
 ### Step 8: Verify and Report
 
