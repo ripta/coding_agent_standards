@@ -399,6 +399,32 @@ def test_bug_skills_set_only_bug_statuses(skill: str) -> None:
     assert named <= tracking_vocabulary("Bugs")
 
 
+IDEA_STATUS_SET = re.compile(
+    r"(?:\b(?:written|[Ww]rite\s+(?:it|each\s+idea))(?:\s+to\s+the\s+ideas\s+file)?\s+as"
+    r"|[Rr]ecord\s+the\s+idea\s+as"
+    r"|[Mm]ark\s+(?:the\s+rest|each\s+idea\s+it\s+asked\s+about)"
+    r"|[Tt]he\s+status\s+is(?:\s+`[a-z-]+`\s+or)?)\s+`([a-z-]+)`"
+)
+
+
+def idea_statuses_set(text: str) -> set[str]:
+    return set(IDEA_STATUS_SET.findall(text))
+
+
+def test_idea_intake_sets_exactly_the_idea_statuses() -> None:
+    """Catches idea-intake writing a status tracking.md does not define, or ignoring one it does."""
+    named = idea_statuses_set((CLAUDE / "skills" / "idea-intake" / "SKILL.md").read_text())
+    assert named == tracking_vocabulary("Ideas")
+
+
+def test_an_undefined_idea_status_is_found() -> None:
+    named = idea_statuses_set(
+        "Write it as `pending`. The status is `parked`. Mark the rest\n`unclear`. It counts as `planned`."
+    )
+    assert named == {"pending", "parked", "unclear"}
+    assert named - tracking_vocabulary("Ideas") == {"pending", "parked"}
+
+
 @pytest.mark.parametrize(
     "path", sorted(p for p in (ROOT / "bugs").glob("*.md") if p.name != "index.md"), ids=rel
 )
