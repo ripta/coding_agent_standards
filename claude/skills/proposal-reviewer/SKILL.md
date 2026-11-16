@@ -322,8 +322,10 @@ checks add or reopen go through Step 5 before the next re-check pass.
      record it in Design Decisions (Settled) as a decision to defer, with a concrete revisit hook in both the settled
      entry and the Decision Log. Write a hook with a condition or a date as a `**Revisit:**` line, per "Revisit Hooks"
 3. **Weak decisions**: A settled decision the critic showed fails the "Choosing Options" standard, including a hack or
-   over-building. A different but equally sound choice does not count. For each, the user chooses whether to reopen it
-   as an open question (and loop back to Step 5) or keep it. Record either choice in the Decision Log with the reason.
+   over-building. A different but equally sound choice does not count. Ask each one as its design question, the way
+   item 2 of "The Review Gate" describes: the current decision first, then the alternatives, as what the user gets.
+   A pick other than the current decision reopens it as an open question, and loops back to Step 5. Record the answer
+   in the Decision Log with the reason.
 
 Do all three checks before asking. Then present every inconsistency, gap, and weak decision in one AskUserQuestion call.
 When there are more than four, ask in successive calls of up to four. Resolve inconsistencies before continuing. In
@@ -466,22 +468,27 @@ When Step 7 is done, show the closing summary before asking. See "The Closing Su
 Then ask in one AskUserQuestion call, or successive calls of up to four questions:
 
 1. Each `USER'S CALL`, first, with its options. Put the judge's lean in its description, unmarked
-2. Which red-flagged additions and contested decisions to reopen, as multiSelect questions of two to four each. With a
-   single one, ask "Reopen <decision>?" as yes or no instead. With none, skip this. The user names any other decision
-   to reopen through "Other". Each multiSelect question ends with an option labeled `Keep all`, whose description says
-   no decision in that question is reopened. Never word the question as "pick none to keep them all." The tool reports
-   an empty pick as no answer
+2. Each red-flagged addition and contested decision, as its own single-select question. With none, skip this. Ask the
+   design question itself, never whether to reopen it:
+   - State the situation the decision governs, in concrete terms
+   - List the review's decision first, marked `(Recommended)`. Then list the alternatives the critic weighed. Each
+     description says what the user gets with that option
+   - Ask an addition as whether to do it. One option is the addition, named by what it brings in. Another leaves it out
+   - Never put process words in the question or its options, such as reopen, reversal, keep, autonomous, or contested.
+     Whether the user chose the decision earlier does not go in the question either. The closing summary carries it
+
+   A pick other than the first overturns the decision. So does an answer through "Other"
 3. Each gated item from "What the user authorizes by choosing it" that the review produced, except `accepted` and ADRs
 
-Record every answer at once. Add a Decision Log entry for the gate itself: `- YYYY-MM-DD: Review gate: <kept all, or
-what was reopened>`. A resumed review uses it to tell reviewed decisions from unreviewed ones. When the user reopens a
-decision or overturns a provisional one, reopen the questions that depend on it as well. Resolve them in converge
-mode, since the user has chosen to weigh in. Then run Steps 6 and 7 for what changed, and return to the gate with only
-what is new.
+Record every answer at once. Add a Decision Log entry for the gate itself:
+`- YYYY-MM-DD: Review gate: <kept all, or each decision changed, from what to what>`. A resumed review uses it to tell
+reviewed decisions from unreviewed ones. When the user overturns a decision, provisional or not, reopen the questions
+that depend on it as well. Resolve them in converge mode, since the user has chosen to weigh in. Then run Steps 6 and 7
+for what changed, and return to the gate with only what is new.
 
-Ask the `accepted` and ADR questions from Step 8 last, in their own call, once a gate call returns with nothing
-reopened and nothing changed. Never offer `accepted` in the same call as a reopen question. A reopen would change the
-design after it was accepted.
+Ask the `accepted` and ADR questions from Step 8 last, in their own call, once a gate call returns with no decision
+overturned and nothing changed. Never offer `accepted` in the same call as a decision question. An overturned decision
+would change the design after it was accepted.
 
 ## The Closing Summary
 

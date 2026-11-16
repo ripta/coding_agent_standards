@@ -154,7 +154,7 @@ class BaselineBuildTests(unittest.TestCase):
             self.assertIn("wait for explicit answers", contents)
             self.assertNotIn("call returns", contents)
             self.assertIn("Never read an empty answer as consent", contents)
-            self.assertIn("Never offer `accepted` in the same call as a reopen question", contents)
+            self.assertIn("Never offer `accepted` in the same call as a decision question", contents)
             self.assertIn("fresh", convergence.read_text())
             self.assertIn("At most three passes per question", convergence.read_text())
 
