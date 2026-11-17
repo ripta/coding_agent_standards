@@ -12,3 +12,4 @@ oldest open one.
 | [20261027-rumdl-fix-rewrites-unflagged-text](20261027-rumdl-fix-rewrites-unflagged-text.md) | fixed | rumdl's fix mode rewrites fenced markdown examples, and joins lines on a false MD038 |
 | [20261115-skills-assume-origin-is-the-base-repo](20261115-skills-assume-origin-is-the-base-repo.md) | fixed | Four skills take the base repo from `origin`, which is the fork in a fork checkout |
 | [20261115-work-queue-band-test-missing-iscollapsed](20261115-work-queue-band-test-missing-iscollapsed.md) | fixed | The work-queue progress band test fails, because `AbovePrompt` now requires `isCollapsed` |
+| [20261116-work-queue-band-test-needs-newer-harness](20261116-work-queue-band-test-needs-newer-harness.md) | open | The work-queue band test fails on a harness older than the one its fixtures were fixed for |
