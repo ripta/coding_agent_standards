@@ -36,7 +36,7 @@ The run file is JSON, and this script is its only writer:
      "remotes": {"mainline": "upstream", "push": "origin", "head_prefix": "someone:", "fork": true},
      "merge_method": "MERGE", "required_checks": ["ci"], "auto_merge": true, "delete_branch_on_merge": true,
      "check_command": "make ci", "review_policy": "...", "deadline": "<ISO 8601>",
-     "topic": "<topic>", "worktrees": "<dir>",
+     "topic": "<topic>", "worktrees": "<dir>", "branch_prefix": "agent/",
      "batches": {"<name>": {"status": "not-started", "branch": null, "worktree": null, "start": null,
                             "picked": false, "checked_head": null, "pushed_head": null, "pr": null}}}
 
@@ -47,6 +47,10 @@ PR closed without merging is stopped. `init` writes the file at
 Hand-kept run files from older plugins live in `land-branch/` and `land-branch/v2/`, and this
 script never reads them. The run's watch state file sits beside the run file with a `.watch.json`
 suffix.
+
+`branch_prefix` comes from preflight's `branches.prefix`. A batch branch is named
+`<prefix><topic><sep><batch>`, where `<sep>` is the prefix's last character, as pr_watch.py's
+`branch_name` defines. A run file that has no `branch_prefix` uses `agent/`.
 
 Batches land serially: a batch is ready once every batch in its `after` list merged, and its PR
 targets the mainline. Stacked batches are landed by hand, as the skill describes.
@@ -204,6 +208,13 @@ def init(args: argparse.Namespace) -> dict[str, Any]:
     if args.merge_method not in (preflight.get("merge_methods") or {}).get("allowed", []):
         raise RunError(f"{args.merge_method} is not an allowed merge method on the base")
 
+    prefix = (preflight.get("branches") or {}).get("prefix") or pr_watch.DEFAULT_BRANCH_PREFIX
+    try:
+        for b in plan["batches"]:
+            pr_watch.branch_name(prefix, args.topic, b["name"])
+    except ValueError as e:
+        raise RunError(str(e)) from e
+
     repo = preflight["repo"]
     slug = repo["nameWithOwner"]
     path = Path(args.state_dir).expanduser() / "land-branch" / "v3" / f"{slug.replace('/', '-')}-{args.snapshot[:7]}.json"
@@ -230,6 +241,7 @@ def init(args: argparse.Namespace) -> dict[str, Any]:
         "deadline": args.deadline,
         "topic": args.topic,
         "worktrees": str(Path(args.worktrees).expanduser().resolve()),
+        "branch_prefix": prefix,
         "batches": {b["name"]: {"status": "not-started", "branch": None, "worktree": None, "start": None,
                                 "picked": False, "checked_head": None, "pushed_head": None, "pr": None}
                     for b in plan["batches"]},
@@ -282,7 +294,8 @@ def open_batch(args: argparse.Namespace, run_checks: Callable[[str, Path, Path],
         raise Stop("not-ready", waiting_for=waiting)
 
     mainline_ref = f"{remotes['mainline']}/{run['mainline']}"
-    branch = state["branch"] or f"agent/{run['topic']}/{name}"
+    prefix = run.get("branch_prefix") or pr_watch.DEFAULT_BRANCH_PREFIX
+    branch = state["branch"] or pr_watch.branch_name(prefix, run["topic"], name)
     worktree = Path(state["worktree"] or Path(run["worktrees"]) / f"{run['topic']}-{name}")
 
     git(["fetch", remotes["mainline"]], root)

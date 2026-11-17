@@ -24,9 +24,10 @@ waiting rules, triage, and stopping rules all apply here.
 
 ## Branch ownership
 
-Every branch this skill creates is yours: the staging branch and every batch branch. Name them under `agent/`. The
-user's branch and the mainline are the user's. Read them and fetch them, but never push, reset, or rebase them. See
-"Branches the Agent Owns" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`.
+Every branch this skill creates is yours: the staging branch and every batch branch. Name them with preflight's
+`branches.prefix`. Below, `<prefix>` is that prefix, and `<sep>` is its last character. The user's branch and the
+mainline are the user's. Read them and fetch them, but never push, reset, or rebase them. See "Branches the Agent Owns"
+in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`.
 
 ## Step 1: Detect, without asking
 
@@ -73,7 +74,7 @@ No question belongs in this step. A rebase conflict in item 10 is a stop, not a 
 10. Stage the snapshot and rebase it. A branch landed before still holds the commits that landed, since landing copies
     them and leaves the user's branch alone. The rebase drops them, so every run plans against today's mainline. Create
     the staging branch and its worktree at the snapshot:
-    `git worktree add --no-track -b agent/stage/<topic> .claude/worktrees/stage-<topic> <snapshot>`. It is never
+    `git worktree add --no-track -b <prefix>stage<sep><topic> .claude/worktrees/stage-<topic> <snapshot>`. It is never
     pushed. Record `git rev-parse <mainline-remote>/<mainline>` as `onto`. Then run `git rebase <onto>` in that
     worktree. Git skips each commit the mainline already has, and drops each one that becomes empty because it landed
     with edits. It keeps commits that were empty to begin with, such as snip markers. On a conflict, never resolve a
@@ -175,7 +176,7 @@ verified plan to files in the scratchpad. Then run, through `cg_run`:
 ```sh
 python3 land_batch.py init --plan <plan> --preflight <preflight> --snapshot <snapshot> --onto <onto> \
   --batch-tip <batch tip> --mainline <mainline> --merge-method <method> --topic <topic> \
-  --worktrees .claude/worktrees --staging-branch agent/stage/<topic> --staging-worktree <staging worktree> \
+  --worktrees .claude/worktrees --staging-branch <prefix>stage<sep><topic> --staging-worktree <staging worktree> \
   --check-command '<local check command>' --review-policy <policy> --deadline <ISO 8601 time>
 ```
 
@@ -245,8 +246,8 @@ A run that stacks lands each ready batch with these steps:
 
 1. Run `git fetch <mainline-remote>`
 2. Create the batch branch in its own worktree. A serial batch starts from the current mainline:
-   `git worktree add --no-track -b agent/<topic>/<batch> .claude/worktrees/<topic>-<batch> <mainline-remote>/<mainline>`.
-   A stacked batch starts from its parent's tip, `<push-remote>/agent/<topic>/<parent>`, also with `--no-track`
+   `git worktree add --no-track -b <prefix><topic><sep><batch> .claude/worktrees/<topic>-<batch> <mainline-remote>/<mainline>`.
+   A stacked batch starts from its parent's tip, `<push-remote>/<prefix><topic><sep><parent>`, also with `--no-track`
 3. Cherry-pick the batch's commits in order. A batch whose `after` batches merged, or whose parent branch it started
    from, already has their work, so it cherry-picks only its own commits. A conflict here is handled as
    `cherry-pick-conflict` above

@@ -59,7 +59,8 @@ poll loop by hand. Its subcommands print JSON:
 - `pr_watch.py preflight --base BRANCH` reports gh access, merge settings, required checks and reviews, the CI systems
   the checkout configures, the remotes to fetch from and push to, and a `needs` list of what is missing. It also reports
   the facts stacked PRs depend on: the merge methods the base allows, a merge queue, strict up-to-date branches, and
-  whether CI builds PRs against other bases
+  whether CI builds PRs against other bases. Its `branches` block gives the prefix for agent-owned branches, and the
+  rulesets in `blocked_by` that would reject a branch named with it
 - `pr_watch.py snapshot --pr N` prints the PR's state, checks, merge state, and unresolved thread count
 - `pr_watch.py watch --pr N --state FILE --timeout SECONDS` waits and prints one JSON line per new event
 - `pr_watch.py failures --pr N` lists failing checks, with the Actions run and job, or the Cloud Build build and region
@@ -153,6 +154,9 @@ Put every question this run needs into one AskUserQuestion call. Skip any that t
   is a reason to suggest a shorter budget and a re-entry, not a longer wait
 - **Credentials**, for each `needs` entry the user must fix. For example, Cloud Build logs need `gcloud auth login`,
   which the user runs as `! gcloud auth login`. Ask before the loop starts, not when the first failure needs the logs
+- **Branch prefix**, when preflight's `branches.blocked_by` names a ruleset. Ask for a prefix it allows. Offer the
+  project's own branch convention first, when its instructions document one. The user sets it with
+  `! git config codingstandards.branchPrefix <prefix>`, and then preflight runs again
 - **No CI**, only when preflight found no CI system and the base requires no checks. Offer: merge once local checks pass
   and any required review is in; wait for a review, then merge; or open the PR and stop
 
@@ -160,10 +164,10 @@ Report what detection settled in a line or two, beside the question.
 
 ## Step 3: Prepare the branch
 
-1. When you do not own the branch, make one you do. Name it `agent/<topic>`, where the topic is a short kebab-case name
-   for the change. Create it in its own worktree at the target commit:
-   `git worktree add --no-track -b agent/<topic> .claude/worktrees/<topic> <commit>`. The user's branch is left as it
-   was
+1. When you do not own the branch, make one you do. Name it `<prefix><topic>`, where the prefix is preflight's
+   `branches.prefix` and the topic is a short kebab-case name for the change. Create it in its own worktree at the
+   target commit: `git worktree add --no-track -b <prefix><topic> .claude/worktrees/<topic> <commit>`. The user's
+   branch is left as it was
 2. Work only in that worktree from here on. Never touch the user's checkout
 3. Drop snip commits, as "Snip Commits" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` defines them. They never go
    into a PR. The base for both commands is `git merge-base <mainline-remote>/<merge_into> HEAD`. In the worktree, run

@@ -21,8 +21,14 @@
 ## Branches the Agent Owns
 
 A branch the agent created for its own work is agent-owned. Examples are a worktree's branch, a staging branch, and a PR
-branch a skill opened. Name such branches under `agent/`, unless the project names them otherwise. Every other branch
-is the user's, including the checked-out branch and the mainline.
+branch a skill opened. Every other branch is the user's, including the checked-out branch and the mainline.
+
+Name an agent-owned branch with the checkout's branch prefix, then its parts, such as a topic and a batch. The prefix
+is `agent/` unless the checkout sets `git config codingstandards.branchPrefix <prefix>`. A checkout sets it when the
+project names branches another way, or when the host rejects `agent/` names. One such host has a ruleset that forbids
+any slash in a branch name. The prefix ends with its separator, and the same character joins the parts. `agent/`
+names `agent/<topic>/<batch>`, and `me.agent.` names `me.agent.<topic>.<batch>`. `pr_watch.py preflight` reports the
+prefix as `branches.prefix`. It also names each ruleset that would reject a branch named with it.
 
 - When the user asks for work that needs a branch, such as landing a PR, the agent creates its own. It never pushes the
   user's branch to do that work

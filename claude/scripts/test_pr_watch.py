@@ -2,6 +2,7 @@
 
 import json
 import sys
+import urllib.parse
 from pathlib import Path
 
 import pytest
@@ -391,7 +392,7 @@ def _fake_cloud(monkeypatch, runs, trigger, merged=(("1", "sha1"),), build_trigg
 
 
 def _verdict(required=()):
-    return pr_watch.cloud_build_verdict("o/r", "main", list(required))
+    return pr_watch.cloud_build_verdict("o/r", "main", list(required), "agent/topic/batch")
 
 
 def test_cloud_build_developer_connect_trigger_matching_everything_is_yes(monkeypatch):
@@ -821,3 +822,101 @@ def test_preflight_reports_fork_remotes_and_takes_stacking_off(monkeypatch, tmp_
                                  "fork": True, "head_prefix": "someone:"}
     assert report["needs"] == []
     assert report["stacking"]["viable"] is False
+
+
+def _preflight_with_rules(monkeypatch, tmp_path, prefix, rules_for, bypass):
+    """Run preflight in a plain checkout. `rules_for` maps a branch name to its rulesets' rules."""
+    import subprocess
+    for args in (["init", "-q"], ["remote", "add", "origin", "https://github.com/acme/widget.git"]):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True)
+    if prefix is not None:
+        subprocess.run(["git", "config", "codingstandards.branchPrefix", prefix], cwd=tmp_path, check=True)
+    monkeypatch.chdir(tmp_path)
+
+    repo = {"nameWithOwner": "acme/widget", "viewerPermission": "WRITE", "autoMergeAllowed": True,
+            "mergeCommitAllowed": True, "squashMergeAllowed": True, "rebaseMergeAllowed": False,
+            "deleteBranchOnMerge": True, "viewerDefaultMergeMethod": "MERGE", "defaultBranchRef": {"name": "main"},
+            "isFork": False, "parent": None}
+    asked = []
+
+    def fake_gh_json(args):
+        path = args[1]
+        if path.endswith("/protection"):
+            raise pr_watch.GhError("HTTP 404")
+        if path.startswith("repos/acme/widget/rules/branches/"):
+            branch = urllib.parse.unquote(path.rsplit("/", 1)[1])
+            if branch != "main":
+                asked.append(branch)
+            return rules_for.get(branch, [])
+        if path.startswith("repos/acme/widget/rulesets/"):
+            return {"id": 7, "name": "No nested branches", "current_user_can_bypass": bypass}
+        return []
+
+    monkeypatch.setattr(pr_watch, "gh", lambda args: "acme/widget\n" if args[:2] == ["repo", "view"] else "")
+    monkeypatch.setattr(pr_watch, "gh_json", fake_gh_json)
+    monkeypatch.setattr(pr_watch, "graphql", lambda query, **kw: {"repository": repo})
+    return pr_watch.preflight("main"), asked
+
+
+NESTED = [{"type": "creation", "ruleset_id": 7}, {"type": "update", "ruleset_id": 7},
+          {"type": "max_file_size", "ruleset_id": 9}]
+
+
+def test_preflight_names_the_ruleset_that_rejects_agent_branches(monkeypatch, tmp_path):
+    """Catches a run that pushes branch after branch into a ruleset it cannot bypass."""
+    report, asked = _preflight_with_rules(monkeypatch, tmp_path, None, {"agent/topic/batch": NESTED}, "never")
+
+    assert asked == ["agent/topic/batch"]
+    assert report["branches"]["prefix"] == "agent/" and report["branches"]["source"] == "default"
+    assert report["branches"]["blocked_by"] == [
+        {"ruleset_id": 7, "name": "No nested branches", "rules": ["creation", "update"], "bypass": "never"}]
+    assert any("No nested branches" in need and "codingstandards.branchPrefix" in need for need in report["needs"])
+
+
+def test_preflight_passes_a_ruleset_the_viewer_can_bypass(monkeypatch, tmp_path):
+    report, _ = _preflight_with_rules(monkeypatch, tmp_path, None, {"agent/topic/batch": NESTED}, "always")
+    assert report["branches"]["blocked_by"] == [] and report["needs"] == []
+
+
+def test_preflight_probes_the_configured_prefix(monkeypatch, tmp_path):
+    """Catches a probe that keeps testing agent/ after the checkout set a flat prefix."""
+    report, asked = _preflight_with_rules(monkeypatch, tmp_path, "me.agent.", {"agent/topic/batch": NESTED}, "never")
+
+    assert asked == ["me.agent.topic.batch"]
+    assert report["branches"] == {"prefix": "me.agent.", "source": "config", "sample": "me.agent.topic.batch",
+                                  "blocked_by": []}
+    assert report["needs"] == []
+
+
+def test_preflight_reports_a_prefix_without_a_separator_as_a_need(monkeypatch, tmp_path):
+    report, asked = _preflight_with_rules(monkeypatch, tmp_path, "me.agent", {}, "never")
+    assert asked == []
+    assert any("codingstandards.branchPrefix" in need and "separator" in need for need in report["needs"])
+
+
+@pytest.mark.parametrize("prefix,parts,name", [
+    ("agent/", ("topic",), "agent/topic"),
+    ("agent/", ("topic", "batch"), "agent/topic/batch"),
+    ("me.agent.", ("topic", "batch"), "me.agent.topic.batch"),
+])
+def test_branch_name_joins_parts_with_the_prefix_separator(prefix, parts, name):
+    assert pr_watch.branch_name(prefix, *parts) == name
+
+
+@pytest.mark.parametrize("prefix,parts", [
+    ("me.agent", ("topic",)),
+    ("", ("topic",)),
+    ("me.agent.", ("a/b",)),
+    ("agent/", ("",)),
+    ("agent/", ("bad..name",)),
+])
+def test_branch_name_refuses_names_that_break_the_scheme(prefix, parts):
+    with pytest.raises(ValueError):
+        pr_watch.branch_name(prefix, *parts)
+
+
+def test_cloud_build_probes_the_branch_it_is_given(monkeypatch):
+    """Catches a trigger probe that still tries agent/ after the prefix changed."""
+    _fake_cloud(monkeypatch, {"sha1": [_cb_run()]},
+                {"name": "t", "developerConnectEventConfig": {"pullRequest": {"branch": "^agent/"}}})
+    assert pr_watch.cloud_build_verdict("o/r", "main", [], "me.agent.topic.batch")["answer"] == "no"

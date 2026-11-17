@@ -171,6 +171,40 @@ def test_init_refuses_to_overwrite_a_run(world, capsys):
     assert code == 1 and "already exists" in capsys.readouterr().err
 
 
+def init_with_prefix(world: dict[str, Any], prefix: str) -> tuple[int, Any]:
+    files = world["files"]
+    preflight = json.loads((files / "preflight.json").read_text())
+    preflight["branches"] = {"prefix": prefix}
+    (files / "prefixed.json").write_text(json.dumps(preflight))
+
+    run = run_state(world)
+    return call("init", "--plan", str(files / "plan.json"), "--preflight", str(files / "prefixed.json"),
+                "--snapshot", run["snapshot"], "--onto", run["onto"], "--batch-tip", run["batch_tip"],
+                "--mainline", "main", "--merge-method", "MERGE", "--topic", "work", "--worktrees", run["worktrees"],
+                "--staging-branch", "work", "--staging-worktree", str(world["checkout"]),
+                "--check-command", "make ci", "--review-policy", "bots", "--deadline", "2099-01-01T00:00:00Z",
+                "--state-dir", str(world["state"] / "prefixed"))
+
+
+def test_batch_branches_take_the_prefix_preflight_settled(world):
+    """Catches a batch branch named under agent/ in a repo whose rulesets reject a slash."""
+    code, result = init_with_prefix(world, "me.agent.")
+    assert code == 0, result
+
+    world = {**world, "run": Path(result["run"])}
+    code, result = open_one(world)
+    assert code == 0, result
+
+    assert run_state(world)["batches"]["one"]["branch"] == "me.agent.work.one"
+    assert git(world["fork"], "for-each-ref", "--format=%(refname)") == "refs/heads/me.agent.work.one"
+
+
+def test_init_refuses_a_prefix_that_does_not_end_in_a_separator(world, capsys):
+    """Catches a prefix that would glue the topic onto it, such as `meagentwork.one`."""
+    assert init_with_prefix(world, "me.agent")[0] == 1
+    assert "separator" in capsys.readouterr().err
+
+
 def test_a_hand_kept_run_file_is_refused(world, capsys):
     """Catches the script misreading a run file an older plugin wrote by hand."""
     run = run_state(world)

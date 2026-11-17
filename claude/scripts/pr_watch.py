@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Watch GitHub pull requests for CI results and review activity, and act on review threads.
 
-    python3 pr_watch.py [--repo OWNER/NAME] preflight [--base BRANCH]
+    python3 pr_watch.py [--repo OWNER/NAME] preflight [--base BRANCH] [--branch-prefix PREFIX]
     python3 pr_watch.py snapshot --pr N
     python3 pr_watch.py watch --pr N [--pr M ...] --state FILE --timeout SECONDS
     python3 pr_watch.py threads --pr N
@@ -16,6 +16,10 @@ Run it from inside the repository's checkout, or pass the global `--repo OWNER/N
 subcommand to work on a repository without a checkout. One invocation names one repository, so a
 sweep over several repositories runs one process per repository. With `--repo`, `preflight` skips
 the checkout's CI files and answers unknown for whether CI builds PRs against other bases.
+
+`preflight` also settles the prefix of agent-owned branch names: `--branch-prefix`, else the
+checkout's `codingstandards.branchPrefix`, else `agent/`. It reports the rulesets that would
+reject a branch named that way.
 `gh` reads its credentials from ~/.config/gh, which a sandboxed shell cannot read, so run this
 script through cg or with the sandbox disabled.
 
@@ -34,6 +38,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
 from pathlib import Path
 from typing import Any, Callable
 
@@ -621,7 +626,88 @@ CLOUD_BUILD_APPS = {"google-cloud-build", "google-cloud-developer-connect"}
 BUILD_URL = re.compile(r"/cloud-build/builds(?:;region=([\w-]+))?/([\w-]+)")
 TRIGGER_URL = re.compile(r"/cloud-build/triggers(?:;region=([\w-]+))?/edit/([\w-]+)")
 PR_CONFIG_KEYS = ("developerConnectEventConfig", "github", "repositoryEventConfig")
-BATCH_BRANCH = "agent/topic/batch"
+DEFAULT_BRANCH_PREFIX = "agent/"
+BRANCH_PREFIX_KEY = "codingstandards.branchPrefix"
+BRANCH_SEPARATORS = "/._-"
+BLOCKING_RULES = ("creation", "update")
+BYPASSING = ("always", "exempt")
+
+
+def branch_name(prefix: str, *parts: str) -> str:
+    """Name an agent-owned branch: the prefix, then the parts joined by the prefix's last character.
+
+    The prefix ends with its separator, so `agent/` names `agent/<topic>/<batch>` and `me.agent.`
+    names `me.agent.<topic>.<batch>`. A part may hold neither a slash nor the separator, so a repo
+    that rejects slashes never gets one back from a topic or batch name.
+    """
+    if not prefix or prefix[-1] not in BRANCH_SEPARATORS:
+        raise ValueError(f"branch prefix {prefix!r} must end with a separator, one of {BRANCH_SEPARATORS!r}")
+    separator = prefix[-1]
+    for part in parts:
+        if not part or "/" in part or separator in part:
+            raise ValueError(f"branch name part {part!r} must be non-empty, with no '/' or {separator!r}")
+
+    name = prefix + separator.join(parts)
+    if subprocess.run(["git", "check-ref-format", "--branch", name], capture_output=True).returncode != 0:
+        raise ValueError(f"{name!r} is not a valid branch name")
+    return name
+
+
+def configured_branch_prefix(cwd: Path) -> str | None:
+    result = subprocess.run(["git", "config", "--get", BRANCH_PREFIX_KEY], cwd=cwd, capture_output=True, text=True)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip() or None
+
+
+def branch_blockers(slug: str, branch: str) -> list[dict[str, Any]]:
+    """Return the rulesets that stop the viewer creating or updating `branch`.
+
+    A ruleset whose bypass setting cannot be read counts as blocking, with `bypass` None.
+    """
+    rules = gh_json(["api", f"repos/{slug}/rules/branches/{urllib.parse.quote(branch, safe='')}"]) or []
+    found: dict[int, list[str]] = {}
+    for rule in rules:
+        if rule.get("type") in BLOCKING_RULES:
+            found.setdefault(rule["ruleset_id"], []).append(rule["type"])
+
+    blockers = []
+    for ruleset_id, types in found.items():
+        try:
+            ruleset = gh_json(["api", f"repos/{slug}/rulesets/{ruleset_id}"])
+        except GhError:
+            ruleset = {}
+        bypass = ruleset.get("current_user_can_bypass")
+        if bypass not in BYPASSING:
+            blockers.append({"ruleset_id": ruleset_id, "name": ruleset.get("name"), "rules": sorted(types),
+                             "bypass": bypass})
+    return blockers
+
+
+def branch_report(slug: str, cwd: Path | None, override: str | None) -> tuple[dict[str, Any], list[str]]:
+    """Settle the agent-owned branch prefix, and check a sample batch branch against the rulesets."""
+    configured = override or (configured_branch_prefix(cwd) if cwd else None)
+    prefix = configured or DEFAULT_BRANCH_PREFIX
+    report: dict[str, Any] = {"prefix": prefix, "source": ("flag" if override else "config" if configured
+                                                            else "default")}
+    try:
+        report["sample"] = branch_name(prefix, "topic", "batch")
+    except ValueError as e:
+        report["sample"] = None
+        report["blocked_by"] = []
+        return report, [f"{e}. Set `git config {BRANCH_PREFIX_KEY} <prefix>` to one that does."]
+
+    try:
+        report["blocked_by"] = branch_blockers(slug, report["sample"])
+    except GhError as e:
+        report["blocked_by"] = []
+        report["unreadable"] = f"rulesets for {report['sample']}: {e}"
+        return report, []
+
+    needs = [f"ruleset {b['name'] or b['ruleset_id']} rejects {' and '.join(b['rules'])} of {report['sample']}, "
+             f"and the viewer cannot bypass it. Set `git config {BRANCH_PREFIX_KEY} <prefix>` to a prefix it "
+             f"allows, then rerun preflight." for b in report["blocked_by"]]
+    return report, needs
 
 
 def parse_cloud_build_url(url: str) -> dict[str, str | None] | None:
@@ -658,11 +744,11 @@ def trigger_pr_branch(trigger: dict[str, Any]) -> str | None:
     return None
 
 
-def cloud_build_verdict(slug: str, base: str, required: list[str]) -> dict[str, str]:
+def cloud_build_verdict(slug: str, base: str, required: list[str], branch: str) -> dict[str, str]:
     """Say whether the Cloud Build triggers behind the base's recent checks build PRs for any base.
 
     The triggers are found through the check runs of a recent merged PR. Each trigger's pull request
-    branch regex is tried against a representative batch branch name. Cloud Build uses RE2. A
+    branch regex is tried against `branch`, a sample batch branch name. Cloud Build uses RE2. A
     pattern Python cannot compile answers unknown.
     """
     try:
@@ -704,7 +790,7 @@ def cloud_build_verdict(slug: str, base: str, required: list[str]) -> dict[str, 
         if pattern is None:
             return {"answer": "no", "reason": f"cloud-build trigger {name} in {project} does not build pull requests"}
         try:
-            matches = re.search(pattern, BATCH_BRANCH)
+            matches = re.search(pattern, branch)
         except re.error as e:
             return {"answer": "unknown", "reason": f"cloud-build trigger {name}: branch pattern {pattern!r}: {e}"}
         if not matches:
@@ -724,7 +810,8 @@ def gcloud_status() -> str:
     return "ok" if result.stdout.strip() else "unauthenticated"
 
 
-def preflight(base: str | None, repo_override: str | None = None) -> dict[str, Any]:
+def preflight(base: str | None, repo_override: str | None = None,
+              branch_prefix: str | None = None) -> dict[str, Any]:
     report: dict[str, Any] = {"needs": []}
     try:
         gh(["auth", "status"])
@@ -765,6 +852,8 @@ def preflight(base: str | None, repo_override: str | None = None) -> dict[str, A
     report["protection_unreadable"] = unknown
 
     report["merge_methods"] = merge_methods(repo, rules)
+    report["branches"], branch_needs = branch_report(slug, None if repo_override else Path.cwd(), branch_prefix)
+    report["needs"] += branch_needs
     strict = strict_from_rules(rules or []) or strict_from_classic(classic or {})
     report["strict_up_to_date"] = strict or (None if unknown else False)
 
@@ -799,7 +888,8 @@ def preflight(base: str | None, repo_override: str | None = None) -> dict[str, A
                            "reason": f"cloud-build triggers cannot be read: gcloud is {report['gcloud']}"}
         else:
             required = (report["protection"] or {}).get("required_checks") or []
-            cloud_build = cloud_build_verdict(slug, base, required)
+            sample = report["branches"]["sample"] or branch_name(DEFAULT_BRANCH_PREFIX, "topic", "batch")
+            cloud_build = cloud_build_verdict(slug, base, required, sample)
     report["ci_builds_other_bases"] = ci_other_bases(Path.cwd(), report["ci"], cloud_build)
     return report
 
@@ -1004,6 +1094,8 @@ def main(argv: list[str]) -> int:
 
     p = sub.add_parser("preflight", help="report gh access, merge settings, protection, stacking facts, and CI log needs")
     p.add_argument("--base", help="branch the PRs target; defaults to the repo's default branch")
+    p.add_argument("--branch-prefix", help="prefix for agent-owned branches, ending in its separator; "
+                                           "defaults to the checkout's codingstandards.branchPrefix, else agent/")
 
     p = sub.add_parser("snapshot", help="print one PR's state, checks, and unresolved thread count")
     p.add_argument("--pr", type=int, required=True)
@@ -1057,7 +1149,7 @@ def main(argv: list[str]) -> int:
 
     try:
         if args.command == "preflight":
-            emit(preflight(args.base, args.repo))
+            emit(preflight(args.base, args.repo, args.branch_prefix))
         elif args.command in ("snapshot", "threads", "failures"):
             pr = fetch_pr(*repo_slug(args.repo), args.pr)
             if args.command == "snapshot":

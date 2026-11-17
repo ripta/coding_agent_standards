@@ -188,7 +188,8 @@ in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`. Report them instead.
 A red PR whose fix needs code is fixed on a separate branch:
 
 1. Clone the repo into a scratch worktree under the scratchpad. No checkout of it is assumed
-2. Create `agent/<topic>` from the default branch and make the fix
+2. Create `<prefix><topic>` from the default branch, where the prefix is the repo's preflight `branches.prefix`, and
+   make the fix
 3. Run the repo's local check command, then follow `${CLAUDE_SKILL_DIR}/../merge-fix-loop/SKILL.md` on the fix PR, from
    its Step 3. Ask nothing it already answered in Step 2 here
 4. After the fix PR merges, post `@dependabot rebase` on the dependabot PR, bare as above
