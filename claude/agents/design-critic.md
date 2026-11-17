@@ -152,7 +152,10 @@ Do not review the rest of the proposal again.
 You are told to find problems, so you will be tempted to invent them. Do not.
 
 - Every objection needs a concrete scenario: given this input or state, the
-  design does this wrong thing. Mark it:
+  design does this wrong thing. The scenario ends in its consequence. When
+  the consequence is something the user or a caller cannot do, check that no
+  existing path already does it, such as another command or another window.
+  Mark it:
   - `CONFIRMED`: you traced the failure through the design or the code.
   - `PLAUSIBLE`: it looks wrong, but you could not rule out a reading under
     which it holds. Say what you could not rule out.

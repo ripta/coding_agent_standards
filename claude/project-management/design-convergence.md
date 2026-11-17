@@ -56,6 +56,30 @@ finding, and it is design-level.
 Routing exists because each fix written as design prose adds mechanism, and the next pass finds that mechanism's edge
 cases. A check has no edge cases of its own to re-check.
 
+### When a Finding Holds
+
+A finding claims a mechanism and a consequence, such as "X stays busy, so the user cannot do Y." Verifying the finding
+means verifying every claim in it, the consequence included. A true mechanism with an unshown consequence is a failed
+check, not a passed one.
+
+Keep tracing until the consequence is shown or refuted. When it can be neither, the finding is `PLAUSIBLE`. Carry it
+as a risk or a `Leaves undone` line. Do not fix it as a defect, and do not drop it.
+
+When the consequence is that the user or a caller cannot do something, name the concrete thing. Then confirm that no
+existing path does it, such as another command, another window, or a step the user already takes. When an existing path
+does it, the finding does not hold as stated. Reject it with a one-line reason that names the path. When that path is
+costly, such as hard to discover or many steps longer, judge the cost as its own robustness finding.
+
+The critic's level label is a claim too. Re-derive the level from the list above before acting on it. A finding that
+holds can still turn out implementation-level. A finding that changes no behavior at all is dropped, with a one-line
+reason.
+
+A review can add a question from a gap, a risk, or a finding against a settled decision. That question rests on the
+finding's consequence. When an existing path partly meets its goal, or the consequence is only `PLAUSIBLE`, its
+candidates include "not a question". That candidate names the existing path and what it leaves short. The question asks
+whether before it asks how, the way an addition question lists "no addition". See "Scope Additions" in
+`rules/decision-making.md`.
+
 ## The Question Loop
 
 Run the loop per question. When several independent questions share a round, one critic spawn covers every question
@@ -68,11 +92,12 @@ Each pass:
 
 1. **Critique.** Spawn the critic with the proposal path or a description, the question, the current option list, and
    any session override.
-2. **Reconcile.** Check each objection against the proposal and the code. When one holds, fold it into that option's
-   description as a neutral fact, such as a failure scenario or a `Leaves undone` line. Do not say who raised it. Add
-   each missing option that holds, and research it like the others. Change your recommendation only for a reason under
-   the ranking. From pass 2 on, when the critic's top option is your recommendation, route an implementation-level
-   objection that holds to a milestone check instead. See "Finding Levels".
+2. **Reconcile.** Check each objection against the proposal and the code, by "When a Finding Holds". When one holds,
+   fold it into that option's description as a neutral fact, such as a failure scenario or a `Leaves undone` line. Do
+   not say who raised it. Add each missing option that holds, and research it like the others. Change your
+   recommendation only for a reason under the ranking. From pass 2 on, when the critic's top option is your
+   recommendation, route an implementation-level objection that holds to a milestone check instead. See "Finding
+   Levels".
 3. **Push back.** When an objection does not hold, reject it with a one-line reason tied to the proposal or the code.
    Restating your preference is not pushback. A rejected objection stays out of the next pass's descriptions.
 4. **Log the pass** in the question's ledger.
@@ -121,10 +146,10 @@ converges when what is left is open questions, not defects.
 1. **Full pass.** Spawn the critic on the proposal path for a whole-proposal review. List each decision the user kept
    against the critic's dissent. The full pass reports findings of both levels, so a fundamental flaw in the design
    surfaces here.
-2. **Fix.** Act on each finding that holds. Fix a design-level finding in the design. Route an implementation-level
-   finding to a milestone check. See "Finding Levels". A fix is a change to the design, so check it against the code
-   before the next pass, the same as an option. A fix made on a wrong premise is how a coordinator starts a flip on its
-   own.
+2. **Fix.** Act on each finding that holds, by "When a Finding Holds". Fix a design-level finding in the design. Route
+   an implementation-level finding to a milestone check. See "Finding Levels". A fix is a change to the design, so check
+   it against the code before the next pass, the same as an option. A fix made on a wrong premise is how a coordinator
+   starts a flip on its own.
 3. **Re-check pass.** Spawn a fresh critic in re-check mode. Give it the proposal path and the list of changes since the
    last pass: each changed decision or section, and the finding it answers. Routed checks are not changes. It verifies
    each change and reports only `CONFIRMED` design-level defects, in the changed text or caused by it. It lists
@@ -133,7 +158,7 @@ converges when what is left is open questions, not defects.
 4. Repeat 2 and 3 until it converges.
 
 The proposal **converges** when a re-check pass ends `CONVERGED`, or reports no design-level finding. Route its
-implementation-level findings, and fix wording or format, without another pass.
+implementation-level findings that hold, by "When a Finding Holds", and fix wording or format, without another pass.
 
 Never declare convergence over an open design-level finding. The proposal loop runs at most three passes, the full pass
 included. Count every critic spawn in the loop toward the three. When the third pass still has such a finding, fix it,
@@ -160,7 +185,8 @@ Spawn one `design-judge` per question that needs it. Give it the question, the p
 finalists, the ledger, and any override. In the question loop, the finalists are every option that was the critic's top
 or your recommendation in any pass, plus the complete option.
 
-Check each claim the judge marks `CONFIRMED` that you had not already checked. Then take the ruling:
+Check each claim the judge marks `CONFIRMED` that you had not already checked, by "When a Finding Holds". Then take the
+ruling:
 
 - **An option**: that is the recommendation. Its record line carries the reason
 - **`USER'S CALL`**: the standard does not decide it. The caller asks the user. Where the caller decides without asking,

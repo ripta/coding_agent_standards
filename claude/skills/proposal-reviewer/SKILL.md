@@ -145,7 +145,9 @@ the first round and keep the rest in foundational order. The user can redirect o
 Work through the rounds from Step 4 until no open question remains.
 
 Questions added later, by the gap analysis in Step 6 or the risk review in Step 7, join this loop. Place them in the
-existing order using the criteria in Step 4 #5, and group them into rounds by Step 4 #6.
+existing order using the criteria in Step 4 #5, and group them into rounds by Step 4 #6. When an existing path partly
+meets an added question's goal, or its premise is only `PLAUSIBLE`, it lists "not a question" among its candidates. See
+"When a Finding Holds" in `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`.
 
 For each round, run #1 through #3 for every question in the round. Then run the critique (#4) once for the whole round,
 and sketch (#5) where needed. Then ask once (#6) and record every answer (#7).
@@ -208,10 +210,12 @@ section. The critic ranks blind. A disagreement is only a signal when it does.
 
 When it returns:
 
-1. Check each objection against the proposal and the code. When it rests on file:line citations, spawn the
+1. Check each objection against the proposal and the code. An objection holds only when every claim in it checks out,
+   its consequence and its level included. See "When a Finding Holds" in
+   `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`. When it rests on file:line citations, spawn the
    `citation-verifier` agent (`coding-standards:citation-verifier` under the plugin) on them rather than checking by
-   hand. Add each objection that holds to that option's cons. When you
-   reject one the critic marked `CONFIRMED`, note why in one line.
+   hand. Add each objection that holds to that option's cons. When you reject one the critic marked `CONFIRMED`, note
+   why in one line.
 2. Add each missing option that holds to the list, and research it like the others. A missing complete option is always
    added. The critic's objections to it count like any other.
 3. Compare your recommendation with the critic's ranking. Change it only when the critic's objections or missing options
@@ -303,10 +307,10 @@ When all open questions have been resolved, review the settled decisions as a wh
 
 First spawn the `design-critic` agent on the proposal path for a whole-proposal review. Pass any session override the
 user stated. Also list each decision the user chose against the critic's dissent in Step 5 or kept in an earlier pass of
-this step. Its findings are candidates, not conclusions. Check each against the proposal and the code before using it.
-Feed its inconsistencies, gaps, and weak decisions into the checks below. Hold its unlisted risks for Step 7. When you
-drop a finding the critic marked `CONFIRMED`, tell the user why in one line. If the agent cannot run, say so and do the
-checks without it.
+this step. Its findings are candidates, not conclusions. Check each against the proposal and the code before using it,
+the same way Step 5 #4 checks an objection. Feed its inconsistencies, gaps, and weak decisions into the checks below.
+Hold its unlisted risks for Step 7. When you drop a finding the critic marked `CONFIRMED`, tell the user why in one
+line. If the agent cannot run, say so and do the checks without it.
 
 In autonomous and converge modes, this review is the full pass of the proposal loop in `design-convergence.md`. After
 the checks below are resolved and their fixes made, run its re-check passes until the proposal converges. Questions the
@@ -317,6 +321,7 @@ checks add or reopen go through Step 5 before the next re-check pass.
 2. **Gap analysis**: Consider whether the combined decisions reveal new design questions that weren't visible when
    questions were addressed individually, e.g., integration concerns, missing error handling paths, or undecided
    behavioral edge cases. For each gap, the user chooses whether to:
+   - Drop it as not a gap, naming the existing path that already meets the goal. Offer this only when you found one
    - Add it as a new open question in the proposal (and loop back to Step 5 to resolve it)
    - Defer it per the "Deferring Decisions" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`:
      record it in Design Decisions (Settled) as a decision to defer, with a concrete revisit hook in both the settled
@@ -447,7 +452,9 @@ Nothing else is relaxed. These stay with the user, and go to the gate:
 - **Step 5**: decide on the loop's recommendation and record it at once, marked as #7 describes. On a `USER'S CALL`,
   take the judge's lean as a provisional decision. Mark each question that depends on it, so the gate can reopen them
   together
-- **Step 6, gaps**: add a design-level gap as an open question and resolve it through Step 5. Route an
+- **Step 6, gaps**: drop a gap whose goal an existing path already meets. Record the drop in the Decision Log, with a
+  one-line reason that names the path.
+  Add a design-level gap as an open question and resolve it through Step 5. Route an
   implementation-level gap to a milestone check instead, per "Finding Levels" in `design-convergence.md`. Defer a
   design-level gap only when it cannot be settled before implementation, such as when it waits on a measurement. Record
   the deferral with a concrete revisit hook, per the "Deferring Decisions" standard. A gap that adds scope is decided
@@ -509,7 +516,8 @@ miss it. A long summary buries them, so keep it short, and never list every deci
 3. **Contested**, one line each: every judge ruling, every provisional decision, and every decision with dissent left
    standing. Autonomous mode only.
 4. **Everything else**, one line: how many other decisions were made, and that the Decision Log holds them. Add how
-   many findings were routed to milestone checks, and which milestones got them.
+   many findings were routed to milestone checks, and which milestones got them. Add how many gaps were dropped because
+   an existing path already met their goal.
 
 ## Rules
 
