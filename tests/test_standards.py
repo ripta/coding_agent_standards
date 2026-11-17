@@ -454,6 +454,59 @@ def test_workarounds_point_at_open_bugs(bug: str) -> None:
     assert status and status.group(1) == "open", f"{bug} is closed; remove its workaround"
 
 
+# -- configuration inventory ---------------------------------------------------------------
+#
+# `practices/configuration.md` lists every setting the plugin reads. A setting named anywhere else
+# must be in that list, so a new one cannot land as a one-off. Test files are skipped, since their
+# fixtures name settings that do not exist.
+
+CONFIG_DOC = CLAUDE / "practices" / "configuration.md"
+CONFIG_NAMES = (
+    re.compile(r"~/\.config/coding_agent_standards/([A-Za-z0-9_-]+(?:\.[a-z]+)?)"),
+    re.compile(r'"\.config" / "coding_agent_standards" / "([^"]+)"'),
+)
+GIT_CONFIG_KEY = re.compile(r"\bcodingstandards\.([a-z][A-Za-z]*)")
+INVENTORY_ROW = re.compile(r"^\| `([^`]+)` \|")
+
+
+def setting_names(text: str) -> set[str]:
+    names = {m.group(1) for pattern in CONFIG_NAMES for m in pattern.finditer(text)}
+    return names | {f"codingstandards.{m.group(1)}" for m in GIT_CONFIG_KEY.finditer(text)}
+
+
+def named_settings() -> dict[str, str]:
+    files = subprocess.run(["git", "ls-files", "claude", "mods"], cwd=ROOT, capture_output=True, text=True,
+                           check=True).stdout.split()
+    found: dict[str, str] = {}
+    for name in files:
+        path = ROOT / name
+        if path == CONFIG_DOC or path.name.startswith("test_") or ".test." in path.name or not path.is_file():
+            continue
+        try:
+            text = path.read_text()
+        except UnicodeDecodeError:
+            continue
+        for setting in setting_names(text):
+            found.setdefault(setting, name)
+    return found
+
+
+def inventory() -> set[str]:
+    rows = (INVENTORY_ROW.match(line) for line in CONFIG_DOC.read_text().splitlines())
+    return {setting_names(row.group(1)).pop() for row in rows if row and setting_names(row.group(1))}
+
+
+def test_every_setting_is_in_the_configuration_inventory() -> None:
+    missing = sorted(f"{setting} (named in {where})" for setting, where in named_settings().items()
+                     if setting not in inventory())
+    assert missing == [], f"list these in {rel(CONFIG_DOC)} \"Inventory\", or store them as it says"
+
+
+def test_the_configuration_inventory_lists_only_live_settings() -> None:
+    stale = sorted(inventory() - set(named_settings()))
+    assert stale == [], f"nothing under claude/ names these; remove them from {rel(CONFIG_DOC)}"
+
+
 # -- the checks catch what they claim to ----------------------------------------------------
 
 
@@ -496,3 +549,10 @@ def test_unquoted_bracket_hints_fail_to_parse(tmp_path: Path) -> None:
     path = write(tmp_path, "---\ndescription: d\nargument-hint: [a] [b]\n---\n")
     with pytest.raises(yaml.YAMLError):
         frontmatter(path)
+
+
+def test_a_setting_is_found_in_prose_and_in_code() -> None:
+    text = ('Read `~/.config/coding_agent_standards/new-skill.json`.\n'
+            'X = Path.home() / ".config" / "coding_agent_standards" / "hooks-dir" / event\n'
+            'git config codingstandards.newKey\n')
+    assert setting_names(text) == {"new-skill.json", "hooks-dir", "codingstandards.newKey"}

@@ -37,13 +37,9 @@ preference file:
 ~/.config/coding_agent_standards/<skill-name>.json
 ```
 
-Conventions:
+`practices/configuration.md` sets where a setting goes, how its file is named and keyed, and the precedence a skill
+follows. It also lists every setting the plugin reads. The mechanics of writing the file follow.
 
-- One file per skill, named after the skill (e.g., `session-report.json`).
-- Flat JSON with descriptive keys, e.g. `{"default_dir": "/abs/path"}`.
-- The file is machine-local state: never edit values into the skill itself, never commit the file anywhere.
-- Precedence in the skill should be: explicit value in the user's request > preference file > interactively ask the
-  user, then write the preference file.
 - Write the file with the Write or Edit tool, never through Bash. The Write tool creates the directory if needed. The
   sandbox blocks Bash writes anywhere under `~/.config`. `scripts/setup_permissions.py` allows the two tools to write
   `*.json` files in this directory only.
