@@ -32,7 +32,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
-from base_remote import find_base_remote, gh_base_slug  # noqa: E402
+from base_remote import find_base_remote, gh_base_slug, repo_key  # noqa: E402
 
 DEFAULT_CONFIG = Path.home() / ".config" / "coding_agent_standards" / "tracker-sync.json"
 
@@ -83,17 +83,10 @@ def repo_root(start: Path) -> Path:
 
 def normalize_remote(url: str) -> str:
     """Reduce a clone URL to host/path so SSH and HTTPS forms compare equal."""
-    url = url.strip()
-    scp = re.match(r"^[\w.-]+@([\w.-]+):(?!//)(.+)$", url)
-    if scp:
-        host, path = scp.groups()
-    else:
-        parts = urllib.parse.urlsplit(url)
-        if not parts.scheme or not parts.hostname:
-            raise SyncError(f"cannot parse remote URL {url!r}")
-        host, path = parts.hostname, parts.path
-    path = path.strip("/").removesuffix(".git")
-    return f"{host.lower()}/{path}"
+    key = repo_key(url)
+    if key is None:
+        raise SyncError(f"cannot parse remote URL {url.strip()!r}")
+    return key
 
 
 def base_remote(root: Path) -> str:

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+import urllib.parse
 from pathlib import Path
 from typing import Any, Callable
 
@@ -20,6 +21,27 @@ class GhError(Exception):
 # names in the URL, and GitHub Enterprise hosts all leave those segments alone, and gh reports the
 # repo as the same owner/name.
 REMOTE_URL = re.compile(r"^(?:[a-z+]+://[^/]+/|[^/:]+:)(?:.*/)?([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$")
+
+
+def repo_key(url: str) -> str | None:
+    """Reduce a clone URL to host/path, the key machine-local config files save a repo under.
+
+    SSH and HTTPS clones of one repo reduce to the same key. The host is lowercased and the path is
+    kept as written, so callers compare keys case-insensitively. Returns None for a URL with no host.
+    """
+    url = url.strip()
+    scp = re.match(r"^[\w.-]+@([\w.-]+):(?!//)(.+)$", url)
+    if scp:
+        host, path = scp.groups()
+    else:
+        parts = urllib.parse.urlsplit(url)
+        if not parts.scheme or not parts.hostname:
+            return None
+        host, path = parts.hostname, parts.path
+    path = path.strip("/")
+    if path.endswith(".git"):
+        path = path[: -len(".git")]
+    return f"{host.lower()}/{path}"
 
 
 def remote_slug(url: str) -> str | None:

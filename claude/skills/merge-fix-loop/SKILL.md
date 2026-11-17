@@ -155,8 +155,9 @@ Put every question this run needs into one AskUserQuestion call. Skip any that t
 - **Credentials**, for each `needs` entry the user must fix. For example, Cloud Build logs need `gcloud auth login`,
   which the user runs as `! gcloud auth login`. Ask before the loop starts, not when the first failure needs the logs
 - **Branch prefix**, when preflight's `branches.blocked_by` names a ruleset. Ask for a prefix it allows. Offer the
-  project's own branch convention first, when its instructions document one. The user sets it with
-  `! git config codingstandards.branchPrefix <prefix>`, and then preflight runs again
+  project's own branch convention first, when its instructions document one. Save the answer with the Write or Edit
+  tool in `~/.config/coding_agent_standards/branches.json`, as `{"repos": {"<branches.key>": {"prefix": "<prefix>"}}}`.
+  Keep the file's other entries. Then run preflight again
 - **No CI**, only when preflight found no CI system and the base requires no checks. Offer: merge once local checks pass
   and any required review is in; wait for a review, then merge; or open the PR and stop
 

@@ -18,8 +18,8 @@ sweep over several repositories runs one process per repository. With `--repo`, 
 the checkout's CI files and answers unknown for whether CI builds PRs against other bases.
 
 `preflight` also settles the prefix of agent-owned branch names: `--branch-prefix`, else the
-checkout's `codingstandards.branchPrefix`, else `agent/`. It reports the rulesets that would
-reject a branch named that way.
+base repo's entry in ~/.config/coding_agent_standards/branches.json, else `agent/`. It reports
+the rulesets that would reject a branch named that way.
 `gh` reads its credentials from ~/.config/gh, which a sandboxed shell cannot read, so run this
 script through cg or with the sandbox disabled.
 
@@ -42,7 +42,7 @@ import urllib.parse
 from pathlib import Path
 from typing import Any, Callable
 
-from base_remote import GhError, git_remotes, remote_slug, resolve_remotes
+from base_remote import GhError, git_remotes, remote_slug, repo_key, resolve_remotes
 
 MARKER = "<!-- merge-fix-loop -->"
 
@@ -627,7 +627,7 @@ BUILD_URL = re.compile(r"/cloud-build/builds(?:;region=([\w-]+))?/([\w-]+)")
 TRIGGER_URL = re.compile(r"/cloud-build/triggers(?:;region=([\w-]+))?/edit/([\w-]+)")
 PR_CONFIG_KEYS = ("developerConnectEventConfig", "github", "repositoryEventConfig")
 DEFAULT_BRANCH_PREFIX = "agent/"
-BRANCH_PREFIX_KEY = "codingstandards.branchPrefix"
+BRANCHES_FILE = "~/.config/coding_agent_standards/branches.json"
 BRANCH_SEPARATORS = "/._-"
 BLOCKING_RULES = ("creation", "update")
 BYPASSING = ("always", "exempt")
@@ -653,11 +653,39 @@ def branch_name(prefix: str, *parts: str) -> str:
     return name
 
 
-def configured_branch_prefix(cwd: Path) -> str | None:
-    result = subprocess.run(["git", "config", "--get", BRANCH_PREFIX_KEY], cwd=cwd, capture_output=True, text=True)
-    if result.returncode != 0:
+def base_repo_key(slug: str, cwd: Path | None) -> str:
+    """Key the base repo as its remote's host/path. Without a checkout, the repo is on github.com."""
+    if cwd is not None:
+        urls, _, _ = git_remotes(cwd)
+        for url in urls.values():
+            if (remote_slug(url) or "").lower() == slug.lower():
+                key = repo_key(url)
+                if key:
+                    return key
+    return f"github.com/{slug}"
+
+
+def configured_branch_prefix(key: str) -> str | None:
+    """Read the prefix saved for `key` in branches.json, shaped {"repos": {key: {"prefix": ...}}}.
+
+    Keys match case-insensitively. A file that is missing, or names no prefix for the repo, gives
+    None. A file that cannot be parsed raises ValueError.
+    """
+    path = Path(BRANCHES_FILE).expanduser()
+    try:
+        data = json.loads(path.read_text())
+    except FileNotFoundError:
         return None
-    return result.stdout.strip() or None
+    except (OSError, json.JSONDecodeError) as e:
+        raise ValueError(f"{BRANCHES_FILE} cannot be read: {e}") from e
+
+    for saved, settings in ((data.get("repos") if isinstance(data, dict) else None) or {}).items():
+        if saved.lower() == key.lower() and isinstance(settings, dict) and settings.get("prefix") is not None:
+            prefix = settings["prefix"]
+            if not isinstance(prefix, str):
+                raise ValueError(f"{BRANCHES_FILE}: the prefix for {saved} is not a string")
+            return prefix
+    return None
 
 
 def branch_blockers(slug: str, branch: str) -> list[dict[str, Any]]:
@@ -686,16 +714,23 @@ def branch_blockers(slug: str, branch: str) -> list[dict[str, Any]]:
 
 def branch_report(slug: str, cwd: Path | None, override: str | None) -> tuple[dict[str, Any], list[str]]:
     """Settle the agent-owned branch prefix, and check a sample batch branch against the rulesets."""
-    configured = override or (configured_branch_prefix(cwd) if cwd else None)
+    key = base_repo_key(slug, cwd)
+    where = f'`repos["{key}"].prefix` in {BRANCHES_FILE}'
+    try:
+        configured = override or configured_branch_prefix(key)
+    except ValueError as e:
+        return ({"prefix": None, "source": "config", "key": key, "sample": None, "blocked_by": []},
+                [f"{e}. Fix the file, then rerun preflight."])
+
     prefix = configured or DEFAULT_BRANCH_PREFIX
     report: dict[str, Any] = {"prefix": prefix, "source": ("flag" if override else "config" if configured
-                                                            else "default")}
+                                                            else "default"), "key": key}
     try:
         report["sample"] = branch_name(prefix, "topic", "batch")
     except ValueError as e:
         report["sample"] = None
         report["blocked_by"] = []
-        return report, [f"{e}. Set `git config {BRANCH_PREFIX_KEY} <prefix>` to one that does."]
+        return report, [f"{e}. Set {where} to one that does."]
 
     try:
         report["blocked_by"] = branch_blockers(slug, report["sample"])
@@ -705,8 +740,8 @@ def branch_report(slug: str, cwd: Path | None, override: str | None) -> tuple[di
         return report, []
 
     needs = [f"ruleset {b['name'] or b['ruleset_id']} rejects {' and '.join(b['rules'])} of {report['sample']}, "
-             f"and the viewer cannot bypass it. Set `git config {BRANCH_PREFIX_KEY} <prefix>` to a prefix it "
-             f"allows, then rerun preflight." for b in report["blocked_by"]]
+             f"and the viewer cannot bypass it. Set {where} to a prefix it allows, then rerun preflight."
+             for b in report["blocked_by"]]
     return report, needs
 
 
@@ -1095,7 +1130,7 @@ def main(argv: list[str]) -> int:
     p = sub.add_parser("preflight", help="report gh access, merge settings, protection, stacking facts, and CI log needs")
     p.add_argument("--base", help="branch the PRs target; defaults to the repo's default branch")
     p.add_argument("--branch-prefix", help="prefix for agent-owned branches, ending in its separator; "
-                                           "defaults to the checkout's codingstandards.branchPrefix, else agent/")
+                                           "defaults to the repo's entry in branches.json, else agent/")
 
     p = sub.add_parser("snapshot", help="print one PR's state, checks, and unresolved thread count")
     p.add_argument("--pr", type=int, required=True)

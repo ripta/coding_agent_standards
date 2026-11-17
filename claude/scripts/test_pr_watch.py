@@ -824,14 +824,23 @@ def test_preflight_reports_fork_remotes_and_takes_stacking_off(monkeypatch, tmp_
     assert report["stacking"]["viable"] is False
 
 
-def _preflight_with_rules(monkeypatch, tmp_path, prefix, rules_for, bypass):
-    """Run preflight in a plain checkout. `rules_for` maps a branch name to its rulesets' rules."""
+def _preflight_with_rules(monkeypatch, tmp_path, prefix, rules_for, bypass, *,
+                          remote="https://github.com/acme/widget.git", key="github.com/acme/widget", repo_flag=None):
+    """Run preflight in a plain checkout. `rules_for` maps a branch name to its rulesets' rules.
+
+    A `prefix` lands in a branches.json under a throwaway home, saved under `key`.
+    """
     import subprocess
-    for args in (["init", "-q"], ["remote", "add", "origin", "https://github.com/acme/widget.git"]):
-        subprocess.run(["git", *args], cwd=tmp_path, check=True)
+    checkout, home = tmp_path / "checkout", tmp_path / "home"
+    checkout.mkdir()
+    for args in (["init", "-q"], ["remote", "add", "origin", remote]):
+        subprocess.run(["git", *args], cwd=checkout, check=True)
+    monkeypatch.chdir(checkout)
+    monkeypatch.setenv("HOME", str(home))
     if prefix is not None:
-        subprocess.run(["git", "config", "codingstandards.branchPrefix", prefix], cwd=tmp_path, check=True)
-    monkeypatch.chdir(tmp_path)
+        config = home / ".config" / "coding_agent_standards"
+        config.mkdir(parents=True)
+        (config / "branches.json").write_text(json.dumps({"repos": {key: {"prefix": prefix}}}))
 
     repo = {"nameWithOwner": "acme/widget", "viewerPermission": "WRITE", "autoMergeAllowed": True,
             "mergeCommitAllowed": True, "squashMergeAllowed": True, "rebaseMergeAllowed": False,
@@ -855,7 +864,7 @@ def _preflight_with_rules(monkeypatch, tmp_path, prefix, rules_for, bypass):
     monkeypatch.setattr(pr_watch, "gh", lambda args: "acme/widget\n" if args[:2] == ["repo", "view"] else "")
     monkeypatch.setattr(pr_watch, "gh_json", fake_gh_json)
     monkeypatch.setattr(pr_watch, "graphql", lambda query, **kw: {"repository": repo})
-    return pr_watch.preflight("main"), asked
+    return pr_watch.preflight("main", repo_flag), asked
 
 
 NESTED = [{"type": "creation", "ruleset_id": 7}, {"type": "update", "ruleset_id": 7},
@@ -868,9 +877,11 @@ def test_preflight_names_the_ruleset_that_rejects_agent_branches(monkeypatch, tm
 
     assert asked == ["agent/topic/batch"]
     assert report["branches"]["prefix"] == "agent/" and report["branches"]["source"] == "default"
+    assert report["branches"]["key"] == "github.com/acme/widget"
     assert report["branches"]["blocked_by"] == [
         {"ruleset_id": 7, "name": "No nested branches", "rules": ["creation", "update"], "bypass": "never"}]
-    assert any("No nested branches" in need and "codingstandards.branchPrefix" in need for need in report["needs"])
+    assert any("No nested branches" in need and "branches.json" in need and "github.com/acme/widget" in need
+               for need in report["needs"])
 
 
 def test_preflight_passes_a_ruleset_the_viewer_can_bypass(monkeypatch, tmp_path):
@@ -879,19 +890,33 @@ def test_preflight_passes_a_ruleset_the_viewer_can_bypass(monkeypatch, tmp_path)
 
 
 def test_preflight_probes_the_configured_prefix(monkeypatch, tmp_path):
-    """Catches a probe that keeps testing agent/ after the checkout set a flat prefix."""
+    """Catches a probe that keeps testing agent/ after branches.json set a flat prefix."""
     report, asked = _preflight_with_rules(monkeypatch, tmp_path, "me.agent.", {"agent/topic/batch": NESTED}, "never")
 
     assert asked == ["me.agent.topic.batch"]
-    assert report["branches"] == {"prefix": "me.agent.", "source": "config", "sample": "me.agent.topic.batch",
-                                  "blocked_by": []}
+    assert report["branches"] == {"prefix": "me.agent.", "source": "config", "key": "github.com/acme/widget",
+                                  "sample": "me.agent.topic.batch", "blocked_by": []}
     assert report["needs"] == []
+
+
+@pytest.mark.parametrize("remote", ["git@github.com:acme/widget.git", "ssh://git@github.com/Acme/Widget",
+                                    "https://github.com/acme/widget"])
+def test_every_clone_url_form_finds_the_same_prefix(monkeypatch, tmp_path, remote):
+    """Catches a prefix saved from one clone that another clone of the same repo cannot find."""
+    report, _ = _preflight_with_rules(monkeypatch, tmp_path, "me.agent.", {}, "never", remote=remote)
+    assert report["branches"]["prefix"] == "me.agent."
+
+
+def test_preflight_without_a_checkout_reads_the_prefix_by_repo(monkeypatch, tmp_path):
+    """Catches a sweep over repos with no checkout that ignores their saved prefix."""
+    report, asked = _preflight_with_rules(monkeypatch, tmp_path, "me.agent.", {}, "never", repo_flag="acme/widget")
+    assert asked == ["me.agent.topic.batch"]
 
 
 def test_preflight_reports_a_prefix_without_a_separator_as_a_need(monkeypatch, tmp_path):
     report, asked = _preflight_with_rules(monkeypatch, tmp_path, "me.agent", {}, "never")
     assert asked == []
-    assert any("codingstandards.branchPrefix" in need and "separator" in need for need in report["needs"])
+    assert any("branches.json" in need and "separator" in need for need in report["needs"])
 
 
 @pytest.mark.parametrize("prefix,parts,name", [
