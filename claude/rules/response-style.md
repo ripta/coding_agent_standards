@@ -14,6 +14,9 @@ Applies to conversational responses in chat. For written artifacts, see
   Say "The `users` table is missing `last_login_at`. Run `ALTER TABLE users
   ADD COLUMN last_login_at TIMESTAMPTZ`" instead of "We may need to alter the
   schema to address this."
+- When answering or reporting a choice, name the thing it is about in a full
+  sentence. Never reply with a bare option label such as "Drop it for good."
+  Say "Retract the export-format proposal" instead.
 
 Exception: when the user asks to explain, walk through, or sketch something,
 narrate normally. These rules govern the default terse mode, not requested

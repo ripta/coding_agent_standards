@@ -28,8 +28,9 @@ cannot be read, stop and tell the user the standards are not available.
    reading shows up before the first pass. Read the code the design touches.
    Ask only when neither the arguments nor the conversation say what is being
    decided.
-2. **Build the options.** Research them by "Choosing Options". The complete
-   option is always on the list.
+2. **Build the options.** Check the premise first, by "When the Problem
+   Exists" in the protocol. Then research the options by "Choosing Options".
+   The complete option is always on the list.
 3. **Run the loop.** Follow `design-convergence.md`. When the question has no
    proposal, give the critic and the judge a description of the design in
    place of a proposal path: the context, the constraints you found in the

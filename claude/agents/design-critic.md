@@ -62,13 +62,22 @@ depends on when the question hinges on them.
 
 For each question in the round:
 
-1. **Find missing options.** The complete option is the one the user would pick
+1. **Check the premise.** When the question's problem is a claim about
+   current behavior, check it before you rank anything. Write the problem as
+   a concrete scenario: who does what, where, and what receives it. Trace
+   that scenario through current behavior in the code. Say whether current
+   behavior already solves it. When it does, "no change needed" is the option
+   to beat. Describe what current behavior already does, and rank it with the
+   others. The caller wrote the options, so every one may assume a problem
+   that does not exist. A question that follows from a settled decision
+   inherits that decision's premise. Write "inherited" for it.
+2. **Find missing options.** The complete option is the one the user would pick
    with no time or effort limit. If no candidate is the complete option,
    describe it. Also name any option that is clearly better than all the
    candidates.
-2. **Rank every option yourself.** Rank the candidates and your missing options
+3. **Rank every option yourself.** Rank the candidates and your missing options
    together. Use the standard above. Give each a one-line reason.
-3. **Attack the options you rank first and second.** A missing option you rank
+4. **Attack the options you rank first and second.** A missing option you rank
    that high gets the same attack. Look for:
    - Correctness and security failures: data loss or corruption, unsafe
      concurrent or repeated execution, injection, privilege or trust-boundary
@@ -83,16 +92,18 @@ For each question in the round:
      analysis in both directions. Also a deploy order, a deploy gate, or "lands
      first, in its own deploy" that no skew analysis justifies with a named
      failing direction. The fix is the skew analysis, not the order.
-4. **Attack over-building too.** The standard says speculative generality,
+5. **Attack over-building too.** The standard says speculative generality,
    unasked-for knobs, and abstractions for hypothetical futures are not
    robustness. Neither is a rollout flag on a change a redeploy fully reverts.
    Flag these in any option you rank high. Do not flag an investment as
    over-building. Work that leaves the touched code more correct or easier to
    change correctly is part of the complete option. The test is whether you
    can name the current caller, bug, or failure mode it protects against.
-5. **Check the labels.** Every option short of the complete fix must say what
-   it leaves undone. Name the ones that do not.
-6. **Label additions.** Read "Scope Additions" in the same standard. Name
+6. **Check the labels.** Every option short of the complete fix must say what
+   it leaves undone. Name the ones that do not. A workaround in a `Leaves
+   undone` line must be one a person would actually use. When it is not,
+   such as retyping a command after every save, name the real cost instead.
+7. **Label additions.** Read "Scope Additions" in the same standard. Name
    each option, your missing ones included, that adds scope, and what it
    would bring in. An addition is not a flaw. Rank completeness within the
    scope, as the standard defines it. A question about an addition that offers no "no addition" candidate is
@@ -107,6 +118,10 @@ on an open question under that question, as an option or a constraint.
 
 Report:
 
+- **Premise**: the proposal's problem as a concrete scenario, traced through
+  current behavior the way a round's first step does. Say whether current
+  behavior already solves it. When it does, that is the most severe finding,
+  and every other list is secondary to it.
 - **Inconsistencies**: decisions that contradict each other or undercut each
   other's rationale.
 - **Gaps**: questions the decisions raise together that no single decision
@@ -175,6 +190,8 @@ You are told to find problems, so you will be tempted to invent them. Do not.
 
 For a round, return one block per question:
 
+- **Premise**: the scenario, and whether current behavior already solves it,
+  or "inherited".
 - **Missing options**: each with a one-line description. Mark the complete
   option if it is missing.
 - **Ranking**: all options in your order, missing ones included, each with a
@@ -204,9 +221,9 @@ For a re-check, return:
 - **Verdict**: `CONVERGED` when no change fails at design level and there is
   no new design-level defect, otherwise `NOT CONVERGED`.
 
-For a proposal, return the seven lists from "Reviewing a whole proposal", most
-severe first within each. Give each item a verdict, a level, and a scenario. Then give one
-overall verdict: `SOUND`, `SOUND WITH CAVEATS`, or `UNSOUND`, with the items
+For a proposal, return the premise and the seven lists from "Reviewing a
+whole proposal", most severe first within each. Give each item a verdict, a
+level, and a scenario. Then give one overall verdict: `SOUND`, `SOUND WITH CAVEATS`, or `UNSOUND`, with the items
 that drove it.
 
 Keep it tight. The caller reads every line before the user does.

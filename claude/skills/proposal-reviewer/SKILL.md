@@ -110,12 +110,26 @@ Before engaging the user on any questions:
 3. Use Agent sub-tasks to scan the codebase for code relevant to the proposal's domain. Look for existing patterns,
    types, interfaces, and conventions that will inform design choices. Scans are lookup work. Spawn `Explore` with
    `model: sonnet` for them
-4. Spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the proposal path. Each conflict it
+4. Check the premise, per "When the Problem Exists" in
+   `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`. Write the proposal's problem as a concrete
+   user scenario, step by step: who does what, where, and what receives it. Trace it through current behavior in the
+   code, and record whether the stated problem exists.
+   - When it does not, ask before going on to #5, in every mode. Ask the user in one AskUserQuestion call whether to
+     retract the proposal. List retracting first, marked recommended. Its description says what current behavior
+     already does. Continuing the review is the other option
+   - To retract, set `**Status:** retracted` with the reason, and add a Decision Log entry. For a proposal with queue
+     rows, follow "Stopping a Proposal" first, as the Rules section says. Then go to Step 8
+   - When the trace cannot settle it, or the user chose to continue, say so in one line and go on
+   - In Step 5, a question whose problem is a claim about current behavior lists "no change needed" among its
+     candidates, unless the trace showed that problem exists
+   - A premise that fails later, in a critic's premise finding or a "no change needed" pick that leaves the design
+     nothing to do, comes back to this question at once, in every mode
+5. Spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the proposal path. Each conflict it
    reports is an open question if the proposal does not already settle it. Add it to the triage in Step 4
-5. Find the Decision Log's ADR candidates marked `Undecided` or `Waits on`, per "Recording ADR Candidates" in
+6. Find the Decision Log's ADR candidates marked `Undecided` or `Waits on`, per "Recording ADR Candidates" in
    `${CLAUDE_SKILL_DIR}/../../project-management/design.md`. Treat each as a noted decision for Step 8. For one that
    waits, check whether its hook has fired
-6. Record the baseline. Count the proposal's milestones, settled decisions, risks, and `**Live after:**` lines and row
+7. Record the baseline. Count the proposal's milestones, settled decisions, risks, and `**Live after:**` lines and row
    gates. Note its out-of-scope statements. For a redesign, note the parts the user asked to redesign, in their words.
    Add a Decision Log entry: `- YYYY-MM-DD: Review start: <counts>; <what the user asked for>`. Name the proposal's
    commit when it is in git. The review's closing summary compares against this entry, and a resumed review reads it
@@ -146,8 +160,8 @@ Work through the rounds from Step 4 until no open question remains.
 
 Questions added later, by the gap analysis in Step 6 or the risk review in Step 7, join this loop. Place them in the
 existing order using the criteria in Step 4 #5, and group them into rounds by Step 4 #6. When an existing path partly
-meets an added question's goal, or its premise is only `PLAUSIBLE`, it lists "not a question" among its candidates. See
-"When a Finding Holds" in `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`.
+meets an added question's goal, or its premise is only `PLAUSIBLE`, it lists "no change needed" among its candidates.
+See "When the Problem Exists" in `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`.
 
 For each round, run #1 through #3 for every question in the round. Then run the critique (#4) once for the whole round,
 and sketch (#5) where needed. Then ask once (#6) and record every answer (#7).
@@ -198,6 +212,10 @@ Option B: <name>
 Give `Cost` only when it breaks a tie, or when an override applies. Every option short of the complete fix fills in
 `Leaves undone` with something concrete. Carry the `Leaves undone` text into that option's description in the
 AskUserQuestion call in #6.
+
+Write a workaround in `Leaves undone` as the user's literal steps. Then check whether a person would actually take
+them. When not, write the real cost instead, such as "the user clicks into the pane first". An implausible workaround
+makes a short option look cheap.
 
 #### 4. Critique
 
@@ -307,10 +325,13 @@ When all open questions have been resolved, review the settled decisions as a wh
 
 First spawn the `design-critic` agent on the proposal path for a whole-proposal review. Pass any session override the
 user stated. Also list each decision the user chose against the critic's dissent in Step 5 or kept in an earlier pass of
-this step. Its findings are candidates, not conclusions. Check each against the proposal and the code before using it,
-the same way Step 5 #4 checks an objection. Feed its inconsistencies, gaps, and weak decisions into the checks below.
-Hold its unlisted risks for Step 7. When you drop a finding the critic marked `CONFIRMED`, tell the user why in one
-line. If the agent cannot run, say so and do the checks without it.
+this step.
+
+Its findings are candidates, not conclusions. Check each against the proposal and the code before using it, the same way
+Step 5 #4 checks an objection. A premise finding that holds goes to the Step 3 #4 question at once. Feed its
+inconsistencies, gaps, and weak decisions into the checks below. Hold its unlisted risks for Step 7. When you drop a
+finding the critic marked `CONFIRMED`, tell the user why in one line. If the agent cannot run, say so and do the checks
+without it.
 
 In autonomous and converge modes, this review is the full pass of the proposal loop in `design-convergence.md`. After
 the checks below are resolved and their fixes made, run its re-check passes until the proposal converges. Questions the
@@ -427,7 +448,8 @@ List any ADRs created with their file paths.
 
 ## Autonomous Mode
 
-Autonomous mode runs Steps 3 through 7 without asking, then asks everything at one review gate. It changes who decides,
+Autonomous mode runs Steps 3 through 7 without asking, then asks everything at one review gate. The one exception is
+the retraction question from Step 3 #4, which it asks at once. It changes who decides,
 not how. The ranking in `decision-making.md` and the convergence loop decide each question. Choosing autonomous mode
 does not lower the bar. An override still needs the user to state it, or the proposal's `**Tradeoffs:**` field.
 
@@ -446,6 +468,8 @@ Nothing else is relaxed. These stay with the user, and go to the gate:
 - Accepting a high-likelihood, high-impact risk instead of mitigating it
 - Dropping or deferring anything the proposal already plans, such as a milestone or a settled decision
 - Every `USER'S CALL` ruling
+
+Retracting the proposal stays with the user too. Step 3 #4 asks it at once instead of at the gate.
 
 ### Deciding
 
@@ -527,13 +551,17 @@ miss it. A long summary buries them, so keep it short, and never list every deci
   round into one call per question. Never merge dependent questions into one round
 - Autonomous mode is the other exception. The user's choice of it at the entry gate authorizes deciding without asking,
   for this review only, and only for what "What the user authorizes by choosing it" lists. All its questions go to the
-  one review gate at the end
+  one review gate at the end. The one exception is the retraction question from Step 3 #4. It is asked at once, since
+  every later step would build on a problem that does not exist
 - Autonomous mode comes only from this invocation: the entry gate, a mode the user named when invoking the skill, or a
   change of mode the user states during the review. Never infer it from memory, an earlier session, or how the user
   answered past reviews. A note that the user delegated a past review is not a standing grant. Ask the mode question
   anyway
 - Ask every question through the AskUserQuestion tool. Never ask a question as plain prose and wait for a typed reply.
   Batching changes how many questions go in one call. It never replaces the tool
+- Write each question's text and each option's description in full sentences. Name the proposal by its title, not
+  only its ID. Keep option labels short, but make each name what it acts on. Leave out internal jargon, such as this
+  skill's process terms or code identifiers, unless the user has used them
 - Never make a decision without explicit user confirmation via AskUserQuestion, except in autonomous mode. This covers
   the choice of option for a question. It does not cover which question to take up next
 - Always work through every open question in foundational order. Never ask which question comes next or whether to
@@ -561,4 +589,6 @@ miss it. A long summary buries them, so keep it short, and never list every deci
 - When moving a question to Settled, preserve the original question text and add the chosen option with rationale
   beneath it
 - When the user asks follow-up questions during discussion, prioritize fully addressing their concerns over advancing
-  toward a decision. Do not prompt for a decision until the user's line of inquiry is resolved
+  toward a decision. Do not prompt for a decision until the user's line of inquiry is resolved. A question in place of
+  an answer is not a decision. Record the questions the same call did answer, as Step 5 #6 says. Beyond that, edit
+  nothing, add no options, and ask nothing new until the inquiry ends

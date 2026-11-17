@@ -74,16 +74,34 @@ The critic's level label is a claim too. Re-derive the level from the list above
 holds can still turn out implementation-level. A finding that changes no behavior at all is dropped, with a one-line
 reason.
 
-A review can add a question from a gap, a risk, or a finding against a settled decision. That question rests on the
-finding's consequence. When an existing path partly meets its goal, or the consequence is only `PLAUSIBLE`, its
-candidates include "not a question". That candidate names the existing path and what it leaves short. The question asks
-whether before it asks how, the way an addition question lists "no addition". See "Scope Additions" in
-`rules/decision-making.md`.
+## When the Problem Exists
+
+Every question assumes a problem, and the coordinator writes every option. When the problem does not exist, each option
+still assumes it, and the critic ranks inside that frame. Check the premise before researching options.
+
+The check applies to a question whose problem is a claim about current behavior, such as "the user cannot do Y today."
+A question that follows from a settled decision, such as how to name a feature the user asked for, inherits that
+decision's premise. It needs no trace of its own.
+
+Write the problem as a concrete scenario: who does what, where, and what receives it. Trace the scenario through current
+behavior. Unless the trace showed the problem exists, the question lists "no change needed" among its candidates. Its
+description says what current behavior already does. The question asks whether before it asks how, the way an addition
+question lists "no addition". See "Scope Additions" in `rules/decision-making.md`.
+
+The same holds for a question a review adds from a gap, a risk, or a finding against a settled decision. When an
+existing path partly meets its goal, or its consequence is only `PLAUSIBLE`, it lists "no change needed". That
+candidate names the existing path and what it leaves short.
+
+A premise can fail at any point. The first trace can show it, or a critic's premise finding. So can a "no change needed"
+pick on a question the rest of the design depends on. When it fails, take it to the user at once, in every mode. The
+caller asks whether to drop the work. Do not carry it to a later gate, since every later step would build on it.
 
 ## The Question Loop
 
 Run the loop per question. When several independent questions share a round, one critic spawn covers every question
 still in the loop. A question leaves the loop as soon as it converges or goes to the judge. The others keep going.
+
+Check each question's premise first. See "When the Problem Exists".
 
 Before the first pass, pick your own recommendation by the ranking in the "Choosing Options" section of
 `rules/decision-making.md`. Keep it to yourself.
@@ -119,8 +137,9 @@ The question **converges** when all of these hold after a pass:
   ranked. A late option could win when it would change your recommendation. Log any other late option with the reason
   it cannot win
 
-Convergence shows that you and the critic agree. It does not show that the user wanted the result. An addition the
-critic labeled stays labeled when it converges.
+Convergence shows that you and the critic agree. It does not show that the user wanted the result. It does not show
+that the problem exists either. See "When the Problem Exists". An addition the critic labeled stays labeled when it
+converges.
 
 Most questions converge on the first pass. Run a second pass only when the critic has not seen a change. That is a
 late option that could win, or a kept objection that changed the recommendation.
@@ -146,7 +165,8 @@ converges when what is left is open questions, not defects.
 1. **Full pass.** Spawn the critic on the proposal path for a whole-proposal review. List each decision the user kept
    against the critic's dissent. The full pass reports findings of both levels, so a fundamental flaw in the design
    surfaces here.
-2. **Fix.** Act on each finding that holds, by "When a Finding Holds". Fix a design-level finding in the design. Route
+2. **Fix.** Act on each finding that holds, by "When a Finding Holds". A premise finding that holds is not fixed in the
+   design. It goes to the user at once, by "When the Problem Exists". Fix a design-level finding in the design. Route
    an implementation-level finding to a milestone check. See "Finding Levels". A fix is a change to the design, so check
    it against the code before the next pass, the same as an option. A fix made on a wrong premise is how a coordinator
    starts a flip on its own.
