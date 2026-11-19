@@ -159,13 +159,26 @@ When the report also gets an HTML rendering, read
 
 ## 5. After writing
 
+Commit the report by default. Invoking this skill is the user's explicit ask
+to commit, as `git-workflow.md` requires. A caller with its own commit rules
+for reports, such as `/work-queue`, follows those instead. Skip the commit
+only in these cases:
+
+- The user says not to commit, in the request or earlier in the session.
+- The report's real path is not inside a git repo.
+- The owning repo's own rules, such as its `CLAUDE.md` or `AGENTS.md`, forbid
+  agent commits. A project's rules override this default.
+
+Commit only the explicit paths this report touched: the report, a regenerated
+index, and touched topic pages. Commit them in the owning repo (section 1),
+with `git -C <owning repo> commit -- <paths>`. Never use `git add -A` or
+`git commit -a`. Other sessions may share the checkout, and the path form
+leaves their staged files alone. Follow the owning repo's commit message
+conventions. When a hook rejects the commit, report why. Never bypass it with
+`--no-verify`.
+
+Do not push unless explicitly asked. A commit grant is not a push grant.
+
 Report the absolute path of the report and which topic pages were tagged
-versus updated (and any created). The target directory is often a git repo.
-Do not commit unless explicitly asked, or unless the rules of the project this
-session runs in (e.g. its `CLAUDE.md`) allow commits on the user's behalf.
-Those rules apply even when the report lands in another repo. Do not push unless
-explicitly asked. When committing, commit only the explicit paths this report
-touched (the report, a regenerated index, touched topic pages), in the owning
-repo (section 1), with `git -C <owning repo> commit -- <paths>`. Never use
-`git add -A` or `git commit -a`: other sessions may share the checkout. Follow
-the target's commit message conventions.
+versus updated, and any created. Name the commit by subject and the repo it
+landed in. When the commit was skipped, say which case skipped it.

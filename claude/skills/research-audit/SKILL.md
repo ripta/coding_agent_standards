@@ -144,7 +144,8 @@ document.
 ### Step 10: Summarize
 
 Give the report's absolute path. Give the verdict counts by bin. Name the two or three claims that most change the
-picture. Commit only as section 5 of `session-report/SKILL.md` allows.
+picture. Commit the report by default, as section 5 of `session-report/SKILL.md` does. Invoking this skill is the
+user's ask to commit. Skip the commit in the cases that section lists.
 
 ## Rules
 
