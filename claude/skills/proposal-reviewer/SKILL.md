@@ -163,6 +163,15 @@ existing order using the criteria in Step 4 #5, and group them into rounds by St
 meets an added question's goal, or its premise is only `PLAUSIBLE`, it lists "no change needed" among its candidates.
 See "When the Problem Exists" in `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`.
 
+Run the growth check from "When the Design Keeps Growing" in the same file before each further critic pass, in Step 5
+and Step 6, in every mode. When it fires, ask its question at once, in one AskUserQuestion call. Record the answer in
+the Decision Log. On a drop or a narrow answer, reopen the decisions that served the requirement. Resolve them in
+converge mode, since the user has chosen to weigh in.
+
+Never edit an accepted ADR that imposed a dropped requirement. The user's answer settles that a new ADR supersedes it.
+Step 8 writes that ADR without asking again. A requirement from an `implemented` proposal is frozen. Name the new
+proposal it needs in the wrap-up.
+
 For each round, run #1 through #3 for every question in the round. Then run the critique (#4) once for the whole round,
 and sketch (#5) where needed. Then ask once (#6) and record every answer (#7).
 
@@ -393,6 +402,8 @@ summary first. See "The Closing Summary". Skip it when the review gate has just 
   schedule the proposal. Scheduling adds queue rows, and happens only when the user asks.
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
 
+A superseding ADR that a growth answer settled is not a candidate. Write it without asking.
+
 Before asking about ADRs, check each noted decision against "What Earns an ADR" again, now that the whole design is
 settled. Check the candidates found in Step 3 the same way. Their wording came from whoever recorded them, not from this
 review. For each, name one other mechanism that would serve the same goal, per "Architecture" in `design.md`. When that
@@ -448,8 +459,8 @@ List any ADRs created with their file paths.
 
 ## Autonomous Mode
 
-Autonomous mode runs Steps 3 through 7 without asking, then asks everything at one review gate. The one exception is
-the retraction question from Step 3 #4, which it asks at once. It changes who decides,
+Autonomous mode runs Steps 3 through 7 without asking, then asks everything at one review gate. The exceptions are the
+retraction question from Step 3 #4 and the growth question, which it asks at once. It changes who decides,
 not how. The ranking in `decision-making.md` and the convergence loop decide each question. Choosing autonomous mode
 does not lower the bar. An override still needs the user to state it, or the proposal's `**Tradeoffs:**` field.
 
@@ -469,13 +480,15 @@ Nothing else is relaxed. These stay with the user, and go to the gate:
 - Dropping or deferring anything the proposal already plans, such as a milestone or a settled decision
 - Every `USER'S CALL` ruling
 
-Retracting the proposal stays with the user too. Step 3 #4 asks it at once instead of at the gate.
+Retracting the proposal stays with the user too. Step 3 #4 asks it at once instead of at the gate. The growth question
+stays with the user as well. Step 5 says when it is asked.
 
 ### Deciding
 
 - **Step 5**: decide on the loop's recommendation and record it at once, marked as #7 describes. On a `USER'S CALL`,
   take the judge's lean as a provisional decision. Mark each question that depends on it, so the gate can reopen them
-  together
+  together. When the recommendation drops a settled decision or an accepted ADR's rule, do not decide it. Ask it at
+  once, the way the growth question is asked
 - **Step 6, gaps**: drop a gap whose goal an existing path already meets. Record the drop in the Decision Log, with a
   one-line reason that names the path.
   Add a design-level gap as an open question and resolve it through Step 5. Route an
@@ -534,6 +547,7 @@ miss it. A long summary buries them, so keep it short, and never list every deci
    - Each new `**Live after:**` line or row gate
    - Growth during Steps 6 and 7. Those steps check the design. When their passes keep adding decisions or milestones,
      the review is growing the design, not settling it. Name what each pass added
+   - Each growth question asked, with its requirement and the user's answer
 
    With none, write "No red flags" on one line.
 2. **Size**, one line: milestones, settled decisions, and risks, from the "Review start" entry to now.
@@ -551,8 +565,8 @@ miss it. A long summary buries them, so keep it short, and never list every deci
   round into one call per question. Never merge dependent questions into one round
 - Autonomous mode is the other exception. The user's choice of it at the entry gate authorizes deciding without asking,
   for this review only, and only for what "What the user authorizes by choosing it" lists. All its questions go to the
-  one review gate at the end. The one exception is the retraction question from Step 3 #4. It is asked at once, since
-  every later step would build on a problem that does not exist
+  one review gate at the end. The exceptions are the retraction question from Step 3 #4 and the growth question. See
+  Step 5. Each is asked at once, since every later step would build on a premise the user may not want
 - Autonomous mode comes only from this invocation: the entry gate, a mode the user named when invoking the skill, or a
   change of mode the user states during the review. Never infer it from memory, an earlier session, or how the user
   answered past reviews. A note that the user delegated a past review is not a standing grant. Ask the mode question

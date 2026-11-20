@@ -54,7 +54,8 @@ finding that needs one is design-level. When no milestone builds the affected pa
 finding, and it is design-level.
 
 Routing exists because each fix written as design prose adds mechanism, and the next pass finds that mechanism's edge
-cases. A check has no edge cases of its own to re-check.
+cases. A check has no edge cases of its own to re-check. A routed check can still pin a special case. See "When the
+Design Keeps Growing".
 
 ### When a Finding Holds
 
@@ -95,6 +96,33 @@ candidate names the existing path and what it leaves short.
 A premise can fail at any point. The first trace can show it, or a critic's premise finding. So can a "no change needed"
 pick on a question the rest of the design depends on. When it fails, take it to the user at once, in every mode. The
 caller asks whether to drop the work. Do not carry it to a later gate, since every later step would build on it.
+
+## When the Design Keeps Growing
+
+A premise can also be a requirement: a settled decision, a goal, or a rule from an accepted ADR. Each finding is checked
+against it. A finding can be real against the requirement and still not be a reason to keep it. A requirement can cost
+more than it is worth. Then every pass finds a new case it forces. Fixing each case patches the requirement instead of
+questioning it.
+
+Check for this before each further pass, in either loop. Look at what the last pass's kept changes added: settled
+options, fixes, and routed checks.
+
+A special case is a case, state, exception, or condition that the plain behavior would not need. The plain behavior is
+what the system does when the requirement is dropped, with no rule for its cases. When the changes added special cases
+that serve one requirement, stop before the next pass. Take the question to the user at once, in every mode. The caller
+asks it, or reports it when it cannot ask.
+
+The question has these options:
+
+- Drop the requirement, and get the plain behavior. Its description says what the user gets, and which cases go away.
+  When an accepted ADR imposes the requirement, it says so. Dropping it means a new ADR that supersedes the old one
+- Keep the requirement, with its special cases. Its description names each one
+- Narrow the requirement, when a narrower one would remove most of the cases. Offer this only when you can state the
+  narrower requirement
+
+Do not recommend an option for being smaller or larger. Rank them as any other question, per "Choosing Options" in
+`rules/decision-making.md`. Only the user can drop a settled decision or an ADR's rule. A keep answer covers only the
+cases it named.
 
 ## The Question Loop
 
@@ -175,7 +203,7 @@ converges when what is left is open questions, not defects.
    each change and reports only `CONFIRMED` design-level defects, in the changed text or caused by it. It lists
    implementation-level defects separately, for routing. It labels any finding that would reverse a recorded decision
    `REVERSAL`, and ends with `CONVERGED` or `NOT CONVERGED`.
-4. Repeat 2 and 3 until it converges.
+4. Repeat 2 and 3 until it converges. A growth stop ends the loop early. See "When the Design Keeps Growing".
 
 The proposal **converges** when a re-check pass ends `CONVERGED`, or reports no design-level finding. Route its
 implementation-level findings that hold, by "When a Finding Holds", and fix wording or format, without another pass.
@@ -195,6 +223,7 @@ Keep one ledger per question, and one for the proposal loop, in your own context
 - Your recommendation after reconciling
 - Findings kept and rejected, each with its one-line reason
 - Options added, descriptions changed by a verified fact, and fixes made
+- The special cases the pass added and the requirement they serve, or none. See "When the Design Keeps Growing"
 - Findings routed to milestone checks, each with its milestone, and late options that could not win
 
 The judge reads the ledger. The caller summarizes it for the user. Never give it to the critic.
@@ -241,8 +270,8 @@ For each question:
 - A record line: one sentence naming the winner and the reason
 - Whether the recommendation adds scope, per "Scope Additions" in `rules/decision-making.md`, and what it brings in
 
-For the proposal loop: the passes run, the fixes made, the checks routed to milestones, any fix left un-checked, and
-every addition the critic listed.
+For the proposal loop: the passes run, the fixes made, and the special cases each pass added. Also give the checks
+routed to milestones, any fix left un-checked, and every addition the critic listed.
 
 The caller shows the dissent to the user. It never hides it.
 
@@ -257,4 +286,5 @@ The caller shows the dissent to the user. It never hides it.
 - After the first pass of each loop, only design-level findings hold the design open. Route implementation-level ones
   to milestone checks
 - Never declare convergence over an open design-level finding
+- When a pass adds special cases that serve one requirement, ask the user about it before another pass
 - One judge per question. Its ruling stands until the user reopens the question
