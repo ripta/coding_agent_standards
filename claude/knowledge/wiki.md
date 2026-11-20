@@ -117,8 +117,13 @@ holds for standalone HTML reports too.
 
 ### Immutability
 
-A report is immutable once committed. Fixing a typo or a broken link is allowed. A new finding goes in a new report,
-and the topic page is updated to match. Never rewrite another session's report. Write a new one and link back to it.
+A report is immutable once committed, except to the session that owns it. Fixing a typo or a broken link is allowed. A
+new finding goes in a new report, and the topic page is updated to match. Never rewrite another session's report.
+Write a new one and link back to it.
+
+The owning session may keep amending its report after each commit, so a long-running session can keep one running
+report. The `session-report` skill's section 2 says how a session proves it owns a report, and how a later session
+continues one.
 
 The generated later-reports block is the one other change an earlier report takes. `build` writes it. Never hand-write
 a forward link, such as a "Follow-up:" line, into an earlier report. Declare `follows` or `corrects` on the new report
@@ -324,7 +329,8 @@ The `commit-msg` hook enforces the subject style. The `pre-commit` hook runs `bi
   Git keeps whatever a commit carries, even after a revert.
 - Never hand-edit `index.md`, `reports/index.md`, a topic's generated "Reports" block, or a report's later-reports
   block.
-- Never rewrite another session's committed report. Write a new one and link back.
+- Never rewrite another session's committed report. Write a new one and link back. A session may keep amending a
+  report it owns.
 - To pick up an earlier line of work, read the topic page first, then the reports it links. Do not search history
   first.
 

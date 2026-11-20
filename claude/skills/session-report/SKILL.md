@@ -5,7 +5,7 @@ description: >-
   reproducible report file in the user's reports directory. Triggers: "write
   this up as a report", "write a report of these findings", "save/write this
   to my reports directory", "write the session findings to a
-  file". DO NOT trigger on: code documentation, READMEs, commit messages, PR
+  file", "update the report", "keep a running report". DO NOT trigger on: code documentation, READMEs, commit messages, PR
   descriptions, meeting notes, or reports bound for Slack/Notion/Doc Hub.
 model: sonnet
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
@@ -69,18 +69,44 @@ When the README points at the wiki standard, also read
 frontmatter, and the report-writing sequence. Repo-specific rules stay in
 that README.
 
-Check for filename collisions; on collision, extend the slug. Never overwrite
-an existing report.
+When creating a report, check for filename collisions; on collision, extend
+the slug. Never overwrite an existing report. Amending one this session owns
+is not overwriting it; see below.
 
-A report belongs to the work that created it. Amend one only when this
-session created it, or continues the same work, such as a `/work-queue` run
-resumed in a new session. Whether it is committed does not matter. Re-read it
-right before each edit and change it in place, never rewrite it from memory.
-If it changed since you last read it, and you did not make the change, another
-session may be writing it. Stop and ask the user. When the work only extends
-or corrects someone else's report, write a new report and link back to it.
-If the README's frontmatter can name earlier reports, such as a wiki's
-`follows` and `corrects`, name them there too.
+A report belongs to the work that created it. A long-running session may keep
+one running report and update it as the work goes on. Whether it is committed
+does not matter.
+
+Every report records the session that owns it, in an HTML comment on the line
+after the frontmatter, or after the title when there is no frontmatter:
+`<!-- session-report owner: <id> -->`. An HTML report puts it in `<head>`.
+
+The ID is `CLAUDE_CODE_SESSION_ID`. Read it with
+`printenv CLAUDE_CODE_SESSION_ID`. When it is empty, leave the line out.
+
+Amend a report only in these cases:
+
+- Its owner line names this session's ID.
+- The user names the report and asks to continue it, such as after `/clear`
+  started a new session.
+- This session continues the same work, such as a `/work-queue` run resumed in
+  a new session.
+
+In the last two cases, add this session's ID to the owner line, separated by a
+space. Never amend a report on the strength of memory alone. Compaction can
+blur which file this session wrote.
+
+Re-read the report right before each edit and change it in place, never
+rewrite it from memory. An update revises the report so it still reads as one
+synthesis: the verdict, findings, and `Status` describe where the work stands
+now. Do not append a dated log of updates.
+
+If the report changed since you last read it, and you did not make the
+change, another session may be writing it. Stop and ask the user.
+
+When the work only extends or corrects someone else's report, write a new report and link back to it. If the README's
+frontmatter can name earlier reports, such as a wiki's `follows` and
+`corrects`, name them there too.
 
 ## 3. Frontmatter and topics
 

@@ -604,6 +604,10 @@ saved. When there are more batches than the tool can hold, ask in chat."""),
    there.""",
          """using the session's file-editing or shell tool, creating the parent directory
    only with the required filesystem permission."""),
+        ("""The ID is `CLAUDE_CODE_SESSION_ID`. Read it with
+`printenv CLAUDE_CODE_SESSION_ID`. When it is empty, leave the line out.""",
+         """Use the session's ID when its environment exposes one. Otherwise leave the
+line out, and amend only in the other two cases below."""),
     ),
 }
 

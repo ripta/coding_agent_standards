@@ -223,6 +223,14 @@ the `bug-sweep` skill is the caller.
 the `/bug-sweep` command is the caller.
 EOF2
 
+rewrite "$OUT/skills/session-report/SKILL.md" <<'EOF2'
+The ID is `CLAUDE_CODE_SESSION_ID`. Read it with
+`printenv CLAUDE_CODE_SESSION_ID`. When it is empty, leave the line out.
+--->
+Use the session's ID when its environment exposes one. Otherwise leave the
+line out, and amend only in the other two cases below.
+EOF2
+
 # OpenCode has no plan mode tool. Its plan agent cannot edit, so /work-on stays
 # in the current agent and holds edits until the plan is approved.
 perl -0pi -e '
