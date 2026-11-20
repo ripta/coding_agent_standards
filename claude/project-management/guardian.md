@@ -84,7 +84,9 @@ is not resumed. Its user starts a fresh one with `/guardian <domain name>`.
    it, if ListAgents shows one. Otherwise tell the requestor to take it to its user.
 3. **Verify it.** Never accept a claim on the requestor's word. Reproduce it first, preferably as a failing test. When a
    claim cannot be reproduced directly, have a fresh agent check it. `citation-verifier` checks file and line claims.
-   `design-critic` checks a design argument.
+   `design-critic` checks a design argument. List what the evidence leaves unexplained, such as a count the domain's
+   rules cannot produce. Ask the requestor about it before choosing the fix. Challenge its framing too, when the
+   evidence fits another cause. "No reply needed" never stops these questions.
 4. **Choose the fix.** The requestor's suggested fix is input, not a spec. Offer a narrower or broader fix when it is
    better, and say why.
 5. **Check disclosure.** When the fix will carry only generalized patterns, skip the lookup. Assume the source is
