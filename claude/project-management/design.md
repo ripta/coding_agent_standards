@@ -1,7 +1,18 @@
 # Architecture Decision Records (ADRs)
 
-An ADR captures a significant architectural decision with its context and consequences. Most decisions do not need
-one. See "What Earns an ADR".
+An ADR records the principles behind a significant architectural decision, and why each one holds. Most decisions do
+not need one. See "What Earns an ADR".
+
+## Principles, Not Implementation
+
+An ADR is foundational. It lists principles and answers why each one holds. It never records an implementation.
+
+An implementation cannot be defended later. A format, mechanism, or layout is one way to meet a goal. Once a better way
+appears, nothing says why the old one must stay. A principle can be defended. Its reason either still holds, or it does
+not.
+
+Later work cites an ADR to justify a choice. The citation must lead to the reason behind the decision. So each principle
+carries its own why. A reader who follows `ADR-07 P2` finds the principle and its reason in one place.
 
 ## Lifecycle
 
@@ -15,7 +26,7 @@ retracted  retracted
   Whoever accepts the proposal flips its proposed ADRs to accepted. When the proposal is rejected or retracted, its
   proposed ADRs become retracted
 - **accepted**: In effect
-- **superseded**: Replaced by a newer ADR (link to replacement)
+- **superseded**: Replaced by a newer ADR, because a reason it rests on no longer holds (link to replacement)
 - **deprecated**: No longer applicable. The decision was right, and has stopped applying
 - **retracted**: Void. The decision was never in effect, or was wrong when written. Give the reason under the status
   line. Only the user retracts an accepted ADR, and a retraction covers only the ADRs the user names
@@ -32,28 +43,39 @@ stays in the proposal as a candidate that waits. See "Recording ADR Candidates".
 **Date:** YYYY-MM-DD
 
 ## Context
-What problem are we solving? What constraints exist?
+What problem forced a decision? What constraints hold?
 
-## Decision
-What did we decide to do?
+## Principles
+- **P1**: The principle, stated as an invariant or constraint. Why it holds.
+- **P2**: Struck on YYYY-MM-DD; see Amendments.
 
-## Rationale
-Why this decision over alternatives?
+## Carve-outs
+- **C1** (relaxes P1): The class of cases where P1 does not apply. Why the exception holds.
 
 ## Consequences
 What are the tradeoffs? Positive and negative. Name any obligation the decision creates, but do not track it here.
 
 ## Alternatives Considered
-What other options did we evaluate?
+What other principles did we weigh, and why did we not choose them?
+
+## Amendments
+- YYYY-MM-DD: Narrowed P1 to stored data. Its reason never covered data in flight. Removed: "every event".
 
 ## References
 - PROJ-NNN (originating proposal, if any)
 - Related ADRs
 ```
 
+Leave out an empty Carve-outs or Amendments section.
+
+A principle states the invariant or constraint first, then its reason. It never names the mechanism that meets it. See
+"Architecture" below. Rationale that spans several principles goes in Context.
+
 ## Rules
 
-- An accepted ADR takes minor edits only. A change to what it decides gets a new, superseding ADR. See "Record"
+- An accepted ADR is edited in place while its reasons hold. It is superseded when one does not. See "Changing an
+  Accepted ADR"
+- Principle and carve-out handles (`P1`, `C1`) are permanent and never reused. A struck one keeps its handle
 - Sequential numbering with 2-digit zero-padding: `ADR-01`, `ADR-02`, etc. A project that already uses another width,
   such as `ADR-0001`, keeps it. Match the padding of existing ADR files
 - File naming: `ADR-NN-short-description.md` (kebab-case)
@@ -70,10 +92,64 @@ every run.
 ```markdown
 ## Load-Bearing ADRs
 
-- ADR-07: every outbound event goes through the outbox. Watch for direct publishes to the message bus.
+- ADR-07: an outbound event is published only after the change it describes commits. Watch for publishes inside a
+  transaction.
 ```
 
 Keep the list short. An ADR that every change must be checked against is rare.
+
+## Carve-outs
+
+A carve-out is part of the ADR. It names a class of cases where a principle does not apply, and why. It names the
+principles it relaxes.
+
+A carve-out describes a condition. It never names a proposal, milestone, ticket, or component instance. "Reads that
+never leave the process" is a condition. "PROJ-012's cache" is not. A carve-out tied to one proposal cannot be defended
+once that proposal is gone. The next proposal with the same need cannot apply it either.
+
+The ADR's References may still name its originating proposal. That records where the ADR came from. It is not an
+exception to any principle.
+
+## Deviating from an ADR
+
+A proposal that departs from an accepted ADR documents the departure in its own `## ADR Deviations` section. The ADR
+never points at the proposal. Each entry names the ADR, the principles it departs from, and the carve-outs that cover
+it:
+
+```markdown
+- ADR-07 P2 under C1: this proposal's reads never leave the process.
+```
+
+When no carve-out covers the case, prefer to amend the ADR. Add a general carve-out, or narrow the principle. Then the
+ADR stays the full statement of its rule and its exceptions. This is a preference, not a requirement. When the user does
+not amend the ADR, the entry gives the proposal's own reason instead:
+
+```markdown
+- ADR-07 P2, no carve-out: the import tool runs once, and is deleted after the migration.
+```
+
+What matters is that every deviation is documented. A deviation the proposal does not list is a conflict.
+
+## Changing an Accepted ADR
+
+Edit an accepted ADR in place while its reasons still hold. Widening or narrowing a principle is an edit. So is striking
+a principle or a carve-out, adding or rewording a carve-out, and adding a principle that serves the ADR's existing
+reason. An ADR written too widely or too narrowly gets fixed where it stands.
+
+Write a superseding ADR when a reason no longer holds: the context changed, or the reason was wrong. The old ADR stays
+as the record of the reason that was in force. A principle that must reverse is a sign that its reason changed.
+
+Only the user approves a change to what an accepted ADR requires. An agent may propose one. It never applies one on its
+own, in any mode.
+
+Each change adds one line to the ADR's `## Amendments` section. The line gives the date, what changed, and why. It
+quotes the removed text word for word. Like a carve-out, it gives its reason in terms of the principles, never by naming
+a proposal. A struck principle or carve-out keeps its handle, as `**P2**: Struck on YYYY-MM-DD; see Amendments.` A
+citation from a frozen proposal then still resolves.
+
+These need no Amendments line: fixing a typo or a broken link, adding a reference, clarifying wording without changing
+what it means, and updating the status. Rewriting an older ADR's Decision and Rationale into handled principles counts
+as clarifying wording, as long as no principle changes meaning.
 
 ## What Earns an ADR
 
@@ -87,8 +163,8 @@ be a record. When no candidate passes, the right number of ADRs is zero.
 
 The decision is significant and foundational. At least one of these holds:
 
-- **It cuts across the system.** Other components, services, or future work must follow it, such as "every outbound
-  event goes through the outbox"
+- **It cuts across the system.** Other components, services, or future work must follow it, such as "an outbound
+  event is published only after the change it describes commits"
 - **It is hard to reverse.** It commits a schema, a wire format, a published contract, or stored data to a property a
   redeploy cannot undo, such as "stored events stay readable by every later version"
 - **It departs from the past.** It replaces an approach the project used before, or an earlier ADR, so the next person
@@ -97,15 +173,15 @@ The decision is significant and foundational. At least one of these holds:
 Being hard, debated, or important to one proposal does not pass this test. Neither does a decision that shapes only one
 component's internals. Those stay in the proposal or the design doc that made them.
 
-Architecture is the invariant or constraint, never the implementation. A format, syntax, mapping, derivation, storage
-layout, or mechanism is never itself an ADR, even when it is hard to reverse. When such a choice is hard to reverse, the
-candidate is the invariant it serves. The concrete form stays in the proposal.
+Architecture is the invariant or constraint, never the implementation. See "Principles, Not Implementation". A format,
+syntax, mapping, derivation, storage layout, or mechanism is never itself an ADR, even when it is hard to reverse. When
+such a choice is hard to reverse, the candidate is the invariant it serves. The concrete form stays in the proposal.
 
 The ADR also states the rule that any change breaking the invariant must follow, such as how a breaking migration keeps
 old and new readers working. That rule is a constraint, so it belongs. The migration's steps and their order are a plan,
 so the Decision test keeps them out.
 
-To tell the two apart, ask what would force the ADR to change. Adding another instance of the same kind must not.
+To tell the two apart, ask what would force a principle to change. Adding another instance of the same kind must not.
 Changing the concrete format must not. Replacing the mechanism with another that serves the same goal must not. When
 any of these would, the candidate is implementation. Lift it to the invariant behind it before weighing it.
 
@@ -133,21 +209,21 @@ An ADR records a choice that has been made, and why. It holds nothing about the 
 A consequence may name work the decision makes necessary, such as "every client must migrate to v2". That is a fact
 about the decision. Tracking that work belongs elsewhere. Link to the proposal under References instead.
 
-A decision against an approach is a decision too. It earns an ADR by the same three tests. The usual case is rejecting
-a widely recommended practice: it would make the design more robust, and the project decides its tradeoff is not worth
-it here. The ADR keeps later work from adding it back without reading why. Its status is accepted, and its Decision
-names what is rejected and where the rejection holds. Most decisions not to do something do not pass the tests, and
-stay in the proposal that made them.
+A decision against an approach is a decision too. It earns an ADR by the same three tests. The usual case is rejecting a
+widely recommended practice: it would make the design more robust, and the project decides its tradeoff is not worth it
+here. The ADR keeps later work from adding it back without reading why. Its status is accepted, and its principle names
+what is rejected and why. Its carve-outs name where the rejection does not hold.
+
+Most decisions not to do something do not pass the tests. They stay in the proposal that made them.
 
 ### Record
 
-An accepted ADR should not need to change. Write it only once the decision is settled and well-defined: its scope is
-clear, and nothing it depends on is still being measured or designed. A decision that is likely to shift soon, such as
-one waiting on a benchmark or on an in-flight proposal, is not ready. Keep it in the proposal until it settles.
+Write an ADR only once the decision is settled and well-defined: its scope is clear, and nothing it depends on is still
+being measured or designed. A decision that is likely to shift soon, such as one waiting on a benchmark or on an
+in-flight proposal, is not ready. Keep it in the proposal until it settles.
 
-An accepted ADR takes minor edits only: fixing a typo or a broken link, adding a reference, clarifying wording without
-changing what it means, and updating its status when it is superseded, deprecated, or retracted. Anything that changes
-what was decided, its scope, or its consequences is a new decision. Write a new ADR that supersedes the old one.
+Settled does not mean final. A principle found too wide or too narrow later is amended in place. See "Changing an
+Accepted ADR".
 
 ## Recording ADR Candidates
 
@@ -161,8 +237,8 @@ user's list unchanged. The entry names the Architecture criterion it meets and e
 
 ```markdown
 - 2026-10-17: ADR candidate (hard to reverse): stored events stay readable by every later version. Written as ADR-07.
-- 2026-10-17: ADR candidate (cuts across the system): retries go through the shared client. Declined: its README covers it.
-- 2026-10-17: ADR candidate (departs from the past): drop the cache layer. Waits on the PROJ-012 M3 benchmark.
+- 2026-10-17: ADR candidate (cuts across the system): every outbound call retries under one policy. Declined: its README covers it.
+- 2026-10-17: ADR candidate (departs from the past): reads come from the source of truth. Waits on the PROJ-012 M3 benchmark.
 - 2026-10-17: ADR candidate (hard to reverse): a session belongs to exactly one account. Undecided. Found in PROJ-007 M2.
 ```
 

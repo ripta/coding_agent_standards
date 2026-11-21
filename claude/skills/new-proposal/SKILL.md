@@ -57,7 +57,8 @@ Do all of this before any question. Most answers are already on disk.
    dependencies and cross-proposal impact.
 7. **ADRs**: spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the description. Cite
    the ADRs it reports under Dependencies or Impacts. In the draft, list each conflict as an open design decision,
-   unless the request already says the proposal supersedes that ADR.
+   unless the request already says the proposal amends or supersedes that ADR. A deviation the request names goes
+   under ADR Deviations, per "Deviating from an ADR" in `${CLAUDE_SKILL_DIR}/../../project-management/design.md`.
 
 Report what you found in a few lines before asking anything.
 
@@ -107,7 +108,7 @@ Rules for drafting:
 - Populate the Risks section per the standard's "Risks" section: each risk carries a likelihood, an impact, and a
   mitigation or explicit acceptance. Flag one-way-door decisions (migrations, published contracts, wire formats) as
   risks. "None identified" requires a stated reason.
-- Omit Dependencies/Impacts entries when there are none (keep the headings only if the project does).
+- Omit Dependencies/Impacts/ADR Deviations entries when there are none (keep the headings only if the project does).
 - Write milestones as `### MN: Title` subsections, numbered from 1, per the standard's "Milestones" section. Give each
   a `**Status:** NOT STARTED` line and plain bullets phrased as checks. Never tick the bullets, and add no As built
   block until work starts.

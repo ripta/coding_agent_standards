@@ -115,7 +115,9 @@ asks it, or reports it when it cannot ask.
 The question has these options:
 
 - Drop the requirement, and get the plain behavior. Its description says what the user gets, and which cases go away.
-  When an accepted ADR imposes the requirement, it says so. Dropping it means a new ADR that supersedes the old one
+  When an accepted ADR imposes the requirement, it says so, and says how the ADR changes. Dropping it means amending
+  the ADR to narrow or strike the principle, or superseding it when its reason no longer holds. A proposal may instead
+  document the drop as a deviation. See `design.md` "Deviating from an ADR"
 - Keep the requirement, with its special cases. Its description names each one
 - Narrow the requirement, when a narrower one would remove most of the cases. Offer this only when you can state the
   narrower requirement

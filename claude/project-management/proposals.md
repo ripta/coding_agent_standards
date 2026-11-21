@@ -40,6 +40,10 @@ Any status may become **superseded**. Any status except `implemented` may become
 
 - PROJ-NNN — section(s) of this proposal that affect it
 
+## ADR Deviations
+
+- ADR-NN P1 under C1: why this proposal falls in the carve-out (if any)
+
 ## Summary
 
 Brief description of the proposal.
@@ -208,8 +212,12 @@ An amended decision or milestone carries one marker, such as "Amended 2026-10-17
 replaces the marker. It does not add a second one. The marker tells a reader the text changed. The log entry keeps the
 prior meaning without relying on git history, which does not follow a spec moved between repos.
 
-Amending a decision that an accepted ADR records needs a new ADR that supersedes it. An accepted ADR takes minor edits
-only, so editing the proposal alone would leave the two disagreeing. See `design.md` "Record".
+Amending a decision that an accepted ADR records changes the ADR too. Otherwise the two disagree. Amend the ADR in
+place while its reasons hold, or write a superseding ADR when one does not. See `design.md` "Changing an Accepted ADR".
+
+A proposal that departs from an accepted ADR lists the departure under `## ADR Deviations`. Each entry names the ADR,
+its principles, and the carve-outs that cover it. Without a covering carve-out, the entry gives the proposal's own
+reason. See `design.md` "Deviating from an ADR".
 
 ## Decision Log Tags
 

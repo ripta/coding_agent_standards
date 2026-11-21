@@ -73,8 +73,9 @@ surface area and work against maintainability.
 
 Nor is the complete option the one with the most special cases. When a question asks how a case behaves, list the plain
 behavior: what the system does with no rule for the case. A requirement that forces special cases is a choice too. When
-one does, list the option that drops it, even when an accepted ADR imposes it. That option says a new ADR would
-supersede the old one. Only the user decides that.
+one does, list the option that drops it, even when an accepted ADR imposes it. That option says how the ADR would
+change: an amendment that narrows or strikes the principle, or a new ADR that supersedes it when its reason no longer
+holds. Only the user decides that.
 
 Investing in the code the change touches is different from speculating. It counts toward correctness, robustness, and
 maintainability, and it is part of the complete option. Treat work as an investment when it leaves that code more

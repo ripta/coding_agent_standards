@@ -46,14 +46,17 @@ A project can hold hundreds of ADRs. Do not read them all in full.
 1. Take each ADR's title and status from the index table. Without an index,
    grep the status lines. Match them case-insensitively. The bold markers vary
    (`**Status:**` and `**Status**:`), and the line may wrap.
-2. Grep the Decision section of each candidate, e.g.
-   `grep -A8 '^## Decision'`.
-3. Keep the ADRs whose decision governs something the input touches. Match on
+2. Grep the Principles section of each candidate, e.g.
+   `grep -A8 '^## Principles'`. An older ADR has a Decision section instead.
+3. Keep the ADRs whose principles govern something the input touches. Match on
    the components, files, interfaces, and concepts the input names. Rank them by
-   how many of those terms hit the title and Decision.
+   how many of those terms hit the title and principles.
 4. Read the top twelve in full, plus the load-bearing ADRs. For an ADR one of
-   them supersedes or is superseded by, read only its Decision and
-   Consequences. Say in the output when the cap left ADRs unread.
+   them supersedes or is superseded by, read only its principles, carve-outs,
+   and Consequences. Say in the output when the cap left ADRs unread.
+
+A principle marked struck no longer governs. Its Amendments line says what it
+said.
 
 Statuses:
 
@@ -72,11 +75,18 @@ mismatch in the output.
 For each shortlisted ADR, decide one:
 
 - `CONSISTENT`: the input touches what the decision governs and honors it.
+  Input that falls inside a carve-out honors it too.
+- `DEVIATES`: the input departs from a principle and documents it. A proposal
+  lists it under `## ADR Deviations`, naming the ADR and the principle. A diff
+  deviates only when its proposal lists the deviation. The entry either cites
+  a carve-out or gives the proposal's own reason. Check that a cited carve-out
+  covers the case. When it does not, report a conflict. A deviation never
+  blocks. See "Deviating from an ADR" in `design.md`.
 - `SUPERSEDES`: the input says it replaces or amends the decision, and names
   it. This is fine for a proposal. For a diff, it holds only when a proposal or
-  ADR records the change. That may be a new ADR the diff itself adds. Otherwise
-  report it as a conflict.
-- `CONFLICTS`: the input does what the decision rules out, or drops what it
+  ADR records the change. That may be a new or amended ADR in the diff itself.
+  Otherwise report it as a conflict.
+- `CONFLICTS`: the input does what a principle rules out, or drops what it
   requires, without saying so.
 
 Mark each conflict with a confidence:
@@ -102,8 +112,10 @@ Return, conflicts first:
 - **Conflicts**: the ADR id and title, the confidence, the input location
   (file:line, or the proposal section), the ADR line quoted, and the clash in
   one sentence.
-- **Supersessions**: the ADR id, what the input replaces, and where that is
-  recorded.
+- **Supersessions**: the ADR id, what the input replaces or amends, and where
+  that is recorded.
+- **Deviations**: the ADR id and principle, the carve-out cited or "own
+  reason", and where the input lists it.
 - **Consistent**: the ADR ids only, one line each. List at most ten. Give the
   count of the rest.
 - **Load-bearing ADRs checked**: one line of ids, with the relevant ones marked.

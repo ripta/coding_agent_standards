@@ -70,7 +70,8 @@ The proposal must say what shipped. Check the work's proposal edits:
   "Amended" marker and a Decision Log entry giving the prior meaning. A
   divergence recorded only in the Decision Log, or only in As built, is a
   finding. So is a second marker beside an old one. Amending a decision that
-  an accepted ADR records needs a new ADR that supersedes it.
+  an accepted ADR records changes the ADR too. It is amended in place, or
+  superseded when its reason no longer holds.
 - **Milestone state.** The milestone is `DONE` with an As built block that
   follows `proposals.md` "As Built". Its checks are not ticked. A `DROPPED`
   milestone links its Decision Log entry. `implemented` and the move of the
@@ -192,36 +193,46 @@ Comment-craft findings are clear-cut; the caller fixes them directly.
 ### 5. ADRs
 
 The ADR standard lives in `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`.
-Read its "What Earns an ADR" section and its "ADR Document Format" section.
-Check every ADR file the change adds or edits:
+Read its "Principles, Not Implementation", "What Earns an ADR", "ADR Document
+Format", "Carve-outs", and "Changing an Accepted ADR" sections. Check every ADR
+file the change adds or edits:
 
 - **A new ADR must pass all three tests.** It is architecture: it cuts across
   the system, is hard to reverse, or departs from the past. It states an
   invariant or constraint, not a format, syntax, mapping, derivation, or
   storage layout. An ADR that a new instance, a format change, or another
-  mechanism serving the same goal would force to change fails this test. It is a decision:
+  mechanism serving the same goal would force to change fails this test. Each
+  principle states its own reason. It is a decision:
   it holds no plans, migration steps, target dates, follow-ups, status, or
   open questions. It is ready to be a record: nothing it rests on is still
   being measured or designed. Name the test it fails.
-- **An accepted ADR takes minor edits only.** Read its status at the base of
+- **An accepted ADR changes by amendment.** Read its status at the base of
   the change, not after it. When it was accepted there, compare the two
-  versions. A typo, a link, a reference, a status change to superseded,
-  deprecated, or retracted, or wording that keeps the meaning is fine. A
-  change to what it decides, its scope, or its consequences is a finding. It
-  needs a new ADR that supersedes this one.
+  versions. A typo, a link, a reference, a status change, or wording that
+  keeps the meaning needs nothing more. Widening, narrowing, or striking a
+  principle or carve-out, adding a carve-out, or adding a principle that
+  serves the existing reason needs one Amendments line. The line gives the
+  date, the change, and why, and quotes the removed text. A struck item keeps
+  its handle. A handle reused or renumbered is a finding. A change whose
+  reason departs from the ADR's reason is a finding. It needs a superseding
+  ADR instead.
+- **Carve-outs and amendments name conditions.** A carve-out or Amendments
+  line that names a proposal, milestone, ticket, or component instance is a
+  finding. Each carve-out names the principles it relaxes.
 - **A superseding ADR closes the loop.** The old ADR's status says
   superseded and links the new one. The new one names the old under
   References. The ADR index, when there is one, agrees.
 - **The format matches** "ADR Document Format" and the project's existing
   ADRs.
 - **Each clause traces to a settled decision.** Read the originating
-  proposal's settled decisions and Decision Log. A clause in the Decision or
-  Consequences with no settled decision behind it is a finding. A clause that
+  proposal's settled decisions and Decision Log. A principle, carve-out, or
+  consequence with no settled decision behind it is a finding. A clause that
   records a decision tagged `addition` is a finding too, so the user sees the
   addition become a rule. See `proposals.md` "Decision Log Tags".
 
-A failed test, a meaning-changing edit, or a clause with no decision behind it
-is `verify-first`. A clause that records an addition is `user`. Only the user
+A failed test, an amendment whose reason departs from the ADR's, or a clause
+with no decision behind it is `verify-first`. A missing Amendments line is
+`fix-directly`. A clause that records an addition is `user`. Only the user
 can decide to drop an ADR or to split one. A format or linking gap is
 `fix-directly`.
 

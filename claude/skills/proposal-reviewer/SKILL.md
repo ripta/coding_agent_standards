@@ -168,8 +168,9 @@ and Step 6, in every mode. When it fires, ask its question at once, in one AskUs
 the Decision Log. On a drop or a narrow answer, reopen the decisions that served the requirement. Resolve them in
 converge mode, since the user has chosen to weigh in.
 
-Never edit an accepted ADR that imposed a dropped requirement. The user's answer settles that a new ADR supersedes it.
-Step 8 writes that ADR without asking again. A requirement from an `implemented` proposal is frozen. Name the new
+A drop answer on a requirement from an accepted ADR also settles how that ADR changes. The option named the way: an
+amendment, a superseding ADR, or a deviation the proposal documents. Step 8 applies it without asking again. Never
+change an accepted ADR without such an answer. A requirement from an `implemented` proposal is frozen. Name the new
 proposal it needs in the wrap-up.
 
 For each round, run #1 through #3 for every question in the round. Then run the critique (#4) once for the whole round,
@@ -402,7 +403,8 @@ summary first. See "The Closing Summary". Skip it when the review gate has just 
   schedule the proposal. Scheduling adds queue rows, and happens only when the user asks.
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
 
-A superseding ADR that a growth answer settled is not a candidate. Write it without asking.
+An amendment or superseding ADR that a growth answer settled is not a candidate. Apply it without asking. An amendment
+follows "Changing an Accepted ADR" in `${CLAUDE_SKILL_DIR}/../../project-management/design.md`.
 
 Before asking about ADRs, check each noted decision against "What Earns an ADR" again, now that the whole design is
 settled. Check the candidates found in Step 3 the same way. Their wording came from whoever recorded them, not from this

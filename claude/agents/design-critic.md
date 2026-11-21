@@ -77,7 +77,8 @@ For each question in the round:
    candidates. When every candidate serves a requirement that forces special
    cases, describe the option that drops it, with its plain behavior. Do this
    even when an accepted ADR or a settled decision imposes the requirement.
-   Say that dropping it supersedes that ADR, or reopens that decision.
+   Say that dropping it amends or supersedes that ADR, or reopens that
+   decision.
 3. **Rank every option yourself.** Rank the candidates and your missing options
    together. Use the standard above. Give each a one-line reason.
 4. **Attack the options you rank first and second.** A missing option you rank

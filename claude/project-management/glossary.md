@@ -56,9 +56,15 @@ but it recommends nothing on its own.
 **ADR**: a decision codified with its proof. The proof is the explanation,
 context, and measurements behind it. An ADR serves as a rule or guideline for
 future decisions and designs. Reserved for decisions that are cross-cutting,
-hard to reverse, or a departure from the past. Records an invariant or
-constraint, never the format or mechanism that implements it. Takes only minor
-edits once accepted. A change to what it decides is a new ADR that supersedes it.
+hard to reverse, or a departure from the past. Lists principles, each with the
+reason it holds, never the format or mechanism that implements them. Its
+carve-outs name the cases a principle does not cover. Once accepted, it is
+amended in place while its reasons hold. When a reason no longer holds, a new
+ADR supersedes it.
+
+**Carve-out**: a part of an ADR that names a class of cases where one of its
+principles does not apply, and why. It describes a condition, never a proposal.
+A proposal that relies on one cites it in its ADR Deviations section.
 
 These three differ in weight. A research write-up is the lightest and may be
 unproven. A design spike is proven, and carries more weight. An ADR is both
