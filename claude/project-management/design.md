@@ -22,9 +22,10 @@ proposed → accepted → superseded / deprecated
 retracted  retracted
 ```
 
-- **proposed**: Written, but not yet in effect. An ADR from a proposal stays proposed until that proposal is accepted.
-  Whoever accepts the proposal flips its proposed ADRs to accepted. When the proposal is rejected or retracted, its
-  proposed ADRs become retracted
+- **proposed**: Written, but not yet in effect. Every new ADR is committed as proposed. It stays proposed until the
+  user reads its text and accepts it. Choosing to write an ADR does not approve its text, and accepting the proposal
+  that produced it does not accept the ADR. An agent never sets an ADR to accepted on its own. When the proposal is
+  rejected or retracted, its proposed ADRs become retracted
 - **accepted**: In effect
 - **superseded**: Replaced by a newer ADR that decides differently, for a new reason (link to replacement)
 - **deprecated**: No longer applicable. The decision was right, and has stopped applying
@@ -162,7 +163,7 @@ Most design decisions do not need an ADR. The proposal that made a decision alre
 rationale. An ADR earns its place when someone could break the decision later without ever reading that proposal.
 
 The name sets the bar. A candidate must pass all three tests: it is architecture, it is a decision, and it is ready to
-be a record. When no candidate passes, the right number of ADRs is zero.
+be a record. It must also be new. See "Existing ADRs". When no candidate passes, the right number of ADRs is zero.
 
 ### Architecture
 
@@ -230,6 +231,20 @@ in-flight proposal, is not ready. Keep it in the proposal until it settles.
 Settled does not mean final. A principle found too wide or too narrow later is amended in place. See "Changing an
 Accepted ADR".
 
+### Existing ADRs
+
+A candidate is new only when no existing ADR already decides it. Lift the candidate to its invariant first, per
+"Architecture". Then compare that invariant with the principles and carve-outs of every ADR that is in effect.
+
+- **An existing principle already states it.** The candidate applies that ADR. It is not a new ADR. The proposal cites
+  the principle instead, such as `ADR-07 P2`
+- **An existing ADR leaves the case out on purpose.** A carve-out, or a scope that excludes it, already settles the
+  case. The candidate is not a gap. It is declined
+- **It would widen, narrow, or reverse an existing ADR.** That is a change to that ADR, not a candidate. See "Changing
+  an Accepted ADR". Raise it only when the work needs it, as an ADR conflict. Never offer it as an ADR candidate
+
+Each of these is declined, with the ADR it rests on as the reason, such as `Declined: applies ADR-07 P2`.
+
 ## Recording ADR Candidates
 
 A candidate is a decision that passes the Architecture and Decision tests. Record every candidate in its originating
@@ -260,8 +275,11 @@ instead. Without a session report, the run lists them in its final response.
 
 ## Listing ADR Candidates
 
-A list of ADR candidates shown to the user holds only candidates that pass all three tests. A candidate that fails any
-test stays off the list. Its outcome goes in the Decision Log instead.
+A list of ADR candidates shown to the user holds only candidates that pass all three tests and are new. A candidate
+that fails any test stays off the list. Its outcome goes in the Decision Log instead.
+
+A declined candidate is closed. Do not bring it back as an open choice, such as an offer to amend or supersede the ADR
+it rests on.
 
 Each item names the invariant, not the format or mechanism that implements it. Lift an implementation-level candidate
 to its invariant before listing it, per "Architecture" above. Several such candidates may lift to one invariant. List

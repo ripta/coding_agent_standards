@@ -125,6 +125,9 @@ Return, conflicts first:
 - **Uncovered decisions**: up to three choices the input makes that no ADR
   records and that pass the bar in the "What Earns an ADR" section of
   `design.md`. Name the criterion each meets. Most inputs have none. Leave it
-  empty then.
+  empty then. Lift each choice to its invariant before comparing it with the
+  ADRs. A choice that an existing principle states, or that a carve-out or an
+  ADR's scope leaves out on purpose, is covered. List it under Consistent
+  with that ADR, never here. See "Existing ADRs" in `design.md`.
 
 Say plainly when nothing conflicts.

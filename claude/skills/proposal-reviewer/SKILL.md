@@ -415,9 +415,12 @@ Before asking about ADRs, check each noted decision against "What Earns an ADR" 
 settled. Check the candidates found in Step 3 the same way. Their wording came from whoever recorded them, not from this
 review. For each, name one other mechanism that would serve the same goal, per "Architecture" in `design.md`. When that
 alternative would break the candidate's wording without harming its goal, lift the claim to the invariant. Reword the
-claim in its Decision Log entry to match, and keep the entry's date. Drop any that no longer pass all three tests. A
-dropped decision never appears in the question. A decision that fails only Record, because it may still shift, waits for
-a later review. If none remain, say in one line that no decision earns an ADR, and do not ask.
+claim in its Decision Log entry to match, and keep the entry's date.
+
+Then check each lifted claim against the existing ADRs, per "Existing ADRs" in `design.md`. Drop any that no longer pass
+all three tests, or that an existing ADR already decides. A dropped decision never appears in the question. A decision
+that fails only Record, because it may still shift, waits for a later review. If none remain, say in one line that no
+decision earns an ADR, and do not ask.
 
 Otherwise ask via AskUserQuestion which should get an ADR, as a multiSelect question. Build it this way:
 
@@ -453,8 +456,9 @@ Determine the ADR number by scanning existing ADR files for the next sequential 
 existing files (e.g. `ADR-01` vs `ADR-0001`). Use 2-digit padding only when no ADR exists yet. Place the ADR alongside
 existing ADRs, or ask the user for the directory via AskUserQuestion if none exist.
 
-Set the new ADR's status to `accepted` when the proposal is accepted in this review. Otherwise set it to `proposed`.
-When this review accepts the proposal, also flip any `proposed` ADR its References list to `accepted`.
+Set the new ADR's status to `proposed`, even when this review accepts the proposal. Commit it with the review. Show
+the user its text, and say it stays proposed until they accept it. Only the user's explicit acceptance moves an ADR to
+`accepted`. See "Lifecycle" in `design.md`.
 
 Add a reference to the new ADR in the proposal's References section.
 

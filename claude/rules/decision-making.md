@@ -44,6 +44,10 @@ Use the AskUserQuestion tool for structured questions when encountering:
 - Read a pick of that option together with another option as a contradiction, and ask that question again
 - When the user asks to chat after a question, do not immediately ask another question; do not assume the user is done
   discussing
+- An answer that is itself a question asks for an answer. Reply in prose. Ask the question again only after the user has
+  that answer, and only when they have not settled it in their reply
+- When a recommendation changes from an earlier round, say what changed it: the new fact, or the mistake in the earlier
+  one. Never switch the marker silently
 
 ## Choosing Options
 

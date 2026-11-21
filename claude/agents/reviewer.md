@@ -193,9 +193,9 @@ Comment-craft findings are clear-cut; the caller fixes them directly.
 ### 5. ADRs
 
 The ADR standard lives in `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`.
-Read its "Principles, Not Implementation", "What Earns an ADR", "ADR Document
-Format", "Carve-outs", and "Changing an Accepted ADR" sections. Check every ADR
-file the change adds or edits:
+Read its "Principles, Not Implementation", "Lifecycle", "What Earns an ADR",
+"ADR Document Format", "Carve-outs", and "Changing an Accepted ADR" sections.
+Check every ADR file the change adds or edits:
 
 - **A new ADR must pass all three tests.** It is architecture: it cuts across
   the system, is hard to reverse, or departs from the past. It states an
@@ -205,7 +205,11 @@ file the change adds or edits:
   principle states its own reason. It is a decision:
   it holds no plans, migration steps, target dates, follow-ups, status, or
   open questions. It is ready to be a record: nothing it rests on is still
-  being measured or designed. Name the test it fails.
+  being measured or designed. It is new: no existing principle states it, and
+  no ADR leaves the case out on purpose. See "Existing ADRs". Name the test
+  it fails.
+- **A new ADR is proposed.** Its status is `proposed` unless the user
+  accepted it. An agent that wrote it `accepted` is a finding.
 - **An accepted ADR changes by amendment.** Read its status at the base of
   the change, not after it. When it was accepted there, compare the two
   versions. A typo, a link, a reference, a status change, or wording that
