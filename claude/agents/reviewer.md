@@ -198,7 +198,10 @@ Read its "Principles, Not Implementation", "Lifecycle", "What Earns an ADR",
 Check every ADR file the change adds or edits:
 
 - **A new ADR must pass all three tests.** It is architecture: it cuts across
-  the system, is hard to reverse, or departs from the past. It states an
+  the system, is hard to reverse, or departs from the past. A claim that it
+  cuts across names the places it governs, per "Cutting Across". A claim
+  about every member of a kind that holds for only some, or a kind with one
+  or two members, fails. It states an
   invariant or constraint, not a format, syntax, mapping, derivation, or
   storage layout. An ADR that a new instance, a format change, or another
   mechanism serving the same goal would force to change fails this test. Each

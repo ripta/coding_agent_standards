@@ -162,6 +162,10 @@ logged"`. No project needs to migrate its ADRs all at once.
 Most design decisions do not need an ADR. The proposal that made a decision already records it, with its options and
 rationale. An ADR earns its place when someone could break the decision later without ever reading that proposal.
 
+Being easy to break later is necessary, not sufficient. Any decision can be broken by someone who never read its
+proposal. A candidate does not pass because it would guard the fix its own proposal makes. It passes only by the tests
+below.
+
 The name sets the bar. A candidate must pass all three tests: it is architecture, it is a decision, and it is ready to
 be a record. It must also be new. See "Existing ADRs". When no candidate passes, the right number of ADRs is zero.
 
@@ -169,15 +173,34 @@ be a record. It must also be new. See "Existing ADRs". When no candidate passes,
 
 The decision is significant and foundational. At least one of these holds:
 
-- **It cuts across the system.** Other components, services, or future work must follow it, such as "an outbound
-  event is published only after the change it describes commits"
+- **It cuts across the system foundationally.** Several separate components, services, or planned features must
+  follow it, such as "an outbound event is published only after the change it describes commits". See "Cutting
+  Across" below
 - **It is hard to reverse.** It commits a schema, a wire format, a published contract, or stored data to a property a
   redeploy cannot undo, such as "stored events stay readable by every later version"
 - **It departs from the past.** It replaces an approach the project used before, or an earlier ADR, so the next person
-  who finds the old pattern needs to know it is gone
+  who finds the old pattern needs to know it is gone. The past is shipped code, a stored format, or an earlier ADR. An
+  unbuilt proposal's rule is not the past
 
 Being hard, debated, or important to one proposal does not pass this test. Neither does a decision that shapes only one
 component's internals. Those stay in the proposal or the design doc that made them.
+
+A rule about how people or agents work is never an ADR. A review gate, a commit rule, and when to ask are examples. Such
+a rule cuts across the work, not the system. It belongs in the project's instructions or standards.
+
+#### Cutting Across
+
+This criterion is the one most often claimed loosely. It passes only with evidence:
+
+- **Name the places.** List each component, or each unimplemented proposal, that must follow the principle today. A
+  planned feature counts when an unimplemented proposal describes it. Writing the ADR may then mean updating those
+  proposals to cite it. A future that no proposal describes does not count
+- **A claim about every member must hold for every member.** "Every client follows it" passes only when each client
+  is named and each one does. A rule that holds for half of them does not cut across. It belongs to those components
+- **The kind must have several members.** "Every client" means little when there are one or two clients. A small
+  system has few rules that cut across it, so the bar stays high there
+- **It must be foundational.** The principle shapes how each named place is built or behaves. A theme, a convention,
+  or a high-level goal that the places only share in name does not count
 
 Architecture is the invariant or constraint, never the implementation. See "Principles, Not Implementation". A format,
 syntax, mapping, derivation, storage layout, or mechanism is never itself an ADR, even when it is hard to reverse. When
@@ -221,6 +244,16 @@ here. The ADR keeps later work from adding it back without reading why. Its stat
 what is rejected and why. Its carve-outs name where the rejection does not hold.
 
 Most decisions not to do something do not pass the tests. They stay in the proposal that made them.
+
+Before a candidate counts as a decision, state the plain behavior: what the system does with no rule for the case. Two
+kinds of candidate then fail this test:
+
+- **It restates the plain behavior.** Honoring the user's own configuration is an example. Nobody had to decide it
+- **It splits the plain behavior into special cases.** One action behaves differently by who or what caused it, or a
+  case gets an exception. This is not a decision unless the plain behavior fails the goal. When the plain behavior
+  serves the goal, there is nothing to record
+
+A rule that removes such a special case, and restores the plain behavior, can still be a candidate.
 
 ### Record
 
@@ -285,12 +318,17 @@ Each item names the invariant, not the format or mechanism that implements it. L
 to its invariant before listing it, per "Architecture" above. Several such candidates may lift to one invariant. List
 that invariant once.
 
-An item that rests on a decision tagged `addition` says so, and names the addition. An ADR turns an addition into a
-rule for all later work. See `proposals.md` "Decision Log Tags".
+A candidate that rests on a decision tagged `addition` stays off the list until the user has kept that addition. Record
+it as Undecided in the Decision Log. An ADR turns an addition into a rule for all later work, so the user settles the
+addition first. See `proposals.md` "Decision Log Tags".
+
+An item whose own description says the proposal, a test, or another document already guards the invariant is declined.
+Give that document as the reason.
 
 Each item shows how it passes every test, in a short phrase per test:
 
-- **Architecture**: the criterion it meets, and the concrete thing that meets it
+- **Architecture**: the criterion it meets, and the concrete thing that meets it. For "cuts across", name the places,
+  per "Cutting Across"
 - **Decision**: the choice it records
 - **Record**: why it will not shift
 
