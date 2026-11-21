@@ -296,6 +296,22 @@ def test_open_stops_on_a_worktree_the_run_file_did_not_record(world, monkeypatch
                           "worktree": worktree}
 
 
+def test_a_new_check_command_reruns_the_checks_on_an_open_batch(world, monkeypatch):
+    """Catches a changed check command that open skips because the head already passed the old one."""
+    code, result = open_one(world)
+    assert code == 0 and result["event"] == "opened"
+    pushed = git(world["fork"], "rev-parse", "refs/heads/agent/work/one")
+
+    code, result = call("set-check-command", "--run", str(world["run"]), "--check-command", "make test")
+    assert code == 0 and result == {"event": "check-command-set", "check_command": "make test", "recheck": ["one"]}
+
+    seen = []
+    monkeypatch.setattr(land_batch, "run_checks", lambda command, wt, log: seen.append(command) or 0)
+    code, result = open_one(world)
+    assert code == 0 and result["event"] == "open" and seen == ["make test"]
+    assert git(world["fork"], "rev-parse", "refs/heads/agent/work/one") == pushed
+
+
 def test_open_adopts_the_pr_a_crashed_run_already_opened(world):
     """Catches a duplicate PR when a run died between gh pr create and the run-file write."""
     world["gh"].listed = [{"number": 7, "url": "u/7", "headRepositoryOwner": {"login": "elsewhere"}},

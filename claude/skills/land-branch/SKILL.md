@@ -185,6 +185,9 @@ The merge method is the one Step 1 item 8 settled. The script's docstring define
 file's path and the watch state file's path. From then on, only `land_batch.py` writes the run file. A run that stacks
 keeps its run file by hand instead. See "Run state".
 
+To change the local check command mid-run, run `land_batch.py set-check-command --run <run> --check-command '<cmd>'`.
+Never run `init` again for it. The next `open` of each open batch reruns the checks under the new command.
+
 ## Step 5: Land the batches
 
 A serial batch is ready when every batch in its `after` list has merged. A stacked batch is ready once its parent's
@@ -232,9 +235,10 @@ Act on each `stop` by its name:
 - `pick-count-mismatch` means the worktree holds a different number of picked commits than the batch. Compare them
   with the plan. Re-run `open` with `--picked` only when every commit is there or the user agreed to skip one
 - `branch-without-worktree` means the batch branch exists with no worktree. Show the user, and land that batch by hand
-- `worktree-without-run-record` means the batch's worktree exists, but the run file never recorded creating it, as
-  after a second `init`. Show the user, with `git cherry` comparing the batch branch to the source branch. Remove the
-  worktree and the batch branch only with their answer, then re-run `open`
+- `worktree-without-run-record` means the batch's worktree exists, but the run file never recorded creating it, as after
+  a second `init`. Use `set-check-command` instead of a second `init` next time. Show the user, with `git cherry`
+  comparing the batch branch to the source branch. Remove the worktree and the batch branch only with their answer, then
+  re-run `open`
 - `local-checks-failed` names a log. Classify the failure as `merge-fix-loop` "A check failed" says, and fix it as above
 - `checks-failed` names required checks that failed. Fix them as above. `merge` runs again on the next `checks-done`
 - `checks-pending` and `not-clean` wait for the next event. `no-checks` follows `merge-fix-loop` Step 5.2

@@ -6,6 +6,7 @@
                                --staging-branch BRANCH --staging-worktree DIR --check-command CMD
                                --review-policy POLICY --deadline ISO [--state-dir DIR]
     python3 land_batch.py status --run FILE
+    python3 land_batch.py set-check-command --run FILE --check-command CMD
     python3 land_batch.py open --run FILE --batch NAME [--title-file FILE --body-file FILE] [--picked]
     python3 land_batch.py merge --run FILE --batch NAME
     python3 land_batch.py finish --run FILE --batch NAME
@@ -20,6 +21,8 @@ script owns the steps between them, and it never waits on CI or reviews:
 - `merge` turns on merging once every check on the pushed head finished and no required check
   failed. It names the failed checks that are not required, for the coordinator to look at
 - `finish` cleans up a merged batch and names the batches it made ready
+- `set-check-command` changes the run's local check command. The next `open` of each open batch
+  reruns the checks on its head
 
 Each command prints one JSON object. Exit 0 means the step is done. Exit 3 means the script
 stopped for the coordinator, with `stop` naming why: a conflict, a failed check, a PR that is not
@@ -250,6 +253,22 @@ def init(args: argparse.Namespace) -> dict[str, Any]:
     with locked(path):
         write(path, run)
     return {"run": str(path), "watch_state": str(watch_file(path)), "ready": ready(run)}
+
+
+def set_check_command(args: argparse.Namespace) -> dict[str, Any]:
+    path = Path(args.run)
+    load(path)
+
+    # An open batch's head passed the old command. Clearing checked_head makes the next open rerun the checks
+    # on it. pushed_head stays, so a head that only needs rechecking is not pushed again.
+    with locked(path):
+        run = load(path)
+        run["check_command"] = args.check_command
+        recheck = sorted(n for n, b in run["batches"].items() if b["status"] == "open" and b["checked_head"])
+        for name in recheck:
+            run["batches"][name]["checked_head"] = None
+        write(path, run)
+    return {"event": "check-command-set", "check_command": args.check_command, "recheck": recheck}
 
 
 def status(args: argparse.Namespace) -> dict[str, Any]:
@@ -485,6 +504,10 @@ def main(argv: list[str]) -> int:
     p = sub.add_parser("status", help="report each batch and which are ready")
     p.add_argument("--run", required=True)
 
+    p = sub.add_parser("set-check-command", help="change a live run's local check command")
+    p.add_argument("--run", required=True)
+    p.add_argument("--check-command", required=True)
+
     p = sub.add_parser("open", help="branch, pick, check, push, and open the PR for a ready batch")
     p.add_argument("--run", required=True)
     p.add_argument("--batch", required=True)
@@ -504,6 +527,8 @@ def main(argv: list[str]) -> int:
             result = init(args)
         elif args.command == "status":
             result = status(args)
+        elif args.command == "set-check-command":
+            result = set_check_command(args)
         elif args.command == "open":
             result = open_batch(args, run_checks)
         elif args.command == "merge":
