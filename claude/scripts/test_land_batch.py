@@ -277,6 +277,25 @@ def test_open_reruns_checks_after_a_fix_and_never_pushes_a_failing_head(world, m
     assert git(world["fork"], "rev-parse", "refs/heads/agent/work/one") == fixed
 
 
+def test_open_stops_on_a_worktree_the_run_file_did_not_record(world, monkeypatch):
+    """Catches a crash on `None..HEAD` when a fresh init meets a worktree an earlier run left behind."""
+    monkeypatch.setattr(land_batch, "run_checks", lambda command, wt, log: 2)
+    code, result = open_one(world)
+    assert code == 3 and result["stop"] == "local-checks-failed"
+    worktree = result["worktree"]
+
+    run = run_state(world)
+    run["batches"]["one"] = {"status": "not-started", "branch": None, "worktree": None, "start": None,
+                             "picked": False, "checked_head": None, "pushed_head": None, "pr": None}
+    world["run"].write_text(json.dumps(run))
+
+    for extra in ((), ("--picked",)):
+        code, result = open_one(world, "one", *extra)
+        assert code == 3, result
+        assert result == {"stop": "worktree-without-run-record", "batch": "one", "branch": "agent/work/one",
+                          "worktree": worktree}
+
+
 def test_open_adopts_the_pr_a_crashed_run_already_opened(world):
     """Catches a duplicate PR when a run died between gh pr create and the run-file write."""
     world["gh"].listed = [{"number": 7, "url": "u/7", "headRepositoryOwner": {"login": "elsewhere"}},

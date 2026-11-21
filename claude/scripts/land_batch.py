@@ -309,6 +309,9 @@ def open_batch(args: argparse.Namespace, run_checks: Callable[[str, Path, Path],
         git(["worktree", "add", "--no-track", "-b", branch, str(worktree), start], root)
         run = update(path, name, status="open", branch=branch, worktree=str(worktree), start=start)
         state = run["batches"][name]
+    elif state["start"] is None:
+        # Another run made this worktree. Without its start, nothing tells which commits are this batch's picks.
+        raise Stop("worktree-without-run-record", branch=branch, worktree=str(worktree))
 
     if not state["picked"]:
         if in_progress(worktree):
