@@ -166,6 +166,11 @@ Era 3 also added these rules:
 - One `**Revisit:**` form for revisit hooks, required on `deferred` proposals
 - The `scheduled` proposal status is gone. The queue says what is scheduled
 
+These rules arrived during era 3 without changing the model:
+
+- 2026-11-21: ADRs list principles with reasons, carve-outs, and amendments. A proposal lists its departures under
+  `## ADR Deviations`
+
 Markers:
 
 - A `queue.md` table with Milestones, Depends on, and Note columns

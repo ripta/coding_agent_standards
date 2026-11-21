@@ -140,7 +140,10 @@ field.
       user. It concerns an edit this work did not make.
     - Treat an ADR conflict like a correctness finding of the same verdict.
       When honoring the ADR would change the approved plan, stop and ask the
-      user. Mention an `ADVISORY` conflict in your response. It never blocks.
+      user. The options include amending the ADR and documenting a deviation
+      in the proposal, per "Deviating from an ADR" in
+      `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`. Mention an
+      `ADVISORY` conflict in your response. It never blocks.
     - Check each uncovered decision `adr-impact` reports against the bar in
       the "What Earns an ADR" section of
       `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`. Record each that

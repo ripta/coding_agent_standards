@@ -59,18 +59,20 @@ future decisions and designs. Reserved for decisions that are cross-cutting,
 hard to reverse, or a departure from the past. Lists principles, each with the
 reason it holds, never the format or mechanism that implements them. Its
 carve-outs name the cases a principle does not cover. Once accepted, it is
-amended in place while its reasons hold. When a reason no longer holds, a new
-ADR supersedes it.
+amended in place, even to strike parts of it. When a different decision
+replaces it, a new ADR supersedes it.
+
+These three differ in weight. A research write-up is the lightest and may be
+unproven. A design spike is proven, and carries more weight. An ADR is both
+proven and recommended, so it is the heaviest.
+
+Weight is not permanence. A later spike, research write-up, or proposal can
+show an ADR to be wrong. The wrong part is then struck, or the ADR is
+superseded by a decision that replaces it.
 
 **Carve-out**: a part of an ADR that names a class of cases where one of its
 principles does not apply, and why. It describes a condition, never a proposal.
 A proposal that relies on one cites it in its ADR Deviations section.
-
-These three differ in weight. A research write-up is the lightest and may be
-unproven. A design spike is proven, and carries more weight. An ADR is both
-proven and recommended, so it is the heaviest. Weight is not permanence. A later
-spike, research write-up, or proposal can show an ADR to be wrong, and the ADR
-is then superseded.
 
 **Era**: a numbered style of project management, written `era 1`. Each era is a
 set of conventions for where design, execution status, and implementation order

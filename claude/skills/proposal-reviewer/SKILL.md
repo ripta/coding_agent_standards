@@ -125,7 +125,11 @@ Before engaging the user on any questions:
    - A premise that fails later, in a critic's premise finding or a "no change needed" pick that leaves the design
      nothing to do, comes back to this question at once, in every mode
 5. Spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the proposal path. Each conflict it
-   reports is an open question if the proposal does not already settle it. Add it to the triage in Step 4
+   reports is an open question if the proposal does not already settle it. Add it to the triage in Step 4. Its
+   candidates are to honor the ADR, amend it, supersede it, or document a deviation under `## ADR Deviations`, per
+   "Deviating from an ADR" and "Changing an Accepted ADR" in
+   `${CLAUDE_SKILL_DIR}/../../project-management/design.md`. A deviation answer writes the entry. An amendment answer
+   is applied in Step 8
 6. Find the Decision Log's ADR candidates marked `Undecided` or `Waits on`, per "Recording ADR Candidates" in
    `${CLAUDE_SKILL_DIR}/../../project-management/design.md`. Treat each as a noted decision for Step 8. For one that
    waits, check whether its hook has fired
@@ -403,8 +407,9 @@ summary first. See "The Closing Summary". Skip it when the review gate has just 
   schedule the proposal. Scheduling adds queue rows, and happens only when the user asks.
 - **Some remain**: Summarize which questions are settled vs. still open. Leave status as `designing`.
 
-An amendment or superseding ADR that a growth answer settled is not a candidate. Apply it without asking. An amendment
-follows "Changing an Accepted ADR" in `${CLAUDE_SKILL_DIR}/../../project-management/design.md`.
+An amendment or superseding ADR that a growth answer or an ADR conflict answer settled is not a candidate. Apply it
+without asking. An amendment follows "Changing an Accepted ADR" in
+`${CLAUDE_SKILL_DIR}/../../project-management/design.md`.
 
 Before asking about ADRs, check each noted decision against "What Earns an ADR" again, now that the whole design is
 settled. Check the candidates found in Step 3 the same way. Their wording came from whoever recorded them, not from this

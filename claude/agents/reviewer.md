@@ -213,26 +213,33 @@ file the change adds or edits:
   principle or carve-out, adding a carve-out, or adding a principle that
   serves the existing reason needs one Amendments line. The line gives the
   date, the change, and why, and quotes the removed text. A struck item keeps
-  its handle. A handle reused or renumbered is a finding. A change whose
-  reason departs from the ADR's reason is a finding. It needs a superseding
-  ADR instead.
+  its handle. A handle reused or renumbered is a finding. A change that
+  replaces a principle with a different decision, for a new reason, is a
+  finding. It needs a superseding ADR instead. Striking a part whose reason
+  failed is an amendment, not a supersession.
+- **An amendment traces to the user.** Only the user approves one. Find the
+  user's decision behind each new Amendments line, such as an untagged
+  Decision Log entry in the proposal that drove it. An amendment with none
+  behind it is a finding.
 - **Carve-outs and amendments name conditions.** A carve-out or Amendments
   line that names a proposal, milestone, ticket, or component instance is a
   finding. Each carve-out names the principles it relaxes.
 - **A superseding ADR closes the loop.** The old ADR's status says
   superseded and links the new one. The new one names the old under
   References. The ADR index, when there is one, agrees.
-- **The format matches** "ADR Document Format" and the project's existing
-  ADRs.
+- **The format matches** "ADR Document Format". An older ADR the change
+  does not amend may keep its Decision and Rationale sections. An amended one
+  gains principles with handles.
 - **Each clause traces to a settled decision.** Read the originating
   proposal's settled decisions and Decision Log. A principle, carve-out, or
   consequence with no settled decision behind it is a finding. A clause that
   records a decision tagged `addition` is a finding too, so the user sees the
   addition become a rule. See `proposals.md` "Decision Log Tags".
 
-A failed test, an amendment whose reason departs from the ADR's, or a clause
-with no decision behind it is `verify-first`. A missing Amendments line is
-`fix-directly`. A clause that records an addition is `user`. Only the user
+A failed test, a supersession written as an amendment, or a clause with no
+decision behind it is `verify-first`. A missing Amendments line is
+`fix-directly`. A clause that records an addition is `user`. So is an
+amendment with no user decision behind it. Only the user
 can decide to drop an ADR or to split one. A format or linking gap is
 `fix-directly`.
 

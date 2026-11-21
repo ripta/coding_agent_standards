@@ -26,7 +26,7 @@ retracted  retracted
   Whoever accepts the proposal flips its proposed ADRs to accepted. When the proposal is rejected or retracted, its
   proposed ADRs become retracted
 - **accepted**: In effect
-- **superseded**: Replaced by a newer ADR, because a reason it rests on no longer holds (link to replacement)
+- **superseded**: Replaced by a newer ADR that decides differently, for a new reason (link to replacement)
 - **deprecated**: No longer applicable. The decision was right, and has stopped applying
 - **retracted**: Void. The decision was never in effect, or was wrong when written. Give the reason under the status
   line. Only the user retracts an accepted ADR, and a retraction covers only the ADRs the user names
@@ -47,7 +47,6 @@ What problem forced a decision? What constraints hold?
 
 ## Principles
 - **P1**: The principle, stated as an invariant or constraint. Why it holds.
-- **P2**: Struck on YYYY-MM-DD; see Amendments.
 
 ## Carve-outs
 - **C1** (relaxes P1): The class of cases where P1 does not apply. Why the exception holds.
@@ -59,22 +58,22 @@ What are the tradeoffs? Positive and negative. Name any obligation the decision 
 What other principles did we weigh, and why did we not choose them?
 
 ## Amendments
-- YYYY-MM-DD: Narrowed P1 to stored data. Its reason never covered data in flight. Removed: "every event".
+- YYYY-MM-DD: What changed, and why. Removed: "the removed text, quoted".
 
 ## References
 - PROJ-NNN (originating proposal, if any)
 - Related ADRs
 ```
 
-Leave out an empty Carve-outs or Amendments section.
+Leave out an empty Carve-outs or Amendments section. A new ADR has no Amendments section.
 
 A principle states the invariant or constraint first, then its reason. It never names the mechanism that meets it. See
 "Architecture" below. Rationale that spans several principles goes in Context.
 
 ## Rules
 
-- An accepted ADR is edited in place while its reasons hold. It is superseded when one does not. See "Changing an
-  Accepted ADR"
+- An accepted ADR is edited in place, including to strike parts of it. It is superseded only when a different decision
+  replaces it. See "Changing an Accepted ADR"
 - Principle and carve-out handles (`P1`, `C1`) are permanent and never reused. A struck one keeps its handle
 - Sequential numbering with 2-digit zero-padding: `ADR-01`, `ADR-02`, etc. A project that already uses another width,
   such as `ADR-0001`, keeps it. Match the padding of existing ADR files
@@ -132,12 +131,14 @@ What matters is that every deviation is documented. A deviation the proposal doe
 
 ## Changing an Accepted ADR
 
-Edit an accepted ADR in place while its reasons still hold. Widening or narrowing a principle is an edit. So is striking
-a principle or a carve-out, adding or rewording a carve-out, and adding a principle that serves the ADR's existing
-reason. An ADR written too widely or too narrowly gets fixed where it stands.
+Edit an accepted ADR in place to fix how far it reaches. Widening or narrowing a principle is an edit. So is striking a
+principle or a carve-out, adding or rewording a carve-out, and adding a principle that serves the ADR's existing reason.
+An ADR written too widely or too narrowly gets fixed where it stands. A part whose reason failed is struck, not
+superseded.
 
-Write a superseding ADR when a reason no longer holds: the context changed, or the reason was wrong. The old ADR stays
-as the record of the reason that was in force. A principle that must reverse is a sign that its reason changed.
+Write a superseding ADR when a different decision replaces this one, for a new reason. A principle that reverses is one
+example. The old ADR stays as the record of the reason that was in force. When no principle remains and nothing replaces
+them, the ADR is deprecated or retracted instead.
 
 Only the user approves a change to what an accepted ADR requires. An agent may propose one. It never applies one on its
 own, in any mode.
@@ -148,8 +149,12 @@ a proposal. A struck principle or carve-out keeps its handle, as `**P2**: Struck
 citation from a frozen proposal then still resolves.
 
 These need no Amendments line: fixing a typo or a broken link, adding a reference, clarifying wording without changing
-what it means, and updating the status. Rewriting an older ADR's Decision and Rationale into handled principles counts
-as clarifying wording, as long as no principle changes meaning.
+what it means, and updating the status.
+
+An ADR written before this format keeps its Decision and Rationale sections until its next amendment. That amendment
+first rewrites them into principles with handles. The rewrite counts as clarifying wording when no principle changes
+meaning. Until then, a proposal cites the older ADR by quoting the clause it relies on, such as `ADR-03 "every write is
+logged"`. No project needs to migrate its ADRs all at once.
 
 ## What Earns an ADR
 

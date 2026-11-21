@@ -2,7 +2,8 @@
 name: adr-impact
 description: |
   Checks a change or a proposal against the project's ADRs. Reports each ADR it
-  touches as consistent, superseding, or in conflict, with the ADR text cited.
+  touches as consistent, deviating, superseding, or in conflict, with the ADR
+  text cited.
   Read-only. Runs beside the reviewer.
 tools: Bash, Glob, Grep, Read
 model: sonnet

@@ -314,7 +314,9 @@ For each milestone picked:
      with disposition `user`, to the implementer. Another session may have
      made that edit. Record it in the session report for the user.
    - Triage an ADR conflict the same way. When honoring the ADR would change
-     the approved plan, it is a blocker. Follow section 5.
+     the approved plan, it is a blocker. Follow section 5. The options include
+     amending the ADR and documenting a deviation in the proposal, per
+     "Deviating from an ADR" in `${CLAUDE_PLUGIN_ROOT}/project-management/design.md`.
    - Record an `ADVISORY` conflict in the session report. It never blocks.
    - Check each uncovered decision `adr-impact` reports, and each ADR
      candidate the implementer names, against the bar in the "What Earns an
