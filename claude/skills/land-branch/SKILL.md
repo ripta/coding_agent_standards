@@ -163,7 +163,8 @@ Put every question into one AskUserQuestion call. The plan approval is part of i
 - **Credentials** for each preflight `needs` entry the user must fix
 
 Report what detection settled in a line or two. Approving the plan authorizes every branch, push, PR, and merge it
-names. It authorizes nothing else.
+names. It also authorizes the fix PRs that `merge-fix-loop` opens for a failure the mainline already has, when that
+failure blocks a batch. See its "A failure the base already has". It authorizes nothing else.
 
 ## Step 4: Record the run
 

@@ -178,7 +178,7 @@ Report what detection settled in a line or two, beside the question.
    pushed, or a PR is already open from the user's branch, and it holds snips, stop and tell the user. Never rewrite a
    pushed branch to drop them
 4. Run the local check command. When it fails, fix the cause and commit before pushing. Do not open a PR that fails
-   locally. A failure that is already on the base is not this PR's to fix. Note it for the PR description
+   locally. A failure that is already on the base is not this PR's. Handle it as "A failure the base already has" says
 5. Push with `git push -u <push-remote> refs/heads/<branch>:refs/heads/<branch>`
 
 ## Step 4: Open the PR
@@ -225,7 +225,7 @@ off. Turn it on only when the PR's `base` equals `merge_into`, per Step 5.
      regression test first and watch it fail, per `${CLAUDE_SKILL_DIR}/../../rules/work-discipline.md`. Never suppress a
      lint, skip a test, or loosen an assertion to go green
    - **Already failing on the base.** Check the same check on the base's latest commit. When it fails there too, it is
-     not this PR's. Tell the user, and do not fix it here unless the user says so
+     not this PR's. See "A failure the base already has"
    - **Flaky.** Only with evidence: the same test passes on a rerun with no change, or the log shows a known transient
      such as a registry timeout. Rerun once with `gh run rerun <run> --failed`. A second failure is not flaky.
      Re-arm `watch` with the same state file. A rerun starts its check over on the same head, so `watch` reports its
@@ -234,6 +234,23 @@ off. Turn it on only when the PR's `base` equals `merge_into`, per Step 5.
      around it
 3. Commit each fix in the worktree with a message that follows the repository's commit style. Run the local check
    command, then push
+
+### A failure the base already has
+
+Landing the PR is the task, so a failure that blocks it is part of the task. Handle it by
+`${CLAUDE_SKILL_DIR}/../../rules/found-bugs.md`:
+
+- **It blocks the merge and needs no design call.** A required check fails, and the fix has one plausible behavior. Fix
+  it without asking. Make a new agent-owned branch from `<mainline-remote>/<merge_into>`, in its own worktree, and fix
+  the root cause there. A bug fix writes its regression test first. Land that branch through this loop as its own PR.
+  Once it merges, rebase this PR onto the base and push it, as "The PR conflicts with its base" says. Never put the fix
+  in this PR, which would mix unrelated work into it
+- **The fix needs a design call.** Ask the user, with the options and what each leaves broken. Keep handling the other
+  events while you wait
+- **It does not block the merge.** The check is not required. Note it for the PR description, and file it as a bug
+  when found-bugs.md says to
+
+A rerun is not a fix. Treat a base failure as flaky only with the evidence "Flaky" asks for.
 
 ### A review comment or review arrived
 
