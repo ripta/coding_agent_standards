@@ -292,7 +292,11 @@ Ask for the whole round in one AskUserQuestion call, with one question per round
 in each.
 
 If the user is unsure about a question, explain your recommendation in more detail. If they answer with "Other" or a
-follow-up, record the questions they did answer first. Then take up the unanswered one.
+follow-up, record the questions they did answer first. Then answer the follow-up in prose, and end the turn there.
+
+An answer that asks a question is not a pick. That holds when it also names an option, such as "option 1 sounds right,
+but why are there two?" Do not edit the proposal on the strength of it, and do not ask the question again in the same
+turn. Change the proposal only after the user states a choice.
 
 When the user asks follow-up questions, do not continue pushing them toward a decision. Instead, dive deep into the
 topic. Address their concerns thoroughly, provide full information, and clearly communicate any assumptions. Only
@@ -532,14 +536,22 @@ Then ask in one AskUserQuestion call, or successive calls of up to four question
    - Never put process words in the question or its options, such as reopen, reversal, keep, autonomous, or contested.
      Whether the user chose the decision earlier does not go in the question either. The closing summary carries it
 
-   A pick other than the first overturns the decision. So does an answer through "Other"
+   A pick other than the first overturns the decision. So does an answer through "Other" that states a choice. An answer
+   that asks a question overturns nothing. Answer it in prose, as "Discuss" in Step 5 says, and change nothing until the
+   user settles it
 3. Each gated item from "What the user authorizes by choosing it" that the review produced, except `accepted` and ADRs
 
 Record every answer at once. Add a Decision Log entry for the gate itself:
 `- YYYY-MM-DD: Review gate: <kept all, or each decision changed, from what to what>`. A resumed review uses it to tell
-reviewed decisions from unreviewed ones. When the user overturns a decision, provisional or not, reopen the questions
-that depend on it as well. Resolve them in converge mode, since the user has chosen to weigh in. Then run Steps 6 and 7
-for what changed, and return to the gate with only what is new.
+reviewed decisions from unreviewed ones.
+
+When the user overturns a decision, provisional or not, reopen the questions that depend on it as well. Resolve them in
+converge mode, since the user has chosen to weigh in. Then run Steps 6 and 7 for what changed, and return to the gate
+with only what is new.
+
+Converge mode asks the user each reopened question. Autonomous mode ended at the gate, so nothing after it is decided
+without asking or marked `(autonomous)`. An overturn that names only a direction, such as "keep one of the two", leaves
+the mechanism open. Ask it.
 
 Ask the `accepted` and ADR questions from Step 8 last, in their own call, once a gate call returns with no decision
 overturned and nothing changed. Never offer `accepted` in the same call as a decision question. An overturned decision
@@ -583,7 +595,11 @@ miss it. A long summary buries them, so keep it short, and never list every deci
   answered past reviews. A note that the user delegated a past review is not a standing grant. Ask the mode question
   anyway
 - Ask every question through the AskUserQuestion tool. Never ask a question as plain prose and wait for a typed reply.
-  Batching changes how many questions go in one call. It never replaces the tool
+  Batching changes how many questions go in one call. It never replaces the tool. Answering the user's question is not
+  asking one. That answer is prose
+- When an answer asks a question, the turn answers it and does nothing else. It makes no edit to the proposal and asks
+  no new AskUserQuestion. This holds in every mode and at the review gate. Answers the same call settled are still
+  recorded first
 - Write each question's text and each option's description in full sentences. Name the proposal by its title, not
   only its ID. Keep option labels short, but make each name what it acts on. Leave out internal jargon, such as this
   skill's process terms or code identifiers, unless the user has used them
