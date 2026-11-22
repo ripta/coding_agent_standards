@@ -48,6 +48,9 @@ Do all of this before any question.
 5. **Proposals.** Find the proposals directory, its index, and the project's proposal prefix, as the `new-proposal`
    skill does. You need these only if a bug turns out to need a proposal.
 6. **Shell tools.** Note whether the `cg_run` and `cg_run_many` MCP tools are available.
+7. **Commits.** Read whether the project's rules allow commits on the user's behalf. Run `git status` in the project
+   repo, and in the specs repo when the bugs directory links there. Note every file that is already changed. This run
+   never commits those. Read each repo's commit style, per `${CLAUDE_SKILL_DIR}/../../rules/commit-style.md`.
 
 If the build command cannot be found, ask for it with AskUserQuestion before Step 3. That is the only question this
 step may raise.
@@ -167,7 +170,8 @@ runs skips it.
 
 ### Unattended outcomes
 
-In unattended mode, Step 4 acts by this table instead of asking. Every outcome ends the run with the report in Step 5.
+In unattended mode, Step 4 acts by this table instead of asking. Every outcome skips Step 5 and ends the run with the
+report in Step 6.
 
 | Outcome                                                     | Action                                                                  | Report             |
 |-------------------------------------------------------------|-------------------------------------------------------------------------|--------------------|
@@ -193,13 +197,32 @@ these:
 
 On `test-did-not-fail` and `suite-failed`, leave every edit in place for the caller to stash.
 
-## Step 5: Report
+## Step 5: Commit
+
+Every outcome edits files, even one that only appends notes. Commit those edits before the report, so no run's work is
+left lying in the working tree. Unattended mode skips this step. Its caller commits.
+
+When the user asked for a commit, or the project's rules allow commits on the user's behalf:
+
+1. Run `git status` again. Commit only the files this run edited. Leave out every file Step 1 found already changed,
+   even one this run also touched. The report names it instead.
+2. Name the paths in the commit itself, `git commit -- <paths>`, per `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`.
+3. Commit a fix, its regression test, the bug file, and the index together. When the bugs directory is in a separate
+   specs repo, commit the fix and its test in the code repo, then the bug file and the index in the specs repo.
+4. Commit every other outcome as one commit of the bug file, the index, and any new proposal and proposal index row.
+   Commit the index rows Step 2 reconciled in a commit of their own, before it.
+5. Run `git status` once more. Every file this run edited is committed, or the report says why it is not.
+
+Otherwise, do not commit. The report lists every file this run edited and says they are uncommitted.
+
+## Step 6: Report
 
 Summarize concisely:
 
 - Which bug was selected, and any index rows reconciled or bugs skipped along the way.
 - The verification outcome, and how you reached it: what you built and ran.
 - The action taken: closed as fixed, fix offered and its result, proposal opened, or inconclusive.
+- Each commit subject. Or the files left uncommitted, and why.
 
 In unattended mode, the first line of the report is the outcome word from "Unattended outcomes", alone. Follow it with
 the bug file's path and every file this run edited.
@@ -210,8 +233,7 @@ the bug file's path and every file this run edited.
 - Step 4 asks after verification on purpose, because what to offer depends on the outcome. This is an exception to
   the ask-once flow in `skills/README.md`. Step 1 asks only for a build command it cannot find. Unattended mode asks
   nothing.
-- Never stage or push. Do not commit unless the user asks, or the project's rules allow commits on the user's behalf.
-  Otherwise stop and let the user commit.
+- Never push. Commit by Step 5. A run that may commit and ends with its edits uncommitted is not done.
 - Resolve a trivial design decision yourself and state why in the question. Ask about every non-trivial one. Never
   break a tie between equally good options on your own.
 - A fix always lands with a regression test that failed before it.
