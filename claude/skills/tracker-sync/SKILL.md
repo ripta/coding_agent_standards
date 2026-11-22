@@ -208,8 +208,23 @@ Tracker writes go to one subagent per tracker (`model: sonnet`). Give it:
 
 Repository edits (doc drift and backlinks) you make yourself, and only when
 the checkout is the default branch at `head`. Otherwise show them as proposed
-diffs. Follow `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`: leave the
-edits uncommitted and unstaged for the user.
+diffs. Before the first edit, run `git status` and note every file that is
+already changed. This run never commits those.
+
+Commit the edits when the user asked for a commit, or the project's rules
+allow commits on the user's behalf. Follow
+`${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` and the repository's commit
+style, per `${CLAUDE_SKILL_DIR}/../../rules/commit-style.md`:
+
+1. Commit only the files this run edited. Leave out every file that was
+   already changed, even one this run also touched. The report names it
+   instead.
+2. Name the paths in the commit itself, `git commit -- <paths>`.
+3. Make one commit for the run's doc drift fixes and backlinks.
+4. Run `git status` again. Every file this run edited is committed, or the
+   report says why it is not.
+
+Otherwise, leave the edits uncommitted. The report lists them.
 
 ### Step 7: Verify
 
@@ -226,8 +241,8 @@ Leave the watermark where it was for a group with any failed write, and for
 every group in a report-only run.
 
 Finish with a short report: per group, what was closed, updated, created, or
-left alone; the repo files edited (uncommitted); the watermarks advanced; and
-anything left for the user.
+left alone; the watermarks advanced; and anything left for the user. Name the
+repo files edited, with the commit subject or why they stay uncommitted.
 
 ## Rules
 
@@ -237,9 +252,8 @@ anything left for the user.
 - Never close a ticket whose completion criteria are not all met at `head`.
   A commit that mentions a ticket is a lead, not evidence.
 - Every verdict cites evidence. A verdict you cannot cite is **No change**.
-- Never stage, push, pull, or switch branches. Do not commit unless the user
-  asks, or the project's rules allow commits on the user's behalf. Otherwise
-  repository edits stay uncommitted for the user.
+- Never push, pull, or switch branches. Commit by Step 6. A run that may
+  commit and ends with its edits uncommitted is not done.
 - Assign every ticket the skill touches to the tracker's configured
   `assignee`, and touch no ticket that was not approved.
 - Description edits preserve all existing text except the approved change.
