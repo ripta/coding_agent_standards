@@ -903,14 +903,29 @@ def preflight(base: str | None, repo_override: str | None = None,
     urls, resolved, push_default = git_remotes(Path.cwd())
     remotes = resolve_remotes(urls, slug, resolved, push_default, lookup_repo)
     report["needs"] += remotes.pop("needs")
-    report["remotes"] = remotes
-    report["stacking"] = stacking_summary(report["merge_methods"], fork=remotes["fork"])
 
     parent = (repo.get("parent") or {}).get("nameWithOwner")
-    if repo.get("isFork") and parent and any((remote_slug(u) or "").lower() == parent.lower() for u in urls.values()):
-        report["needs"].append(f"gh resolves this checkout to {slug}, a fork of {parent}, which a remote here "
-                               f"also holds. Confirm the PRs should land in {slug}, or run "
-                               f"`gh repo set-default {parent}`.")
+    chosen = resolved is not None and (remote_slug(urls.get(resolved, "")) or "").lower() == slug.lower()
+    if repo.get("isFork") and parent:
+        if any((remote_slug(u) or "").lower() == parent.lower() for u in urls.values()):
+            report["needs"].append(f"gh resolves this checkout to {slug}, a fork of {parent}, which a remote here "
+                                   f"also holds. Confirm the PRs should land in {slug}, or run "
+                                   f"`gh repo set-default {parent}`.")
+        elif not chosen:
+            # gh fell back to the fork because no remote holds the parent. Every fact above is the fork's, and
+            # the PRs most likely belong in the parent, so the remotes stay unsettled until the user picks.
+            remotes.update(mainline=None, push=None, push_repo=None, fork=False, head_prefix="")
+            report["needs"].append(f"gh resolves this checkout to {slug}, a fork of {parent}, because no remote "
+                                   f"here holds {parent}. To land PRs in {parent}, run "
+                                   f"`git remote add upstream https://github.com/{parent}.git`, "
+                                   f"`git fetch upstream`, and `gh repo set-default {parent}`, then rerun "
+                                   f"preflight. To land them in the fork, run `gh repo set-default {slug}`.")
+
+    report["remotes"] = remotes
+    report["stacking"] = stacking_summary(report["merge_methods"], fork=remotes["fork"])
+    if remotes["mainline"] is None:
+        report["stacking"] = {"viable": False,
+                              "reasons": report["stacking"]["reasons"] + ["the base repo is not settled; see needs"]}
 
     report["ci"] = ci_systems(Path.cwd())
     cloud_build = None

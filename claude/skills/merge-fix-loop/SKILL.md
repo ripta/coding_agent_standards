@@ -48,8 +48,9 @@ lands in, and `origin` is the user's fork. `pr_watch.py preflight` names both in
 - `<head>` is `remotes.head_prefix` followed by the branch, such as `someone:agent/topic` from a fork. Pass it to
   `gh pr create --head`. A bare branch name there names a branch in the base repo, which a fork push never creates
 
-In a checkout with one remote, both remotes are `origin`, and `<head>` is the bare branch. When preflight leaves a
-remote null, its `needs` says why. Ask the user in Step 2, and never guess a remote.
+In a checkout with one remote, both remotes are `origin`, and `<head>` is the bare branch. The exception is a lone
+remote that is a fork, which gh picked only because no remote holds the parent. Preflight then leaves both remotes
+null. When preflight leaves a remote null, its `needs` says why. Ask the user in Step 2, and never guess a remote.
 
 ## Scripts
 

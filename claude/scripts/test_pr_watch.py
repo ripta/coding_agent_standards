@@ -824,6 +824,53 @@ def test_preflight_reports_fork_remotes_and_takes_stacking_off(monkeypatch, tmp_
     assert report["stacking"]["viable"] is False
 
 
+def _preflight_in_fork_only_checkout(monkeypatch, tmp_path, resolved):
+    """Run preflight where the only remote is a fork, and gh resolves the checkout to that fork."""
+    import subprocess
+    for args in (["init", "-q"], ["remote", "add", "origin", "git@github.com:someone/widget.git"]):
+        subprocess.run(["git", *args], cwd=tmp_path, check=True)
+    if resolved:
+        subprocess.run(["git", "config", "remote.origin.gh-resolved", "base"], cwd=tmp_path, check=True)
+    monkeypatch.chdir(tmp_path)
+
+    repo = {"nameWithOwner": "someone/widget", "viewerPermission": "ADMIN", "autoMergeAllowed": True,
+            "mergeCommitAllowed": True, "squashMergeAllowed": True, "rebaseMergeAllowed": False,
+            "deleteBranchOnMerge": True, "viewerDefaultMergeMethod": "MERGE", "defaultBranchRef": {"name": "main"},
+            "isFork": True, "parent": {"nameWithOwner": "acme/widget"}}
+
+    def fake_gh_json(args):
+        if args[1].endswith("/protection"):
+            raise pr_watch.GhError("HTTP 404")
+        return []
+
+    monkeypatch.setattr(pr_watch, "gh", lambda args: "someone/widget\n" if args[:2] == ["repo", "view"] else "")
+    monkeypatch.setattr(pr_watch, "gh_json", fake_gh_json)
+    monkeypatch.setattr(pr_watch, "graphql", lambda query, **kw: {"repository": repo})
+    return pr_watch.preflight("main")
+
+
+def test_preflight_holds_the_remotes_when_gh_falls_back_to_a_fork(monkeypatch, tmp_path):
+    """Catches a fork-only checkout planned against the fork's stale mainline and the fork's empty protection.
+
+    With no remote for the parent and no `gh repo set-default`, gh resolves the checkout to the
+    fork by default, not by choice. Preflight cannot tell which repo the PRs should land in.
+    """
+    report = _preflight_in_fork_only_checkout(monkeypatch, tmp_path, resolved=False)
+
+    assert report["remotes"]["mainline"] is None and report["remotes"]["push"] is None
+    assert report["stacking"]["viable"] is False
+    assert any("acme/widget" in need and "git remote add upstream https://github.com/acme/widget.git" in need
+               and "gh repo set-default someone/widget" in need for need in report["needs"])
+
+
+def test_preflight_takes_a_fork_chosen_with_set_default_as_the_base(monkeypatch, tmp_path):
+    """Catches a need that keeps nagging a user who chose to land PRs in their own fork."""
+    report = _preflight_in_fork_only_checkout(monkeypatch, tmp_path, resolved=True)
+
+    assert report["remotes"]["mainline"] == "origin" and report["remotes"]["fork"] is False
+    assert report["needs"] == []
+
+
 def _preflight_with_rules(monkeypatch, tmp_path, prefix, rules_for, bypass, *,
                           remote="https://github.com/acme/widget.git", key="github.com/acme/widget", repo_flag=None):
     """Run preflight in a plain checkout. `rules_for` maps a branch name to its rulesets' rules.
