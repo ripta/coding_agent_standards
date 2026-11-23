@@ -48,9 +48,16 @@ lands in, and `origin` is the user's fork. `pr_watch.py preflight` names both in
 - `<head>` is `remotes.head_prefix` followed by the branch, such as `someone:agent/topic` from a fork. Pass it to
   `gh pr create --head`. A bare branch name there names a branch in the base repo, which a fork push never creates
 
-In a checkout with one remote, both remotes are `origin`, and `<head>` is the bare branch. The exception is a lone
-remote that is a fork, which gh picked only because no remote holds the parent. Preflight then leaves both remotes
-null. When preflight leaves a remote null, its `needs` says why. Ask the user in Step 2, and never guess a remote.
+In a checkout with one remote, both remotes are `origin`, and `<head>` is the bare branch.
+
+A fork checkout can land PRs in the parent or in the fork. Preflight's `pr_target` block says which. It is null when no
+fork is involved. Its `target` comes from the fork's saved PR target, or from `gh repo set-default`.
+
+Preflight then makes the checkout agree, so `gh pr create` opens in the same repo. It adds and fetches `upstream` for a
+parent no remote holds, and runs `gh repo set-default`. Tell the user what `pr_target.changed` lists. When `target` is
+null, preflight leaves both remotes null. Ask about the PR target in Step 2.
+
+When preflight leaves a remote null, its `needs` says why. Ask the user in Step 2, and never guess a remote.
 
 ## Scripts
 
@@ -159,6 +166,11 @@ Put every question this run needs into one AskUserQuestion call. Skip any that t
   project's own branch convention first, when its instructions document one. Save the answer with the Write or Edit
   tool in `~/.config/coding_agent_standards/branches.json`, as `{"repos": {"<branches.key>": {"prefix": "<prefix>"}}}`.
   Keep the file's other entries. Then run preflight again
+- **PR target**, when preflight's `pr_target.target` is null. Ask whether PRs land in `pr_target.parent` or in
+  `pr_target.fork`, naming both repos. When `needs` reports that the saved target and `gh repo set-default` disagree,
+  name both choices. Save the answer with the Write or Edit tool in `~/.config/coding_agent_standards/pr-targets.json`,
+  as `{"repos": {"<pr_target.key>": {"target": "parent"}}}` or `"fork"`. Keep the file's other entries. After a
+  disagreement, run `gh repo set-default --unset` through `cg_run`. Then run preflight again
 - **No CI**, only when preflight found no CI system and the base requires no checks. Offer: merge once local checks pass
   and any required review is in; wait for a review, then merge; or open the PR and stop
 

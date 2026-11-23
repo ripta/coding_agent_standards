@@ -45,9 +45,16 @@ def repo(tmp_path: Path) -> Path:
 
 
 @pytest.fixture(autouse=True)
-def no_gh(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep every test off the network. A test that wants gh's answer sets its own."""
-    monkeypatch.setattr(sync_scope, "gh_base_slug", lambda root: None)
+def no_gh(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Keep every test off the network and off the real home. A test that wants gh's answer sets its own."""
+    monkeypatch.setattr(sync_scope, "gh_base_repo", lambda root: None)
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
+
+def save_target(tmp_path: Path, key: str, target: str) -> None:
+    path = tmp_path / "home" / ".config" / "coding_agent_standards" / "pr-targets.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"repos": {key: {"target": target}}}))
 
 
 @pytest.fixture
@@ -286,7 +293,7 @@ def fork(tmp_path: Path, repo: Path) -> Path:
 def test_fork_checkout_keys_mappings_by_the_base_remote(
     capsys, config, fork, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(sync_scope, "gh_base_slug", lambda root: "Acme/Mono")
+    monkeypatch.setattr(sync_scope, "gh_base_repo", lambda root: {"slug": "Acme/Mono", "parent": None})
     setup_jira(capsys, config, fork)
     run(capsys, config, fork, "add-mapping", "--path", "apps/a", "--group", "j", "epic", "CI-1")
 
@@ -307,6 +314,63 @@ def test_fork_checkout_without_gh_falls_back_to_upstream(capsys, config, fork) -
 def test_fork_checkout_counts_behind_against_the_base_remote(capsys, config, fork) -> None:
     _, out, _ = run(capsys, config, fork, "scope")
     assert out["behind_origin"] == 2
+
+
+def test_fork_saved_as_the_pr_target_is_the_base(capsys, config, fork, tmp_path) -> None:
+    """Catches a checkout that lands PRs in its fork, yet tracker-sync reads the parent's mainline."""
+    save_target(tmp_path, FORK_KEY.lower(), "fork")
+    _, out, _ = run(capsys, config, fork, "scope")
+    assert out["repo"] == FORK_KEY
+    assert out["base_remote"] == "origin"
+
+
+def _lone_fork(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _git(repo, "remote", "set-url", "origin", FORK_URL)
+    monkeypatch.setattr(sync_scope, "gh_base_repo", lambda root: {"slug": "me/Mono", "parent": "Acme/Mono"})
+
+
+def test_lone_fork_remote_without_a_target_stops_and_names_both_repos(
+    capsys, config, repo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a checkout whose only remote is a fork read the fork's lagging mainline as the base."""
+    _lone_fork(repo, monkeypatch)
+    code, _, err = run(capsys, config, repo, "scope")
+    assert code == 1
+    assert "me/Mono" in err and "Acme/Mono" in err and "pr-targets.json" in err and FORK_KEY in err
+
+
+def test_lone_fork_remote_saved_as_fork_is_the_base(capsys, config, repo, tmp_path, monkeypatch) -> None:
+    _lone_fork(repo, monkeypatch)
+    save_target(tmp_path, FORK_KEY, "fork")
+    _, out, _ = run(capsys, config, repo, "scope")
+    assert out["repo"] == FORK_KEY
+
+
+def test_lone_fork_remote_chosen_with_set_default_is_the_base(capsys, config, repo, monkeypatch) -> None:
+    _lone_fork(repo, monkeypatch)
+    _git(repo, "config", "remote.origin.gh-resolved", "base")
+    _, out, _ = run(capsys, config, repo, "scope")
+    assert out["repo"] == FORK_KEY
+
+
+def test_lone_fork_remote_saved_as_parent_names_the_remote_to_add(
+    capsys, config, repo, tmp_path, monkeypatch
+) -> None:
+    """Catches a parent URL built for github.com over HTTPS when the fork is cloned over SSH."""
+    _lone_fork(repo, monkeypatch)
+    save_target(tmp_path, FORK_KEY, "parent")
+    code, _, err = run(capsys, config, repo, "scope")
+    assert code == 1
+    assert "git remote add upstream git@github.com:Acme/Mono.git" in err
+
+
+def test_lone_fork_remote_with_conflicting_choices_stops(capsys, config, repo, tmp_path, monkeypatch) -> None:
+    _lone_fork(repo, monkeypatch)
+    _git(repo, "config", "remote.origin.gh-resolved", "base")
+    save_target(tmp_path, FORK_KEY, "parent")
+    code, _, err = run(capsys, config, repo, "scope")
+    assert code == 1
+    assert "gh repo set-default --unset" in err
 
 
 def test_mapping_saved_under_the_fork_key_moves_to_the_base_key(capsys, config, fork) -> None:

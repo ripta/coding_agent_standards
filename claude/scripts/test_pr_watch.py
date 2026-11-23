@@ -12,6 +12,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 import pr_watch
 
 
+@pytest.fixture(autouse=True)
+def isolated_home(monkeypatch, tmp_path):
+    """Keep preflight off the real pr-targets.json and branches.json. A test that saves one writes it here."""
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
+
 def _run(name, status="COMPLETED", conclusion="SUCCESS", url=None):
     return {"__typename": "CheckRun", "name": name, "status": status, "conclusion": conclusion, "detailsUrl": url}
 
@@ -859,8 +865,8 @@ def test_preflight_holds_the_remotes_when_gh_falls_back_to_a_fork(monkeypatch, t
 
     assert report["remotes"]["mainline"] is None and report["remotes"]["push"] is None
     assert report["stacking"]["viable"] is False
-    assert any("acme/widget" in need and "git remote add upstream https://github.com/acme/widget.git" in need
-               and "gh repo set-default someone/widget" in need for need in report["needs"])
+    assert any("acme/widget" in need and "someone/widget" in need and "pr-targets.json" in need
+               for need in report["needs"])
 
 
 def test_preflight_takes_a_fork_chosen_with_set_default_as_the_base(monkeypatch, tmp_path):
@@ -869,6 +875,203 @@ def test_preflight_takes_a_fork_chosen_with_set_default_as_the_base(monkeypatch,
 
     assert report["remotes"]["mainline"] == "origin" and report["remotes"]["fork"] is False
     assert report["needs"] == []
+
+
+@pytest.mark.parametrize("url, slug, want", [
+    ("git@github.com:someone/widget.git", "acme/widget", "git@github.com:acme/widget.git"),
+    ("https://github.com/someone/widget", "acme/widget", "https://github.com/acme/widget"),
+    ("https://user@github.com/someone/widget-fork.git/", "acme/widget", "https://user@github.com/acme/widget.git/"),
+    ("git@gh-work:someone/widget.git", "acme/widget", "git@gh-work:acme/widget.git"),
+    ("ssh://git@ghe.example.invalid:2222/someone/widget.git", "acme/widget",
+     "ssh://git@ghe.example.invalid:2222/acme/widget.git"),
+    ("/srv/git/widget.git", "acme/widget", None),
+])
+def test_sibling_url_keeps_the_host_and_scheme(url, slug, want):
+    """Catches an added parent remote that hardcodes github.com over HTTPS for an SSH alias or GHE fork."""
+    assert pr_watch.sibling_url(url, slug) == want
+
+
+FORK_REPO = {"nameWithOwner": "someone/widget", "viewerPermission": "ADMIN", "autoMergeAllowed": True,
+             "mergeCommitAllowed": True, "squashMergeAllowed": True, "rebaseMergeAllowed": False,
+             "deleteBranchOnMerge": True, "viewerDefaultMergeMethod": "MERGE", "defaultBranchRef": {"name": "main"},
+             "isFork": True, "parent": {"nameWithOwner": "acme/widget"}}
+PARENT_REPO = {**FORK_REPO, "nameWithOwner": "acme/widget", "viewerPermission": "WRITE", "isFork": False,
+               "parent": None}
+
+
+def _target_preflight(monkeypatch, tmp_path, remotes, gh_picks, *, resolved=None, saved=None, fetch_error=None,
+                      key="github.com/someone/widget"):
+    """Run preflight in a checkout with `remotes`, where gh's own pick is `gh_picks`.
+
+    `saved` is the PR target saved under `key`. Returns the report, the gh set-default calls, and
+    the remote URLs after the run. `git fetch` is faked, since the URLs point nowhere.
+    """
+    import subprocess
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=checkout, check=True)
+    for name, url in remotes.items():
+        subprocess.run(["git", "remote", "add", name, url], cwd=checkout, check=True)
+    if resolved:
+        subprocess.run(["git", "config", f"remote.{resolved}.gh-resolved", "base"], cwd=checkout, check=True)
+    monkeypatch.chdir(checkout)
+    if saved:
+        config = tmp_path / "home" / ".config" / "coding_agent_standards"
+        config.mkdir(parents=True)
+        (config / "pr-targets.json").write_text(json.dumps({"repos": {key: {"target": saved}}}))
+
+    defaults = []
+    repos = {"someone/widget": FORK_REPO, "acme/widget": PARENT_REPO}
+
+    def fake_gh(args):
+        if args[:2] == ["repo", "view"]:
+            return gh_picks + "\n"
+        if args[:2] == ["repo", "set-default"]:
+            defaults.append(args[2])
+        return ""
+
+    def fake_gh_json(args):
+        if args == ["api", "repos/someone/widget"]:
+            return {"parent": {"full_name": "acme/widget"}, "permissions": {"push": True}}
+        if args in (["api", "repos/acme/widget"], ["api", "repos/other/thing"]):
+            return {"parent": None, "permissions": {"push": True}}
+        if args[1].endswith("/protection"):
+            raise pr_watch.GhError("HTTP 404")
+        return []
+
+    real_change = pr_watch.git_change
+
+    def fake_change(cwd, *args):
+        return fetch_error if args[0] == "fetch" else real_change(cwd, *args)
+
+    monkeypatch.setattr(pr_watch, "gh", fake_gh)
+    monkeypatch.setattr(pr_watch, "gh_json", fake_gh_json)
+    monkeypatch.setattr(pr_watch, "git_change", fake_change)
+    monkeypatch.setattr(pr_watch, "graphql", lambda query, owner, name: {"repository": repos[f"{owner}/{name}"]})
+    report = pr_watch.preflight("main")
+    return report, defaults, pr_watch.git_remotes(checkout)[0]
+
+
+LONE = {"origin": "git@github.com:someone/widget.git"}
+BOTH = {"origin": "git@github.com:someone/widget.git", "upstream": "https://github.com/acme/widget.git"}
+
+
+def test_lone_fork_saved_as_fork_lands_in_the_fork_and_sets_gh_default(monkeypatch, tmp_path):
+    """Catches a saved choice that preflight honors while `gh pr create` still asks gh, and lands elsewhere."""
+    report, defaults, _ = _target_preflight(monkeypatch, tmp_path, LONE, "someone/widget", saved="fork")
+
+    assert report["needs"] == []
+    assert report["repo"]["nameWithOwner"] == "someone/widget"
+    assert report["remotes"]["mainline"] == "origin" and report["remotes"]["fork"] is False
+    assert defaults == ["github.com/someone/widget"]
+    assert report["pr_target"]["target"] == "fork"
+    assert report["pr_target"]["changed"] == ["gh repo set-default github.com/someone/widget"]
+
+
+def test_lone_fork_saved_as_parent_adds_upstream_from_the_fork_url(monkeypatch, tmp_path):
+    """Catches a fresh clone of a fork that needs the parent remote added by hand on every clone."""
+    report, defaults, urls = _target_preflight(monkeypatch, tmp_path, LONE, "someone/widget", saved="parent")
+
+    assert report["needs"] == []
+    assert urls["upstream"] == "git@github.com:acme/widget.git"
+    assert report["repo"]["nameWithOwner"] == "acme/widget"
+    assert report["remotes"] == {"mainline": "upstream", "push": "origin", "push_repo": "someone/widget",
+                                 "fork": True, "head_prefix": "someone:"}
+    assert defaults == ["github.com/acme/widget"]
+    assert report["pr_target"]["changed"] == ["git remote add upstream git@github.com:acme/widget.git",
+                                              "git fetch upstream", "gh repo set-default github.com/acme/widget"]
+
+
+def test_lone_fork_on_another_host_adds_upstream_on_that_host(monkeypatch, tmp_path):
+    """Catches a GHE or SSH-alias fork whose added parent remote points at github.com."""
+    remotes = {"origin": "ssh://git@ghe.example.invalid:2222/someone/widget.git"}
+    report, defaults, urls = _target_preflight(monkeypatch, tmp_path, remotes, "someone/widget", saved="parent",
+                                               key="ghe.example.invalid/someone/widget")
+
+    assert report["needs"] == []
+    assert urls["upstream"] == "ssh://git@ghe.example.invalid:2222/acme/widget.git"
+    assert defaults == ["ghe.example.invalid/acme/widget"]
+    assert report["pr_target"]["key"] == "ghe.example.invalid/someone/widget"
+
+
+def test_failed_fetch_of_the_added_upstream_is_a_need(monkeypatch, tmp_path):
+    report, defaults, urls = _target_preflight(monkeypatch, tmp_path, LONE, "someone/widget", saved="parent",
+                                               fetch_error="Permission denied (publickey)")
+
+    assert report["remotes"]["mainline"] is None
+    assert any("git fetch upstream" in need and "Permission denied" in need for need in report["needs"])
+    assert defaults == []
+
+
+def test_upstream_pointing_elsewhere_is_never_reused(monkeypatch, tmp_path):
+    remotes = {"origin": "git@github.com:someone/widget.git", "upstream": "https://github.com/other/thing.git"}
+    report, defaults, urls = _target_preflight(monkeypatch, tmp_path, remotes, "someone/widget", saved="parent")
+
+    assert urls["upstream"] == "https://github.com/other/thing.git"
+    assert report["remotes"]["mainline"] is None
+    assert any("other/thing" in need for need in report["needs"])
+    assert defaults == []
+
+
+def test_fork_with_parent_remote_and_no_target_asks(monkeypatch, tmp_path):
+    """Catches a fork checkout whose PRs silently land in the parent when the user wants them in the fork."""
+    report, defaults, _ = _target_preflight(monkeypatch, tmp_path, BOTH, "acme/widget")
+
+    assert report["remotes"]["mainline"] is None
+    assert report["pr_target"]["target"] is None and report["pr_target"]["key"] == "github.com/someone/widget"
+    assert any("pr-targets.json" in need and "someone/widget" in need for need in report["needs"])
+    assert defaults == []
+
+
+def test_fork_with_parent_remote_saved_as_fork_switches_gh_to_the_fork(monkeypatch, tmp_path):
+    report, defaults, _ = _target_preflight(monkeypatch, tmp_path, BOTH, "acme/widget", saved="fork")
+
+    assert report["needs"] == []
+    assert report["repo"]["nameWithOwner"] == "someone/widget"
+    assert report["remotes"]["mainline"] == "origin" and report["remotes"]["fork"] is False
+    assert defaults == ["github.com/someone/widget"]
+
+
+def test_fork_with_parent_remote_saved_as_parent_pins_gh_to_the_parent(monkeypatch, tmp_path):
+    report, defaults, urls = _target_preflight(monkeypatch, tmp_path, BOTH, "acme/widget", saved="parent")
+
+    assert report["needs"] == []
+    assert report["remotes"]["mainline"] == "upstream" and report["remotes"]["fork"] is True
+    assert defaults == ["github.com/acme/widget"]
+    assert urls == BOTH
+
+
+def test_saved_target_that_contradicts_set_default_is_a_need(monkeypatch, tmp_path):
+    """Catches a saved target that silently overrides, or is overridden by, an explicit set-default."""
+    report, defaults, _ = _target_preflight(monkeypatch, tmp_path, BOTH, "acme/widget", resolved="upstream",
+                                            saved="fork")
+
+    assert report["remotes"]["mainline"] is None
+    assert any("gh repo set-default --unset" in need for need in report["needs"])
+    assert defaults == []
+
+
+def test_fork_chosen_with_set_default_beside_a_parent_remote_needs_nothing(monkeypatch, tmp_path):
+    report, defaults, _ = _target_preflight(monkeypatch, tmp_path, BOTH, "someone/widget", resolved="origin")
+
+    assert report["needs"] == []
+    assert report["pr_target"]["target"] == "fork" and report["pr_target"]["explicit"] == "fork"
+    assert defaults == []
+
+
+def test_unparseable_pr_targets_file_is_a_need(monkeypatch, tmp_path):
+    config = tmp_path / "home" / ".config" / "coding_agent_standards"
+    config.mkdir(parents=True)
+    (config / "pr-targets.json").write_text("{not json")
+    report, defaults, _ = _target_preflight(monkeypatch, tmp_path, LONE, "someone/widget")
+
+    assert report["remotes"]["mainline"] is None
+    assert any("pr-targets.json cannot be read" in need for need in report["needs"])
+
+
+def test_invalid_saved_target_is_a_need(monkeypatch, tmp_path):
+    report, _, _ = _target_preflight(monkeypatch, tmp_path, LONE, "someone/widget", saved="upstream")
+    assert any("'upstream'" in need and "parent, fork" in need for need in report["needs"])
 
 
 def _preflight_with_rules(monkeypatch, tmp_path, prefix, rules_for, bypass, *,

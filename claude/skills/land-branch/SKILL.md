@@ -33,7 +33,9 @@ in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`.
 
 No question belongs in this step. A rebase conflict in item 10 is a stop, not a question.
 
-1. Run `pr_watch.py preflight` through `cg_run`, as `merge-fix-loop` describes, with no `--base` yet. Take
+1. Run `pr_watch.py preflight` through `cg_run`, as `merge-fix-loop` describes, with no `--base` yet. When its
+   `pr_target.target` is null, ask the **PR target** question from `merge-fix-loop` Step 2 now, save the answer, and
+   run preflight again. Every later step needs the remotes it settles. Take
    `<mainline-remote>`, `<push-remote>`, and `<head>` from its `remotes` block, per "Remotes" in `merge-fix-loop`. Run
    `git fetch <mainline-remote>`, so the mainline is current. Also fetch `<push-remote>` when it differs
 2. Establish the mainline and the source branch, per "Establishing the Branch Pair" in

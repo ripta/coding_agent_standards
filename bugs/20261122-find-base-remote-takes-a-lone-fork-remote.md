@@ -1,9 +1,15 @@
 # `find_base_remote` takes a lone fork remote as the base repo
 
-**Status:** open
+**Status:** fixed 2026-11-23
 
-**Validation:** confirmed by reading the code. Not reproduced end to end, since that needs a fork-only checkout with
-tracker-sync mappings.
+**Validation:** reproduced before the fix. `scope` in a checkout whose only remote is a fork, with gh naming that fork,
+reported the fork's key as the base repo.
+
+**Fixed:** 2026-11-23. A fork's PR target, saved in `~/.config/coding_agent_standards/pr-targets.json`, now
+settles the base. `find_base_remote` asks gh whether a lone remote is a fork. With no saved target and no
+`gh repo set-default`, it stops with what to choose, and tracker-sync asks. A lone fork saved as `parent` stops with
+the `git remote add upstream` command. `test_lone_fork_remote_without_a_target_stops_and_names_both_repos` in
+`claude/skills/tracker-sync/test_sync_scope.py` covers it. The sections below describe the bug as it was.
 
 ## Observed
 

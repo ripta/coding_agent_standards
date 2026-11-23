@@ -67,10 +67,19 @@ word-split them.
   PRs land in. Every clone, fork checkout, and worktree of that repo shares it.
   In a fork checkout the base repo is on another remote, often `upstream`.
   `origin` is the fork there.
-- The script finds the base remote the way `pr_watch.py` does. A checkout with
-  one remote uses it. With several, it asks `gh` for the base repo and takes
-  the remote whose URL names it. When `gh` is missing, signed out, or offline,
-  it falls back to a remote named `upstream`, then `origin`.
+- The script finds the base remote the way `pr_watch.py` does. A fork's saved
+  PR target in `~/.config/coding_agent_standards/pr-targets.json` comes first.
+  A checkout with one remote uses it, unless `gh` says it is a fork. With
+  several, it asks `gh` for the base repo and takes the remote whose URL names
+  it. When `gh` is missing, signed out, or offline, it falls back to a remote
+  named `upstream`, then `origin`.
+- A lone fork remote with no saved PR target stops the script with an error
+  that starts `the base repo is not settled`. It names the fork, the parent,
+  and the key to save under. Ask the user whether PRs land in the parent or the
+  fork, via AskUserQuestion. Save the answer with the Write or Edit tool as
+  `{"repos": {"<key>": {"target": "parent"}}}` or `"fork"`, keeping the file's
+  other entries. Then rerun. When the error names commands to run, such as
+  `git remote add upstream`, show them to the user instead.
 - Older versions keyed mappings by the `origin` URL. When no mapping has the
   base key yet, the script moves mappings saved under the `origin` key to the
   base key and saves the config. A clone whose `origin` is the base repo sees

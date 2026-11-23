@@ -32,7 +32,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
-from base_remote import find_base_remote, gh_base_slug, repo_key  # noqa: E402
+from base_remote import BaseRepoUnsettled, find_base_remote, gh_base_repo, repo_key  # noqa: E402
 
 DEFAULT_CONFIG = Path.home() / ".config" / "coding_agent_standards" / "tracker-sync.json"
 
@@ -90,7 +90,10 @@ def normalize_remote(url: str) -> str:
 
 
 def base_remote(root: Path) -> str:
-    remote = find_base_remote(root, gh_base_slug)
+    try:
+        remote = find_base_remote(root, gh_base_repo)
+    except BaseRepoUnsettled as e:
+        raise SyncError(f"the base repo is not settled: {e}") from e
     if not remote:
         raise SyncError(
             "no remote holds the base repo; add one named upstream or origin. "

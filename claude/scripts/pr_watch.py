@@ -20,6 +20,13 @@ the checkout's CI files and answers unknown for whether CI builds PRs against ot
 `preflight` also settles the prefix of agent-owned branch names: `--branch-prefix`, else the
 base repo's entry in ~/.config/coding_agent_standards/branches.json, else `agent/`. It reports
 the rulesets that would reject a branch named that way.
+
+In a fork checkout, `preflight` settles which repo PRs land in from the fork's saved PR target in
+~/.config/coding_agent_standards/pr-targets.json, or from `gh repo set-default`. It then makes the
+checkout agree, so later gh calls resolve the same repo: it adds and fetches an `upstream` remote
+for a parent no remote holds, and runs `gh repo set-default`. It reports what it changed in
+`pr_target.changed`.
+
 `gh` reads its credentials from ~/.config/gh, which a sandboxed shell cannot read, so run this
 script through cg or with the sandbox disabled.
 
@@ -42,7 +49,8 @@ import urllib.parse
 from pathlib import Path
 from typing import Any, Callable
 
-from base_remote import GhError, git_remotes, remote_slug, repo_key, resolve_remotes
+from base_remote import (PR_TARGETS_FILE, GhError, decide_pr_target, git_remotes, pick_mainline, remote_slug,
+                         repo_key, resolve_remotes, saved_pr_target, sibling_url)
 
 MARKER = "<!-- merge-fix-loop -->"
 
@@ -845,6 +853,117 @@ def gcloud_status() -> str:
     return "ok" if result.stdout.strip() else "unauthenticated"
 
 
+def git_change(cwd: Path, *args: str) -> str | None:
+    """Run a git command that changes the checkout. Returns its error, or None when it worked."""
+    result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    if result.returncode == 0:
+        return None
+    return result.stderr.strip() or f"git {' '.join(args)} exited {result.returncode}"
+
+
+def fork_facts(urls: dict[str, str], resolved: str | None, push_default: str | None, repo: dict[str, Any],
+               lookup: Callable[[str], dict[str, Any]]) -> dict[str, Any] | None:
+    """Find the fork and parent a PR target chooses between, or None when no fork is involved.
+
+    gh's repo is the parent when another remote is a fork of it. Otherwise gh's repo is the fork when
+    gh says it has a parent. A remote that cannot be read, or several forks with no way to pick one,
+    give None here. `resolve_remotes` reports those as needs.
+    """
+    slug = repo["nameWithOwner"]
+    slugs = {name: remote_slug(url) for name, url in urls.items()}
+    holders = sorted(name for name, s in slugs.items() if s and s.lower() == slug.lower())
+
+    forks = {}
+    for name in sorted(urls):
+        if name in holders or not slugs[name]:
+            continue
+        try:
+            info = lookup(slugs[name])
+        except GhError:
+            return None
+        if (info.get("parent") or "").lower() == slug.lower():
+            forks[name] = slugs[name]
+
+    if forks:
+        if push_default in forks:
+            fork_remote = push_default
+        elif len(forks) == 1:
+            fork_remote = next(iter(forks))
+        elif "origin" in forks:
+            fork_remote = "origin"
+        else:
+            return None
+        fork, parent = forks[fork_remote], slug
+    elif (repo.get("parent") or {}).get("nameWithOwner") and holders:
+        fork_remote = pick_mainline(holders, resolved)
+        fork, parent = slug, repo["parent"]["nameWithOwner"]
+    else:
+        return None
+
+    chosen = (slugs.get(resolved) or "").lower() if resolved else ""
+    explicit = "fork" if chosen == fork.lower() else "parent" if chosen == parent.lower() else None
+    return {"fork": fork, "parent": parent, "fork_remote": fork_remote, "explicit": explicit,
+            "key": repo_key(urls[fork_remote]) or f"github.com/{fork}"}
+
+
+def settle_pr_target(cwd: Path, repo: dict[str, Any],
+                     lookup: Callable[[str], dict[str, Any]]) -> tuple[dict[str, Any] | None, str | None, list[str]]:
+    """Choose the repo a fork checkout's PRs land in, and make the checkout's gh default agree.
+
+    Returns the `pr_target` report, the settled repo's slug or None when it stays unsettled, and
+    the needs. The changes are local and reversible: an `upstream` remote and gh's default repo.
+    """
+    urls, resolved, push_default = git_remotes(cwd)
+    facts = fork_facts(urls, resolved, push_default, repo, lookup)
+    if facts is None:
+        return None, repo["nameWithOwner"], []
+
+    fork, parent, key = facts["fork"], facts["parent"], facts["key"]
+    report = {**facts, "saved": None, "target": None, "file": PR_TARGETS_FILE, "changed": []}
+    try:
+        report["saved"] = saved_pr_target(key)
+    except ValueError as e:
+        return report, None, [f"{e}. Fix the file, then rerun preflight."]
+    target, need = decide_pr_target(fork, parent, key, report["saved"], facts["explicit"])
+    if target is None:
+        return report, None, [need or ""]
+    report["target"] = target
+
+    slugs = {name: remote_slug(url) for name, url in urls.items()}
+    want = fork if target == "fork" else parent
+    holders = sorted(name for name, s in slugs.items() if s and s.lower() == want.lower())
+    if not holders:
+        url = sibling_url(urls[facts["fork_remote"]], parent)
+        if "upstream" in urls:
+            return report, None, [f"PRs land in {parent}, which no remote here holds, and remote upstream points at "
+                                  f"{slugs['upstream'] or urls['upstream']}. Add a remote for {parent} under another "
+                                  f"name, fetch it, then rerun preflight."]
+        if url is None:
+            return report, None, [f"PRs land in {parent}, which no remote here holds, and its URL cannot be "
+                                  f"derived from {urls[facts['fork_remote']]}. Add a remote for it, then rerun."]
+        error = git_change(cwd, "remote", "add", "upstream", url)
+        if error:
+            return report, None, [f"adding remote upstream for {parent} failed: {error}"]
+        report["changed"].append(f"git remote add upstream {url}")
+        error = git_change(cwd, "fetch", "upstream")
+        if error:
+            return report, None, [f"remote upstream for {parent} was added, but `git fetch upstream` failed: {error}. "
+                                  f"Fix access to {url}, then rerun preflight."]
+        report["changed"].append("git fetch upstream")
+        urls["upstream"] = url
+        holders = ["upstream"]
+
+    if facts["explicit"] != target:
+        name = pick_mainline(holders, resolved)
+        default = repo_key(urls[name]) or want
+        try:
+            gh(["repo", "set-default", default])
+        except GhError as e:
+            return report, None, [f"`gh repo set-default {default}` failed: {e}"]
+        report["changed"].append(f"gh repo set-default {default}")
+    return report, want, []
+
+
 def preflight(base: str | None, repo_override: str | None = None,
               branch_prefix: str | None = None) -> dict[str, Any]:
     report: dict[str, Any] = {"needs": []}
@@ -858,6 +977,23 @@ def preflight(base: str | None, repo_override: str | None = None,
 
     owner, name = repo_slug(repo_override)
     repo = graphql(REPO_QUERY, owner=owner, name=name)["repository"]
+
+    seen: dict[str, dict[str, Any]] = {}
+
+    def lookup(remote: str) -> dict[str, Any]:
+        if remote not in seen:
+            seen[remote] = lookup_repo(remote)
+        return seen[remote]
+
+    settled: str | None = repo["nameWithOwner"]
+    report["pr_target"] = None
+    if not repo_override:
+        report["pr_target"], settled, target_needs = settle_pr_target(Path.cwd(), repo, lookup)
+        report["needs"] += target_needs
+        if settled and settled.lower() != repo["nameWithOwner"].lower():
+            owner, name = settled.split("/")
+            repo = graphql(REPO_QUERY, owner=owner, name=name)["repository"]
+
     base = base or repo["defaultBranchRef"]["name"]
     report["repo"] = {k: v for k, v in repo.items() if k != "defaultBranchRef"}
     report["base"] = base
@@ -901,25 +1037,12 @@ def preflight(base: str | None, repo_override: str | None = None,
         return report
 
     urls, resolved, push_default = git_remotes(Path.cwd())
-    remotes = resolve_remotes(urls, slug, resolved, push_default, lookup_repo)
+    remotes = resolve_remotes(urls, slug, resolved, push_default, lookup)
     report["needs"] += remotes.pop("needs")
-
-    parent = (repo.get("parent") or {}).get("nameWithOwner")
-    chosen = resolved is not None and (remote_slug(urls.get(resolved, "")) or "").lower() == slug.lower()
-    if repo.get("isFork") and parent:
-        if any((remote_slug(u) or "").lower() == parent.lower() for u in urls.values()):
-            report["needs"].append(f"gh resolves this checkout to {slug}, a fork of {parent}, which a remote here "
-                                   f"also holds. Confirm the PRs should land in {slug}, or run "
-                                   f"`gh repo set-default {parent}`.")
-        elif not chosen:
-            # gh fell back to the fork because no remote holds the parent. Every fact above is the fork's, and
-            # the PRs most likely belong in the parent, so the remotes stay unsettled until the user picks.
-            remotes.update(mainline=None, push=None, push_repo=None, fork=False, head_prefix="")
-            report["needs"].append(f"gh resolves this checkout to {slug}, a fork of {parent}, because no remote "
-                                   f"here holds {parent}. To land PRs in {parent}, run "
-                                   f"`git remote add upstream https://github.com/{parent}.git`, "
-                                   f"`git fetch upstream`, and `gh repo set-default {parent}`, then rerun "
-                                   f"preflight. To land them in the fork, run `gh repo set-default {slug}`.")
+    if settled is None:
+        # Until the user picks a PR target, every fact above may belong to the wrong repo, so the
+        # remotes stay unsettled. A guess would plan against the wrong mainline and protection.
+        remotes.update(mainline=None, push=None, push_repo=None, fork=False, head_prefix="")
 
     report["remotes"] = remotes
     report["stacking"] = stacking_summary(report["merge_methods"], fork=remotes["fork"])

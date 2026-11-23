@@ -58,6 +58,15 @@ A file that holds repo settings keeps them under `repos`, one entry per key:
 
 `tracker-sync.json` predates this shape. It keeps a `mappings` list whose entries name their `repo` by the same key.
 
+`pr-targets.json` is the one file keyed by the fork. It saves which repo a fork checkout's PRs land in, so the base repo
+is what it decides and cannot be its key. Its key is the fork's remote URL, reduced the same way:
+
+```json
+{"repos": {"github.com/someone/widget": {"target": "parent"}}}
+```
+
+`target` is `parent` or `fork`. `pr_watch.py preflight` reports the key as `pr_target.key`.
+
 ## Git Config Keys
 
 - Name a key `codingstandards.<name>`, with the name in lower camel case
@@ -74,6 +83,7 @@ setting this table does not list, or when the table lists one nothing names.
 |---|---|---|
 | `~/.config/coding_agent_standards/branches.json` | The prefix for agent-owned branch names, per repo | `pr_watch.py preflight` |
 | `~/.config/coding_agent_standards/cloudbuild.json` | The GCP project, region, connections, and release app for Cloud Build | `cloudbuild`, `debug-ci` |
+| `~/.config/coding_agent_standards/pr-targets.json` | Whether a fork checkout's PRs land in the parent or the fork, per fork | `pr_watch.py preflight`, `tracker-sync` |
 | `~/.config/coding_agent_standards/presentation.json` | Where decks are written, their theme, and their speaker notes | `presentation` |
 | `~/.config/coding_agent_standards/session-report.json` | Where reports are written | `session-report`, `research-audit`, `presentation` |
 | `~/.config/coding_agent_standards/tracker-sync.json` | Trackers, and the repo paths mapped to their groups | `tracker-sync` |
