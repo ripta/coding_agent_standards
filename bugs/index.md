@@ -14,3 +14,4 @@ oldest open one.
 | [20261115-work-queue-band-test-missing-iscollapsed](20261115-work-queue-band-test-missing-iscollapsed.md) | fixed | The work-queue progress band test fails, because `AbovePrompt` now requires `isCollapsed` |
 | [20261116-work-queue-band-test-needs-newer-harness](20261116-work-queue-band-test-needs-newer-harness.md) | open | The work-queue band test fails on a harness older than the one its fixtures were fixed for |
 | [20261121-preflight-may-read-unreadable-protection-as-none](20261121-preflight-may-read-unreadable-protection-as-none.md) | open | `pr_watch.py preflight` may report a non-admin's unreadable classic protection as no protection |
+| [20261122-find-base-remote-takes-a-lone-fork-remote](20261122-find-base-remote-takes-a-lone-fork-remote.md) | open | `find_base_remote` returns a lone fork remote as the base repo, so tracker-sync reads the fork |
