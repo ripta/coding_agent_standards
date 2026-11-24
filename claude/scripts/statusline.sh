@@ -786,11 +786,16 @@ model=$(echo "$input" | jq -r '
 ' 2>/dev/null)
 { [ -z "$model" ] || [ "$model" = "null" ]; } && model="claude"
 # Preserve raw model string for Bedrock usage detection
+#
+# Bedrock sessions carry the ARN in .model.id, while display_name can be a
+# friendly name such as "Opus 5.5". Check the id so the ARN is still found.
 model_raw="$model"
+model_id=$(echo "$input" | jq -r 'if .model | type == "object" then .model.id // empty else empty end' 2>/dev/null)
+[[ "$model_id" == arn:aws:bedrock:* ]] && model_raw="$model_id"
 is_bedrock=false
-if [[ "$model" == arn:aws:bedrock:* ]]; then
+if [[ "$model_raw" == arn:aws:bedrock:* ]]; then
     is_bedrock=true
-    model=$(resolve_bedrock_arn "$model")
+    model=$(resolve_bedrock_arn "$model_raw")
 fi
 # Clean up model name:
 # remove claude- prefix, trailing date suffix (8+ digits), and parenthesized context size
