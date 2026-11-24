@@ -95,6 +95,14 @@ already exists. Speculation serves a requirement nobody has stated. When you can
 failure mode that the work protects against, it is speculation. Naming one does not settle scope. See "Scope
 Additions".
 
+A failure mode is current when the bug, a contract, or the code's own docs name it. It stays current even when nothing
+has triggered it yet. Guarding it is investment, not speculation. "No release has done that yet" is not a reason to
+leave it unguarded.
+
+When code breaks a contract its own docs state, the default fix restores the contract. Rewriting the docs to match the
+code withdraws the contract. That is a shortcut, and its option says which guarantee it drops. An option that cannot
+have a failing regression test leaves the behavior unfixed, and its option says so.
+
 Match safety mechanisms to risk and reversibility. When reverting and redeploying fully undoes a change, that is its
 rollback path; implement it directly, without feature flags, config options, or staged rollouts. Reserve that machinery
 for changes that cannot be undone that way, such as data migrations, destructive writes, and published contracts.
@@ -113,10 +121,15 @@ When building the option list:
   When the list must be cut to fit, drop a middle option, never that one
 - **Do not recommend on effort alone.** Recommend the most correct option. Recommending a cheaper option requires a
   reason other than effort, such as a real downside of the complete option or a constraint that rules it out now. State
-  that reason in the option's description
+  that reason in the option's description. A downside is a cost to correctness, robustness, or maintainability. A small
+  benefit is not a downside. Neither is a failure that seems unlikely. Both weigh benefit against effort
 - **Label what each shortcut leaves undone.** Any option short of the complete fix states the bug, edge case, or
   follow-up cleanup it leaves behind. A forgone investment counts too
-- **List the complete option first.** Mark it as recommended unless the previous rule gave a reason not to
+- **List the recommended option first.** It is the complete option unless the previous rule gave a reason not to. When
+  it is not, list the complete option second and label it as the complete option. Never list an unrecommended option
+  above the recommended one
+- **Mark every option you recommend.** Every question carries a recommendation, including a multiSelect question. When
+  the options are independent fixes you would apply together, say so in the question and mark each one
 - **Raising an option is not expanding scope.** Offering the larger fix as an option is not the silent expansion that
   `work-discipline.md` forbids. Do not implement it without asking, and do not leave it off the list. Label it when it
   adds scope. See "Scope Additions"

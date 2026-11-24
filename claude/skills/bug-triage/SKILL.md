@@ -125,6 +125,10 @@ alone.
      performance, and you can say why in one sentence. Or the choice follows an existing pattern in the codebase.
    - **Non-trivial.** Two or more options are equally correct, equally robust, and equally performant, so picking one is
      a judgment call. Or an option changes behavior a user or caller can observe beyond the bug itself.
+
+   Judge each decision yourself. An `Estimate:` line already in the bug file is an earlier guess, not a verdict. When
+   you can name one option as the complete fix, the decision is trivial, whatever the bug file says. Options are not
+   equal when one fixes the behavior and another only rewrites the docs to match it.
 3. **Record the estimate.** Add an `Estimate:` line next to the status, such as
    `**Estimate:** small; no open design decisions`. Name each non-trivial decision when there is one.
 
@@ -138,6 +142,9 @@ so the user can check your reasoning. The estimate picks which option comes firs
 | Large, or several non-trivial decisions      | Open a proposal                                              | Fix now, amend the report           |
 
 A proposal exists to settle design questions. Do not recommend one when every question is already settled.
+
+When Fix now carries one option per approach, rank the approaches by "Choosing Options" in
+`${CLAUDE_SKILL_DIR}/../../rules/decision-making.md`. The recommended approach comes first.
 
 - **Fix now.** If the user accepts:
   1. Write the regression test first, in the suite and shape the project uses. Run it and confirm it fails for the
