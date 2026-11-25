@@ -124,7 +124,8 @@ bedrock_price_table() {
         anthropic.claude-opus-4-1-20250805-v1:0) echo "15.00 75.00 1.50 18.75" ;;
         anthropic.claude-opus-4-20250514-v1:0) echo "15.00 75.00 1.50 18.75" ;;
         # Sonnet 5.5
-        anthropic.claude-sonnet-5-5) echo "2.00 10.00 0.20 2.50" ;;
+        # Cache reads are 0.05x input ($0.10) since 2026-10-07, half the prior rate.
+        anthropic.claude-sonnet-5-5) echo "2.00 10.00 0.10 2.50" ;;
         # Sonnet 5
         # AWS listed $2/$10 as launch pricing through 2026-08-31. Anthropic has
         # since made $2/$10 the standard rate and cancelled the rise to $3/$15.
