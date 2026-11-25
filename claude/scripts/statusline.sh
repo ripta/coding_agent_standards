@@ -30,11 +30,13 @@
 #   bedrock-model-<id>.txt              Bedrock inference profile → foundation model ID
 #                                       TTL: 1 hour. Used for price table lookup.
 #
-#   bedrock-usage-<id>.json             Composite Bedrock usage: tokens + cost for
-#                                       today / 2-day / 7-day windows.
+#   bedrock-usage-<md5>.json            Composite Bedrock usage: tokens + cost for
+#                                       today / 2-day / 7-day windows, summed over
+#                                       every model the session may call. Key is
+#                                       MD5 of the sorted model list.
 #                                       TTL: 5 min. Refreshed in background after expiry.
 #
-#   bedrock-usage-<id>.lock             Lock directory held by a background refresh.
+#   bedrock-usage-<md5>.lock            Lock directory held by a background refresh.
 #                                       Removed when the refresh ends; one older
 #                                       than 60s is taken over.
 #
@@ -87,7 +89,10 @@ bedrock_cache_max_age=300
 # Source: AWS Bedrock pricing, global endpoint.
 # Regional inference profiles (us./eu./jp./apac.) add a 10% premium that this
 # table does not model. Costs shown for those profiles read about 10% low.
-# Override input/output with BEDROCK_INPUT_PRICE_PER_MTOK / BEDROCK_OUTPUT_PRICE_PER_MTOK env vars
+#
+# BEDROCK_INPUT_PRICE_PER_MTOK and BEDROCK_OUTPUT_PRICE_PER_MTOK price any model
+# this table lacks. They never replace a table entry, since one rate cannot price
+# a mix such as Opus and Haiku.
 #
 # Keys are the exact modelId values returned by `aws bedrock
 # list-foundation-models`. AWS is inconsistent about whether the ID ends in
@@ -104,6 +109,10 @@ bedrock_cache_max_age=300
 # /bin/bash, and bash 3.2 has no `declare -A`.
 bedrock_price_table() {
     case "$1" in
+        # Fable 5.2
+        # Cache reads are 0.025x input ($0.20), like Fable 5.1. Rates checked on
+        # 2026-11-25 against Anthropic's pricing page, not an AWS rate card.
+        anthropic.claude-fable-5-2) echo "8.00 40.00 0.20 10.00" ;;
         # Fable 5.1
         # Input and output match Fable 5. The one price change is cache reads, cut
         # 75% from $1.00 to $0.25 — a 0.025x multiplier on input, against the 0.1x
@@ -135,6 +144,10 @@ bedrock_price_table() {
         anthropic.claude-sonnet-4-6) echo "3.00 15.00 0.30 3.75" ;;
         anthropic.claude-sonnet-4-5-20250929-v1:0) echo "3.00 15.00 0.30 3.75" ;;
         anthropic.claude-sonnet-4-20250514-v1:0) echo "3.00 15.00 0.30 3.75" ;;
+        # Haiku 5.5
+        # These are the rates for prompts up to 100K tokens. A longer prompt bills
+        # the whole request at 5x. See bedrock_price_is_floor below.
+        anthropic.claude-haiku-5-5) echo "0.10 0.50 0.01 0.125" ;;
         # Haiku 4.5
         anthropic.claude-haiku-4-5) echo "1.00 5.00 0.10 1.25" ;;
         anthropic.claude-haiku-4-5-20251001-v1:0) echo "1.00 5.00 0.10 1.25" ;;
@@ -217,7 +230,23 @@ bedrock_price_table() {
     esac
 }
 
+# Succeeds for models whose table price is the cheapest of several tiers, so their
+# cost is only a lower bound.
+#
+# Haiku 5.5 bills a whole request at 5x once its prompt passes 100K tokens.
+# CloudWatch gives only hourly sums, so the tier of each request is lost.
+bedrock_price_is_floor() {
+    case "$1" in
+        anthropic.claude-haiku-5-5) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 # --- Helper Functions ---
+
+hash_string() {
+    printf '%s' "$1" | md5 -q 2>/dev/null || printf '%s' "$1" | md5sum 2>/dev/null | cut -d' ' -f1
+}
 
 # Run a command in the background, unless a run holding the same lock is still
 # going. The lock is a directory because mkdir is atomic, so concurrent
@@ -499,32 +528,90 @@ get_bedrock_foundation_model() {
     echo ""
 }
 
-get_bedrock_prices() {
-    local foundation_model="$1"
-
-    # Env var overrides take priority
-    if [ -n "$BEDROCK_INPUT_PRICE_PER_MTOK" ] && [ -n "$BEDROCK_OUTPUT_PRICE_PER_MTOK" ]; then
-        echo "$BEDROCK_INPUT_PRICE_PER_MTOK $BEDROCK_OUTPUT_PRICE_PER_MTOK"
-        return 0
-    fi
-
-    # Look up in price table
-    if [ -n "$foundation_model" ] && bedrock_price_table "$foundation_model"; then
-        return 0
-    fi
-
-    echo ""
+bedrock_default_region() {
+    echo "${AWS_REGION:-$AWS_DEFAULT_REGION}"
 }
 
-fetch_bedrock_usage_bg() {
-    local model_id="$1"
-    local region="$2"
-    local foundation_model="$3"
-    local composite_cache="${cache_dir}/bedrock-usage-${model_id}.json"
+# A model here is an ARN or a bare model ID. These three map one to what
+# CloudWatch and the price table need.
+bedrock_region_of() {
+    case "$1" in
+        arn:aws:bedrock:*) echo "$1" | cut -d: -f4 ;;
+        *) bedrock_default_region ;;
+    esac
+}
 
-    local today tomorrow yesterday seven_days_ago
+# CloudWatch's ModelId dimension: the resource ID of an ARN, or a bare ID as is
+bedrock_dimension_of() {
+    case "$1" in
+        arn:aws:bedrock:*) echo "${1##*/}" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+bedrock_foundation_of() {
+    case "$1" in
+        arn:aws:bedrock:*) get_bedrock_foundation_model "$1" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+# Print the price-table key for a foundation model. A cross-region profile ID
+# such as "us.anthropic.claude-haiku-4-5" falls back to the ID under its geo
+# prefix. Fails when the table has neither.
+bedrock_price_key() {
+    local fm="$1"
+    [ -n "$fm" ] || return 1
+    if bedrock_price_table "$fm" >/dev/null; then
+        echo "$fm"
+        return 0
+    fi
+    if [ "${fm#*.}" != "$fm" ] && bedrock_price_table "${fm#*.}" >/dev/null; then
+        echo "${fm#*.}"
+        return 0
+    fi
+    return 1
+}
+
+# Print each Bedrock model this session may call, one per line, sorted and
+# without duplicates.
+#
+# Claude Code sends subagents and background work to the ANTHROPIC_DEFAULT_*
+# models, so the session's own model is only part of the spend. An ARN always
+# counts. A bare ID such as "global.anthropic.claude-haiku-4-5" counts only in a
+# Bedrock session with a region to query. Aliases such as "opus" have no dot and
+# are skipped, since they resolve to one of the other variables.
+bedrock_model_set() {
+    local m
+    for m in "$@" "$ANTHROPIC_MODEL" "$ANTHROPIC_DEFAULT_FABLE_MODEL" \
+        "$ANTHROPIC_DEFAULT_OPUS_MODEL" "$ANTHROPIC_DEFAULT_SONNET_MODEL" \
+        "$ANTHROPIC_DEFAULT_HAIKU_MODEL" "$CLAUDE_CODE_SUBAGENT_MODEL" \
+        "$ANTHROPIC_SMALL_FAST_MODEL"; do
+        # A context-size suffix such as "[1m]" is not part of the model ID
+        m="${m%\[*\]}"
+        case "$m" in
+            arn:aws:bedrock:*) ;;
+            "" | *[[:space:]/]*) continue ;;
+            *.*) { $bedrock_env && [ -n "$(bedrock_default_region)" ]; } || continue ;;
+            *) continue ;;
+        esac
+        printf '%s\n' "$m"
+    done | sort -u
+}
+
+# Fetch hourly token counts for a set of Bedrock models. Sum them, and their
+# costs, into today / 2-day / 7-day windows, and write the result to the cache.
+#
+# Each model is priced on its own. A window's cost_partial is true when its cost
+# is only a lower bound: a model with tokens in it has no price, or its price is
+# the cheapest tier. A failed CloudWatch call writes nothing, so a cache never
+# holds totals missing a region.
+fetch_bedrock_usage() {
+    local composite_cache="$1"
+    shift
+
+    local today yesterday seven_days_ago
     today=$(get_date_offset 0)
-    tomorrow=$(get_date_offset 1)
     yesterday=$(get_date_offset -1)
     seven_days_ago=$(get_date_offset -6)
 
@@ -542,87 +629,62 @@ fetch_bedrock_usage_bg() {
     range_start=$(get_date_offset -7)
     range_end=$(get_date_offset 2)
 
-    # Force UTC output so the timestamps we hand to jq are unambiguous
-    # (jq's fromdateiso8601 requires trailing Z, not ±HH:MM).
-    local cw_response
-    cw_response=$(TZ=UTC aws cloudwatch get-metric-data \
-        --region "$region" \
-        --start-time "${range_start}T00:00:00Z" \
-        --end-time "${range_end}T00:00:00Z" \
-        --metric-data-queries "[
-            {
-                \"Id\": \"input_tokens\",
-                \"MetricStat\": {
-                    \"Metric\": {
-                        \"Namespace\": \"AWS/Bedrock\",
-                        \"MetricName\": \"InputTokenCount\",
-                        \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
-                    },
-                    \"Period\": 3600,
-                    \"Stat\": \"Sum\"
-                }
-            },
-            {
-                \"Id\": \"output_tokens\",
-                \"MetricStat\": {
-                    \"Metric\": {
-                        \"Namespace\": \"AWS/Bedrock\",
-                        \"MetricName\": \"OutputTokenCount\",
-                        \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
-                    },
-                    \"Period\": 3600,
-                    \"Stat\": \"Sum\"
-                }
-            },
-            {
-                \"Id\": \"cache_read_tokens\",
-                \"MetricStat\": {
-                    \"Metric\": {
-                        \"Namespace\": \"AWS/Bedrock\",
-                        \"MetricName\": \"CacheReadInputTokenCount\",
-                        \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
-                    },
-                    \"Period\": 3600,
-                    \"Stat\": \"Sum\"
-                }
-            },
-            {
-                \"Id\": \"cache_write_tokens\",
-                \"MetricStat\": {
-                    \"Metric\": {
-                        \"Namespace\": \"AWS/Bedrock\",
-                        \"MetricName\": \"CacheWriteInputTokenCount\",
-                        \"Dimensions\": [{\"Name\": \"ModelId\", \"Value\": \"${model_id}\"}]
-                    },
-                    \"Period\": 3600,
-                    \"Stat\": \"Sum\"
-                }
-            }
-        ]" \
-        --output json 2>/dev/null)
+    local models_tsv="" i=0 m fm key prices floor
+    for m in "$@"; do
+        fm=$(bedrock_foundation_of "$m")
+        prices=""
+        floor=false
+        if key=$(bedrock_price_key "$fm"); then
+            prices=$(bedrock_price_table "$key")
+            bedrock_price_is_floor "$key" && floor=true
+        elif [ -n "$BEDROCK_INPUT_PRICE_PER_MTOK" ] && [ -n "$BEDROCK_OUTPUT_PRICE_PER_MTOK" ]; then
+            prices="$BEDROCK_INPUT_PRICE_PER_MTOK $BEDROCK_OUTPUT_PRICE_PER_MTOK"
+        fi
+        models_tsv+="${i}"$'\t'"${m}"$'\t'"$(bedrock_region_of "$m")"$'\t'"$(bedrock_dimension_of "$m")"
+        models_tsv+=$'\t'"${fm}"$'\t'"${prices}"$'\t'"${floor}"$'\n'
+        i=$(( i + 1 ))
+    done
 
-    if [ -z "$cw_response" ]; then
-        rm -f "$lock_file"
-        return 1
-    fi
+    local models_json
+    models_json=$(printf '%s' "$models_tsv" | jq -R -s -c '
+        [split("\n")[] | select(length > 0) | split("\t")
+         | {idx: .[0], id: .[1], region: .[2], dimension: .[3],
+            foundation_model: (if .[4] == "" then null else .[4] end),
+            price: (if .[5] == "" then null else (.[5] | split(" ") | map(tonumber)) end),
+            price_is_floor: (.[6] == "true")}]') || return 1
 
-    # Get prices for cost calculation
-    local prices input_price output_price cache_read_price cache_write_price
-    prices=$(get_bedrock_prices "$foundation_model")
-    if [ -n "$prices" ]; then
-        input_price=$(echo "$prices" | awk '{print $1}')
-        output_price=$(echo "$prices" | awk '{print $2}')
-        cache_read_price=$(echo "$prices" | awk '{print $3}')
-        cache_write_price=$(echo "$prices" | awk '{print $4}')
-    fi
+    # One CloudWatch call per region, since a call reads a single region
+    local regions region queries response results="[]"
+    regions=$(echo "$models_json" | jq -r '[.[].region] | unique[]')
+    while IFS= read -r region; do
+        [ -n "$region" ] || continue
+        queries=$(echo "$models_json" | jq -c --arg region "$region" '
+            [.[] | select(.region == $region) | .idx as $i | .dimension as $dim
+             | {in: "InputTokenCount", out: "OutputTokenCount",
+                cr: "CacheReadInputTokenCount", cw: "CacheWriteInputTokenCount"}
+             | to_entries[]
+             | {Id: "m\($i)_\(.key)",
+                MetricStat: {
+                    Metric: {Namespace: "AWS/Bedrock", MetricName: .value,
+                             Dimensions: [{Name: "ModelId", Value: $dim}]},
+                    Period: 3600, Stat: "Sum"}}]')
 
-    # Assemble composite JSON: sum tokens per window, calculate costs
+        # Force UTC output so the timestamps we hand to jq are unambiguous
+        # (jq's fromdateiso8601 requires trailing Z, not ±HH:MM).
+        response=$(TZ=UTC aws cloudwatch get-metric-data \
+            --region "$region" \
+            --start-time "${range_start}T00:00:00Z" \
+            --end-time "${range_end}T00:00:00Z" \
+            --metric-data-queries "$queries" \
+            --output json 2>/dev/null)
+        echo "$response" | jq -e '.MetricDataResults' >/dev/null 2>&1 || return 1
+        results=$(jq -c -n --argjson a "$results" --argjson b "$response" '$a + $b.MetricDataResults')
+    done <<< "$regions"
+
     local result
-    result=$(echo "$cw_response" | jq --arg today "$today" --arg yesterday "$yesterday" \
-        --arg week_start "$seven_days_ago" \
-        --argjson tz_offset "$tz_offset" \
-        --arg input_price "${input_price:-}" --arg output_price "${output_price:-}" \
-        --arg cache_read_price "${cache_read_price:-}" --arg cache_write_price "${cache_write_price:-}" '
+    result=$(jq -n --argjson results "$results" --argjson models "$models_json" \
+        --arg today "$today" --arg yesterday "$yesterday" --arg week_start "$seven_days_ago" \
+        --argjson tz_offset "$tz_offset" '
         # Convert an hourly CloudWatch timestamp (UTC, "...Z" or "...+00:00")
         # to a local-date string ("YYYY-MM-DD") by shifting by $tz_offset.
         def to_local_date($ts):
@@ -631,81 +693,57 @@ fetch_bedrock_usage_bg() {
             | . + $tz_offset
             | strftime("%Y-%m-%d");
 
-        # Extract token arrays
-        (.MetricDataResults // []) as $results |
-        ($results | map(select(.Id == "input_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $in |
-        ($results | map(select(.Id == "output_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $out |
-        ($results | map(select(.Id == "cache_read_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $cr |
-        ($results | map(select(.Id == "cache_write_tokens")) | .[0] // {Timestamps:[], Values:[]}) as $cw |
+        def series($id):
+            ($results | map(select(.Id == $id)) | .[0] // {Timestamps: [], Values: []});
 
-        # Build a local-date -> summed-value map for each metric.
+        # Build a local-date -> summed-value map for a series.
         # Multiple hourly buckets may share the same local date, so we add.
-        def bucket(series):
-            reduce range(series.Timestamps | length) as $i ({};
-                (to_local_date(series.Timestamps[$i])) as $d
-                | .[$d] = ((.[$d] // 0) + series.Values[$i]));
+        #
+        # $s is bound as a value. A filter argument would be re-evaluated inside
+        # reduce, where . is the accumulator rather than the model.
+        def bucket($s):
+            reduce range($s.Timestamps | length) as $i ({};
+                (to_local_date($s.Timestamps[$i])) as $d
+                | .[$d] = ((.[$d] // 0) + $s.Values[$i]));
 
-        (bucket($in))  as $in_map  |
-        (bucket($out)) as $out_map |
-        (bucket($cr))  as $cr_map  |
-        (bucket($cw))  as $cw_map  |
+        def sum_range($start; $end):
+            [to_entries[] | select(.key >= $start and .key <= $end) | .value] | add // 0;
 
-        # Sum tokens for each window
-        def sum_range(start_date; end_date; map):
-            [map | to_entries[] | select(.key >= start_date and .key <= end_date) | .value] | add // 0;
+        [$models[] | . + {maps: {
+            in: bucket(series("m\(.idx)_in")),
+            out: bucket(series("m\(.idx)_out")),
+            cr: bucket(series("m\(.idx)_cr")),
+            cw: bucket(series("m\(.idx)_cw"))
+        }}] as $per_model |
 
-        (sum_range($today; $today; $in_map)) as $today_in |
-        (sum_range($today; $today; $out_map)) as $today_out |
-        (sum_range($today; $today; $cr_map)) as $today_cr |
-        (sum_range($today; $today; $cw_map)) as $today_cw |
-        (sum_range($yesterday; $today; $in_map)) as $two_in |
-        (sum_range($yesterday; $today; $out_map)) as $two_out |
-        (sum_range($yesterday; $today; $cr_map)) as $two_cr |
-        (sum_range($yesterday; $today; $cw_map)) as $two_cw |
-        (sum_range($week_start; $today; $in_map)) as $seven_in |
-        (sum_range($week_start; $today; $out_map)) as $seven_out |
-        (sum_range($week_start; $today; $cr_map)) as $seven_cr |
-        (sum_range($week_start; $today; $cw_map)) as $seven_cw |
-
-        # Calculate costs if prices available
-        def calc_cost(in_tok; out_tok; cr_tok; cw_tok):
-            if $input_price != "" and $output_price != "" then
-                ( in_tok * ($input_price | tonumber)
-                + out_tok * ($output_price | tonumber)
-                + (if $cache_read_price != "" then cr_tok * ($cache_read_price | tonumber) else 0 end)
-                + (if $cache_write_price != "" then cw_tok * ($cache_write_price | tonumber) else 0 end)
-                ) / 1000000
-                | . * 100 | round | . / 100 | tostring
-            else null end;
+        def window($start; $end):
+            [$per_model[] | {
+                price, price_is_floor,
+                in: (.maps.in | sum_range($start; $end)),
+                out: (.maps.out | sum_range($start; $end)),
+                cr: (.maps.cr | sum_range($start; $end)),
+                cw: (.maps.cw | sum_range($start; $end))
+            }]
+            | {
+                input_tokens: (map(.in) | add // 0 | floor),
+                output_tokens: (map(.out) | add // 0 | floor),
+                cache_read_tokens: (map(.cr) | add // 0 | floor),
+                cache_write_tokens: (map(.cw) | add // 0 | floor),
+                cost: (if any(.[]; .price != null) then
+                    [.[] | select(.price != null)
+                     | ( .in * .price[0] + .out * .price[1]
+                       + .cr * (.price[2] // 0) + .cw * (.price[3] // 0)) / 1000000]
+                    | add | . * 100 | round | . / 100 | tostring
+                  else null end),
+                cost_partial: any(.[]; (.in + .out + .cr + .cw) > 0
+                                       and (.price == null or .price_is_floor))
+              };
 
         {
-            today: {
-                input_tokens: ($today_in | floor),
-                output_tokens: ($today_out | floor),
-                cache_read_tokens: ($today_cr | floor),
-                cache_write_tokens: ($today_cw | floor),
-                cost: calc_cost($today_in; $today_out; $today_cr; $today_cw)
-            },
-            two_day: {
-                input_tokens: ($two_in | floor),
-                output_tokens: ($two_out | floor),
-                cache_read_tokens: ($two_cr | floor),
-                cache_write_tokens: ($two_cw | floor),
-                cost: calc_cost($two_in; $two_out; $two_cr; $two_cw)
-            },
-            seven_day: {
-                input_tokens: ($seven_in | floor),
-                output_tokens: ($seven_out | floor),
-                cache_read_tokens: ($seven_cr | floor),
-                cache_write_tokens: ($seven_cw | floor),
-                cost: calc_cost($seven_in; $seven_out; $seven_cr; $seven_cw)
-            },
-            prices: (if $input_price != "" then {
-                input: $input_price,
-                output: $output_price,
-                cache_read: (if $cache_read_price != "" then $cache_read_price else null end),
-                cache_write: (if $cache_write_price != "" then $cache_write_price else null end)
-            } else null end),
+            today: window($today; $today),
+            two_day: window($yesterday; $today),
+            seven_day: window($week_start; $today),
+            models: ($models | map(del(.idx))),
             fetched_at: (now | todate)
         }
     ' 2>/dev/null)
@@ -717,24 +755,14 @@ fetch_bedrock_usage_bg() {
     fi
 }
 
-# Resolve the foundation model for pricing, then fetch. Both call AWS, so a
-# background refresh runs the pair.
-refresh_bedrock_usage() {
-    local arn="$1"
-    local region model_id
-    region=$(echo "$arn" | cut -d: -f4)
-    model_id=$(echo "$arn" | cut -d/ -f2)
-    fetch_bedrock_usage_bg "$model_id" "$region" "$(get_bedrock_foundation_model "$arn")"
-}
-
+# Print the composite usage for a set of models. The cache is keyed on the set,
+# so changing a model variable starts a fresh cache instead of mixing totals.
 get_bedrock_usage() {
-    local arn="$1"
-    local region model_id
-    region=$(echo "$arn" | cut -d: -f4)
-    model_id=$(echo "$arn" | cut -d/ -f2)
+    local key
+    key=$(hash_string "$(printf '%s\n' "$@")")
 
-    local composite_cache="${cache_dir}/bedrock-usage-${model_id}.json"
-    local lock_file="${cache_dir}/bedrock-usage-${model_id}.lock"
+    local composite_cache="${cache_dir}/bedrock-usage-${key}.json"
+    local lock_file="${cache_dir}/bedrock-usage-${key}.lock"
 
     # Check composite cache
     if [ -f "$composite_cache" ]; then
@@ -749,7 +777,7 @@ get_bedrock_usage() {
         # Cache is stale. Return it now and refresh in the background, so
         # the next run shows the new data.
         if command -v aws >/dev/null 2>&1; then
-            run_in_background "$lock_file" refresh_bedrock_usage "$arn"
+            run_in_background "$lock_file" fetch_bedrock_usage "$composite_cache" "$@"
         fi
         cat "$composite_cache"
         return 0
@@ -760,7 +788,7 @@ get_bedrock_usage() {
         return 1
     fi
 
-    refresh_bedrock_usage "$arn"
+    fetch_bedrock_usage "$composite_cache" "$@"
 
     if [ -f "$composite_cache" ]; then
         cat "$composite_cache"
@@ -793,7 +821,11 @@ model=$(echo "$input" | jq -r '
 model_raw="$model"
 model_id=$(echo "$input" | jq -r 'if .model | type == "object" then .model.id // empty else empty end' 2>/dev/null)
 [[ "$model_id" == arn:aws:bedrock:* ]] && model_raw="$model_id"
-is_bedrock=false
+bedrock_env=false
+case "$CLAUDE_CODE_USE_BEDROCK" in
+    1 | [Tt][Rr][Uu][Ee] | [Yy][Ee][Ss] | [Oo][Nn]) bedrock_env=true ;;
+esac
+is_bedrock=$bedrock_env
 if [[ "$model_raw" == arn:aws:bedrock:* ]]; then
     is_bedrock=true
     model=$(resolve_bedrock_arn "$model_raw")
@@ -857,7 +889,7 @@ refresh_git_segment() {
 }
 
 git_segment=""
-git_cache_key=$(printf '%s' "$cwd" | md5 -q 2>/dev/null || printf '%s' "$cwd" | md5sum 2>/dev/null | cut -d' ' -f1)
+git_cache_key=$(hash_string "$cwd")
 git_cache_file="${cache_dir}/statusline-git-${git_cache_key}.txt"
 git_lock="${cache_dir}/statusline-git-${git_cache_key}.lock"
 
@@ -1031,7 +1063,13 @@ bedrock_usage_data=""
 usage_data=""
 
 if $is_bedrock; then
-    bedrock_usage_data=$(get_bedrock_usage "$model_raw")
+    bedrock_models=()
+    while IFS= read -r m; do
+        [ -n "$m" ] && bedrock_models+=("$m")
+    done <<< "$(bedrock_model_set "${model_id:-$model_raw}")"
+    if [ "${#bedrock_models[@]}" -gt 0 ]; then
+        bedrock_usage_data=$(get_bedrock_usage "${bedrock_models[@]}")
+    fi
 else
     needs_refresh=true
     if [ -f "$cache_file" ]; then
@@ -1074,36 +1112,23 @@ fi
 
 usage_segments=""
 if $is_bedrock && [ -n "$bedrock_usage_data" ] && echo "$bedrock_usage_data" | jq -e '.today' >/dev/null 2>&1; then
-    today_in=$(echo "$bedrock_usage_data" | jq -r '.today.input_tokens // 0')
-    today_out=$(echo "$bedrock_usage_data" | jq -r '.today.output_tokens // 0')
-    today_total=$(( today_in + today_out ))
-    today_cost=$(echo "$bedrock_usage_data" | jq -r '.today.cost // empty')
-    today_fmt=$(format_tokens "$today_total")
-
-    two_in=$(echo "$bedrock_usage_data" | jq -r '.two_day.input_tokens // 0')
-    two_out=$(echo "$bedrock_usage_data" | jq -r '.two_day.output_tokens // 0')
-    two_total=$(( two_in + two_out ))
-    two_cost=$(echo "$bedrock_usage_data" | jq -r '.two_day.cost // empty')
-    two_fmt=$(format_tokens "$two_total")
-
-    seven_in=$(echo "$bedrock_usage_data" | jq -r '.seven_day.input_tokens // 0')
-    seven_out=$(echo "$bedrock_usage_data" | jq -r '.seven_day.output_tokens // 0')
-    seven_total=$(( seven_in + seven_out ))
-    seven_cost=$(echo "$bedrock_usage_data" | jq -r '.seven_day.cost // empty')
-    seven_fmt=$(format_tokens "$seven_total")
-
-    # Build segments: "1d 31.1K $1.84" or "1d 31.1K" if no prices
-    for label_day in "1d:$today_fmt:$today_cost" "2d:$two_fmt:$two_cost" "7d:$seven_fmt:$seven_cost"; do
-        lbl="${label_day%%:*}"
-        rest="${label_day#*:}"
-        tok="${rest%%:*}"
-        cost="${rest#*:}"
-        seg=" ${SEP} ${DIM}${lbl}${RESET} ${FG_CYAN}${tok}${RESET}"
+    # Build segments: "1d 31.1K $1.84", "1d 31.1K" if no prices, or "$1.84+"
+    # when the cost is a lower bound
+    while IFS='|' read -r lbl tok_total cost partial; do
+        [ -n "$lbl" ] || continue
+        seg=" ${SEP} ${DIM}${lbl}${RESET} ${FG_CYAN}$(format_tokens "$tok_total")${RESET}"
         if [ -n "$cost" ] && [ "$cost" != "null" ]; then
+            [ "$partial" = "true" ] && cost+="+"
             seg+=" ${DIM}\$${cost}${RESET}"
         fi
         usage_segments+="$seg"
-    done
+    done <<< "$(echo "$bedrock_usage_data" | jq -r '
+        [["1d", .today], ["2d", .two_day], ["7d", .seven_day]][]
+        | [.[0],
+           ((.[1].input_tokens // 0) + (.[1].output_tokens // 0) | floor),
+           (.[1].cost // ""),
+           (.[1].cost_partial // false)]
+        | map(tostring) | join("|")')"
 elif [ -n "$usage_data" ] && echo "$usage_data" | jq -e . >/dev/null 2>&1; then
     five_pct=$(echo "$usage_data" | jq -r '.five_hour.utilization // 0' | awk '{printf "%.0f", $1}')
     five_reset_iso=$(echo "$usage_data" | jq -r '.five_hour.resets_at // empty')
