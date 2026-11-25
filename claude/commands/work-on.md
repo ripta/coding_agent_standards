@@ -27,9 +27,9 @@ the `## Other proposals` entries in `queue.md`. When the user gives a
 
 Whenever a choice comes up, in the plan or during implementation, build the
 options by the "Choosing Options" section of
-`${CLAUDE_PLUGIN_ROOT}/rules/decision-making.md`. Apply an override only when
-the user stated one this session, or the proposal carries a `**Tradeoffs:**`
-field.
+`${CLAUDE_PLUGIN_ROOT}/rules/decision-making.md`. Apply an override only from
+a source its "Overriding the Default" names: the project's own instructions,
+the proposal's `**Tradeoffs:**` field, or the user this session.
 
 1. Locate the proposals directory. Check the common locations:
    `spec/proposals/`, `docs/proposals/`. It holds `queue.md`. When it sits in

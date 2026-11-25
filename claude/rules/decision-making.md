@@ -32,6 +32,11 @@ Use the AskUserQuestion tool for structured questions when encountering:
 - **Don't ask** for: applying established standards from the coding standards repo, fixing obvious bugs, formatting,
   following existing codebase patterns
 
+Applying a standard means following a rule that names the answer, such as a formatting rule or a commit convention. The
+ranking in "Choosing Options" is not such a rule. It picks the option to recommend. The design question still goes to
+the user, with that option marked, even when the ranking leaves one clear answer. Only the authorizations in "Universal
+Rule" let an agent decide a design question without asking.
+
 ## How to Ask
 
 - Present 2-4 concrete options with trade-offs described
@@ -54,6 +59,14 @@ Use the AskUserQuestion tool for structured questions when encountering:
 The user's default is the most correct and robust option, not the quickest one. Do not assume the user wants the cheaper
 option because the robust one takes longer to implement.
 
+The ranking below governs every choice, in every step and every agent. That covers the options a question lists, the
+one it recommends, and each decision a run makes without asking. It covers a critic's or a judge's ranking, a deferral,
+and what a step does when its budget runs out.
+
+A skill's procedure never outranks the ranking. When a step would produce a result the ranking rejects, follow the
+ranking, and say which step you overrode. A project, a document, or a session can change the ranking itself. See
+"Overriding the Default".
+
 Rank options by these criteria, in order:
 
 1. Correctness, including data safety: no silent data loss or corruption, safe concurrent and repeated execution,
@@ -70,6 +83,15 @@ Rank options by these criteria, in order:
 Implementation cost decides only between options that are equal on the first three criteria. It never outweighs a
 difference in correctness, robustness, or maintainability, however small. Implementation time and diff size are not
 reasons to avoid an option.
+
+Every claim that moves an option up or down is a fact to check, not an estimate. That covers a cost, such as "it needs a
+new permission". It also covers a missing benefit, such as "it adds nothing the existing log does not". Check the claim
+before ranking on it: read the code or the docs, or run a probe. An unchecked claim moves nothing, however likely it
+seems.
+
+When a claim cannot be checked before the decision, rank on the checked facts alone. If the claim would change the
+recommendation were it true, make the recommendation conditional on it. Name the check that settles it, and schedule
+that check first, such as the first item of the first milestone.
 
 The complete option is the one that solves the real problem fully, not the largest one. Speculative generality,
 configuration knobs nobody asked for, and abstractions built for hypothetical futures are not robustness. They add
@@ -119,6 +141,12 @@ When building the option list:
 
 - **Include the complete option.** Every question includes the option the user would pick with no time or effort limit.
   When the list must be cut to fit, drop a middle option, never that one
+- **Combine the parts.** When candidates each answer part of the problem, list the option that combines them. It is
+  often the complete option. Posing the parts as alternatives hides it
+- **Deferring is a shortcut.** An option that defers part of the work, or builds it later, is cheaper than one that
+  builds it now. Like any shortcut, it needs a reason other than effort. Waiting on evidence that does not exist yet is
+  such a reason. Evidence you could gather now is not. Its description says what stays unanswered until the work is
+  built
 - **Do not recommend on effort alone.** Recommend the most correct option. Recommending a cheaper option requires a
   reason other than effort, such as a real downside of the complete option or a constraint that rules it out now. State
   that reason in the option's description. A downside is a cost to correctness, robustness, or maintainability. A small
@@ -133,6 +161,19 @@ When building the option list:
 - **Raising an option is not expanding scope.** Offering the larger fix as an option is not the silent expansion that
   `work-discipline.md` forbids. Do not implement it without asking, and do not leave it off the list. Label it when it
   adds scope. See "Scope Additions"
+- **Check the list before you ask.** Before asking, and before deciding without asking, answer the question the user
+  would ask: which option is most correct and most robust? When that answer is not the recommended option, or is not on
+  the list, fix the list first. The user should never need to ask it
+
+### When a Reason Proves Wrong
+
+A user who picks an option you recommended chose on the reasons you gave. When one of those reasons later proves false,
+the choice rests on a false fact. Ask the question again at once, with the corrected ranking and a note on what was
+wrong. Do not keep the choice because the user made it. Do not patch it with revisit triggers or special cases to
+preserve it.
+
+A decision you made yourself, under an authorization such as an autonomous review, reopens instead. Decide it again by
+the ranking.
 
 ### Scope Additions
 
@@ -160,17 +201,26 @@ mechanism under it is its own decision.
 
 ### Overriding the Default
 
-Only the user can lower the bar. Never infer that the user wants the expedient option from the size of the task, the
-time it would take, or the tone of the conversation.
+The ranking above is the default. Only a project, a document, or a session changes it. Never infer a change from the
+size of the task, the time it would take, or the tone of the conversation.
 
-- **For a session:** the user says so explicitly, such as "optimize for speed this time" or "the cheap option is fine
-  here." The override lasts for that session only
+- **For a project:** the project's own instructions state a different ranking, in any words. They may be its
+  `CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, or a standards document. A prototype that puts shipping speed first is
+  one example. A contributing guide that asks for minimal diffs is another. Follow that ranking for all work in the
+  project, per `precedence.md`. Where it is silent, the default holds
 - **For a document:** a proposal carries a `**Tradeoffs:** expedient` field with a stated reason. The override applies
   to work driven by that proposal, including its queue rows
+- **For a session:** the user says so explicitly, such as "optimize for speed this time" or "the cheap option is fine
+  here." The override lasts for that session only
 
-Under an override, rank implementation cost second, above robustness and maintainability. Correctness stays first: an
-expedient option may be less reliable or less polished, but it must not put data at risk. Still include the complete
-option, labeled as such, so the user sees what they are giving up.
+The narrowest one that applies wins: a session over a document, and a document over a project. Name the source whenever
+you apply one, in the option's description and in every critic or judge brief. A subagent cannot see the session, and
+may not read the project's instructions.
+
+A project's ranking applies as the project states it. Under an expedient override from a document or a session, rank
+implementation cost second, above robustness and maintainability. Correctness stays first: an expedient option may be
+less reliable or less polished, but it must not put data at risk. Still include the complete option, labeled as such,
+so the user sees what they are giving up.
 
 ## Frontload Questions
 

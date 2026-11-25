@@ -23,9 +23,11 @@ correctness, then robustness, then maintainability. Cost only breaks ties. It
 defines the complete option, how shortcuts must be labeled, and how investment
 differs from speculation. If you cannot read it, say so and stop.
 
-A proposal may carry a `**Tradeoffs:** expedient` field with a reason. The
-caller may also pass a session override the user stated. When either applies,
-use the override that section describes. Correctness still ranks first.
+The same section's "Overriding the Default" lists what can change that
+ranking: the project's own instructions, a proposal's `**Tradeoffs:**
+expedient` field, or the user in the caller's session. The caller passes the
+one that applies, with its source. A proposal's field you can read yourself.
+Apply an override the way that section says.
 
 Read the "Finding Levels" section of
 `${CLAUDE_PLUGIN_ROOT}/project-management/design-convergence.md`. It splits
@@ -71,16 +73,18 @@ For each question in the round:
    others. The caller wrote the options, so every one may assume a problem
    that does not exist. A question that follows from a settled decision
    inherits that decision's premise. Write "inherited" for it.
-2. **Find missing options.** The complete option is the one the user would pick
-   with no time or effort limit. If no candidate is the complete option,
-   describe it. Also name any option that is clearly better than all the
-   candidates. When every candidate serves a requirement that forces special
-   cases, describe the option that drops it, with its plain behavior. Do this
-   even when an accepted ADR or a settled decision imposes the requirement.
-   Say that dropping it amends or supersedes that ADR, or reopens that
-   decision.
+2. **Find missing options.** The complete option is the one the user would pick with no time or effort limit. If no
+   candidate is the complete option, describe it. Also name any option that is clearly better than all the candidates.
+   When candidates each answer part of the problem, describe the option that combines them. It is often the complete
+   option. When every candidate serves a requirement that forces special cases, describe the option that drops it, with
+   its plain behavior. Do this even when an accepted ADR or a settled decision imposes the requirement. Say that
+   dropping it amends or supersedes that ADR, or reopens that decision.
 3. **Rank every option yourself.** Rank the candidates and your missing options
-   together. Use the standard above. Give each a one-line reason.
+   together. Use the standard above. Give each a one-line reason. A reason is
+   a claim, held to the same bar as an objection. Only a claim you traced
+   moves an option. When a reason rests on a claim you could not trace, such
+   as "it likely needs a permission", rank without it. Then say where the
+   option would rank if the claim held, and what check would settle it.
 4. **Attack the options you rank first and second.** A missing option you rank
    that high gets the same attack. Look for:
    - Correctness and security failures: data loss or corruption, unsafe
@@ -110,7 +114,9 @@ For each question in the round:
 7. **Label additions.** Read "Scope Additions" in the same standard. Name
    each option, your missing ones included, that adds scope, and what it
    would bring in. An addition is not a flaw. Rank completeness within the
-   scope, as the standard defines it. A question about an addition that offers no "no addition" candidate is
+   scope, as the standard defines it. An addition label that rests on a claim
+   you could not trace is itself `PLAUSIBLE`. Say so, and rank as if the
+   option adds nothing. A question about an addition that offers no "no addition" candidate is
    missing one.
 
 ## Reviewing a whole proposal
@@ -134,7 +140,8 @@ Report:
 - **Weak decisions**: a settled choice that fails the standard. Give the reason.
   Do not reopen a decision only because you would have chosen differently.
   For a decision the user already kept, report it only with new evidence, or
-  with a problem that shows only when it combines with other decisions.
+  with a problem that shows only when it combines with other decisions. A
+  reason in its rationale that proves false is new evidence.
 - **Unlisted risks**: one-way doors, exposure to in-flight proposals that may
   still change, and failure modes missing from the Risks section.
 - **Version skew**: a contract change that crosses deploy units with no skew

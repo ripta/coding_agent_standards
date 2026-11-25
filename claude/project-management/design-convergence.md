@@ -7,7 +7,9 @@ acceptable options, the `design-judge` agent rules. Under the plugin the agents 
 `proposal-reviewer` uses this protocol in its autonomous and converge modes. `new-proposal` runs the proposal loop on a
 fresh draft. `/converge-design` uses the question loop for a design question that has no proposal yet.
 
-The protocol decides what to recommend. It does not decide whether the user is asked. The caller says that.
+The protocol decides what to recommend. It does not decide whether the user is asked. The caller says that. When the
+ranking leaves one clear answer, that answer is still only a recommendation. See "When to Ask" in
+`rules/decision-making.md`.
 
 There are two loops. The question loop picks an option for one open question. The proposal loop checks the settled
 design as a whole, and the fixes made to it, until a pass finds nothing that changes behavior.
@@ -97,6 +99,10 @@ A premise can fail at any point. The first trace can show it, or a critic's prem
 pick on a question the rest of the design depends on. When it fails, take it to the user at once, in every mode. The
 caller asks whether to drop the work. Do not carry it to a later gate, since every later step would build on it.
 
+A premise can also fail in part, when an existing path meets only some of the goal. Then the caller asks how to change
+the work, not only whether to drop it. Rank that question's options like any other's, critique included. The complete
+option uses the existing path, plus what the work builds for the part it leaves short.
+
 ## When the Design Keeps Growing
 
 A premise can also be a requirement: a settled decision, a goal, or a rule from an accepted ADR. Each finding is checked
@@ -139,13 +145,14 @@ Before the first pass, pick your own recommendation by the ranking in the "Choos
 Each pass:
 
 1. **Critique.** Spawn the critic with the proposal path or a description, the question, the current option list, and
-   any session override.
+   any override that applies, with its source. See "Overriding the Default" in `rules/decision-making.md`.
 2. **Reconcile.** Check each objection against the proposal and the code, by "When a Finding Holds". When one holds,
    fold it into that option's description as a neutral fact, such as a failure scenario or a `Leaves undone` line. Do
-   not say who raised it. Add each missing option that holds, and research it like the others. Change your
-   recommendation only for a reason under the ranking. From pass 2 on, when the critic's top option is your
-   recommendation, route an implementation-level objection that holds to a milestone check instead. See "Finding
-   Levels".
+   not say who raised it. Check the reasons behind the critic's ranking the same way. A reason that rests on an
+   unchecked claim moves no option, per "Choosing Options". Add each missing option that holds, and research it like
+   the others. Change your recommendation only for a reason under the ranking. From pass 2 on, when the critic's top
+   option is your recommendation, route an implementation-level objection that holds to a milestone check instead. See
+   "Finding Levels".
 3. **Push back.** When an objection does not hold, reject it with a one-line reason tied to the proposal or the code.
    Restating your preference is not pushback. A rejected objection stays out of the next pass's descriptions.
 4. **Log the pass** in the question's ledger.
@@ -211,8 +218,14 @@ The proposal **converges** when a re-check pass ends `CONVERGED`, or reports no 
 implementation-level findings that hold, by "When a Finding Holds", and fix wording or format, without another pass.
 
 Never declare convergence over an open design-level finding. The proposal loop runs at most three passes, the full pass
-included. Count every critic spawn in the loop toward the three. When the third pass still has such a finding, fix it,
-and tell the user the fix was not re-checked. Never run a fourth pass to check it.
+included. Count every critic spawn in the loop toward the three. When the third pass still has such a finding, fix it.
+
+The budget limits how long the design may keep changing. It never leaves a fix unverified. When the loop ends with a
+fix no pass has checked, or a finding still marked `PLAUSIBLE`, run one closing re-check. It is a re-check pass limited
+to those fixes and findings. It is not a fourth full pass, and nothing it finds is fixed in the design.
+
+Route the closing re-check's implementation-level findings as usual. A design-level defect it confirms, and a finding it
+cannot settle, go to the user with their scenarios. The caller says when the user is asked.
 
 A `REVERSAL` with new evidence from the code is a finding like any other. A `REVERSAL` without new evidence goes to the
 judge. The finalists are the recorded decision and the reversal.
@@ -273,7 +286,7 @@ For each question:
 - Whether the recommendation adds scope, per "Scope Additions" in `rules/decision-making.md`, and what it brings in
 
 For the proposal loop: the passes run, the fixes made, and the special cases each pass added. Also give the checks
-routed to milestones, any fix left un-checked, and every addition the critic listed.
+routed to milestones, any finding the closing re-check left open, and every addition the critic listed.
 
 The caller shows the dissent to the user. It never hides it.
 
@@ -284,7 +297,7 @@ The caller shows the dissent to the user. It never hides it.
 - Only verified facts and new options change the option list between passes
 - Check your own fixes against the code before the next pass
 - At most three passes per question before the judge, plus one after a `NONE` ruling. At most three passes in the
-  proposal loop
+  proposal loop, plus the closing re-check when a fix or a `PLAUSIBLE` finding is left unchecked
 - After the first pass of each loop, only design-level findings hold the design open. Route implementation-level ones
   to milestone checks
 - Never declare convergence over an open design-level finding

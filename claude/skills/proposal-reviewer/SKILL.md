@@ -117,6 +117,10 @@ Before engaging the user on any questions:
    - When it does not, ask before going on to #5, in every mode. Ask the user in one AskUserQuestion call whether to
      retract the proposal. List retracting first, marked recommended. Its description says what current behavior
      already does. Continuing the review is the other option
+   - When an existing path meets only part of the goal, the question is how to change the proposal, not only whether
+     to retract it. Build its options through Step 5 #2 to #4, critique included, in the current mode. List the
+     complete option: the existing path, plus what the proposal builds for the part it leaves short. Then ask it at
+     once, in every mode
    - To retract, set `**Status:** retracted` with the reason, and add a Decision Log entry. For a proposal with queue
      rows, follow "Stopping a Proposal" first, as the Rules section says. Then go to Step 8
    - When the trace cannot settle it, or the user chose to continue, say so in one line and go on
@@ -198,8 +202,8 @@ If the existing candidates seem incomplete or under-specified:
 
 Build the option list by the "Choosing Options" section of `${CLAUDE_SKILL_DIR}/../../rules/decision-making.md`. If it
 cannot be read, stop and tell the user this skill is installed without its standards. The complete option must be among
-the candidates; add it if the proposal does not list it. Apply an override only when the user stated one this session or
-the proposal carries a `**Tradeoffs:**` field.
+the candidates; add it if the proposal does not list it. Apply an override only from a source that "Overriding the
+Default" names: the project's own instructions, the proposal's `**Tradeoffs:**` field, or the user this session.
 
 Pick your recommendation now, before the critique. Keep it to yourself until #4 reconciles it with the critic's ranking.
 
@@ -234,11 +238,11 @@ makes a short option look cheap.
 #### 4. Critique
 
 Spawn the `design-critic` agent (`coding-standards:design-critic` under the plugin) once for the round. Give it the
-proposal path, each question in the round, and each question's option list with descriptions. Pass any session override
-the user stated. Do not give it your comparison's pros and cons. Do not say which option you recommend, and strip any
-recommended marker from the descriptions. Describe every option to the same depth, and do not list your favorite
-first. Put any fact the critic needs into the description of the option it bears on, not into a separate "facts"
-section. The critic ranks blind. A disagreement is only a signal when it does.
+proposal path, each question in the round, and each question's option list with descriptions. Pass any override that
+applies, with its source. Do not give it your comparison's pros and cons. Do not say which option you recommend, and
+strip any recommended marker from the descriptions. Describe every option to the same depth, and do not list your
+favorite first. Put any fact the critic needs into the description of the option it bears on, not into a separate
+"facts" section. The critic ranks blind. A disagreement is only a signal when it does.
 
 When it returns:
 
@@ -247,9 +251,10 @@ When it returns:
    `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`. When it rests on file:line citations, spawn the
    `citation-verifier` agent (`coding-standards:citation-verifier` under the plugin) on them rather than checking by
    hand. Add each objection that holds to that option's cons. When you reject one the critic marked `CONFIRMED`, note
-   why in one line.
+   why in one line. Check the reasons behind its ranking the same way. A reason that rests on an unchecked claim moves
+   no option, per "Choosing Options".
 2. Add each missing option that holds to the list, and research it like the others. A missing complete option is always
-   added. The critic's objections to it count like any other.
+   added. The critic's objections to it count like any other. An option that adds scope stays on the list, labeled.
 3. Compare your recommendation with the critic's ranking. Change it only when the critic's objections or missing options
    give a reason under the rules in #3.
 4. When your recommendation still differs from the critic's top option, keep the dissent visible. Put the critic's
@@ -289,7 +294,11 @@ dissent the loop left standing. A `USER'S CALL` ruling carries no recommended ma
 description.
 
 Ask for the whole round in one AskUserQuestion call, with one question per round question. Mark the recommended option
-in each.
+in each. Ask every question in the round, even one the ranking leaves with one clear answer. The ranking sets the
+recommendation, and the user still decides.
+
+Before the call, answer for each question the one the user would ask: which option is most correct and most robust?
+When that answer is not the recommended option, or is not on the list, fix the list first. See "Choosing Options".
 
 If the user is unsure about a question, explain your recommendation in more detail. If they answer with "Other" or a
 follow-up, record the questions they did answer first. Then answer the follow-up in prose, and end the turn there.
@@ -341,15 +350,19 @@ example, it may have settled a dependency or opened a new constraint. Say so in 
 
 When all open questions have been resolved, review the settled decisions as a whole before wrapping up.
 
-First spawn the `design-critic` agent on the proposal path for a whole-proposal review. Pass any session override the
-user stated. Also list each decision the user chose against the critic's dissent in Step 5 or kept in an earlier pass of
-this step.
+First spawn the `design-critic` agent on the proposal path for a whole-proposal review. Pass any override that applies,
+with its source. Also list each decision the user chose against the critic's dissent in Step 5 or kept in an earlier
+pass of this step.
 
 Its findings are candidates, not conclusions. Check each against the proposal and the code before using it, the same way
 Step 5 #4 checks an objection. A premise finding that holds goes to the Step 3 #4 question at once. Feed its
 inconsistencies, gaps, and weak decisions into the checks below. Hold its unlisted risks for Step 7. When you drop a
 finding the critic marked `CONFIRMED`, tell the user why in one line. If the agent cannot run, say so and do the checks
 without it.
+
+A finding may show that a reason behind a decision the user chose was false, such as a claim this review made in
+recommending it. Ask that question again at once, in every mode, per "When a Reason Proves Wrong" in
+`decision-making.md`. Do not keep the decision and patch it.
 
 In autonomous and converge modes, this review is the full pass of the proposal loop in `design-convergence.md`. After
 the checks below are resolved and their fixes made, run its re-check passes until the proposal converges. Questions the
@@ -364,7 +377,8 @@ checks add or reopen go through Step 5 before the next re-check pass.
    - Add it as a new open question in the proposal (and loop back to Step 5 to resolve it)
    - Defer it per the "Deferring Decisions" section of `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md`:
      record it in Design Decisions (Settled) as a decision to defer, with a concrete revisit hook in both the settled
-     entry and the Decision Log. Write a hook with a condition or a date as a `**Revisit:**` line, per "Revisit Hooks"
+     entry and the Decision Log. Write a hook with a condition or a date as a `**Revisit:**` line, per "Revisit Hooks".
+     A deferral is a shortcut, so recommend it only with a reason other than effort. See "Choosing Options"
 3. **Weak decisions**: A settled decision the critic showed fails the "Choosing Options" standard, including a hack or
    over-building. A different but equally sound choice does not count. Ask each one as its design question, the way
    item 2 of "The Review Gate" describes: the current decision first, then the alternatives, as what the user gets.
@@ -477,7 +491,7 @@ List any ADRs created with their file paths.
 Autonomous mode runs Steps 3 through 7 without asking, then asks everything at one review gate. The exceptions are the
 retraction question from Step 3 #4 and the growth question, which it asks at once. It changes who decides,
 not how. The ranking in `decision-making.md` and the convergence loop decide each question. Choosing autonomous mode
-does not lower the bar. An override still needs the user to state it, or the proposal's `**Tradeoffs:**` field.
+does not lower the bar. An override still needs a source that "Overriding the Default" names.
 
 ### What the user authorizes by choosing it
 
@@ -500,10 +514,10 @@ stays with the user as well. Step 5 says when it is asked.
 
 ### Deciding
 
-- **Step 5**: decide on the loop's recommendation and record it at once, marked as #7 describes. On a `USER'S CALL`,
-  take the judge's lean as a provisional decision. Mark each question that depends on it, so the gate can reopen them
-  together. When the recommendation drops a settled decision or an accepted ADR's rule, do not decide it. Ask it at
-  once, the way the growth question is asked
+- **Step 5**: run the check before the call in #6 first. Then decide on the loop's recommendation and record it at once,
+  marked as #7 describes. On a `USER'S CALL`, take the judge's lean as a provisional decision. Mark each question that
+  depends on it, so the gate can reopen them together. When the recommendation drops a settled decision or an accepted
+  ADR's rule, do not decide it. Ask it at once, the way the growth question is asked
 - **Step 6, gaps**: drop a gap whose goal an existing path already meets. Record the drop in the Decision Log, with a
   one-line reason that names the path.
   Add a design-level gap as an open question and resolve it through Step 5. Route an
@@ -513,8 +527,8 @@ stays with the user as well. Step 5 says when it is asked.
   like any other. Its question lists "no addition" as a candidate, and its entry carries `addition`
 - **Step 6, weak decisions**: reopen each one the critic showed fails the standard, and run it through Step 5 again. A
   decision reopens once per review. If the next coherence pass flags it again, keep it and carry it to the gate
-- **Step 6, repeat**: run the proposal loop to convergence. Carry to the gate any fix the loop left un-checked, and any
-  finding still open when its pass budget ran out
+- **Step 6, repeat**: run the proposal loop to convergence, its closing re-check included. Carry to the gate any finding
+  the closing re-check left open
 - **Step 7**: rate each risk on the evidence. When the evidence does not settle a rating, take the higher one and say
   so in the risk's entry. Mitigate where the design allows it. Accept a risk only when no mitigation exists and it is
   not high-likelihood and high-impact. Record each with a Decision Log entry marked `(autonomous)`. A mitigation that
@@ -604,7 +618,8 @@ miss it. A long summary buries them, so keep it short, and never list every deci
   only its ID. Keep option labels short, but make each name what it acts on. Leave out internal jargon, such as this
   skill's process terms or code identifiers, unless the user has used them
 - Never make a decision without explicit user confirmation via AskUserQuestion, except in autonomous mode. This covers
-  the choice of option for a question. It does not cover which question to take up next
+  the choice of option for a question. It does not cover which question to take up next. It holds when the ranking
+  leaves one clear answer, since the ranking sets the recommendation, not whether to ask
 - Always work through every open question in foundational order. Never ask which question comes next or whether to
   continue. The user stops the review by saying so
 - Never advance a proposal to `accepted` without the risk review: Risks section compliant, and no

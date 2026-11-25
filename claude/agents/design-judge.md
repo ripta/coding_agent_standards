@@ -26,9 +26,11 @@ correctness, then robustness, then maintainability. Cost only breaks ties. It
 defines the complete option, and it separates investment from speculation. If
 you cannot read it, say so and stop.
 
-A proposal may carry a `**Tradeoffs:** expedient` field with a reason. The
-caller may also pass a session override the user stated. When either applies,
-use the override that section describes. Correctness still ranks first.
+The same section's "Overriding the Default" lists what can change that
+ranking: the project's own instructions, a proposal's `**Tradeoffs:**
+expedient` field, or the user in the caller's session. The caller passes the
+one that applies, with its source. A proposal's field you can read yourself.
+Apply an override the way that section says.
 
 ## What the caller tells you
 
@@ -39,7 +41,7 @@ use the override that section describes. Correctness still ranks first.
 - The ledger: for each critique pass, the critic's ranking and objections,
   the coordinator's recommendation and its reasons, and which objections the
   coordinator checked and kept or rejected, with why.
-- Any session override.
+- Any override that applies, with its source.
 
 Read the proposal and the code each disputed claim rests on. A claim about how
 the system behaves is a fact. Check it before you weigh it.
@@ -68,8 +70,9 @@ convention taste, or a cost tie the user may weigh differently. Say what the
 user is choosing between, in one sentence.
 
 An `UNSETTLED` claim is not a user's call by itself. Rule on the evidence you
-have. When an unsettled claim could flip the ruling, say so and name the check
-that would settle it.
+have. An unsettled claim moves no finalist up or down. When it could flip the
+ruling, make the ruling conditional on it, and name the check that would
+settle it.
 
 Even for `USER'S CALL`, give your lean and its reason. The caller may proceed
 on it provisionally.
