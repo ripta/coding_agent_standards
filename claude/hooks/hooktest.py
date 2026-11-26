@@ -17,9 +17,10 @@ def run_hook(
     tool: str = "Bash",
     cwd: Path | None = None,
     home: Path | None = None,
+    project_dir: Path | None = None,
 ) -> str | None:
     """Feed one command to a hook. Return its deny reason, or None when it allows."""
-    return run_tool_hook(name, tool, {"command": command}, cwd=cwd, home=home)
+    return run_tool_hook(name, tool, {"command": command}, cwd=cwd, home=home, project_dir=project_dir)
 
 
 def run_tool_hook(
@@ -29,12 +30,20 @@ def run_tool_hook(
     *,
     cwd: Path | None = None,
     home: Path | None = None,
+    project_dir: Path | None = None,
 ) -> str | None:
-    """Feed one tool call to a hook. Return its deny reason, or None when it allows."""
+    """Feed one tool call to a hook. Return its deny reason, or None when it allows.
+
+    A session that runs the tests may set CLAUDE_PROJECT_DIR, and the hooks read it. It is cleared
+    unless the test passes `project_dir`.
+    """
     payload: dict = {"tool_name": tool, "tool_input": tool_input}
     if cwd is not None:
         payload["cwd"] = str(cwd)
     env = dict(os.environ)
+    env.pop("CLAUDE_PROJECT_DIR", None)
+    if project_dir is not None:
+        env["CLAUDE_PROJECT_DIR"] = str(project_dir)
     if home is not None:
         env["HOME"] = str(home)
     result = subprocess.run(

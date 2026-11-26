@@ -34,8 +34,28 @@ fi
 NOTICES=()
 if git rev-parse --is-inside-work-tree &>/dev/null; then
   # In a linked worktree, this is the main checkout. Otherwise it is the project root.
+  #
+  # The main checkout is the parent of the common dir only when that dir is named .git. A submodule
+  # keeps its git dir under the superproject, in .git/modules/<name>, and records its checkout in
+  # core.worktree, relative to that dir. A worktree of a submodule shares that config. Without
+  # core.worktree, the checkout is the top level.
+  #
   # --path-format needs git 2.31, so the common dir is made absolute by hand. It is relative to the cwd.
-  MAIN_ROOT="$(dirname "$(CDPATH='' cd "$(git rev-parse --git-common-dir)" && pwd)")"
+  MAIN_ROOT=""
+  common="$(CDPATH='' cd "$(git rev-parse --git-common-dir)" && pwd)" || common=""
+  if [ -n "$common" ]; then
+    if [ "$(basename "$common")" = ".git" ]; then
+      MAIN_ROOT="$(dirname "$common")"
+    else
+      worktree="$(git --git-dir="$common" config core.worktree 2>/dev/null)" || worktree=""
+      if [ -n "$worktree" ]; then
+        MAIN_ROOT="$(CDPATH='' cd "$common" && CDPATH='' cd "$worktree" && pwd)" || MAIN_ROOT=""
+      fi
+    fi
+  fi
+  if [ -z "$MAIN_ROOT" ]; then
+    MAIN_ROOT="$(git rev-parse --show-toplevel)"
+  fi
 
   if [ ! -f "$MAIN_ROOT/claude/.claude-plugin/plugin.json" ]; then
     # The same test as link-current.sh. An installed snapshot is the one the link is about to

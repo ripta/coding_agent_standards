@@ -53,7 +53,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|mcp__cg__cg_run|mcp__cg__cg_run_many",
         "hooks": [
           {
             "type": "command",
@@ -66,18 +66,13 @@
           },
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/block-private-terms.sh",
-            "timeout": 15
-          }
-        ]
-      },
-      {
-        "matcher": "Bash|mcp__cg__cg_run|mcp__cg__cg_run_many",
-        "hooks": [
-          {
-            "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/block-gcloud-project-number.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/block-private-terms.sh",
+            "timeout": 15
           }
         ]
       },

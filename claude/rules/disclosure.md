@@ -45,9 +45,12 @@ Before committing a promotion:
 4. Report every removal and every approved topic in your response.
 
 The plugin's `block-private-terms.sh` hook backs this up. It denies a commit to a public or unknown repo when the
-commit carries a term from the user's private-terms list. A repo with no remote declares itself private with
-`git config codingstandards.visibility private`, which only the user runs. The hook is a backstop, not the check
-itself: it knows only the terms on the list.
+commit carries a term from the user's private-terms list. It also denies a commit whose target repo it cannot work
+out, such as one after `cd "$DIR"`, and says to rerun it as `git -C <path> commit ...`. A repo with no remote
+declares itself private with `git config codingstandards.visibility private`, which only the user runs.
+
+The hook is a backstop, not the check itself. It knows only the terms on the list. It reads the words of the command,
+so it does not see a git alias, `make commit`, or a script that commits inside.
 
 ## Approval
 

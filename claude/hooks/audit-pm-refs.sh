@@ -6,9 +6,10 @@
 #
 # Arguments are the project's proposal prefixes, as for block-pm-references.sh.
 #
-# It greps the whole tracked tree, not just this turn's changes, with the same
-# exemptions: markdown, spec/, and .claude/. A project must be clean before it
-# wires this hook, or every stop fails on references that were already there.
+# It greps the whole tracked tree, not just this turn's changes, with the same exemptions: markdown,
+# and spec/ and .claude/ at any depth, as in block-pm-references.sh. It enters checked-out
+# submodules, which git grep skips unless told to. A project must be clean before it wires this
+# hook, or every stop fails on references that were already there.
 #
 # It skips when the tree matches HEAD, so a chat-only turn costs nothing. It
 # also stands down when the stop is already a retry from a Stop hook, so a
@@ -26,7 +27,8 @@ cd "$CLAUDE_PROJECT_DIR" || exit 0
 
 git diff --quiet HEAD -- 2>/dev/null && exit 0
 
-OUT=$(git grep -nE "$(pm_refs_pattern "$@")" -- ':!spec/' ':!.claude/' ':!*.md' 2>/dev/null)
+OUT=$(git grep --recurse-submodules -nE "$(pm_refs_pattern "$@")" \
+  -- ':(exclude,glob)**/spec/**' ':(exclude,glob)**/.claude/**' ':!*.md' 2>/dev/null)
 
 if [[ -n "$OUT" ]]; then
   printf 'Project-management references found in tracked files:\n%s\nProposal, ADR, and bug IDs and phase or milestone numbers belong in spec/, not in code. Remove each reference, or state the reason without naming the artifact.\n' "$OUT" >&2

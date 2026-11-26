@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Deny an `rm` with both a recursive and a force flag. `block-rm-rf.sh` runs this on PreToolUse.
 
+It reads `Bash` and the cg tools. `toolcalls.py` joins a cg argv into one shell string, so
+`["bash", "-c", "rm -rf x"]` scans like the same command in `Bash`. Each cg command scans apart. A
+cg call with no cwd may run in the payload's directory or the server's, and the advice reads both.
+
 This is a heuristic scanner for accidents, not a shell parser and not a sandbox. It follows quotes,
 escapes, comments, heredocs, and substitutions, and it unwraps `sh -c`, `eval`, and subshells. It
 does not expand variables or aliases, and it does not follow `ssh`, `su -c`, or another language's
@@ -9,6 +13,8 @@ does not expand variables or aliases, and it does not follow `ssh`, `su -c`, or 
 
 A word's quoting decides whether it is code or text. `grep 'rm -rf' .` holds one word, not an `rm`.
 A heredoc body is text unless the command feeding it runs a shell.
+
+A call the hook cannot read is denied when its raw text may spell `rm`. An error never exits 1.
 """
 
 from __future__ import annotations
@@ -17,6 +23,11 @@ import json
 import os
 import sys
 from dataclasses import dataclass, field
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from toolcalls import mentions, shell_script_index, tool_commands  # noqa: E402
 
 SHELLS = {"ash", "bash", "dash", "fish", "ksh", "sh", "zsh"}
 MAX_DEPTH = 8
@@ -68,20 +79,10 @@ def embedded_scripts(command: list[Word]) -> list[str]:
 
 
 def shell_c_argument(args: list[Word]) -> str | None:
-    position = 0
-
-    while position < len(args) and args[position].text.startswith("-"):
-        flag = args[position].text
-
-        if not flag.startswith("--"):
-            if "c" in flag:
-                return args[position + 1].text if position + 1 < len(args) else None
-            if flag.endswith("o"):
-                position += 1
-
-        position += 1
-
-    return None
+    """Return the script a shell runs with `-c`, from the words after the shell's name."""
+    operands = [w for w in args if not w.redirect]
+    index = shell_script_index([w.text for w in operands])
+    return operands[index].text if index is not None else None
 
 
 class Scanner:
@@ -367,35 +368,72 @@ def advise(operand: str, cwd: str) -> str:
     return f" {operand} is a directory with {entries} entries. Empty it with unlink and rmdir first, or ask the user to delete it."
 
 
+def advise_all(operand: str, cwds: list[str]) -> str:
+    """Advise on an operand from each directory the command may run in.
+
+    A cg call with no cwd runs in the server's directory, which may differ from the payload's. The
+    advice names each directory only when the answers differ.
+    """
+    advice = [(cwd, advise(operand, cwd)) for cwd in cwds]
+    if len({text for _, text in advice}) == 1:
+        return advice[0][1]
+    return "".join(f" From {cwd}:{text}" for cwd, text in advice)
+
+
+def delete_reason(payload: object) -> str | None:
+    """Return the deny reason when the call runs an `rm` with both flags, else None."""
+    directories: dict[str, list[str]] = {}
+    for text, cwd in tool_commands(payload):
+        found = directories.setdefault(text, [])
+        if cwd not in found:
+            found.append(cwd)
+
+    for text, cwds in directories.items():
+        commands: list[list[Word]] = []
+        Scanner(text, commands).parse()
+
+        for command in commands:
+            operands = recursive_force_operands(command)
+
+            if operands is not None:
+                reason = "Blocked: rm with both recursive and force flags is disabled by your safety hook."
+                reason += " Delete only what you mean to. Use unlink for one file and rmdir for one empty directory."
+                return reason + "".join(advise_all(op, cwds) for op in operands)
+
+    return None
+
+
+def deny(reason: str) -> None:
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": reason,
+        }
+    }))
+
+
 def main() -> int:
+    """Deny a delete the hook finds. Deny a call it cannot read when the call mentions `rm`.
+
+    An uncaught error exits 1, and Claude Code does not block on an exit of 1. So every error ends
+    here, and the raw payload decides whether the call is let through.
+    """
+    raw = ""
     try:
-        payload = json.load(sys.stdin)
-    except ValueError:
-        return 0
-
-    if payload.get("tool_name") != "Bash":
-        return 0
-
-    commands: list[list[Word]] = []
-    Scanner(payload.get("tool_input", {}).get("command") or "", commands).parse()
-
-    for command in commands:
-        operands = recursive_force_operands(command)
-
-        if operands is not None:
-            reason = "Blocked: rm with both recursive and force flags is disabled by your safety hook."
-            reason += " Delete only what you mean to. Use unlink for one file and rmdir for one empty directory."
-            reason += "".join(advise(op, payload.get("cwd") or "") for op in operands)
-
-            print(json.dumps({
-                "hookSpecificOutput": {
-                    "hookEventName": "PreToolUse",
-                    "permissionDecision": "deny",
-                    "permissionDecisionReason": reason,
-                }
-            }))
+        raw = sys.stdin.buffer.read().decode("utf-8", errors="replace")
+        reason = delete_reason(json.loads(raw))
+    except Exception as exc:
+        if not mentions(raw, "rm"):
             return 0
+        reason = (
+            f"The hook could not read this call ({type(exc).__name__}: {exc}), and the call mentions rm."
+            " It cannot tell whether the rm has both a recursive and a force flag, so it denies the call."
+            " Send the command in the form its tool expects."
+        )
 
+    if reason:
+        deny(reason)
     return 0
 
 

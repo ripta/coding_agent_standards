@@ -197,6 +197,54 @@ def test_a_worktree_of_the_standards_repo_prints_nothing(world: World) -> None:
     assert world.run(cwd=tree) == ""
 
 
+def standards_submodule(world: World) -> Path:
+    """Add a copy of this repo to the project as the submodule `standards`, importing the old path."""
+    origin = world.tmp / "standards-origin"
+    origin.mkdir()
+    git(origin, "init", "-q")
+    (origin / "claude" / ".claude-plugin").mkdir(parents=True)
+    (origin / "claude" / ".claude-plugin" / "plugin.json").write_text("{}")
+    (origin / "CLAUDE.md").write_text(OLD)
+    git(origin, "add", ".")
+    git(origin, "commit", "-q", "-m", "standards")
+    git(world.project, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(origin), "standards")
+    git(world.project, "commit", "-q", "-m", "add standards")
+    return world.project / "standards"
+
+
+def test_a_submodule_of_the_standards_repo_prints_nothing(world: World) -> None:
+    """In a submodule, the common dir is super/.git/modules/<name>. Its parent is not a checkout.
+
+    The guard once read that parent, found no plugin.json, and warned a standards checkout about its
+    own imports.
+    """
+    sub = standards_submodule(world)
+
+    assert world.run(cwd=sub) == ""
+
+
+def test_a_worktree_of_a_standards_submodule_prints_nothing(world: World) -> None:
+    """A linked worktree of a submodule finds the submodule's checkout through core.worktree."""
+    sub = standards_submodule(world)
+    tree = world.tmp / "subtree"
+    git(sub, "worktree", "add", "-q", str(tree), "-b", "tree")
+
+    assert world.run(cwd=tree) == ""
+
+
+def test_a_submodule_that_is_not_the_standards_repo_is_still_checked(world: World) -> None:
+    """The guard must not skip every submodule. This one has the old import, so it gets the warning."""
+    origin = world.tmp / "lib-origin"
+    origin.mkdir()
+    git(origin, "init", "-q")
+    (origin / "CLAUDE.md").write_text(OLD)
+    git(origin, "add", ".")
+    git(origin, "commit", "-q", "-m", "lib")
+    git(world.project, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(origin), "lib")
+
+    assert "old standards path" in world.run(cwd=world.project / "lib")
+
+
 def test_a_worktree_without_the_local_file_is_told_to_copy_it(world: World) -> None:
     """Only a worktree's own CLAUDE.local.md loads, so the main checkout's import does nothing there."""
     world.write({"CLAUDE.local.md": GOOD})
