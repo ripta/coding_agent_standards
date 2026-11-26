@@ -201,6 +201,43 @@ class BaselineBuildTests(unittest.TestCase):
             self.assertIn("CODEX_HOME", practice)
             self.assertTrue((output / "scripts" / "test_cost.py").is_file())
 
+    def test_bundled_scripts_import_only_files_that_ship_with_them(self):
+        """Protect the portable bundle from a script that imports a sibling the build forgot to copy.
+
+        Running `--help` fails at import time. This cannot prove that any subcommand works.
+        """
+        with tempfile.TemporaryDirectory(prefix="codex imports ") as temporary:
+            output = Path(temporary) / "bundle"
+            with patch.dict(self.namespace, OUTPUT=output), patch("sys.argv", [str(BUILD)]):
+                self.builder["main"]()
+            moved = output.rename(Path(temporary) / "relocated bundle")
+            for name in self.builder["SCRIPTS"]:
+                with self.subTest(script=name):
+                    run = subprocess.run([sys.executable, str(moved / "scripts" / name), "--help"],
+                                         cwd=temporary, capture_output=True, text=True)
+                    self.assertEqual(run.returncode, 0, run.stderr)
+
+    def test_skill_tests_and_bytecode_stay_out_of_the_bundle(self):
+        """Protect the bundle's version from a skill's own test files and a stray `__pycache__`.
+
+        A skill directory is copied whole. Without a filter, a test run in claude/ changes what ships.
+        """
+        source = self.namespace["SOURCE"]
+        with tempfile.TemporaryDirectory(prefix="codex skill tests ") as temporary:
+            copied = Path(temporary) / "claude"
+            shutil.copytree(source, copied)
+            skill = copied / "skills" / "release"
+            (skill / "test_release_info.py").write_text("raise SystemExit('a test file shipped')\n")
+            (skill / "__pycache__").mkdir(exist_ok=True)
+            (skill / "__pycache__" / "release.cpython-39.pyc").write_bytes(b"bytecode")
+            output = Path(temporary) / "bundle"
+            with patch.dict(self.namespace, SOURCE=copied, OUTPUT=output), patch("sys.argv", [str(BUILD)]):
+                self.builder["main"]()
+            shipped = {path.name for path in (output / "skills" / "release").iterdir()}
+            self.assertIn("release-info.sh", shipped)
+            self.assertNotIn("test_release_info.py", shipped)
+            self.assertNotIn("__pycache__", shipped)
+
     def test_changed_or_duplicated_adaptation_preserves_previous_build(self):
         source = self.namespace["SOURCE"]
         original = (source / "commands" / "work-queue.md").read_text()

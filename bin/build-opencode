@@ -146,6 +146,7 @@ done
 
 for name in "${SKILLS[@]}"; do
   cp -R "$SRC/skills/$name" "$OUT/skills/$name"
+  find "$OUT/skills/$name" \( -name __pycache__ -o -name 'test_*.py' \) -prune -exec rm -rf {} +
   file="$OUT/skills/$name/SKILL.md"
   convert_frontmatter skill "$file"
   # A skill's companion docs carry the same paths and tool names as its SKILL.md.
@@ -259,7 +260,7 @@ SRC="$SRC" OUT="$OUT" perl -0pi -e '
   s{call ExitPlanMode with a plan that implements nothing\.}{present a plan that implements nothing, and ask the user to approve it with\nthe question tool.}s;
   s{Approving it only leaves plan mode, so\s+`/schedule-proposal` can write\.}{Approving it only lets `/schedule-proposal`\nwrite.}s;
   s{call EnterPlanMode and start section 1 again}{start section 1 again}s;
-  s{Do not re-enter plan mode, and do not present a}{Do not plan again, and do not present a}s;
+  s{Do not\s+re-enter plan mode, and do not present a}{Do not plan again, and do not present a}s;
   s{with SendMessage,\s+so it keeps its context\.}{through the\n   subagent tool, passing its sessionID, so it keeps its context.}s;
   s{once with SendMessage\.}{once through the subagent tool, passing its\n   sessionID.}s;
   s{stop it with TaskStop\.\s+Stopping an agent also kills every background command it started\.\s+Never\s+stop one}{abandon it.\n   Never abandon one}s;
@@ -308,17 +309,27 @@ The user's next `land-branch` run on
 --->
 5. Write the plan as JSON to a file under `$TMPDIR`.
 ===
-.claude/worktrees/stage-<topic>
+<toplevel>/.claude/worktrees/stage-<topic> <snapshot>`,
+    where `<toplevel>` is `git rev-parse --show-toplevel` in the user's checkout. A path relative to a subdirectory
+    would put the worktree inside it. It is never pushed.
 --->
-<worktrees>/stage-<topic>
+<worktrees>/stage-<topic> <snapshot>`. It is never pushed.
 ===
-.claude/worktrees/<topic>-<batch>
+<toplevel>/.claude/worktrees/<topic>-<batch>
 --->
 <worktrees>/<topic>-<batch>
 ===
---worktrees .claude/worktrees 
+--worktrees <toplevel>/.claude/worktrees 
 --->
 --worktrees <worktrees> 
+===
+write a checks file in the scratchpad:
+--->
+write a checks file under `$TMPDIR`:
+===
+then runs `/land-branch` again.
+--->
+then runs the `land-branch` skill again.
 ===
 1. Write its PR title and body to files in the scratchpad.
 --->
@@ -380,9 +391,11 @@ which the user runs as `! gcloud auth login`.
 --->
 which the user runs in their own terminal.
 ===
-.claude/worktrees/<topic>
+<toplevel>/.claude/worktrees/<topic> <commit>`, where
+   `<toplevel>` is `git rev-parse --show-toplevel` in the user's checkout. A path relative to a subdirectory would put
+   the worktree inside it. The user's branch
 --->
-<worktrees>/<topic>
+<worktrees>/<topic> <commit>`. The user's branch
 ===
 against the base. Write
    the body to a file in the scratchpad

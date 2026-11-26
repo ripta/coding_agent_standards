@@ -43,13 +43,18 @@ REPLACEMENTS = {
          """Collect every question into one batch. The plan approval is part of it.\n""" + QUESTIONS.rstrip()),
         ("""It authorizes nothing else.""",
          """It authorizes nothing else.\nIt does not bypass the session's sandbox or command approvals."""),
-        (""".claude/worktrees/stage-<topic>""", """<worktrees>/stage-<topic>"""),
-        (""".claude/worktrees/<topic>-<batch>""", """<worktrees>/<topic>-<batch>"""),
-        ("""--worktrees .claude/worktrees """, """--worktrees <worktrees> """),
+        ("""<toplevel>/.claude/worktrees/stage-<topic> <snapshot>`,
+    where `<toplevel>` is `git rev-parse --show-toplevel` in the user's checkout. A path relative to a subdirectory
+    would put the worktree inside it. It is never pushed.""",
+         """<worktrees>/stage-<topic> <snapshot>`. It is never pushed."""),
+        ("""<toplevel>/.claude/worktrees/<topic>-<batch>""", """<worktrees>/<topic>-<batch>"""),
+        ("""--worktrees <toplevel>/.claude/worktrees """, """--worktrees <worktrees> """),
         ("""Save preflight's output and the
 verified plan to files in the scratchpad.""",
          """Save preflight's output and the
 verified plan to files under `$TMPDIR`."""),
+        ("""write a checks file in the scratchpad:""", """write a checks file under `$TMPDIR`:"""),
+        ("""then runs `/land-branch` again.""", """then runs the `land-branch` skill again."""),
         ("""1. Write its PR title and body to files in the scratchpad.""",
          """1. Write its PR title and body to files under `$TMPDIR`."""),
         ("""`${CLAUDE_SKILL_DIR}/../../commands/pr-description.md`. Name the batches it lands""",
@@ -88,7 +93,10 @@ session scratchpad when that directory cannot be written.""",
          """Collect every question this run needs into one batch.\n""" + QUESTIONS),
         ("""which the user runs as `! gcloud auth login`.""",
          """which the user runs in their own terminal."""),
-        (""".claude/worktrees/<topic>""", """<worktrees>/<topic>"""),
+        ("""<toplevel>/.claude/worktrees/<topic> <commit>`, where
+   `<toplevel>` is `git rev-parse --show-toplevel` in the user's checkout. A path relative to a subdirectory would put
+   the worktree inside it. The user's branch""",
+         """<worktrees>/<topic> <commit>`. The user's branch"""),
         ("""`${CLAUDE_SKILL_DIR}/../../commands/pr-description.md`, against the base. Write
    the body to a file in the scratchpad""",
          """`${CLAUDE_SKILL_DIR}/../pr-description/SKILL.md`, against the base. Write
@@ -126,6 +134,20 @@ session scratchpad when that directory cannot be written.""",
    the plan:"""),
         ("""Use Explore agents if needed""",
          """Use read-only exploration subagents if needed"""),
+    ),
+    'release': (
+        ("""Otherwise ask which to release with AskUserQuestion.
+     Offer the components, plus the whole repo as the last option. The tool takes
+     at most four options. With more than three components, list them all in the
+     question, offer the first three, and say the user can name another under
+     Other. A component with no tags yet is not listed, so the user names its
+     path under Other.""",
+         """Otherwise ask which to release with a supported question tool, or in chat.
+     Offer the components, plus the whole repo as the last option. When the
+     tool's option limit is lower than that list, list every component in the
+     question, offer as many as fit, and accept another component's name in
+     text. A component with no tags yet is not listed, so the user names its
+     path in text."""),
     ),
     'proposal-reviewer': (
         ("Completes the proposal pipeline: research -> draft -> design review -> accepted.",
@@ -299,9 +321,10 @@ planning and explicit approval happen once for the whole run, not per milestone,
   plan names each one, but run approval does not grant command permissions."""),
         ("""## 1. Plan mode: build the run""",
          """## 1. Build the run for approval"""),
-        ("""project's `CLAUDE.md`. Every milestone runs them before it commits.""",
-         """project's `AGENTS.md` and any applicable `CLAUDE.md`. Every milestone runs
-   them before it commits."""),
+        ("""the project's `CLAUDE.md` too. Every
+   milestone runs them before it commits.""",
+         """the project's `AGENTS.md` and any applicable `CLAUDE.md` too. Every
+   milestone runs them before it commits."""),
         ("""7. Front-load every question. Ask them together, in one batch, before calling
    ExitPlanMode.""",
          """7. Front-load every question. Collect them together before requesting
@@ -371,8 +394,8 @@ is unavailable, report these transitions in commentary. The full statuses
 and reasons live in the run report, which remains the recovery source.
 
 """),
-        ("""path, and the run's notes. Do not re-enter plan mode, and do not present a
-   plan for approval.""",
+        ("""path, and the run's notes. Do not
+   re-enter plan mode, and do not present a plan for approval.""",
          """path, and the run's notes. Include the implementer reference and approved
    run scope. Do not request another milestone plan approval."""),
         ("""(`coding-standards:adr-impact`) on the working-tree diff.""",
@@ -414,8 +437,11 @@ and reasons live in the run report, which remains the recovery source.
      names. Output that grows means it is still working.
    - Some other call is pending and `last` has not moved. Compare
      `git diff --stat` with the previous check, not `git status`. New edits to
-     files that were already modified do not show in `git status`. No change
-     means it is stuck.
+     files that were already modified do not show in `git status`. When the
+     milestone touches a submodule, compare
+     `git submodule foreach --recursive 'git diff --stat'` too, since the
+     superproject shows the submodule as one path. No change means it is
+     stuck.
    - Nothing is pending and `last` has not moved. The agent is dead.
 
    Nudge a stuck or dead agent once with SendMessage. Ask it what it is
@@ -617,7 +643,7 @@ def translate(text, name):
         if text.count(old) != 1:
             raise ValueError(f"{name}: stale Codex adaptation for {old[:80]!r}")
         text = text.replace(old, new, 1)
-    if name in ("work-queue", "work-on", "schedule-proposal", "bug-triage", "bug-sweep"):
+    if name in ("work-queue", "work-on", "schedule-proposal", "bug-triage", "bug-sweep", "release", "risk-assessment"):
         text = text.replace("Use Explore agents", "Use read-only exploration subagents")
         text = text.replace("AskUserQuestion", "available user-question")
         text = text.replace("multi-select question", "question accepting IDs in text")
