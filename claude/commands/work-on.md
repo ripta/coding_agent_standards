@@ -31,10 +31,14 @@ options by the "Choosing Options" section of
 a source its "Overriding the Default" names: the project's own instructions,
 the proposal's `**Tradeoffs:**` field, or the user this session.
 
-1. Locate the proposals directory. Check the common locations:
-   `spec/proposals/`, `docs/proposals/`. It holds `queue.md`. When it sits in
-   a symlinked specs repo, find that repo with
-   `git -C <proposals dir> rev-parse --show-toplevel`. Proposal edits are
+1. Locate the proposals directory with
+   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/proposals.py locate`, per "Lookup
+   Rule" in `${CLAUDE_PLUGIN_ROOT}/project-management/tracking.md`. Its
+   `proposals_dir` holds `queue.md`. When it reports several candidates, ask
+   which component, with AskUserQuestion, and run it again with `--start` set
+   to a path in that component. When the directory sits in another repo, such
+   as a symlinked specs repo, find that repo as "Submodules and Other Repos"
+   in `${CLAUDE_PLUGIN_ROOT}/rules/git-workflow.md` says. Proposal edits are
    reviewed there. Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/detect_era.py
    --specs-dir <specs dir>`. If it reports an era other than 3, the project
    has not finished migrating to era 3. Stop and tell the user to migrate
@@ -91,7 +95,10 @@ the proposal's `**Tradeoffs:**` field, or the user this session.
      `decision-making.md`
    - A breakdown into smaller tasks, where that makes implementation easier and
      debugging simpler
-   - Verification: how to test the changes (specific make targets, test files)
+   - Verification: how to test the changes (specific make targets, test
+     files). Take each Makefile by the Lookup Rule in
+     `${CLAUDE_PLUGIN_ROOT}/project-management/tracking.md`, for the paths the
+     plan changes
    - Proposal updates: the milestone status, the As built block, and any
      amendment the plan already expects
 
@@ -123,7 +130,11 @@ the proposal's `**Tradeoffs:**` field, or the user this session.
     `coding-standards:reviewer` when installed as a plugin. Tell it the
     proposal milestone, the proposal file, and the specs repo when it differs
     from the code repo. Its proposal edits are the specs repo's working-tree
-    diff. The agent reviews the working-tree diff and does not edit code. In
+    diff. The agent reviews the working-tree diff and does not edit code. In a
+    superproject, that diff shows a touched submodule as one dirty path. Tell
+    it that its review diff includes each touched submodule's own diff, per
+    "Submodules and Other Repos" in
+    `${CLAUDE_PLUGIN_ROOT}/rules/git-workflow.md`. In
     the same message, spawn the `adr-impact` agent
     (`coding-standards:adr-impact`) on the working-tree diff, and tell the
     reviewer it runs beside it. When `adr-impact` is not available, skip it and
@@ -174,5 +185,7 @@ the proposal's `**Tradeoffs:**` field, or the user this session.
     the conversation; do not run `git diff`. Before emitting it, check the
     message against `commit-style.md`, including Forbidden Openers. When the
     specs live in a separate repo, say that the proposal edits there need
-    their own commit. Do not commit unless the user asks, or the project's
-    rules allow commits on the user's behalf. Never push.
+    their own commit. Say the same for each submodule the work changed, and
+    that its pointer bump is a further commit in the code repo. Do not commit
+    unless the user asks, or the project's rules allow commits on the user's
+    behalf. Never push.

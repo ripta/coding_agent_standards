@@ -13,10 +13,11 @@
   its tree, author, and date unchanged. This never covers pushed commits or other people's commits
 - When committing, name the paths in the commit itself: `git commit -- <paths>`. Staging by path and then running a
   bare `git commit` also commits whatever else is staged. Another session sharing the checkout may have staged its own
-  files. Never use `git add -A`, `git add .`, or `git commit -a`
-- When committing is allowed, check `git status` before reporting work done. Commit every file your own work left, or
-  add an ignore line for a generated artifact such as `__pycache__/`. Leave files you did not make alone. Another
-  session sharing the checkout may still be working on them
+  files. Never use `git add -A`, `git add .`, or `git commit -a`. A path that another repo owns commits there. See
+  "Submodules and Other Repos"
+- When committing is allowed, check `git status` in each repo your work touched before reporting work done. Commit
+  every file your own work left, or add an ignore line for a generated artifact such as `__pycache__/`. Leave files you
+  did not make alone. Another session sharing the checkout may still be working on them
 
 ## Branches the Agent Owns
 
@@ -85,11 +86,49 @@ Flag it to the user, and never drop it.
 - Commit inside a worktree by path, the same as in the main checkout
 - Integrate a worktree's branch before removing the worktree. Confirm it with `git branch --merged <target>`
 - Remove a worktree with plain `git worktree remove`, and its branch with `git branch -d`. Both refuse when work would
-  be lost. Never add `--force`, and never use `-D`, unless the user explicitly requests it or "Branches the Agent Owns"
-  allows it
+  be lost. Never add `--force`, and never use `-D`, unless the user explicitly requests it, or "Branches the Agent Owns"
+  or "Submodules and Other Repos" allows it
 - A branch integrated by cherry-pick is not merged, so `git branch --merged` omits it and `git branch -d` refuses it.
   Confirm it with `git cherry <target> <branch>` instead. When every commit shows `-`, its work is on the target. Clean
   up without asking: remove the worktree with plain `git worktree remove`, then delete the branch with `git branch -D`.
   A commit that shows `+` is not on the target, so keep the branch and tell the user
 - At an exit prompt, choose to keep a worktree that still holds work. Removing it deletes that work along with the
   directory and branch
+- A new worktree needs its submodules populated. A worktree that holds them comes down with `--force` only when its
+  status is clean and no submodule clone in it holds a stash or a commit that no remote has. See "Submodules and Other
+  Repos"
+
+## Submodules and Other Repos
+
+A path belongs to the repo that tracks it. That repo can differ from the one you work in. A submodule is a repo of its
+own. A directory can also be a symlink into another checkout, such as a `spec/` linked to a central specs repo. Git does
+not follow such a link.
+
+- Find a path's owning repo with `git -C <dir of the path> rev-parse --show-toplevel`. Run it on the real path, which
+  `realpath` gives, so a symlink resolves first. Give that repo paths relative to its own root
+- Commit each path in its owning repo, with `git -C <owning repo> commit -- <paths relative to it>`. A change that spans
+  repos is one commit per repo
+- Commit a change inside a submodule in the submodule first. The superproject's pointer bump is its own commit in the
+  superproject, made after
+- Run `status`, `diff`, `stash`, `check-ignore`, and `rm --cached` on a path inside a submodule with
+  `git -C <submodule>`. From the superproject, `git status` shows the submodule as one modified path, and a pathspec
+  into it fails. To account for the files an edit changed, read the submodule's own status
+- Every new worktree of a repo that has submodules runs `git submodule update --init --recursive`. Without it the
+  submodule directories stay empty, and checks run beside no code
+- Git refuses plain `git worktree remove` on a worktree that holds submodules, clean or not, because the worktree's git
+  directory keeps their clones. `--force` deletes those clones. Remove the worktree with `--force` only once both checks
+  pass. This is the one case where "Worktrees" allows `--force`
+  - First, `git status --porcelain --ignore-submodules=none --untracked-files=normal` prints nothing in the worktree.
+    Run it again inside each submodule, nested ones too. Your git config can hide a change from the superproject's
+    status. `status.showUntrackedFiles`, `diff.ignoreSubmodules`, and `submodule.<name>.ignore` do. The options override
+    them only in the repo they run in
+  - Second, every submodule clone in the worktree's git directory has an empty `git stash list`. Also,
+    `git log --exclude=refs/stash --all --not --remotes` prints nothing there. That lists each commit that a branch, a
+    tag, a note, another local ref, or HEAD reaches and no remote-tracking branch does. The walk includes nested
+    submodules and any clone a `git submodule deinit` left behind. The status cannot see a stash or a commit that only a
+    clone holds
+  - When either check fails, stop and name each stash and commit that the removal would delete. A commit that only a
+    reflog still names is not caught, as with any worktree removal
+- Landing stops when a bumped submodule commit is not reachable on that submodule's remote. It also stops when the
+  range depends on another repo's unmerged work. Name the repo that must land first. Never open or drive a PR in that
+  repo as part of the landing

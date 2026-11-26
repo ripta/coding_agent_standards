@@ -13,8 +13,14 @@ markers live in `eras.md`, and the era 3 rules in `proposals.md` and
 stop and tell the user the standards are not available. Do not migrate from
 memory.
 
-1. Find the specs directory: the argument when given, else `spec/` or `docs/`.
-   It may be a symlink into a separate specs repo. Follow it.
+1. Find the specs directory: the argument when given. Otherwise run
+   `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/proposals.py locate`, as "Lookup Rule"
+   in `${CLAUDE_PLUGIN_ROOT}/project-management/tracking.md` says, and take the
+   parent of its `proposals_dir`. It may be a symlink into a separate specs
+   repo. Follow it. A project in an early era may keep `phases/` and no
+   proposals directory. When `locate` finds none, ask the user where the specs
+   live. The project root is the `repo_root` that `locate` reports, or the
+   output of `git rev-parse --show-toplevel` when it finds none.
 
 2. Run `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/detect_era.py --specs-dir <dir>
    --project-root <project root>`. When it reports era 3, tell the user there

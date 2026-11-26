@@ -52,12 +52,12 @@ chunk spans a snip. The heuristics below only split the work between two snips i
 work across a snip. A snip at the front of the window ends nothing, since the work it marked has already merged.
 Skip it. A snip right after another snip ends nothing either. Treat a run of snips as one boundary.
 
-1. **Primary**: map commits to the project's queue rows. Read `queue.md`,
-   `history.md`, and the proposals they name, as described in `plans.md`.
-   Merged work usually sits in `history.md`. These files usually live in
-   `spec/proposals/` or `docs/proposals/`. Match each commit to a row by the
-   milestone checks and As built blocks it fulfills. One queue row of work is
-   one chunk.
+1. **Primary**: map commits to the project's queue rows. Find the queue of
+   each component the commits touch, as "Finding Each Component's Queue"
+   below describes. Read its `queue.md`, `history.md`, and the proposals they
+   name, as described in `plans.md`. Merged work usually sits in `history.md`.
+   Match each commit to a row by the milestone checks and As built blocks it
+   fulfills. One queue row of work is one chunk.
 
 2. **Secondary**: infer boundaries from commit messages, file paths, and
    thematic similarity. Use this when commits don't map cleanly to a row. A
@@ -69,10 +69,28 @@ Skip it. A snip right after another snip ends nothing either. Treat a run of sni
    - If genuinely unclear, make the call and flag it. See "Flagging Judgment
      Calls" below.
 
+## Finding Each Component's Queue
+
+A repo can hold several components that keep separate queues. Reading one `queue.md` then maps only that component's
+commits.
+
+A commit belongs to the proposals directory that `proposals.py locate --start <path>` reports for the paths it touches.
+See "Lookup Rule" in `project-management/tracking.md`. List a commit's paths with
+`git log -1 --format= --name-only <hash>`. Those paths are relative to the repo root, so join each one to it. Run
+`locate` once for each distinct directory, not each file. A path that resolves to no proposals directory forms a group
+of its own.
+
+When every path resolves to the same directory, the repo has one queue, and nothing else changes.
+
+A chunk never mixes commits from two components that keep separate queues. A switch of component between neighboring
+commits is a chunk boundary. A commit whose paths reach two components cannot be split. Put it with the row it fulfills,
+and flag it under "Flagging Judgment Calls".
+
 ## Constraints
 
 - Chronological order only. Never reorder, combine, or split commits.
 - Never put a snip commit in a chunk or its commit list. Snips never go into a PR.
+- Never put commits of two components that keep separate queues in one chunk.
 
 ## Flagging Judgment Calls
 

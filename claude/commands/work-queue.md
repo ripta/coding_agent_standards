@@ -145,8 +145,10 @@ create or switch branches. Never act on an edit this run did not make.
    milestones change the code it will see.
 
 5. Find the project's local checks: formatters, linters, type checkers, and
-   tests. Look at the Makefile, CI config, pre-commit config, and the
-   project's `CLAUDE.md`. Every milestone runs them before it commits.
+   tests. Take the Makefile for the paths each row changes by the Lookup Rule
+   in `${CLAUDE_PLUGIN_ROOT}/project-management/tracking.md`. Look at the CI
+   config, pre-commit config, and the project's `CLAUDE.md` too. Every
+   milestone runs them before it commits.
 
 6. Resolve the session report directory now, so the run never blocks on it.
    Follow the "Resolve the target directory" section of
@@ -277,10 +279,10 @@ For each milestone picked:
 1. Set the milestone's status to `IN PROGRESS` in the proposal.
 
 2. Spawn a fresh `implementer` agent. Brief it with the milestone, its row,
-   the proposal file, the specs repo when it differs from the code repo, the
-   plan's section for this milestone, the local checks, the session report
-   path, and the run's notes. Do not re-enter plan mode, and do not present a
-   plan for approval.
+   the proposal file, the specs repo when it differs from the code repo, any
+   submodule the milestone changes, the plan's section for this milestone, the
+   local checks, the session report path, and the run's notes. Do not
+   re-enter plan mode, and do not present a plan for approval.
 
 3. Read its report. If it reports a blocker, check it against section 5. A
    blocker that section 5 does not cover becomes a best guess.
@@ -289,9 +291,13 @@ For each milestone picked:
    `proposals.py freeze --proposals-dir <dir>` with a `--row-commit` for each
    specs commit this row has made. Then spawn a fresh `reviewer` agent. Tell
    it the milestone, the proposal file, the specs repo, the row's specs
-   commits, and that an `adr-impact` agent runs beside it. When the session
-   reports live in the code repo, name their paths and say they are out of
-   review scope. In the same message, spawn a fresh `adr-impact` agent
+   commits, and that an `adr-impact` agent runs beside it. In a superproject,
+   the working-tree diff shows a touched submodule as one dirty path. Say that
+   its review diff includes each touched submodule's own diff, per
+   "Submodules and Other Repos" in `${CLAUDE_PLUGIN_ROOT}/rules/git-workflow.md`.
+   When the session reports live in the code repo, name their paths and say
+   they are out of review scope. In the same message, spawn a fresh
+   `adr-impact` agent
    (`coding-standards:adr-impact`) on the working-tree diff. Triage what they
    report, along with the two script results:
    - Mark comment, style, and plan-gap findings as fix. The exception is a
@@ -363,8 +369,11 @@ For each milestone picked:
      names. Output that grows means it is still working.
    - Some other call is pending and `last` has not moved. Compare
      `git diff --stat` with the previous check, not `git status`. New edits to
-     files that were already modified do not show in `git status`. No change
-     means it is stuck.
+     files that were already modified do not show in `git status`. When the
+     milestone touches a submodule, compare
+     `git submodule foreach --recursive 'git diff --stat'` too, since the
+     superproject shows the submodule as one path. No change means it is
+     stuck.
    - Nothing is pending and `last` has not moved. The agent is dead.
 
    Nudge a stuck or dead agent once with SendMessage. Ask it what it is
@@ -384,8 +393,10 @@ For each milestone picked:
 5. Check the implementer's last report. Every check must have run and passed.
    The exception is a test failure the work did not cause. Its record must
    follow "Test Failures" in `${CLAUDE_PLUGIN_ROOT}/rules/work-discipline.md`,
-   and it goes in the session report. Its file list must match `git status` in the code repo, and the specs repo's
-   status for the proposal. Leave the run's session reports out of this
+   and it goes in the session report. Its file list must match `git status`
+   in the code repo, and the specs repo's status for the proposal. A
+   submodule shows in `git status` as one path, so match its files against
+   `git -C <submodule> status`. Leave the run's session reports out of this
    comparison. Ask the implementer about any mismatch before committing.
 
 6. Handle the implementer's Bugs found, per
@@ -399,14 +410,21 @@ For each milestone picked:
    `Undecided`, per "Recording ADR Candidates" in `design.md`. Skip one the log
    already holds.
 
-   Commit the milestone. The review fixes land in the same commit. Commit the
-   files by path with `git commit -- <paths>`. Staging by path is not enough.
-   Another session may share the checkout and have its own files staged, and a
-   bare `git commit` takes them too. Never use `git add -A`, `git add .`, or
-   `git commit -a`. Write the message by
-   `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Before committing, check the
-   message against it, including Forbidden Openers. Reviewers see diffs, not
-   messages, so this check is the coordinator's.
+   Commit the milestone. The review fixes land in the same commit. Commit each
+   path in the repo that owns it, with
+   `git -C <owning repo> commit -- <paths relative to it>`. Staging by path is
+   not enough. Another session may share the checkout and have its own files
+   staged, and a bare `git commit` takes them too. Never use `git add -A`,
+   `git add .`, or `git commit -a`.
+
+   A change inside a submodule commits there first. The pointer bump is then its
+   own commit in the code repo. A milestone that spans repos makes one commit in
+   each, per "Submodules and Other Repos" in
+   `${CLAUDE_PLUGIN_ROOT}/rules/git-workflow.md`.
+
+   Write the message by `${CLAUDE_PLUGIN_ROOT}/rules/commit-style.md`. Before
+   committing, check the message against it, including Forbidden Openers.
+   Reviewers see diffs, not messages, so this check is the coordinator's.
 
    When the specs live in a separate repo, also commit the proposal there, by
    path, with a subject in that repo's own style. Record its SHA in the state
@@ -530,11 +548,14 @@ restore it. Read the conditions this way:
 
 Before blocking, commit any finished work that passes the checks. Unfinished
 work must not leak into the next row's commits, and it must never be
-discarded. Stash it by path with a message that names the milestone, e.g.
-`git stash push --include-untracked -m "work-queue: blocked PROJ-004 M4" -- <paths>`.
+discarded. Stash it by path, in the repo that owns the paths, with a message
+that names the milestone, e.g.
+`git -C <repo> stash push --include-untracked -m "work-queue: blocked PROJ-004 M4" -- <paths>`.
+
 Stash the milestone's proposal edits the same way in the specs repo when it is
-separate. Record each stash, the unfinished work, and the blocker in the
-session report. The milestone stays `IN PROGRESS` in the proposal.
+separate, and a submodule's edits in the submodule. Record each stash, the
+unfinished work, and the blocker in the session report. The milestone stays
+`IN PROGRESS` in the proposal.
 
 Mark the row's remaining milestones BLOCKED. Mark every milestone of a row
 that depends on it, directly or not, HELD. Then continue with the next ready

@@ -94,20 +94,20 @@ directory. This keeps individual repos uncluttered while maintaining a single so
 `docs/` are symlinks, then it means the documents live in the project repository and are committed directly there.
 
 Proposals live in their own subdirectory under this specs directory: `spec/proposals/` (or the `docs/` equivalent). It
-holds the proposals, the proposal index, `queue.md`, and `history.md`. This is why the proposal-related skills and
-commands look for `spec/proposals/` and `docs/proposals/` as common locations. They're checking for this directory. A
-`spec/phases/` directory is history from an earlier era. See `eras.md`.
+holds the proposals, the proposal index, `queue.md`, and `history.md`. This is why `proposals.py locate`, and the
+proposal-related skills and commands that run it, look for `spec/proposals/` and `docs/proposals/` as common locations.
+They're checking for this directory. A `spec/phases/` directory is history from an earlier era. See `eras.md`.
 
 ADRs are usually named `spec/adrs/`, although legacy projects have no fixed subdirectory name; place them alongside any
 existing ADRs, or ask where they should live if none exist yet.
 
-Bugs live in `spec/bugs/` (or the `docs/` equivalent). Some projects use `bugs/` at the repo root. Use the directory
-that exists. When none does, create `bugs/` beside the proposals directory, such as `spec/bugs/` next to
-`spec/proposals/`. When the project has no proposals directory either, ask the user where bugs go.
+Bugs live in `bugs/` beside the proposals directory, such as `spec/bugs/` next to `spec/proposals/`, or the `docs/`
+equivalent. Some projects use `bugs/` at the repo root. The "Lookup Rule" below checks `<proposals parent>/bugs` first,
+then `<repo root>/bugs`. Use the first that exists. When none does, create `bugs/` beside the proposals directory. When
+the project has no proposals directory either, ask the user where bugs go.
 
-In a repo with
-several components, a bug goes with the component that owns the code, when components keep their own specs. See
-"Bugs" below for the format.
+In a repo with several components, a bug goes with the component that owns the code, when components keep their own
+specs. The same rule finds that component's bugs directory. See "Bugs" below for the format.
 
 Ideas live in one file, `ideas.md`, beside the proposals directory, such as `spec/ideas.md` next to `spec/proposals/`.
 Use the file that exists. See "Ideas" below for the format.
@@ -119,6 +119,29 @@ index is `index.md`. Skills and commands accept either name.
 
 A directory holding both is out of standard. Consolidate it before any tool updates its index. Merge the rows and any
 prose into one file, then delete the other. A tool that finds both stops before editing either one and tells the user.
+
+## Lookup Rule
+
+A repo can hold several components. Each may keep its own specs, Makefile, and `.gitignore`. The ones nearest the code
+at hand belong to it. A skill or command that needs them follows this rule and does not search on its own. A project's
+own instructions override it.
+
+1. **Specs.** Run `python3 <root>/scripts/proposals.py locate`. The `<root>` is the plugin root that the
+   `coding-standards:` line at session start names. The command searches up from the current directory, or from
+   `--start DIR`. It takes the nearest proposals directory, as "Specs Directory" names the locations. It stops at the
+   repo boundary, a `.git` directory or file. It prints JSON with `repo_root`, `proposals_dir`, `index`, `queue`,
+   `history`, `ideas`, `bugs_dir`, and `bugs_index`. Each is an absolute path, or null when nothing was found.
+2. **Which component.** A monorepo can keep a proposals directory per component. A root that keeps its own proposals
+   directory hides theirs from a search that starts there. A root that keeps none searches below it, checked-out
+   submodules included. A single component found there is returned as found, with `found_below` set to true. Pass
+   `--start` a path inside the component the work concerns. When several candidates match, `locate` exits non-zero and
+   lists them. Ask the user which component, with AskUserQuestion, then run it again with
+   `--start`. When none exists, it exits with a distinct code. Follow the creation rules under "Specs Directory" and
+   "Bugs".
+3. **Makefile and `.gitignore`.** Use the one nearest at or above the target path, up to the repo root. When the changed
+   paths span several, use each path's own. A path with none has none. Say so. Do not take a farther one in its place.
+   `makefile-helper` uses the nearest Makefile. It may mention the repo root's Makefile when that one differs, but must
+   not run it in place of the nearest one.
 
 ## Bugs
 
