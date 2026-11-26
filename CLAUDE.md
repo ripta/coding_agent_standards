@@ -112,5 +112,6 @@ profile's on-demand docs are left out here too. When the plugin's hook names one
 @claude/rules/guardian-requests.md
 @claude/rules/research-limits.md
 @claude/rules/disclosure.md
+@claude/rules/memory.md
 @claude/practices/code-review.md
 @claude/practices/testing.md

@@ -93,7 +93,7 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
 - **Knowledge** (`knowledge/`) -- the LLM wiki standard for repositories of dated reports, living topic pages, and
   verbatim references, plus the `bin/wiki` shim, git hooks, and `wiki.json` a wiki copies from `templates/wiki/`
 - **Rules** (`rules/`) -- decision-making boundaries, work discipline, git workflow, commit/PR style, writing voice,
-  disclosure when promoting content to a more visible repo
+  disclosure when promoting content to a more visible repo, and what may become a memory and how it ages
 - **Hooks** (`hooks/`) -- `hooks.json` wires auto-formatting on edit and a test/lint reminder on stop. At session start
   it keeps the plugin link that profiles import through, and names any passed revisit hook. The `block-broad-find`,
   `block-rm-rf`, `block-gcloud-project-number`, `block-redirection`, and `cg-check` guard scripts ship alongside it,

@@ -245,5 +245,7 @@ which document, which mode -- then run every round without pausing between them.
 When the user corrects a decision or behavior:
 
 - Apply the correction immediately
+- Find the rule that misled you, if one did. Propose a fix to that rule at its home, and let the user approve it
 - Note the correction as a candidate for updating the coding standards repo (`coding_agent_standards`)
 - If the correction represents a general principle, suggest adding it to the relevant standards file
+- Write a memory only as `memory.md` allows. Most corrections need none

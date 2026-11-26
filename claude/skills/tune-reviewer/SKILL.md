@@ -72,9 +72,11 @@ Pick the home by what the principle governs. A principle may belong in more than
 - **Something only this project's reviewer should catch**: the project overlay, if one exists. Otherwise the project's
   `CLAUDE.md`.
 - **A language or structural convention of this project**: the project's `CLAUDE.md`.
-- **A preference about how the main loop writes code or prose in this project**: a memory `feedback` file. Update the
-  matching file if there is one. Otherwise write a new one in the memory format and add a one-line pointer to
-  `MEMORY.md`. When a memory file's body changes, keep its `description` and its `MEMORY.md` line in sync.
+- **A preference about how the main loop writes code or prose in this project**: the project's `CLAUDE.md`, since
+  every developer's sessions need it.
+- **Only what no file should carry**: a memory, under `${CLAUDE_PLUGIN_ROOT}/rules/memory.md`. Run its rubric first.
+  Update the matching memory if there is one, and record the correction as an instance. Otherwise write a new
+  observation in that rule's format, with its `MEMORY.md` line.
 
 ## Step 6: Confirm the plan
 

@@ -16,6 +16,7 @@ Minimal standards applied to all projects.
 @../rules/guardian-requests.md
 @../rules/research-limits.md
 @../rules/disclosure.md
+@../rules/memory.md
 @../practices/code-review.md
 @../practices/testing.md
 
