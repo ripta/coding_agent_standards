@@ -1,5 +1,6 @@
 version: 1
 allow:
+  - exact: [./bin/build-codex]
   - prefix: [./bin/build-opencode]
   - prefix: [./rumdl/lint-markdown]
   - prefix: [./vale/lint-prose]
@@ -7,7 +8,9 @@ allow:
   - prefix: [claude, plugin, validate]
   - prefix: [du]
   - prefix: [gcloud, builds, describe]
+  - prefix: [gcloud, builds, triggers, create]
   - prefix: [gcloud, builds, triggers, describe]
+  - prefix: [gcloud, builds, triggers, import]
   - prefix: [gcloud, builds, triggers, list]
   - prefix: [gcloud, projects, describe]
   - prefix: [ls]
