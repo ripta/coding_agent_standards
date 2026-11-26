@@ -102,7 +102,8 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   progress above the prompt and in a `/queue` pane
 - **Settings** (`settings/`) -- permission whitelist templates to copy into a project's `.claude/settings.local.json`,
   one per language ecosystem
-- **Scripts** (`scripts/`) -- standalone scripts not tied to a hook: the statusline; `proposals.py`, which checks
+- **Scripts** (`scripts/`) -- standalone scripts not tied to a hook: the statusline; `memory.py`, which reports on
+  memory directories and rule-file churn for `memory-sweep`; `proposals.py`, which checks
   proposals and the queue, reports progress, and lists revisit hooks for the commands and skills; and `detect_era.py`,
   which reads a project's era from its markers and inventories what a migration to era 3 moves; `wiki.py`, which builds
   and checks a wiki's generated index and topic report lists; `pr_watch.py`, which polls PRs for CI and review events
@@ -125,8 +126,8 @@ Rules, hooks, settings, scripts, commands, agents, and skills for Claude Code:
   rows planned up front (`work-queue`), summarizing a session as a commit message (`summary`), chunking an
   integration branch into PRs (`next-pr`), writing a PR title and description for a branch (`pr-description`),
   iterating a design question with the critic until it converges (`converge-design`), migrating a project to era 3
-  (`migrate-era`), adding or replacing a project's profile import (`update-profile`), and owning a domain's changes for
-  other sessions (`guardian`)
+  (`migrate-era`), adding or replacing a project's profile import (`update-profile`), owning a domain's changes for
+  other sessions (`guardian`), and sweeping memory directories and rule churn, in alpha (`memory-sweep`)
 
 Commands stay thin. The rules they enforce live in `claude/rules/` and `claude/project-management/`, and a command reads
 them at `${CLAUDE_PLUGIN_ROOT}/...` rather than restating them. Keeping one copy is what stops `/summary` and `/work-on`
