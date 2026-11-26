@@ -205,6 +205,12 @@ conventions. When a hook rejects the commit, report why. Never bypass it with
 
 Do not push unless explicitly asked. A commit grant is not a push grant.
 
+A running report commits every update, so each revision stays durable. When
+the user says report-update commits clutter the history, offer two other
+cadences. One commits only when the report is done. The other folds the
+updates into one commit at the end. Folding rewrites local commits, so it
+needs the user's ask. Never switch cadence on your own.
+
 Report the absolute path of the report and which topic pages were tagged
 versus updated, and any created. Name the commit by subject and the repo it
 landed in. When the commit was skipped, say which case skipped it.

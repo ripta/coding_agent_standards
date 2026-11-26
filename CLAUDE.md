@@ -76,6 +76,12 @@ Run `make ci` before reporting work done. `make help` lists the narrower targets
 facts one file states about another, such as quoted paths, script subcommands, and shared vocabularies. When a check
 fails, fix the prose or the code it points at. Change the check only when the rule it encodes changed.
 
+## Committing
+
+This repo grants commits without being asked, per `git-workflow.md`. When a task leaves finished changes, commit them
+by path at the end of the task, once `make ci` passes. Do not stop to offer the commit. Pushing still waits for the
+user.
+
 ## Python Floor
 
 Hooks, commands, and skills run the plugin's scripts with whatever `python3` comes first on `PATH`. On macOS that can be
