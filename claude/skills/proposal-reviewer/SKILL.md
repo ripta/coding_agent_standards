@@ -29,7 +29,8 @@ If no matching proposal is found, inform the user and stop.
 Read the proposal and validate it contains the expected sections (Summary, Design Decisions, etc.).
 
 Check whether an earlier review left work behind. It did when the Decision Log has entries tagged `(autonomous...)`
-after its last `Review gate` entry. Say so in one line, and see "Resuming".
+after its last `Review gate` entry, or when a settled decision carries a `**Pending override:**` line. Say so in one
+line, and see "Resuming".
 
 Find the repo that owns the proposal's real path, per "Submodules and Other Repos" in
 `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`. A symlinked specs directory puts it in another repo. Check whether
@@ -93,6 +94,8 @@ working state: the ledgers, and which decisions were reopened. On resume:
 - The mode is asked again at the entry gate. Never take it from the earlier run
 - Each `(autonomous...)` entry after the last `Review gate` entry has not been reviewed. The next review gate includes
   them, with the contested ones flagged as before
+- Each `**Pending override:**` line is still unanswered. The next review gate asks it, as item 4 of "The Review Gate"
+  says
 - Run Steps 6 and 7 in full. Their earlier passes are lost with the ledger
 - The baseline is the last `Review start` entry. Do not record a new one
 
@@ -121,20 +124,26 @@ Before engaging the user on any questions:
    `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`. Write the proposal's problem as a concrete
    user scenario, step by step: who does what, where, and what receives it. Trace it through current behavior in the
    code, and record whether the stated problem exists.
-   - When it does not, ask before going on to #5, in every mode. Ask the user in one AskUserQuestion call whether to
-     retract the proposal. List retracting first, marked recommended. Its description says what current behavior
-     already does. Continuing the review is the other option
+   - When it does not, ask before going on to #5, in manual and converge modes. Ask the user in one AskUserQuestion
+     call whether to retract the proposal. List retracting first, marked recommended. Its description says what
+     current behavior already does. Continuing the review is the other option
+   - In autonomous mode, never stop to ask. Record the retraction question for the review gate, and run the rest of
+     the review in full. Recommend retracting only when this session's own trace showed the problem does not exist,
+     with the code paths that show it. A premise the trace could not settle, or one a critic doubted, goes to the gate
+     with no recommended marker. Its description says what the trace checked and what it left unchecked
    - When an existing path meets only part of the goal, the question is how to change the proposal, not only whether
      to retract it. Build its options through Step 5 #2 to #4, critique included, in the current mode. List the
-     complete option: the existing path, plus what the proposal builds for the part it leaves short. Then ask it at
-     once, in every mode
+     complete option: the existing path, plus what the proposal builds for the part it leaves short. In manual and
+     converge modes, ask it at once. In autonomous mode, decide it like any open question. When the decision would
+     change a decision the user made, record it as a pending override instead. See "Deciding"
    - To retract, set `**Status:** retracted` with the reason, and add a Decision Log entry. For a proposal with queue
      rows, follow "Stopping a Proposal" first, as the Rules section says. Then go to Step 8
    - When the trace cannot settle it, or the user chose to continue, say so in one line and go on
    - In Step 5, a question whose problem is a claim about current behavior lists "no change needed" among its
      candidates, unless the trace showed that problem exists
    - A premise that fails later, in a critic's premise finding or a "no change needed" pick that leaves the design
-     nothing to do, comes back to this question at once, in every mode
+     nothing to do, comes back to this question. Manual and converge modes ask it at once. Autonomous mode carries it
+     to the gate, under the same rule for recommending
 5. Spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the proposal path. Each conflict it
    reports is an open question if the proposal does not already settle it. Add it to the triage in Step 4. Its
    candidates are to honor the ADR, amend it, supersede it, or document a deviation under `## ADR Deviations`, per
@@ -179,9 +188,10 @@ meets an added question's goal, or its premise is only `PLAUSIBLE`, it lists "no
 See "When the Problem Exists" in `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`.
 
 Run the growth check from "When the Design Keeps Growing" in the same file before each further critic pass, in Step 5
-and Step 6, in every mode. When it fires, ask its question at once, in one AskUserQuestion call. Record the answer in
-the Decision Log. On a drop or a narrow answer, reopen the decisions that served the requirement. Resolve them in
-converge mode, since the user has chosen to weigh in.
+and Step 6, in every mode. When it fires in manual or converge mode, ask its question at once, in one AskUserQuestion
+call. In autonomous mode, stop adding cases for that requirement, keep the design as it stands, and carry the question
+to the review gate. Record the answer in the Decision Log. On a drop or a narrow answer, reopen the decisions that
+served the requirement. Resolve them in converge mode, since the user has chosen to weigh in.
 
 A drop answer on a requirement from an accepted ADR also settles how that ADR changes. The option named the way: an
 amendment, a superseding ADR, or a deviation the proposal documents. Step 8 applies it without asking again. Never
@@ -324,6 +334,9 @@ the decision point. Then re-ask only the questions still unanswered, in one AskU
 As soon as the call returns, update the proposal file for each decision. Do this before researching the next round:
 
 - Move the question from "Design Decisions (Open)" to "Design Decisions (Settled)" with the chosen option and rationale
+- End the settled decision with its `**Decided by:**` line: `user` for an answer the user gave, or
+  `proposal-reviewer (autonomous)` for one this review decided, with today's date. See "Who Decided" in `proposals.md`.
+  Add the line to each older settled decision this review touches, taken from its Decision Log entry
 - Add a Decision Log entry with today's date: `- YYYY-MM-DD: <one-line summary of decision>`
 - Update the `**Updated:**` date to today's date
 - If the proposal status is `draft`, change it to `designing`
@@ -362,14 +375,18 @@ with its source. Also list each decision the user chose against the critic's dis
 pass of this step.
 
 Its findings are candidates, not conclusions. Check each against the proposal and the code before using it, the same way
-Step 5 #4 checks an objection. A premise finding that holds goes to the Step 3 #4 question at once. Feed its
-inconsistencies, gaps, and weak decisions into the checks below. Hold its unlisted risks for Step 7. When you drop a
-finding the critic marked `CONFIRMED`, tell the user why in one line. If the agent cannot run, say so and do the checks
-without it.
+Step 5 #4 checks an objection. A premise finding that holds goes to the Step 3 #4 question, under that step's rule for
+each mode. Feed its inconsistencies, gaps, and weak decisions into the checks below. Hold its unlisted risks for Step 7.
+When you drop a finding the critic marked `CONFIRMED`, tell the user why in one line. If the agent cannot run, say so
+and do the checks without it.
 
 A finding may show that a reason behind a decision the user chose was false, such as a claim this review made in
-recommending it. Ask that question again at once, in every mode, per "When a Reason Proves Wrong" in
-`decision-making.md`. Do not keep the decision and patch it.
+recommending it. Ask that question again, per "When a Reason Proves Wrong" in `decision-making.md`. Manual and converge
+modes ask it at once. Autonomous mode records it as a pending override and carries it to the gate. Do not keep the
+decision and patch it.
+
+Every finding against a decision the user made works the same way. The review never edits the decision's text. It
+recommends, per "A User's Decision" in `decision-making.md` and `proposals.md`.
 
 In autonomous and converge modes, this review is the full pass of the proposal loop in `design-convergence.md`. After
 the checks below are resolved and their fixes made, run its re-check passes until the proposal converges. Questions the
@@ -388,9 +405,10 @@ checks add or reopen go through Step 5 before the next re-check pass.
      A deferral is a shortcut, so recommend it only with a reason other than effort. See "Choosing Options"
 3. **Weak decisions**: A settled decision the critic showed fails the "Choosing Options" standard, including a hack or
    over-building. A different but equally sound choice does not count. Ask each one as its design question, the way
-   item 2 of "The Review Gate" describes: the current decision first, then the alternatives, as what the user gets.
-   A pick other than the current decision reopens it as an open question, and loops back to Step 5. Record the answer
-   in the Decision Log with the reason.
+   item 5 of "The Review Gate" describes. List the recommended option first. When the current decision is the user's,
+   that is the alternative the review recommends, labeled as overriding the user's decision. The user's decision
+   comes second, labeled as theirs with its date. A pick other than the current decision reopens it as an open
+   question, and loops back to Step 5. Record the answer in the Decision Log with the reason.
 
 Do all three checks before asking. Then present every inconsistency, gap, and weak decision in one AskUserQuestion call.
 When there are more than four, ask in successive calls of up to four. Resolve inconsistencies before continuing. In
@@ -495,10 +513,11 @@ List any ADRs created with their file paths.
 
 ## Autonomous Mode
 
-Autonomous mode runs Steps 3 through 7 without asking, then asks everything at one review gate. The exceptions are the
-retraction question from Step 3 #4 and the growth question, which it asks at once. It changes who decides,
-not how. The ranking in `decision-making.md` and the convergence loop decide each question. Choosing autonomous mode
-does not lower the bar. An override still needs a source that "Overriding the Default" names.
+Autonomous mode runs Steps 3 through 7 without asking, then asks everything at one review gate. It never stops for the
+user before the gate. The retraction question, the growth question, and every recommendation against a decision the user
+made wait for the gate too. It changes who decides, not how. The ranking in `decision-making.md` and the convergence
+loop decide each question. Choosing autonomous mode does not lower the bar. An override still needs a source that
+"Overriding the Default" names.
 
 ### What the user authorizes by choosing it
 
@@ -514,17 +533,22 @@ Nothing else is relaxed. These stay with the user, and go to the gate:
 - Which decisions get an ADR
 - Accepting a high-likelihood, high-impact risk instead of mitigating it
 - Dropping or deferring anything the proposal already plans, such as a milestone or a settled decision
+- Changing, narrowing, dropping, or deferring a decision the user made, its wording included. See "A User's Decision"
+  in `decision-making.md`
+- Dropping or changing an accepted ADR's rule
 - Every `USER'S CALL` ruling
-
-Retracting the proposal stays with the user too. Step 3 #4 asks it at once instead of at the gate. The growth question
-stays with the user as well. Step 5 says when it is asked.
+- Retracting the proposal
+- The growth question
 
 ### Deciding
 
 - **Step 5**: run the check before the call in #6 first. Then decide on the loop's recommendation and record it at once,
   marked as #7 describes. On a `USER'S CALL`, take the judge's lean as a provisional decision. Mark each question that
-  depends on it, so the gate can reopen them together. When the recommendation drops a settled decision or an accepted
-  ADR's rule, do not decide it. Ask it at once, the way the growth question is asked
+  depends on it, so the gate can reopen them together. When the recommendation would change a decision the user made
+  in any way, its wording included, do not decide it. Leave the decision's text alone, and add a `**Pending
+  override:**` line under it, per "A User's Decision" in `proposals.md`. Log it as `(autonomous, override pending)`,
+  and keep building on the user's decision. Treat a recommendation that drops a settled decision of any decider, or an
+  accepted ADR's rule, the same way. Each goes to the gate
 - **Step 6, gaps**: drop a gap whose goal an existing path already meets. Record the drop in the Decision Log, with a
   one-line reason that names the path.
   Add a design-level gap as an open question and resolve it through Step 5. Route an
@@ -533,7 +557,9 @@ stays with the user as well. Step 5 says when it is asked.
   the deferral with a concrete revisit hook, per the "Deferring Decisions" standard. A gap that adds scope is decided
   like any other. Its question lists "no addition" as a candidate, and its entry carries `addition`
 - **Step 6, weak decisions**: reopen each one the critic showed fails the standard, and run it through Step 5 again. A
-  decision reopens once per review. If the next coherence pass flags it again, keep it and carry it to the gate
+  decision reopens once per review. If the next coherence pass flags it again, keep it and carry it to the gate. Never
+  reopen a decision the user made. Record the review's alternative as a pending override instead, as Step 5 above
+  says
 - **Step 6, repeat**: run the proposal loop to convergence, its closing re-check included. Carry to the gate any finding
   the closing re-check left open
 - **Step 7**: rate each risk on the evidence. When the evidence does not settle a rating, take the higher one and say
@@ -547,20 +573,32 @@ When Step 7 is done, show the closing summary before asking. See "The Closing Su
 
 Then ask in one AskUserQuestion call, or successive calls of up to four questions:
 
-1. Each `USER'S CALL`, first, with its options. Put the judge's lean in its description, unmarked
-2. Each red-flagged addition and contested decision, as its own single-select question. With none, skip this. Ask the
+1. The retraction question, when the review recorded one. Mark retracting `(Recommended)` only under the rule in Step 3
+   #4. A retraction picked here makes the other gate questions moot, so ask it alone first
+2. Each `USER'S CALL`, with its options. Put the judge's lean in its description, unmarked
+3. Each growth question, with the options "When the Design Keeps Growing" lists
+4. Each pending override, as its own single-select question:
+   - Open with what the user decided and the date from its `**Decided by:**` line. Then say what the review recommends
+     and why
+   - List the recommendation first, marked `(Recommended)`. Its label or description says it overrides the user's
+     decision
+   - List the user's decision second, labeled as the user's, with its date, such as `Version 1 (your decision,
+     2026-11-26)`. Its description says what the user gets with it
+5. Each red-flagged addition and contested decision, as its own single-select question. With none, skip this. Ask the
    design question itself, never whether to reopen it:
    - State the situation the decision governs, in concrete terms
    - List the review's decision first, marked `(Recommended)`. Then list the alternatives the critic weighed. Each
      description says what the user gets with that option
    - Ask an addition as whether to do it. One option is the addition, named by what it brings in. Another leaves it out
    - Never put process words in the question or its options, such as reopen, reversal, keep, autonomous, or contested.
-     Whether the user chose the decision earlier does not go in the question either. The closing summary carries it
+     A decision the user made never appears here. It goes through item 4
 
    A pick other than the first overturns the decision. So does an answer through "Other" that states a choice. An answer
    that asks a question overturns nothing. Answer it in prose, as "Discuss" in Step 5 says, and change nothing until the
    user settles it
-3. Each gated item from "What the user authorizes by choosing it" that the review produced, except `accepted` and ADRs
+6. Each gated item from "What the user authorizes by choosing it" that the review produced, except `accepted` and ADRs
+
+Resolve each pending override as "A User's Decision" in `proposals.md` says, and remove its line.
 
 Record every answer at once. Add a Decision Log entry for the gate itself:
 `- YYYY-MM-DD: Review gate: <kept all, or each decision changed, from what to what>`. A resumed review uses it to tell
@@ -584,6 +622,8 @@ The review gate and the wrap-up both open with this summary. Its job is to put e
 miss it. A long summary buries them, so keep it short, and never list every decision.
 
 1. **Red flags**, first, one line each. Each is a category, never a size threshold:
+   - Each pending override, naming the user's decision and its date, and what the review recommends instead
+   - A recorded retraction question, and whether this review's own trace confirmed it
    - Each addition, with what it brought in: milestones, risks, deploy dependencies, ADR clauses. Take them from the
      `addition` tags and from the critic's Additions lists, since a decision written before the review may carry no
      tag. Group the decisions that serve one new concern under that concern
@@ -609,8 +649,10 @@ miss it. A long summary buries them, so keep it short, and never list every deci
   round into one call per question. Never merge dependent questions into one round
 - Autonomous mode is the other exception. The user's choice of it at the entry gate authorizes deciding without asking,
   for this review only, and only for what "What the user authorizes by choosing it" lists. All its questions go to the
-  one review gate at the end. The exceptions are the retraction question from Step 3 #4 and the growth question. See
-  Step 5. Each is asked at once, since every later step would build on a premise the user may not want
+  one review gate at the end, the retraction and growth questions included. It never stops for the user before the
+  gate
+- Never change a decision the user made, in any mode. Recommend instead, labeled as an override, per "A User's
+  Decision" in `rules/decision-making.md`
 - Autonomous mode comes only from this invocation: the entry gate, a mode the user named when invoking the skill, or a
   change of mode the user states during the review. Never infer it from memory, an earlier session, or how the user
   answered past reviews. A note that the user delegated a past review is not a standing grant. Ask the mode question

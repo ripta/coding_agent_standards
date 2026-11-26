@@ -472,6 +472,66 @@ def test_check_skips_history_and_stopped(tmp_path: Path) -> None:
     assert _problems(tmp_path) == []
 
 
+def _decided(created: str, status: str = "designing", settled: str = "Keys carry a version.") -> str:
+    text = _proposal(status, _milestone(1, "NOT STARTED"))
+    text = text.replace("**Created:** 2026-10-01", f"**Created:** {created}")
+    return text.replace("Keys carry a version.", settled)
+
+
+@pytest.mark.parametrize(
+    "line, fault",
+    [
+        ("**Decided by:** user, 2026-11-26", None),
+        ("**Decided by:** proposal-reviewer (autonomous), 2026-11-26", None),
+        ("**Decided by:** unknown", None),
+        (None, "has no **Decided by:** line"),
+        ("**Decided by:** the user", "cannot read **Decided by:**"),
+        ("**Decided by:** user, last week", "cannot read **Decided by:**"),
+    ],
+)
+def test_check_requires_who_decided_from_the_cutoff(tmp_path: Path, line: str | None, fault: str | None) -> None:
+    """A new proposal's settled decision must say who chose it, so a rewrite cannot pass an agent's
+    decision off as the user's. It cannot prove the line is true, only that it is there and readable."""
+    settled = "Keys carry a version." + (f"\n\n{line}" if line else "")
+    _write(tmp_path, "PROJ-001-a.md", _decided("2026-11-27", settled=settled))
+    problems = _problems(tmp_path)
+    assert any(fault in p and "'Cache keys'" in p for p in problems) if fault else problems == []
+
+
+def test_check_lets_older_proposals_omit_who_decided_but_reads_any_line_they_have(tmp_path: Path) -> None:
+    _write(tmp_path, "PROJ-001-a.md", _decided("2026-11-26"))
+    _write(tmp_path, "PROJ-002-b.md", _decided("2026-11-26", settled="Keys carry a version.\n\n**Decided by:** me")
+           .replace("PROJ-001", "PROJ-002"))
+    problems = _problems(tmp_path)
+    assert len(problems) == 1 and "cannot read **Decided by:** 'me'" in problems[0]
+
+
+def test_check_reads_bullet_settled_decisions(tmp_path: Path) -> None:
+    text = _decided("2026-11-27").replace(
+        "### Cache keys\n\nKeys carry a version.",
+        "- **Cache keys**: keys carry a version.\n  **Decided by:** user, 2026-11-26\n- **Eviction**: LRU.",
+    )
+    _write(tmp_path, "PROJ-001-a.md", text)
+    problems = _problems(tmp_path)
+    assert len(problems) == 1 and "'Eviction'" in problems[0] and "no **Decided by:**" in problems[0]
+
+
+@pytest.mark.parametrize("status, flagged", [("designing", False), ("accepted", True)])
+def test_check_reports_a_pending_override_left_in_an_accepted_proposal(
+    tmp_path: Path, status: str, flagged: bool
+) -> None:
+    """An override the user never answered must not survive acceptance, or the user's decision and the agent's
+    recommendation both stand with nothing saying which one holds."""
+    settled = ("Keys carry a version.\n\n**Decided by:** user, 2026-11-26\n"
+               "**Pending override:** drop the version. Recommended by proposal-reviewer (autonomous).")
+    _write(tmp_path, "PROJ-001-a.md", _decided("2026-11-26", status=status, settled=settled))
+    if status == "accepted":
+        _queue(tmp_path, "| PROJ-001 M1 | None | |")
+    problems = _problems(tmp_path)
+    assert (any("**Pending override:**" in p and "'Cache keys'" in p for p in problems)) is flagged
+    assert len(problems) == int(flagged)
+
+
 # -- row --------------------------------------------------------------------
 
 

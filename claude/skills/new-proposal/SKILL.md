@@ -109,6 +109,9 @@ Rules for drafting:
 
 - Use today's date for Created and Updated; set status to `draft`.
 - Record settled decisions with rationale; leave gaps as open questions with candidate options rather than guessing.
+- End each settled decision with its `**Decided by:**` line, per "Who Decided" in `proposals.md`. A decision the user
+  stated in the request or in Step 4, or approved in Step 5's outline, says `user`. A decision taken from research or a
+  caller's notes names its source, such as `research-to-proposals`.
 - Populate the Risks section per the standard's "Risks" section: each risk carries a likelihood, an impact, and a
   mitigation or explicit acceptance. Flag one-way-door decisions (migrations, published contracts, wire formats) as
   risks. "None identified" requires a stated reason.
@@ -132,8 +135,9 @@ What the loop may change on its own:
 - Risks: add each missing risk the critic showed, per the standard's "Risks" section
 - Open questions: add options, constraints, and new questions
 
-What it may not change: a settled decision the user gave in Step 4 or approved in Step 5. A finding against one becomes
-an open question, and the user settles it in `/proposal-reviewer`. Never invent a decision to make the loop converge.
+What it may not change: a settled decision the user gave in Step 4 or approved in Step 5. A finding against one leaves
+the decision's text alone. It becomes a `**Pending override:**` line under the decision, per "A User's Decision" in
+`proposals.md`. The user answers it in `/proposal-reviewer`. Never invent a decision to make the loop converge.
 
 ### Step 8: Index
 
@@ -150,7 +154,8 @@ Summarize:
 - The proposal's file path, ID, and title
 - Whether it is ready for design review or has significant open questions (point to `/proposal-reviewer` for resolving
   open questions)
-- When Step 7 ran: how many passes it took, what it changed, and the open questions it added
+- When Step 7 ran: how many passes it took, what it changed, and the open questions it added. Name each pending
+  override it recorded against a decision of the user's
 - Any dependencies or cross-proposal impacts noted
 - Whether the index was created or updated
 

@@ -555,6 +555,66 @@ def _index_statuses(proposals_dir: Path) -> dict[str, tuple[Path, str]]:
     return statuses
 
 
+# -- who decided ----------------------------------------------------------
+
+
+# proposals.md "Who Decided" requires the line from this date on. Older proposals gain it as
+# decisions are touched, so only a line they already have is read.
+DECIDED_BY_SINCE = "2026-11-27"
+DECIDED_BY = re.compile(r"^\s*\*\*Decided by:\*\*\s*(.*?)\s*$")
+DECIDED_BY_VALUE = re.compile(r"^(?:unknown|[^,]+,\s*\d{4}-\d{2}-\d{2})\.?$")
+PENDING_OVERRIDE = re.compile(r"^\s*\*\*Pending override:\*\*")
+SETTLED_BULLET = re.compile(r"^[-*]\s+(?:\*\*(.+?)\*\*|(.+))")
+
+
+def settled_decisions(lines: list[str]) -> list[tuple[str, list[str]]]:
+    """Split the Settled section into (title, lines) per decision.
+
+    A decision is a `### ` subsection. A section with none is read as top-level bullets, the
+    other format proposal-reviewer accepts. Text before the first decision is not one.
+    """
+    start, end = _sections(lines).get("Design Decisions (Settled)", (0, 0))
+    body = lines[start + 1 : end]
+    marker = (lambda line: line.startswith("### ")) if any(line.startswith("### ") for line in body) else (
+        lambda line: SETTLED_BULLET.match(line) is not None
+    )
+
+    decisions: list[tuple[str, list[str]]] = []
+    for line in body:
+        if marker(line):
+            if line.startswith("### "):
+                title = line[4:].strip()
+            else:
+                m = SETTLED_BULLET.match(line)
+                title = (m.group(1) or m.group(2)).strip().rstrip(":")
+            decisions.append((title, [line]))
+        elif decisions:
+            decisions[-1][1].append(line)
+    return decisions
+
+
+def decider_faults(text: str, created: str | None, status: str) -> list[str]:
+    """Report the rules in proposals.md "Who Decided" that hold mechanically."""
+    required = created is not None and created >= DECIDED_BY_SINCE
+    faults: list[str] = []
+    for title, body in settled_decisions(text.splitlines()):
+        values = [m.group(1) for line in body if (m := DECIDED_BY.match(line))]
+        if not values and required:
+            faults.append(f"settled decision {title!r} has no **Decided by:** line")
+        for value in values:
+            if not DECIDED_BY_VALUE.match(value):
+                faults.append(
+                    f"settled decision {title!r}: cannot read **Decided by:** {value!r}; write "
+                    "'user, YYYY-MM-DD', '<tool> (<tag>), YYYY-MM-DD', or 'unknown'"
+                )
+        if status in ("accepted", "implemented") and any(PENDING_OVERRIDE.match(line) for line in body):
+            faults.append(
+                f"settled decision {title!r} has a **Pending override:** the user has not answered, but the "
+                f"proposal is {status}"
+            )
+    return faults
+
+
 def check(proposals_dir: Path, overrides: dict[str, Location] | None = None) -> list[dict[str, Any]]:
     # Without a queue nothing is scheduled yet, so the checks that need one are skipped. A
     # queue that exists but cannot be read is an error, not an empty queue.
@@ -587,7 +647,12 @@ def check(proposals_dir: Path, overrides: dict[str, Location] | None = None) -> 
             report(p, f"{index.name} lists {listed!r}, but the proposal says {p.status!r}")
 
     for p in proposals.values():
-        hooks = parse_hooks(p.path.read_text().splitlines())
+        text = p.path.read_text()
+        created = next((m.group(1) for line in text.splitlines() if (m := CREATED.match(line))), None)
+        for fault in decider_faults(text, created, p.status):
+            report(p, fault)
+
+        hooks = parse_hooks(text.splitlines())
         for hook in hooks:
             for fault in hook_faults(hook):
                 report(p, f"line {hook.line}: {fault}")

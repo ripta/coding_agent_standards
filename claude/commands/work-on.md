@@ -112,7 +112,8 @@ the proposal's `**Tradeoffs:**` field, or the user this session.
      rules in `proposals.md` "As Built"
    - Amend any decision or milestone text the work changed, narrowed, or
      corrected, per `proposals.md` "Amending a Proposal". Never leave the
-     divergence only in the Decision Log
+     divergence only in the Decision Log. A decision whose `**Decided by:**`
+     line says `user` changes only on the user's answer. Ask it first
    - Do not write `implemented` yet. Step 12 does that after the review passes
 
 10. Run `proposals.py check --proposals-dir <dir>`. Fix every finding on

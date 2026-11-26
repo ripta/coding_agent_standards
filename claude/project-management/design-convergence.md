@@ -96,8 +96,12 @@ existing path partly meets its goal, or its consequence is only `PLAUSIBLE`, it 
 candidate names the existing path and what it leaves short.
 
 A premise can fail at any point. The first trace can show it, or a critic's premise finding. So can a "no change needed"
-pick on a question the rest of the design depends on. When it fails, take it to the user at once, in every mode. The
-caller asks whether to drop the work. Do not carry it to a later gate, since every later step would build on it.
+pick on a question the rest of the design depends on. When it fails, take it to the user at once. The caller asks
+whether to drop the work. Do not carry it to a later gate, since every later step would build on it.
+
+An autonomous run is the exception. It never stops for the user, so it carries the question to its gate and finishes
+the work in full. It recommends dropping the work only when its own trace showed the problem does not exist. A premise
+it could not settle goes to the gate with no recommendation, saying what the trace checked and what it left unchecked.
 
 A premise can also fail in part, when an existing path meets only some of the goal. Then the caller asks how to change
 the work, not only whether to drop it. Rank that question's options like any other's, critique included. The complete
@@ -115,8 +119,9 @@ options, fixes, and routed checks.
 
 A special case is a case, state, exception, or condition that the plain behavior would not need. The plain behavior is
 what the system does when the requirement is dropped, with no rule for its cases. When the changes added special cases
-that serve one requirement, stop before the next pass. Take the question to the user at once, in every mode. The caller
-asks it, or reports it when it cannot ask.
+that serve one requirement, stop before the next pass. Take the question to the user at once. The caller asks it, or
+reports it when it cannot ask. An autonomous run carries it to its gate instead, and adds no more cases for that
+requirement.
 
 The question has these options:
 
@@ -195,18 +200,20 @@ the next pass. An `UNSOUND` on the third pass goes to the judge like any other n
 Run it once every open question is settled. It replaces the single whole-proposal review.
 
 It can also run on a draft that still has open questions. Then a finding never settles an open question. A finding that
-bears on one goes onto that question as an option, a constraint, or a `Leaves undone` line. A finding against a settled
-decision becomes a new open question, since the draft's author may not change what the user settled. The draft
-converges when what is left is open questions, not defects.
+bears on one goes onto that question as an option, a constraint, or a `Leaves undone` line. A finding against a
+decision the user made never changes it. It becomes a `**Pending override:**` line under the decision, per "A User's
+Decision" in `proposals.md`. A finding against a decision an agent made becomes a new open question. The draft
+converges when what is left is open questions and pending overrides, not defects.
 
 1. **Full pass.** Spawn the critic on the proposal path for a whole-proposal review. List each decision the user kept
    against the critic's dissent. The full pass reports findings of both levels, so a fundamental flaw in the design
    surfaces here.
 2. **Fix.** Act on each finding that holds, by "When a Finding Holds". A premise finding that holds is not fixed in the
-   design. It goes to the user at once, by "When the Problem Exists". Fix a design-level finding in the design. Route
+   design. It goes to the user, by "When the Problem Exists". Fix a design-level finding in the design. Route
    an implementation-level finding to a milestone check. See "Finding Levels". A fix is a change to the design, so check
    it against the code before the next pass, the same as an option. A fix made on a wrong premise is how a coordinator
-   starts a flip on its own.
+   starts a flip on its own. A fix never edits a decision the user made. It becomes a `**Pending override:**` line, per
+   "A User's Decision" in `proposals.md`.
 3. **Re-check pass.** Spawn a fresh critic in re-check mode. Give it the proposal path and the list of changes since the
    last pass: each changed decision or section, and the finding it answers. Routed checks are not changes. It verifies
    each change and reports only `CONFIRMED` design-level defects, in the changed text or caused by it. It lists

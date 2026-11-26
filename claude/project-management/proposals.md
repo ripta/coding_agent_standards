@@ -54,7 +54,11 @@ Why this change is needed.
 
 ## Design Decisions (Settled)
 
+### Decision title
+
 Decisions made with rationale. A contract that crosses deploy units states its skew behavior. See "Version Skew".
+
+**Decided by:** user, YYYY-MM-DD
 
 ## Design Decisions (Open)
 
@@ -212,6 +216,10 @@ An amended decision or milestone carries one marker, such as "Amended 2026-10-17
 replaces the marker. It does not add a second one. The marker tells a reader the text changed. The log entry keeps the
 prior meaning without relying on git history, which does not follow a spec moved between repos.
 
+An amendment to a decision the user made needs the user's answer first. Ask it as "A User's Decision" in
+`rules/decision-making.md` describes. A run that does not ask records a `**Pending override:**` line instead. See "Who
+Decided". When the user approves the amendment, set the decision's `**Decided by:**` line to `user` with that date.
+
 Amending a decision that an accepted ADR records changes the ADR too. Otherwise the two disagree. Amend the ADR in
 place while its reasons hold, or write a superseding ADR when one does not. See `design.md` "Changing an Accepted ADR".
 
@@ -219,15 +227,62 @@ A proposal that departs from an accepted ADR lists the departure under `## ADR D
 its principles, and the carve-outs that cover it. Without a covering carve-out, the entry gives the proposal's own
 reason. See `design.md` "Deviating from an ADR".
 
+## Who Decided
+
+Every settled decision ends with a `**Decided by:**` line. It names who made the decision and when:
+
+- `**Decided by:** user, 2026-11-26` when the user chose it. That includes a decision the user stated in the request
+  that drafted the proposal, and an option the user picked in a review
+- `**Decided by:** proposal-reviewer (autonomous), 2026-11-26` when an agent settled it without asking. Name the tool
+  and its Decision Log tag
+- `**Decided by:** unknown` when nothing on record says who chose it. Never guess `user`
+
+A decision has one decider. When the user chose a direction and an agent chose the mechanism under it, write them as two
+settled decisions. A mechanism written under a direction the user picked is a decision of its own, not the user's. See
+`rules/decision-making.md` "Scope Additions".
+
+`proposals.py check` requires the line on every settled decision in a proposal created on or after 2026-11-27. An older
+proposal gets the line on each decision a review or an edit touches. Take the decider from the Decision Log: an untagged
+entry means the user, a tagged one the tool its tag names. When the log does not say, write `unknown`.
+
+### A User's Decision
+
+A decision whose line says `user` belongs to the user. No agent or process changes it, narrows it, drops it, or defers
+it. That covers its wording, even when the direction stays the same. Only the user's own answer changes it. See "A
+User's Decision" in `rules/decision-making.md`.
+
+An agent that recommends something different leaves the decision's text as it is. It adds a `**Pending override:**`
+line under the `**Decided by:**` line. The line gives the recommendation, its reason, and the tool that recommends it:
+
+```markdown
+**Decided by:** user, 2026-11-26
+**Pending override:** declare a number above every past version, since old scripts naming 1.0 would pass the version
+check. Recommended by proposal-reviewer (autonomous).
+```
+
+Its Decision Log entry carries `(autonomous, override pending)`, or the tag of the tool that recommends it. Work goes on
+building on the user's decision until the user answers. The agent then asks the user, per `rules/decision-making.md`.
+On the answer, remove the `**Pending override:**` line:
+
+- When the user keeps the decision, leave its text and its `**Decided by:**` line alone. Record the answer in the
+  Decision Log
+- When the user takes the recommendation, rewrite the decision and set its line to `user` with the answer's date. The
+  Decision Log entry names both the user's earlier choice and the new one
+
+`proposals.py check` reports a `**Pending override:**` line in an `accepted` or `implemented` proposal. The user answers
+every pending override before the proposal is accepted.
+
 ## Decision Log Tags
 
 A Decision Log entry for a decision an agent settled without asking carries the tag its tool defines, such as
 `proposal-reviewer`'s `(autonomous)`. An untagged entry means the user chose that decision, at the level of detail the
-entry records. A mechanism written under a direction the user picked is a decision of its own, not the user's. See
-`rules/decision-making.md` "Scope Additions".
+entry records. The decision's `**Decided by:**` line agrees with its entry. See "Who Decided".
 
 An entry that settles a scope addition also carries `addition`, whoever settled it: `(addition)`, or
 `(autonomous, addition)`. Removing or narrowing an explicit out-of-scope statement is an addition.
+
+An entry that records a recommendation against the user's decision carries `override pending`, such as
+`(autonomous, override pending)`. See "A User's Decision".
 
 Tags let a reader, and every check, tell what the user chose from what was chosen for them.
 

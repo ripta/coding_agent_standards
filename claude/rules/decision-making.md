@@ -177,6 +177,24 @@ preserve it.
 A decision you made yourself, under an authorization such as an autonomous review, reopens instead. Decide it again by
 the ranking.
 
+### A User's Decision
+
+A decision the user made stays the user's. No agent or process changes it, narrows it, drops it, or defers it. That
+covers its wording, even when the direction stays the same. No authorization relaxes this, an autonomous run included.
+Only the user's own answer changes the decision.
+
+An agent may still recommend something different. A recommendation is only that:
+
+- Leave the user's decision as written, and keep building on it until the user answers
+- Record the recommendation beside the decision, where the user will see it. In a proposal, that is a
+  `**Pending override:**` line. See "Who Decided" in `project-management/proposals.md`
+- Ask the user. An agent that asks as it goes asks at once. An autonomous run never stops, so it asks at its gate
+- In the question, say what the user decided and when, then what the agent recommends and why
+- List the recommendation first, marked `(Recommended)`, and say in its label or description that it overrides the
+  user's decision. List the user's decision next, labeled as the user's, with its date
+
+Never present an override as a plain recommendation. Never keep a line that credits the user on text the agent changed.
+
 ### Scope Additions
 
 Scope is the problem the user stated, plus what the user has approved since. A proposal's scope is its Summary and

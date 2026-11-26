@@ -315,7 +315,10 @@ For each milestone picked:
      written. The implementer amends the proposal per "Amending a Proposal" in
      `proposals.md`. It writes the plan's best guess into the amended text, and
      marks the Decision Log entry as a run best guess. It never escalates to
-     section 5.
+     section 5. The exception is a decision whose `**Decided by:**` line says
+     `user`. The run never amends it. It adds a `**Pending override:**` line
+     with the best guess, per "A User's Decision" in `proposals.md`, and
+     blocks the row per section 5 when the work cannot honor the decision.
    - Never send a freeze hunk with origin `other` or `unknown`, or a finding
      with disposition `user`, to the implementer. Another session may have
      made that edit. Record it in the session report for the user.
@@ -532,6 +535,8 @@ Block a row, and say why, only when:
   plan
 - The work contradicts the proposal's goals, and no amendment can reconcile
   them
+- The work cannot honor a decision the user made. Only the user changes one,
+  so the run records a pending override and does not amend it
 
 These are last resorts. "What the user authorizes by approving the plan"
 relaxes the rule to ask before deciding an ambiguity. This section does not
