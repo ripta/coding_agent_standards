@@ -29,6 +29,8 @@ Use the AskUserQuestion tool for structured questions when encountering:
 
 - **Always ask** before: choosing between approaches, adding new dependencies, changing public interfaces, introducing
   new patterns, renaming things, deferring or dropping planned work
+- **Never push back** on a user's request by citing a proposal. A proposal does not bind later work. See
+  `project-management/proposals.md` "A Proposal Never Blocks the User"
 - **Don't ask** for: applying established standards from the coding standards repo, fixing obvious bugs, formatting,
   following existing codebase patterns
 

@@ -265,6 +265,20 @@ The check reports every change outside the list, and says whether the work under
 as the work's own. A change someone else made goes to the user, never to the implementer. `scripts/proposals.py freeze`
 in the plugin runs it.
 
+## A Proposal Never Blocks the User
+
+A proposal is a plan. Once implemented, it is a record of what shipped. It has no authority over later work. Standing
+principles live only in ADRs. See `design.md`.
+
+- A proposal's decision is never a reason to refuse, delay, or argue against a change the user asks for.
+- Before you call a request a departure, read the proposal and quote the text it departs from. A conflict you cannot
+  quote is not one.
+- When the request does depart, say so in one line, then do the work. An open proposal gets amended. See "Amending a
+  Proposal". An implemented proposal stays frozen as the record of what shipped then. The freeze limits edits to the
+  proposal's file, never changes to the code.
+- A conflict with an ADR is not a veto either. It is a question for the user. See "Choosing Options" in
+  `rules/decision-making.md`.
+
 ## Revisit Hooks
 
 A revisit hook says when to look at deferred work again. It is one paragraph, which may wrap:
