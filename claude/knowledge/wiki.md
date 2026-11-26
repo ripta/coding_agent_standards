@@ -1,8 +1,8 @@
 # LLM Wiki
 
-A wiki is a git repository of written knowledge that people and agents both read and write. Several agent sessions
-often work in one checkout at once. This standard sets its layout, its file formats, and the rules that keep those
-sessions from colliding.
+A wiki is a git repository, or a directory in one, of written knowledge that people and agents both read and write.
+Several agent sessions often work in one checkout at once. This standard sets its layout, its file formats, and the
+rules that keep those sessions from colliding.
 
 Each wiki's own `README.md` holds the rules specific to that repository. This standard covers what every wiki shares.
 
@@ -31,6 +31,10 @@ projects/<name>/      optional project folders
 wiki.json             index title and intro line
 bin/wiki              the wiki tool
 ```
+
+Every path above is relative to the wiki root, the directory that holds `wiki.json`. The wiki root is the repository's
+top by default. A wiki may instead live in a directory of a larger repository, such as `docs/wiki/`. Then `bin/wiki`,
+`.githooks/`, `wiki.json`, and the rest of the layout sit in that directory, not at the repository's top.
 
 A wiki has no `guides/` layer. A how-to that stays true belongs on a topic page. A how-to tied to one investigation is
 a report.
@@ -252,7 +256,9 @@ back to the topic, and the topic's "Related" section links to the project.
 
 ## The Wiki Tool
 
-`bin/wiki` runs the tool:
+`bin/wiki` runs the tool. It finds the wiki root by walking up from the working directory to the nearest `wiki.json`.
+The walk stops at the repository's top. It never searches downward, so run it from inside the wiki. Every path it reads
+or prints is relative to the wiki root.
 
 ```text
 bin/wiki build    regenerate index.md, reports/index.md, the topic report lists, and the later-reports blocks
@@ -263,22 +269,24 @@ bin/wiki stale    list topics with reports newer than their `reviewed` date
 `check` verifies these:
 
 - Every report is named `YYYYMMDD-slug` and filed under the month in its name.
-- No dated report sits at the repository root.
+- No dated report sits at the wiki root.
 - Every report has frontmatter with topics and a summary.
 - A directory report has exactly one top-level `.md` carrying frontmatter.
 - Every tagged topic has a page.
 - Every `follows` and `corrects` value is a list naming an existing, earlier report other than this one, and no
   report names one target in both.
-- In-repo links in reports, topics, and both indexes resolve.
+- Links inside the wiki, in reports, topics, and both indexes, resolve. A link that leaves the wiki root is not
+  checked.
 - `index.md`, `reports/index.md`, every topic's generated block, and every report's later-reports block are
   current.
 
 `check` also warns about a topic page that no report tags, and about a standalone HTML report. A warning does not fail
 the check.
 
-Only git-tracked files count, and that includes staged files. A report another session has not added yet never
-appears in your index. The flip side is that you must `git add` your own new report and any new topic page before
-running `build`. Otherwise `build` leaves them out, and `check` does not lint them.
+Only git-tracked files under the wiki root count, and that includes staged files. A tracked file elsewhere in the
+repository never appears in the wiki's index. A report another session has not added yet never appears in your index.
+The flip side is that you must `git add` your own new report and any new topic page before running `build`. Otherwise
+`build` leaves them out, and `check` does not lint them.
 
 `index.md`, `reports/index.md`, and the blocks between the generated markers, on topic pages and reports, are output.
 Never edit them by hand.
@@ -298,7 +306,8 @@ its cost tracks how much was written since the last pass, not the size of the wi
 }
 ```
 
-Both keys are required. `build` and `check` fail with an error naming the file when either is missing.
+Both keys are required. `build` and `check` fail with an error naming the file when either is missing. The file is
+also how the tool finds the wiki root.
 
 ## Commit Messages
 
@@ -344,9 +353,24 @@ The templates live in `templates/wiki/` beside this file. To set up a wiki:
 3. Import the wiki profile from the wiki's `CLAUDE.md` with `@~/.claude/coding-standards-current/profiles/wiki.md`.
 4. Write the wiki's `README.md`, with its repository-specific rules.
 5. Enable the hooks once per clone with `git config core.hooksPath .githooks`. The hooks are tracked, but
-   `core.hooksPath` is local config.
+   `core.hooksPath` is local config. A wiki in a subdirectory sets it differently. See "A Wiki in a Subdirectory".
 
 `bin/wiki` is a shim. It runs `scripts/wiki.py` from `$CODING_STANDARDS_ROOT` when that is set, and otherwise from
 `~/.claude/coding-standards-current`, the link the coding-standards plugin keeps. A wiki that wants stability instead
 of tracking the plugin can vendor the tool. Replace the shim with a copy of `wiki.py` at `bin/wiki`, so the hooks and
 docs keep working unchanged.
+
+### A Wiki in a Subdirectory
+
+A wiki in a directory of a larger repository follows the same setup, with that directory as the wiki root. Hooks need
+care, because `core.hooksPath` is one setting for the whole repository.
+
+- Set `core.hooksPath` to the hooks directory's path from the repository's top, such as
+  `git config core.hooksPath docs/wiki/.githooks`. Git resolves a relative path from the top of the working tree.
+- Start each hook with `cd "$(dirname "$0")/.."`. Git runs a hook from the repository's top. The hooks call `bin/wiki`
+  by a path relative to the wiki root. The hook's `$0` is its path from the top, so this lands in the wiki root.
+- Expect the hooks to run on every commit in the repository, including commits that never touch the wiki. `pre-commit`
+  runs `bin/wiki check` on all of them. `commit-msg` rejects conventional-commit subjects in all of them.
+- A repository whose other commits use those prefixes cannot enable the wiki's hooks this way. Run `bin/wiki check`
+  from CI or by hand instead.
+- A repository that already sets `core.hooksPath` has one hooks directory. Add the wiki's checks to that directory.

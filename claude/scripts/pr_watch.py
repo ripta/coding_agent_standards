@@ -17,6 +17,12 @@ subcommand to work on a repository without a checkout. One invocation names one 
 sweep over several repositories runs one process per repository. With `--repo`, `preflight` skips
 the checkout's CI files and answers unknown for whether CI builds PRs against other bases.
 
+`preflight` reads the CI files from the checkout's top, wherever in the checkout it runs, and
+reports that top as `repo_root`. With `--repo` there is no checkout, so `repo_root` is absent. The
+`ci` list names each system found. Its Cloud Build entry lists every `cloudbuild*.y*ml` config in
+the checkout, at any depth, as paths relative to `repo_root`. A monorepo's per-app configs show up
+there.
+
 `preflight` also settles the prefix of agent-owned branch names: `--branch-prefix`, else the
 base repo's entry in ~/.config/coding_agent_standards/branches.json, else `agent/`. It reports
 the rulesets that would reject a branch named that way.
@@ -413,14 +419,44 @@ def watch(
 # -- preflight -------------------------------------------------------------------------------
 
 
-def ci_systems(root: Path) -> list[dict[str, Any]]:
-    """Name the CI systems the checkout configures, and what reading their logs needs."""
+def checkout_root(start: Path) -> Path:
+    """Return the top of the git checkout holding `start`, or `start` outside a checkout.
+
+    Preflight may run from an app directory of a monorepo. File lookups that name a repo-relative
+    path, such as `.github/workflows`, must start here and not at the working directory.
+    """
+    result = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=start, capture_output=True, text=True)
+    top = result.stdout.strip()
+    return Path(top) if result.returncode == 0 and top else start
+
+
+def cloud_build_configs(root: Path) -> list[str]:
+    """List every Cloud Build config in the checkout, as paths relative to `root`.
+
+    A monorepo keeps one config per app, so the search covers every depth. It reads git's file list,
+    which leaves out ignored directories. Outside a checkout only `root` itself is searched.
+    """
+    pathspec = ":(glob)**/cloudbuild*.y*ml"
+    result = subprocess.run(["git", "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", pathspec],
+                            cwd=root, capture_output=True, text=True)
+    if result.returncode != 0:
+        return sorted(path.name for path in root.glob("cloudbuild*.y*ml"))
+    return sorted({rel for rel in result.stdout.split("\0") if rel and (root / rel).is_file()})
+
+
+def ci_systems(start: Path) -> list[dict[str, Any]]:
+    """Name the CI systems the checkout holding `start` configures, and what reading their logs needs.
+
+    A Cloud Build entry also lists each config's path, so a caller can tell a monorepo's apps apart.
+    """
+    root = checkout_root(start)
     found = []
     workflows = root / ".github" / "workflows"
     if workflows.is_dir() and any(workflows.glob("*.y*ml")):
         found.append({"system": "github-actions", "logs": "gh run view --log-failed", "needs": ["gh"]})
-    if any(root.glob("cloudbuild*.y*ml")):
-        found.append({"system": "cloud-build", "logs": "gcloud builds log", "needs": ["gcloud"]})
+    configs = cloud_build_configs(root)
+    if configs:
+        found.append({"system": "cloud-build", "logs": "gcloud builds log", "needs": ["gcloud"], "configs": configs})
     others = {
         ".circleci/config.yml": "circleci",
         ".buildkite": "buildkite",
@@ -577,14 +613,15 @@ def workflow_pr_bases(text: str) -> str | None:
     return None
 
 
-def ci_other_bases(root: Path, systems: list[dict[str, Any]],
+def ci_other_bases(start: Path, systems: list[dict[str, Any]],
                    cloud_build: dict[str, str] | None = None) -> dict[str, str]:
     """Say whether CI builds PRs whose base is not the mainline.
 
-    Only GitHub Actions triggers live in the checkout. Cloud Build triggers live in the cloud, so
-    the caller resolves them and passes the verdict in `cloud_build`. Every other system, and Cloud
-    Build without a verdict, answers unknown.
+    Only GitHub Actions triggers live in the checkout holding `start`. Cloud Build triggers live in
+    the cloud, so the caller resolves them and passes the verdict in `cloud_build`. Every other
+    system, and Cloud Build without a verdict, answers unknown.
     """
+    root = checkout_root(start)
     verdicts: list[tuple[str, str]] = []
     for system in systems:
         if system["system"] == "cloud-build" and cloud_build:
@@ -1050,6 +1087,7 @@ def preflight(base: str | None, repo_override: str | None = None,
         report["stacking"] = {"viable": False,
                               "reasons": report["stacking"]["reasons"] + ["the base repo is not settled; see needs"]}
 
+    report["repo_root"] = str(checkout_root(Path.cwd()))
     report["ci"] = ci_systems(Path.cwd())
     cloud_build = None
     if any("gcloud" in system["needs"] for system in report["ci"]):

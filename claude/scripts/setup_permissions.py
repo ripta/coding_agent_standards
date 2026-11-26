@@ -179,6 +179,24 @@ def _short(text: str) -> str:
     return text if len(text) <= 90 else text[:87] + "..."
 
 
+def _matcher_covers(plugin_matcher: str, user_matcher: str) -> bool:
+    """Report whether the plugin's matcher fires on every tool the user's does.
+
+    A matcher is a list of alternatives joined by `|`. An empty matcher or `*` fires on every tool.
+    """
+    if plugin_matcher.strip() in ("", "*"):
+        return True
+    runs = {alternative.strip() for alternative in plugin_matcher.split("|")}
+    return all(alternative.strip() in runs for alternative in user_matcher.split("|"))
+
+
+def _plugin_runs(plugin: set[tuple[str, str, str]], event: str, matcher: str, script: str) -> bool:
+    return any(
+        plugin_event == event and plugin_script == script and _matcher_covers(plugin_matcher, matcher)
+        for plugin_event, plugin_matcher, plugin_script in plugin
+    )
+
+
 def _dedupe_hooks(new: dict[str, Any], plugin: set[tuple[str, str, str]], changes: list[str]) -> None:
     hooks = new.get("hooks")
     if not isinstance(hooks, dict):
@@ -200,7 +218,7 @@ def _dedupe_hooks(new: dict[str, Any], plugin: set[tuple[str, str, str]], change
                 script = _standards_script(hook.get("command"))
                 if key in seen:
                     changes.append(f"drop duplicate hook {label}")
-                elif script and (event, matcher, script) in plugin:
+                elif script and _plugin_runs(plugin, event, matcher, script):
                     changes.append(f"drop hook the plugin already runs, {label}")
                 else:
                     seen.add(key)
@@ -286,8 +304,9 @@ def plan(
 ) -> tuple[dict[str, Any], list[str]]:
     """Return the settings with every change applied, and one line per change.
 
-    plugin is what plugin_hooks returns. A user hook that runs the same script on the same
-    event and matcher runs twice, so it is dropped.
+    plugin is what plugin_hooks returns. A user hook runs twice when the plugin runs the same
+    script on the same event, and the plugin's matcher fires on every tool the user's does. So it
+    is dropped. Widening the plugin's matcher does not bring back a duplicate.
     """
     new = json.loads(json.dumps(settings))
     changes: list[str] = []

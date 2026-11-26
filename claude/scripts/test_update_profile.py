@@ -422,6 +422,47 @@ def test_a_worktree_without_a_local_file_edits_the_main_copy_and_says_to_copy_it
     assert ".worktreeinclude" in result["notes"][0]
 
 
+def submodule_worktree(tmp: Path) -> tuple:
+    """Make a superproject with a submodule, and a linked worktree of the submodule.
+
+    The submodule's git dir sits under the superproject's `.git/modules`, so its common dir is not
+    named `.git`. Returns the submodule's checkout and the worktree.
+    """
+    source = tmp / "source"
+    source.mkdir()
+    git(source, "init", "-q")
+    git(source, "commit", "-q", "--allow-empty", "-m", "init")
+
+    outer = tmp / "super"
+    outer.mkdir()
+    git(outer, "init", "-q")
+    git(outer, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(source), "sub")
+
+    sub = outer / "sub"
+    path = tmp / "submodule-tree"
+    git(sub, "worktree", "add", "-q", str(path), "-b", "tree")
+    return sub, path
+
+
+def test_a_submodule_worktree_edits_the_main_copy_and_says_to_copy_it(env: SimpleNamespace) -> None:
+    """Catches a submodule's worktree planned as if it had no main checkout.
+
+    The plan then reports `main_checkout` null and proposes a new tracked CLAUDE.md, where the main
+    checkout's CLAUDE.local.md is the file to edit.
+    """
+    sub, path = submodule_worktree(env.tmp)
+    (sub / "CLAUDE.local.md").write_text(OLD)
+
+    _, plan, _ = env.run("plan", "go-service", cwd=path)
+    assert plan["main_checkout"] == str(sub)
+    assert plan["target"] == str(sub / "CLAUDE.local.md")
+
+    _, result, _ = env.run("apply", "go-service", cwd=path)
+    assert (sub / "CLAUDE.local.md").read_text() == f"{imp('rules/pr-style.md')}\n{imp('profiles/go-service.md')}\n"
+    assert not (path / "CLAUDE.md").exists()
+    assert len(result["notes"]) == 1 and ".worktreeinclude" in result["notes"][0]
+
+
 @pytest.mark.skipif(os.geteuid() == 0, reason="root ignores file modes")
 def test_an_unwritable_main_copy_stops_the_whole_apply(env: SimpleNamespace, tree: Path) -> None:
     """A half-applied change would leave the worktree and the main checkout disagreeing."""

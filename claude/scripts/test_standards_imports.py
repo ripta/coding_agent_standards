@@ -205,6 +205,28 @@ def repo(tmp_path: Path, commit: bool = False) -> Path:
     return root
 
 
+def submodule_worktree(tmp_path: Path) -> tuple:
+    """Make a superproject with a submodule, and a linked worktree of the submodule.
+
+    The submodule's git dir sits under the superproject's `.git/modules`, so its common dir is not
+    named `.git`. Returns the submodule's checkout and the worktree.
+    """
+    source = (tmp_path / "source").resolve()
+    source.mkdir()
+    git(source, "init", "-q")
+    git(source, "commit", "-q", "--allow-empty", "-m", "init")
+
+    outer = (tmp_path / "super").resolve()
+    outer.mkdir()
+    git(outer, "init", "-q")
+    git(outer, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(source), "sub")
+
+    sub = outer / "sub"
+    tree = (tmp_path / "tree").resolve()
+    git(sub, "worktree", "add", "-q", str(tree), "-b", "tree")
+    return sub, tree
+
+
 def test_discovery_reads_each_directory_up_to_the_git_root(tmp_path: Path) -> None:
     """Claude Code loads files from every parent up to the git root, and a file above it is not loaded."""
     root = repo(tmp_path)
@@ -239,6 +261,37 @@ def test_linked_worktree_finds_the_main_checkouts_local_file(tmp_path: Path) -> 
     assert si.find_instruction_files(checkout) == []
     assert si.main_copies(checkout) == [(tree / "CLAUDE.local.md", root / "CLAUDE.local.md")]
     assert si.locate(root).main_root is None
+
+
+def test_linked_worktree_of_a_submodule_finds_the_main_checkouts_local_file(tmp_path: Path) -> None:
+    """Catches a submodule's worktree reported as having no main checkout.
+
+    The submodule's common dir is `super/.git/modules/sub`, which is not named `.git`. Its main
+    checkout comes from `core.worktree`, so a name check on the common dir finds nothing.
+    """
+    sub, tree = submodule_worktree(tmp_path)
+    (sub / "CLAUDE.local.md").write_text("main\n")
+
+    checkout = si.locate(tree)
+
+    assert checkout.root == tree
+    assert checkout.main_root == sub
+    assert si.main_copies(checkout) == [(tree / "CLAUDE.local.md", sub / "CLAUDE.local.md")]
+    assert si.locate(sub).main_root is None
+
+
+def test_a_bare_repositorys_worktree_has_no_main_checkout(tmp_path: Path) -> None:
+    """A bare repository holds no checkout, so its worktrees have nothing to copy a local file from."""
+    seed = repo(tmp_path, commit=True)
+    bare = tmp_path / "bare.git"
+    git(tmp_path, "clone", "-q", "--bare", str(seed), str(bare))
+    tree = (tmp_path / "tree").resolve()
+    git(bare, "worktree", "add", "-q", str(tree))
+
+    checkout = si.locate(tree)
+
+    assert checkout.root == tree
+    assert checkout.main_root is None
 
 
 def test_refs_command_prints_files_and_resolution(tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
@@ -414,6 +467,17 @@ def test_project_imports(world: World, name: str, files: dict, expected: list) -
     world.write(files)
 
     assert world.check() == expected
+
+
+def test_a_submodule_worktree_gets_the_worktreeinclude_advice(world: World) -> None:
+    """Catches the generic "does not import" warning where the main checkout's copy exists.
+
+    The warning is the only thing that tells the user to list the file in `.worktreeinclude`.
+    """
+    sub, tree = submodule_worktree(world.tmp)
+    (sub / "CLAUDE.local.md").write_text(GOOD)
+
+    assert world.check(cwd=tree) == ["warning:worktree"]
 
 
 def test_a_parent_directorys_file_is_checked_from_a_subdirectory(world: World) -> None:

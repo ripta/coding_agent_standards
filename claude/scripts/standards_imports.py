@@ -243,6 +243,19 @@ class Checkout:
     main_root: Optional[Path]
 
 
+def main_checkout(common: Path) -> Optional[Path]:
+    """Return the main checkout that owns the common git dir `common`, or None when it has none.
+
+    A repository whose git dir is not named `.git` records its checkout in `core.worktree`,
+    relative to the git dir. A submodule is one: its git dir is `<super>/.git/modules/<name>`. A
+    bare repository records nothing, so its worktrees have no main checkout.
+    """
+    recorded = _git(common, f"--git-dir={common}", "config", "--get", "core.worktree")
+    if recorded:
+        return (common / recorded).resolve()
+    return common.parent if common.name == ".git" else None
+
+
 def locate(cwd: Path) -> Checkout:
     cwd = cwd.resolve()
     top = git_path(cwd, "--show-toplevel")
@@ -253,8 +266,7 @@ def locate(cwd: Path) -> Checkout:
     common = git_path(cwd, "--git-common-dir")
     main_root = None
     if git_dir and common and git_dir.resolve() != common.resolve():
-        if common.resolve().name == ".git":
-            main_root = common.resolve().parent
+        main_root = main_checkout(common.resolve())
     return Checkout(cwd, root, main_root)
 
 

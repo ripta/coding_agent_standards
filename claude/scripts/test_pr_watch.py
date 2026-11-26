@@ -1,6 +1,7 @@
 """Tests for pr_watch.py. Run: uv run --with pytest pytest claude/scripts"""
 
 import json
+import subprocess
 import sys
 import urllib.parse
 from pathlib import Path
@@ -234,6 +235,87 @@ def test_ci_systems(tmp_path):
     (tmp_path / ".github" / "workflows" / "ci.yml").write_text("on: push\n")
     (tmp_path / "cloudbuild.yaml").write_text("steps: []\n")
     assert [s["system"] for s in pr_watch.ci_systems(tmp_path)] == ["github-actions", "cloud-build"]
+
+
+def _monorepo(root):
+    """A git repo with workflows at the root, and a Cloud Build config at the root and in each app."""
+    subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+    for rel, text in {".github/workflows/ci.yml": "on: pull_request\n", "cloudbuild.yaml": "steps: []\n",
+                      "apps/a/cloudbuild.yaml": "steps: []\n", "apps/b/cloudbuild-pr.yml": "steps: []\n",
+                      "apps/b/README.md": "no config here\n", "node_modules/x/cloudbuild.yaml": "steps: []\n",
+                      ".gitignore": "node_modules/\n"}.items():
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    subprocess.run(["git", "add", "."], cwd=root, check=True)
+    return root / "apps" / "a"
+
+
+def test_ci_systems_reads_the_checkout_root_from_a_subdirectory(tmp_path):
+    """Catches preflight reporting no CI when run from an app directory of a monorepo.
+
+    The workflows live at the repo root. A search rooted at the working directory misses them.
+    """
+    app = _monorepo(tmp_path)
+    systems = {s["system"]: s for s in pr_watch.ci_systems(app)}
+    assert set(systems) == {"github-actions", "cloud-build"}
+
+
+def test_ci_systems_lists_every_cloud_build_config_at_any_depth(tmp_path):
+    """Catches a per-app config going unreported, so callers cannot tell the apps apart.
+
+    Ignored directories stay out of the list.
+    """
+    app = _monorepo(tmp_path)
+    cloud_build = next(s for s in pr_watch.ci_systems(app) if s["system"] == "cloud-build")
+    assert cloud_build["configs"] == ["apps/a/cloudbuild.yaml", "apps/b/cloudbuild-pr.yml", "cloudbuild.yaml"]
+
+
+def test_ci_systems_sees_a_cloud_build_config_only_in_an_app(tmp_path):
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / "apps" / "a").mkdir(parents=True)
+    (tmp_path / "apps" / "a" / "cloudbuild.yaml").write_text("steps: []\n")
+    systems = pr_watch.ci_systems(tmp_path)
+    assert [(s["system"], s["configs"]) for s in systems] == [("cloud-build", ["apps/a/cloudbuild.yaml"])]
+
+
+def test_ci_other_bases_reads_workflows_at_the_checkout_root_from_a_subdirectory(tmp_path):
+    """Catches a verdict of no CI system for an app directory whose repo root holds the workflows."""
+    app = _monorepo(tmp_path)
+    systems = [s for s in pr_watch.ci_systems(app) if s["system"] == "github-actions"]
+    assert pr_watch.ci_other_bases(app, systems)["answer"] == "yes"
+
+
+def test_preflight_reports_ci_from_a_subdirectory_of_the_checkout(monkeypatch, tmp_path):
+    """Catches a monorepo app's preflight reporting no CI, so the loop never reads its logs."""
+    app = _monorepo(tmp_path)
+    monkeypatch.chdir(app)
+    report = _preflight_with_origin(monkeypatch)
+    assert [s["system"] for s in report["ci"]] == ["github-actions", "cloud-build"]
+    assert report["ci"][1]["configs"] == ["apps/a/cloudbuild.yaml", "apps/b/cloudbuild-pr.yml", "cloudbuild.yaml"]
+    assert Path(report["repo_root"]).samefile(tmp_path)
+
+
+def _preflight_with_origin(monkeypatch):
+    """Run preflight in the working directory, a checkout whose only remote is the base repo."""
+    subprocess.run(["git", "remote", "add", "origin", "https://github.com/acme/widget.git"], check=True)
+    repo = {"nameWithOwner": "acme/widget", "viewerPermission": "WRITE", "autoMergeAllowed": True,
+            "mergeCommitAllowed": True, "squashMergeAllowed": True, "rebaseMergeAllowed": False,
+            "deleteBranchOnMerge": True, "viewerDefaultMergeMethod": "MERGE", "defaultBranchRef": {"name": "main"},
+            "isFork": False, "parent": None}
+
+    def fake_gh_json(args):
+        if args[1].endswith("/protection"):
+            raise pr_watch.GhError("HTTP 404")
+        return []
+
+    monkeypatch.setattr(pr_watch, "gh", lambda args: "acme/widget\n" if args[:2] == ["repo", "view"] else "")
+    monkeypatch.setattr(pr_watch, "gh_json", fake_gh_json)
+    monkeypatch.setattr(pr_watch, "graphql", lambda query, **kw: {"repository": repo})
+    monkeypatch.setattr(pr_watch, "gcloud_status", lambda: "ok")
+    monkeypatch.setattr(pr_watch, "cloud_build_verdict",
+                        lambda *args: {"answer": "unknown", "reason": "triggers not read in this test"})
+    return pr_watch.preflight("main")
 
 
 def test_failures_extract_log_ids():

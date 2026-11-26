@@ -5,9 +5,13 @@
     bin/wiki check    fail if anything is invalid or a generated file is stale
     bin/wiki stale    list topics with reports newer than their `reviewed` date
 
-The rules live in knowledge/wiki.md. `build` and `check` read the index title and intro line
-from wiki.json at the repo root. Only git-tracked files, including staged ones, count. A report
-another session has written but not yet added never shows up in this session's index.
+The rules live in knowledge/wiki.md. The wiki root is the nearest directory, from the working
+directory up to the repo root, that holds wiki.json. A wiki may be a whole repo or a directory in
+one. Every path the tool reads or prints is relative to the wiki root.
+
+`build` and `check` read the index title and intro line from wiki.json. Only git-tracked files
+under the wiki root, including staged ones, count. A report another session has written but not
+yet added never shows up in this session's index.
 
 Git hooks may run this under Python 3.9, so it avoids newer syntax and tomllib.
 """
@@ -54,7 +58,25 @@ def git_root() -> str:
     return out.stdout.strip()
 
 
+def find_wiki_root(start: str, top: str) -> Optional[str]:
+    """Return the nearest directory from `start` up to `top` that holds wiki.json, or None.
+
+    The search never leaves `top`, the repo root. A wiki.json above the repo belongs to another
+    project.
+    """
+    here, top = os.path.realpath(start), os.path.realpath(top)
+    while True:
+        if os.path.isfile(os.path.join(here, CONFIG)):
+            return here
+
+        parent = os.path.dirname(here)
+        if here == top or parent == here:
+            return None
+        here = parent
+
+
 def tracked() -> list[str]:
+    """List the tracked files under the working directory, as paths relative to it."""
     out = subprocess.run(["git", "ls-files", "-z"], capture_output=True, text=True, check=True)
     return [p for p in out.stdout.split("\0") if p and os.path.exists(p)]
 
@@ -67,7 +89,10 @@ def read(path: str) -> str:
 def load_config() -> dict[str, str]:
     keys = " and ".join(f'"{k}"' for k in CONFIG_KEYS)
     if not os.path.exists(CONFIG):
-        raise WikiError(f"{CONFIG} is missing at the repo root; create it with string keys {keys}")
+        raise WikiError(
+            f"{CONFIG} not found in the current directory or any parent up to the repo root; run {PROG} from "
+            f"inside the wiki, or create {CONFIG} at the wiki root with string keys {keys}"
+        )
 
     try:
         config = json.loads(read(CONFIG))
@@ -382,7 +407,7 @@ def check_links(files: list[str], errors: list[str]) -> None:
                 continue
 
             resolved = os.path.normpath(os.path.join(os.path.dirname(p), unquote(path)))
-            # A link that leaves the repo, such as one into a sibling checkout, cannot be checked.
+            # A link that leaves the wiki root, such as one into a sibling checkout, cannot be checked.
             if resolved.startswith(".."):
                 continue
             if resolved not in fileset and resolved not in dirs:
@@ -398,7 +423,7 @@ def run(cmd: str) -> int:
 
     for p in files:
         if "/" not in p and REPORT_NAME.match(p):
-            errors.append(f"{p}: dated report at repo root; move it to reports/{p[:4]}/{p[4:6]}/")
+            errors.append(f"{p}: dated report at the wiki root; move it to reports/{p[:4]}/{p[4:6]}/")
 
     for r in reports:
         for t in r.topics:
@@ -465,7 +490,8 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     try:
-        os.chdir(git_root())
+        top = git_root()
+        os.chdir(find_wiki_root(os.getcwd(), top) or top)
         return run(args.command or "check")
     except WikiError as err:
         print(f"error: {err}", file=sys.stderr)

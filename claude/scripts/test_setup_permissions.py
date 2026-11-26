@@ -121,6 +121,48 @@ def test_hooks_the_plugin_already_runs_are_dropped(monkeypatch: pytest.MonkeyPat
     assert sum(c.startswith("drop duplicate hook") for c in changes) == 1
 
 
+WIDE = "Bash|mcp__cg__cg_run|mcp__cg__cg_run_many"
+
+
+@pytest.mark.parametrize(
+    "plugin_matcher, user_matcher, dropped",
+    [
+        (WIDE, "Bash", True),
+        (WIDE, "mcp__cg__cg_run|Bash", True),
+        (WIDE, WIDE, True),
+        (WIDE, "Bash|Edit", False),
+        (WIDE, "Edit", False),
+        (WIDE, "", False),
+        (WIDE, "*", False),
+        (WIDE, "Ba", False),
+        ("", "Bash", True),
+        ("*", "Bash|Edit", True),
+        ("Bash", "Bash", True),
+        ("Bash", WIDE, False),
+    ],
+)
+def test_a_user_hook_the_plugins_matcher_covers_is_dropped(
+    monkeypatch: pytest.MonkeyPatch, plugin_matcher: str, user_matcher: str, dropped: bool
+) -> None:
+    """Catches a plugin that widened its matcher running a user's old copy of its hook twice.
+
+    The plugin runs a hook for every alternative of its matcher. A user hook on the same event and
+    script is a duplicate only when each alternative of its own matcher is among those. Anything
+    else runs on a tool the plugin's hook skips.
+    """
+    monkeypatch.setattr(Path, "home", lambda: Path("/Users/me"))
+    plugin = {("PreToolUse", plugin_matcher, "hooks/block-broad-find.sh")}
+    mine = {"type": "command", "command": "~/.claude/coding-standards-current/hooks/block-broad-find.sh"}
+    other = {"type": "command", "command": "echo hi"}
+
+    new, changes = setup_permissions.plan({"hooks": {"PreToolUse": [
+        {"matcher": user_matcher, "hooks": [mine, other]}]}}, plugin)
+
+    kept = [other] if dropped else [mine, other]
+    assert new["hooks"]["PreToolUse"] == [{"matcher": user_matcher, "hooks": kept}]
+    assert any(c.startswith("drop hook the plugin already runs") for c in changes) is dropped
+
+
 def test_retired_entries_are_removed(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(setup_permissions, "RETIRED", {("permissions", "allow"): ["Edit(~/old/**)"]})
     new, changes = setup_permissions.plan({"permissions": {"allow": ["Edit(~/old/**)", "Read"]}})

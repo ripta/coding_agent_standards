@@ -315,6 +315,37 @@ def test_candidates_sort_tiers_by_unblocks_then_bugs_then_age(tmp_path: Path) ->
     assert report["not_schedulable"] == []
 
 
+def _bug_citing_candidate(repo: Path, *, bugs_beside: bool = False) -> Path:
+    """A repo with its proposals in docs/proposals, citing a bug that the repo-root bugs/ marks fixed."""
+    (repo / ".git").mkdir(parents=True)
+    directory = repo / "docs" / "proposals"
+    directory.mkdir(parents=True)
+    _candidate(directory, "PROJ-001", extra="See `bugs/20261001-crash.md`.\n")
+    (repo / "bugs").mkdir()
+    _write(repo / "bugs", "20261001-crash.md", "# Bug\n\n**Status:** fixed 2026-10-02\n")
+    if bugs_beside:
+        (repo / "docs" / "bugs").mkdir()
+    return directory
+
+
+def test_candidates_read_a_fixed_bug_from_bugs_at_the_repo_root(tmp_path: Path) -> None:
+    """Catches a fixed bug still argued as open when bugs/ sits at the repo root, not beside docs/proposals.
+
+    tracking.md allows both places. Looking only beside the proposals directory finds no file, and a
+    missing file counts as open.
+    """
+    directory = _bug_citing_candidate(tmp_path)
+    [entry] = proposals.candidates(directory)["ready"]
+    assert entry["bugs"] == []
+
+
+def test_candidates_prefer_the_bugs_dir_beside_the_proposals_dir(tmp_path: Path) -> None:
+    """The first bugs directory that exists is the one, as tracking.md says, so the root copy is not read."""
+    directory = _bug_citing_candidate(tmp_path, bugs_beside=True)
+    [entry] = proposals.candidates(directory)["ready"]
+    assert entry["bugs"] == ["20261001-crash.md"]
+
+
 def test_candidates_skip_scheduled_work_and_count_queued_dependencies_as_ready(tmp_path: Path) -> None:
     _candidate(tmp_path, "PROJ-001")
     _candidate(tmp_path, "PROJ-002", deps="- PROJ-001")
@@ -1263,6 +1294,412 @@ def test_cli_passes_over_a_code_package_named_proposals(
     code, out, err = _ran(["next"], capsys)
     assert code == 0, err
     assert [e["row"] for e in json.loads(out)["run"]] == ["PROJ-001 M1"]
+
+
+# -- locate ---------------------------------------------------------------
+
+
+def _git_init(root: Path) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    _git(root, "init", "-q")
+
+
+def _proposals_in(directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    _write(directory, "PROJ-001-a.md", _proposal("accepted", _milestone(1, "NOT STARTED")))
+
+
+def _locate(capsys: pytest.CaptureFixture[str], *argv: str) -> tuple[int, dict | None, str]:
+    code, out, err = _ran(["locate", *argv], capsys)
+    return code, (json.loads(out) if out.strip() else None), err
+
+
+FULL_KEYS = [
+    "repo_root", "proposals_dir", "index", "queue", "history", "ideas", "bugs_dir", "bugs_index", "found_below"
+]
+
+
+def test_locate_reports_every_path_of_a_full_specs_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The skills read these keys by name, so the shape and the absolute paths are the contract."""
+    _repo_with_proposals(tmp_path, "spec/proposals")
+    spec = tmp_path / "spec"
+    for rel in ("proposals/index.md", "proposals/history.md", "ideas.md", "bugs/README.md"):
+        (spec / rel).parent.mkdir(parents=True, exist_ok=True)
+        (spec / rel).write_text("# x\n")
+    (tmp_path / "src" / "deep").mkdir(parents=True)
+    monkeypatch.chdir(tmp_path / "src" / "deep")
+
+    code, found, err = _locate(capsys)
+
+    assert code == 0, err
+    assert list(found) == FULL_KEYS
+    assert found == {
+        "repo_root": str(tmp_path),
+        "proposals_dir": str(spec / "proposals"),
+        "index": str(spec / "proposals" / "index.md"),
+        "queue": str(spec / "proposals" / "queue.md"),
+        "history": str(spec / "proposals" / "history.md"),
+        "ideas": str(spec / "ideas.md"),
+        "bugs_dir": str(spec / "bugs"),
+        "bugs_index": str(spec / "bugs" / "README.md"),
+        "found_below": False,
+    }
+
+
+def test_locate_reports_null_for_what_does_not_exist(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _repo_with_proposals(tmp_path, "docs/proposals")
+    (tmp_path / "docs" / "proposals" / "queue.md").unlink()
+
+    code, found, err = _locate(capsys, "--start", str(tmp_path))
+
+    assert code == 0, err
+    assert found["proposals_dir"] == str(tmp_path / "docs" / "proposals")
+    assert all(found[k] is None for k in ("index", "queue", "history", "ideas", "bugs_dir", "bugs_index"))
+    assert found["found_below"] is False
+
+
+def test_locate_finds_bugs_at_the_repo_root_when_none_sits_beside_the_proposals(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _repo_with_proposals(tmp_path, "docs/proposals")
+    (tmp_path / "bugs").mkdir()
+    (tmp_path / "bugs" / "index.md").write_text("# Bugs\n")
+
+    code, found, _ = _locate(capsys, "--start", str(tmp_path))
+
+    assert code == 0
+    assert found["bugs_dir"] == str(tmp_path / "bugs")
+    assert found["bugs_index"] == str(tmp_path / "bugs" / "index.md")
+
+
+def test_locate_prefers_the_bugs_dir_beside_the_proposals(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _repo_with_proposals(tmp_path, "docs/proposals")
+    (tmp_path / "bugs").mkdir()
+    (tmp_path / "docs" / "bugs").mkdir()
+
+    _, found, _ = _locate(capsys, "--start", str(tmp_path))
+
+    assert found["bugs_dir"] == str(tmp_path / "docs" / "bugs")
+
+
+@pytest.mark.parametrize("where", ["docs/proposals", "docs/bugs"])
+def test_locate_stops_on_a_directory_holding_both_index_names(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], where: str
+) -> None:
+    """Both names is out of standard. A tool that picked one would edit an index the project does not read."""
+    _repo_with_proposals(tmp_path, "docs/proposals")
+    directory = tmp_path / where
+    directory.mkdir(exist_ok=True)
+    (directory / "index.md").write_text("# a\n")
+    (directory / "README.md").write_text("# b\n")
+
+    code, found, err = _locate(capsys, "--start", str(tmp_path))
+
+    assert code == 1 and found is None
+    assert str(directory) in err and "index.md" in err and "README.md" in err and "Consolidate" in err
+
+
+def test_locate_follows_a_symlinked_specs_directory(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A central specs repo is symlinked in as spec/. Paths stay under the link, where the project sees them."""
+    central = tmp_path / "central" / "proj"
+    _proposals_in(central / "proposals")
+    (central / "bugs").mkdir()
+    (central / "ideas.md").write_text("# Ideas\n")
+    repo = tmp_path / "repo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / "src").mkdir()
+    (repo / "spec").symlink_to(central)
+
+    code, found, err = _locate(capsys, "--start", str(repo / "src"))
+
+    assert code == 0, err
+    assert found["proposals_dir"] == str(repo / "spec" / "proposals")
+    assert found["ideas"] == str(repo / "spec" / "ideas.md")
+    assert found["bugs_dir"] == str(repo / "spec" / "bugs")
+
+
+def test_locate_takes_the_nearest_component_and_start_picks_one(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _repo_with_proposals(tmp_path, "spec/proposals")
+    app = tmp_path / "apps" / "web"
+    _proposals_in(app / "spec" / "proposals")
+    (app / "src").mkdir()
+
+    _, root, _ = _locate(capsys, "--start", str(tmp_path))
+    _, inside, _ = _locate(capsys, "--start", str(app / "src"))
+
+    assert root["proposals_dir"] == str(tmp_path / "spec" / "proposals")
+    assert inside["proposals_dir"] == str(app / "spec" / "proposals")
+    assert inside["repo_root"] == str(tmp_path)
+
+
+def test_locate_lists_every_candidate_when_a_directory_holds_several(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The caller asks the user which one, so every directory must be named, on stdout and in the message."""
+    _repo_with_proposals(tmp_path, "spec/proposals", "docs/proposals")
+
+    code, found, err = _locate(capsys, "--start", str(tmp_path))
+
+    both = [str(tmp_path / "spec" / "proposals"), str(tmp_path / "docs" / "proposals")]
+    assert code == 4
+    assert sorted(found["candidates"]) == sorted(both)
+    assert all(path in err for path in both)
+
+
+def _monorepo_of_components(root: Path, tmp_path: Path) -> list[str]:
+    """A repo with no proposals at its top. Three components keep theirs, one through a symlinked spec/."""
+    _git_init(root)
+    _proposals_in(root / "apps" / "web" / "spec" / "proposals")
+    _proposals_in(root / "apps" / "api" / "docs" / "proposals")
+    _proposals_in(tmp_path / "central" / "svc" / "proposals")
+    (root / "apps" / "svc").mkdir(parents=True)
+    (root / "apps" / "svc" / "spec").symlink_to(tmp_path / "central" / "svc")
+
+    package = root / "apps" / "lib" / "src" / "proposals"
+    package.mkdir(parents=True)
+    (package / "proposals.go").write_text("package proposals\n")
+
+    (root / ".gitignore").write_text("node_modules/\n")
+    _proposals_in(root / "node_modules" / "dep" / "proposals")
+
+    return [
+        str(root / "apps" / "api" / "docs" / "proposals"),
+        str(root / "apps" / "svc" / "spec" / "proposals"),
+        str(root / "apps" / "web" / "spec" / "proposals"),
+    ]
+
+
+def test_locate_lists_the_components_below_the_start_when_none_is_above(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Catches a skill run from a monorepo root stopping at "none" when each component keeps its own specs.
+
+    The listing leaves out ignored directories and a code package that only shares the name.
+    """
+    root = tmp_path / "mono"
+    components = _monorepo_of_components(root, tmp_path)
+
+    code, found, err = _locate(capsys, "--start", str(root))
+
+    assert code == 4, err
+    assert found["candidates"] == components
+    assert all(path in err for path in components)
+
+    code, found, _ = _locate(capsys, "--start", str(root / "apps"))
+    assert code == 4 and found["candidates"] == components
+
+
+def _spec_source(root: Path, name: str, *locations: str) -> Path:
+    """A repo that keeps proposals at each location, ready to be added as a submodule."""
+    repo = root / name
+    _git_init(repo)
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "T")
+    _git(repo, "config", "commit.gpgsign", "false")
+    for location in locations:
+        _proposals_in(repo / location)
+        _queue(repo / location, "| PROJ-001 M1 | None | |")
+    _commit(repo, "specs")
+    return repo
+
+
+def _superproject(root: Path, submodules: dict[str, Path]) -> Path:
+    """A repo with no proposals of its own, and each source added as a submodule at its path."""
+    repo = root / "super"
+    _git_init(repo)
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "T")
+    _git(repo, "config", "commit.gpgsign", "false")
+    for path, source in submodules.items():
+        _git(repo, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(source), path)
+    _commit(repo, "submodules")
+    return repo
+
+
+def test_locate_lists_the_components_that_submodules_keep(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Catches a superproject root that reports no proposals when each submodule keeps its own.
+
+    git lists a submodule as one entry, so a walk of its file list never sees inside. The nested
+    submodule stands for a component whose specs sit two repos down.
+    """
+    shared = _spec_source(tmp_path, "shared", "proposals")
+    web = _spec_source(tmp_path, "web", "spec/proposals")
+    api = _spec_source(tmp_path, "api", "docs/proposals")
+    _git(web, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(shared), "shared")
+    _commit(web, "nest shared")
+    root = _superproject(tmp_path, {"apps/web": web, "apps/api": api})
+    _git(root, "-c", "protocol.file.allow=always", "submodule", "update", "-q", "--init", "--recursive")
+
+    code, found, err = _locate(capsys, "--start", str(root))
+
+    components = [
+        str(root / "apps" / "api" / "docs" / "proposals"),
+        str(root / "apps" / "web" / "shared" / "proposals"),
+        str(root / "apps" / "web" / "spec" / "proposals"),
+    ]
+    assert code == 4, err
+    assert found["candidates"] == components
+    assert all(path in err for path in components)
+
+
+def test_locate_passes_over_a_submodule_that_was_never_initialized(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An empty submodule directory holds nothing to list.
+
+    The search must neither fail nor fall back to the superproject, which owns that directory in its
+    own file list.
+    """
+    web = _spec_source(tmp_path, "web", "spec/proposals")
+    api = _spec_source(tmp_path, "api", "spec/proposals")
+    source = _superproject(tmp_path, {"apps/web": web, "apps/api": api})
+    clone = tmp_path / "clone"
+    _git(tmp_path, "clone", "-q", str(source), str(clone))
+    _git(clone, "-c", "protocol.file.allow=always", "submodule", "update", "-q", "--init", "apps/web")
+
+    code, found, err = _locate(capsys, "--start", str(clone))
+
+    assert code == 0, err
+    assert found["proposals_dir"] == str(clone / "apps" / "web" / "spec" / "proposals")
+
+    _git(clone, "submodule", "deinit", "-q", "-f", "apps/web")
+    code, found, _ = _locate(capsys, "--start", str(clone))
+    assert code == 3 and found["proposals_dir"] is None
+
+
+def test_locate_returns_the_only_component_below_the_start_instead_of_asking(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Catches a skill asking the user to choose among one option.
+
+    Exit 4 means several candidates, and the caller asks which. One candidate has nothing to choose
+    from, so it comes back as found. `found_below` tells a caller that wants to confirm it that the
+    start itself keeps no proposals.
+    """
+    root = tmp_path / "mono"
+    web = root / "apps" / "web"
+    _git_init(root)
+    _proposals_in(web / "spec" / "proposals")
+    (web / "spec" / "bugs").mkdir()
+
+    code, found, err = _locate(capsys, "--start", str(root))
+
+    assert code == 0, err
+    assert list(found) == FULL_KEYS
+    assert found["proposals_dir"] == str(web / "spec" / "proposals")
+    assert found["bugs_dir"] == str(web / "spec" / "bugs")
+    assert found["repo_root"] == str(root)
+    assert found["found_below"] is True
+    assert str(web / "spec" / "proposals") in err and "below" in err
+
+
+def test_locate_reports_the_submodule_as_the_repo_of_the_only_component_below_the_start(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The component's specs are committed in the submodule, so its root is the repo root and its bugs fallback.
+
+    A rerun with --start set to the proposals directory reports the same, so the two ways to
+    reach one component agree.
+    """
+    web = _spec_source(tmp_path, "web", "spec/proposals")
+    root = _superproject(tmp_path, {"apps/web": web})
+    component = root / "apps" / "web"
+    (component / "bugs").mkdir()
+
+    code, found, err = _locate(capsys, "--start", str(root))
+
+    assert code == 0, err
+    assert found["found_below"] is True
+    assert found["repo_root"] == str(component)
+    assert found["proposals_dir"] == str(component / "spec" / "proposals")
+    assert found["queue"] == str(component / "spec" / "proposals" / "queue.md")
+    assert found["bugs_dir"] == str(component / "bugs")
+
+    _, picked, _ = _locate(capsys, "--start", str(component / "spec" / "proposals"))
+    assert {**picked, "found_below": True} == found
+
+
+def test_locate_looks_below_the_start_only_inside_a_repo(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Outside a repo nothing bounds the walk down, so a directory that holds specs further down is not found."""
+    _proposals_in(tmp_path / "plain" / "app" / "spec" / "proposals")
+
+    code, found, _ = _locate(capsys, "--start", str(tmp_path / "plain"))
+
+    assert code == 3
+    assert found["proposals_dir"] is None and found["repo_root"] is None
+
+
+def test_locate_reports_the_bugs_dir_when_there_is_no_proposals_dir(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A project may keep bugs/ at its root and no proposals. Exit 0 says it found something to use."""
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "bugs").mkdir()
+    (tmp_path / "bugs" / "index.md").write_text("# Bugs\n")
+    (tmp_path / "src").mkdir()
+
+    code, found, err = _locate(capsys, "--start", str(tmp_path / "src"))
+
+    assert code == 0, err
+    assert found == {
+        "repo_root": str(tmp_path), "proposals_dir": None, "index": None, "queue": None, "history": None,
+        "ideas": None, "bugs_dir": str(tmp_path / "bugs"), "bugs_index": str(tmp_path / "bugs" / "index.md"),
+        "found_below": False,
+    }
+
+
+def test_locate_exits_3_with_every_path_null_when_nothing_exists(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The JSON still prints, so a caller reads repo_root from it, and the error says where it looked."""
+    (tmp_path / ".git").mkdir()
+    (tmp_path / "src").mkdir()
+
+    code, found, err = _locate(capsys, "--start", str(tmp_path / "src"))
+
+    assert code == 3
+    assert found == {
+        **{key: None for key in FULL_KEYS}, "repo_root": str(tmp_path), "found_below": False
+    }
+    assert "no proposals directory found" in err and "--proposals-dir" not in err
+
+
+def test_locate_stops_at_the_repo_boundary(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    _repo_with_proposals(tmp_path, "spec/proposals")
+    inner = tmp_path / "vendor" / "other"
+    (inner / ".git").mkdir(parents=True)
+
+    code, found, _ = _locate(capsys, "--start", str(inner))
+
+    assert code == 3 and found["repo_root"] == str(inner)
+
+
+def test_locate_rejects_a_start_that_is_not_a_directory_and_a_proposals_dir(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    code, found, err = _locate(capsys, "--start", str(tmp_path / "missing"))
+    assert code == 1 and found is None and "not a directory" in err
+
+    code, out, err = _ran(["--proposals-dir", str(tmp_path), "locate"], capsys)
+    assert code == 2 and out == "" and "--start" in err
+
+    code, _, err = _ran(["locate", "--proposals-dir", str(tmp_path)], capsys)
+    assert code == 2 and "unrecognized arguments" in err
+
+
+def test_locate_help_documents_the_exit_codes(capsys: pytest.CaptureFixture[str]) -> None:
+    code, out, _ = _ran(["locate", "--help"], capsys)
+    assert code == 0
+    for line in ("0 ", "1 ", "2 ", "3 ", "4 "):
+        assert any(text.strip().startswith(line) for text in out.splitlines()), line
+    assert "--start" in out
+    assert "found_below" in out
 
 
 @pytest.mark.parametrize("argv", [["check"], ["row", "PROJ-001"], ["freeze"], ["hooks"], ["next"], ["candidates"]])

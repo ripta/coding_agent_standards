@@ -3,6 +3,11 @@
 #
 # This only checks and never stages anything. Several sessions share one checkout, and adding
 # index.md or topics/ here could sweep another session's in-progress edits into this commit.
+#
+# Git runs hooks from the top of the work tree. A wiki can sit in a subdirectory of its repo, so
+# the hook moves to the wiki root, the parent of this .githooks directory.
+
+cd "$(dirname "$0")/.." || exit 1
 
 if ! bin/wiki check; then
 	cat >&2 <<'MSG'

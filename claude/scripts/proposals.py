@@ -11,6 +11,7 @@
     python3 proposals.py next --proposals-dir DIR [--proposals-for PREFIX=PATH ...] [--count N]
         [--hold PROJ-NNN ...]
     python3 proposals.py candidates --proposals-dir DIR [--proposals-for PREFIX=PATH ...]
+    python3 proposals.py locate [--start DIR]
 
 The rules live in project-management/proposals.md and plans.md. `check` reports
 milestone status and hook structure the standard rejects. `row` finds the queue
@@ -22,6 +23,14 @@ rows, with the hooks.
 `notice` prints one line when any hook has passed, and nothing otherwise.
 `next` picks the next N rows a `/work-queue` run can take, in queue order.
 `candidates` recommends accepted proposals to schedule, in tiers.
+`locate` finds the proposals directory, and the files and bugs directory around it, for the work at
+DIR. It is the one command that takes no --proposals-dir, since finding that directory is its job.
+It prints JSON with repo_root, proposals_dir, index, queue, history, ideas, bugs_dir, bugs_index,
+and found_below. Each but the last is an absolute path, or null when nothing was found. Its exit
+status is 0 when it found a proposals directory, or a bugs directory with no proposals directory.
+It is 1 on an error, 2 on bad usage, 3 when it found neither directory, and 4 when several
+proposals directories qualify. A start with none at or above it, and exactly one below, finds that
+one and says so in found_below. See `locate --help`.
 
 The queue is DIR/queue.md, which holds unfinished rows, and DIR/history.md, which holds
 finished rows in the order they were built. Every command reads both as one queue.
@@ -47,6 +56,7 @@ from __future__ import annotations
 import argparse
 import difflib
 import json
+import os
 import re
 import shlex
 import subprocess
@@ -97,6 +107,18 @@ HISTORY_FILE = "history.md"
 
 class ProposalError(Exception):
     """A failure the user must act on; the message says what and where."""
+
+
+class NoProposalsDir(ProposalError):
+    """The search found no proposals directory."""
+
+
+class SeveralProposalsDirs(ProposalError):
+    """The search found more than one proposals directory. `found` lists them."""
+
+    def __init__(self, message: str, found: list[Path]) -> None:
+        super().__init__(message)
+        self.found = found
 
 
 # -- revisit hooks --------------------------------------------------------
@@ -1431,8 +1453,31 @@ def _facts(path: Path) -> Facts:
     return Facts(title, created, dependencies, open_questions, bugs, motivation)
 
 
-def _bug_open(bugs_dir: Path, name: str) -> bool:
+def repo_root(path: Path) -> Path | None:
+    """Return the nearest directory at or above `path` that holds `.git`, a directory or a submodule's file."""
+    path = Path(os.path.abspath(path))
+    for directory in (path, *path.parents):
+        if (directory / ".git").exists():
+            return directory
+    return None
+
+
+def find_bugs_dir(beside: Path | None, root: Path | None) -> Path | None:
+    """Return the bugs directory: `bugs/` in `beside`, else `bugs/` at the repo root, else None.
+
+    `beside` is the proposals directory's parent. The first `bugs/` that exists wins, as tracking.md
+    says. A repo that keeps bugs at its root and proposals under `docs/` has no `docs/bugs/`.
+    """
+    for parent in (beside, root):
+        if parent is not None and (parent / "bugs").is_dir():
+            return parent / "bugs"
+    return None
+
+
+def _bug_open(bugs_dir: Path | None, name: str) -> bool:
     """A bug file whose status is fixed or closed no longer argues for the work. An unreadable one still does."""
+    if bugs_dir is None:
+        return True
     path = bugs_dir / name
     if not path.is_file():
         return True
@@ -1464,7 +1509,7 @@ def candidates(
     proposals, rows = ws.local.proposals, ws.local.rows
     status = {pid: _base_status(p.status) for pid, p in proposals.items()}
     facts = {pid: _facts(p.path) for pid, p in proposals.items() if status[pid] not in NOT_LIVE}
-    bugs_dir = proposals_dir.parent / "bugs"
+    bugs_dir = find_bugs_dir(proposals_dir.parent, repo_root(proposals_dir))
 
     dependents: dict[str, set[str]] = {}
     for pid, f in facts.items():
@@ -1546,6 +1591,7 @@ def candidates(
 
 
 PROPOSALS_LOCATIONS = ("spec/proposals", "docs/proposals", "proposals")
+GITLINK_MODE = "160000"
 
 
 def _holds_proposals(directory: Path) -> bool:
@@ -1556,6 +1602,14 @@ def _holds_proposals(directory: Path) -> bool:
     if any((directory / name).is_file() for name in (QUEUE_FILE, HISTORY_FILE, "index.md", "README.md")):
         return True
     return any(PROPOSAL_FILE.match(child.name) for child in directory.iterdir())
+
+
+def _none_found(start: Path) -> str:
+    looked = ", ".join(f"{loc}/" for loc in PROPOSALS_LOCATIONS)
+    return (
+        f"no proposals directory found: looked for {looked} holding a queue, an index, or a proposal, in "
+        f"{start} and its parents up to the repo root"
+    )
 
 
 def find_proposals_dir(start: Path) -> Path:
@@ -1569,16 +1623,171 @@ def find_proposals_dir(start: Path) -> Path:
         found = [directory / loc for loc in PROPOSALS_LOCATIONS if _holds_proposals(directory / loc)]
         if len(found) > 1:
             names = ", ".join(str(f) for f in found)
-            raise ProposalError(f"found several proposals directories: {names}. Pass --proposals-dir DIR to pick one")
+            raise SeveralProposalsDirs(
+                f"found several proposals directories: {names}. Pass --proposals-dir DIR to pick one", found
+            )
         if found:
             return found[0]
         if (directory / ".git").exists():
             break
-    looked = ", ".join(f"{loc}/" for loc in PROPOSALS_LOCATIONS)
-    raise ProposalError(
-        f"no proposals directory found: looked for {looked} holding a queue, an index, or a proposal, in "
-        f"{start} and its parents up to the repo root. Pass --proposals-dir DIR"
-    )
+    raise NoProposalsDir(f"{_none_found(start)}. Pass --proposals-dir DIR")
+
+
+def _git_files(start: Path, *args: str) -> list[str] | None:
+    """List `git ls-files` output for `start`, or None when `start` is not in a repo."""
+    result = subprocess.run(["git", "ls-files", "-z", *args], cwd=start, capture_output=True, text=True)
+    if result.returncode != 0:
+        return None
+    return [entry for entry in result.stdout.split("\0") if entry]
+
+
+def proposals_below(start: Path) -> list[Path]:
+    """List the proposals directories at or below `start`, for a start that has none above it.
+
+    A monorepo may keep specs per component and none at its top. The search stays in the repo of
+    `start` and reads git's file list, so it skips ignored directories. A symlinked `spec/` or
+    `docs/` is one entry in that list, so each directory is probed for the common locations through
+    any link.
+
+    A submodule is one gitlink entry in that list, so each one that is checked out is searched in
+    turn, nested submodules included. A submodule that was never initialized is an empty directory
+    with nothing to find, and is passed over. Outside a repo nothing bounds the walk down, so the
+    list is empty.
+    """
+    files = _git_files(start, "--cached", "--others", "--exclude-standard")
+    if files is None:
+        return []
+
+    directories = {""}
+    for rel in files:
+        parts = rel.split("/")
+        directories.update("/".join(parts[:depth]) for depth in range(1, len(parts)))
+        if (start / rel).is_symlink() and (start / rel).is_dir():
+            directories.add(rel)
+
+    found = {
+        start / rel / loc
+        for rel in directories
+        for loc in PROPOSALS_LOCATIONS
+        if _holds_proposals(start / rel / loc)
+    }
+
+    for entry in _git_files(start, "--stage") or []:
+        meta, _, path = entry.partition("\t")
+        if meta.split()[0] == GITLINK_MODE and (start / path / ".git").exists():
+            found.update(proposals_below(start / path))
+    return sorted(found)
+
+
+def _index_file(directory: Path) -> Path | None:
+    """Return the directory's index, `index.md` or `README.md`, or None when it has neither.
+
+    A directory holding both is out of standard. Choosing one would edit an index the project may
+    not read, so it is an error.
+    """
+    found = [directory / name for name in ("index.md", "README.md") if (directory / name).is_file()]
+    if len(found) > 1:
+        raise ProposalError(
+            f"{directory} holds both index.md and README.md. Consolidate them into one index, per "
+            '"Index File Name" in project-management/tracking.md'
+        )
+    return found[0] if found else None
+
+
+def locate(start: Path, proposals_dir: Path | None, found_below: bool = False) -> dict[str, Any]:
+    """Name the specs files around `proposals_dir`, and the bugs directory, as absolute paths or None.
+
+    `proposals_dir` is None when the search found none. The bugs directory is still reported then,
+    from the repo root. A path under a symlinked `spec/` stays under the link, where the project sees it.
+    `found_below` says the directory sits below the directory the user started from, not at or above it.
+    """
+    root = repo_root(start)
+    paths: dict[str, Path | None] = {"repo_root": root, "proposals_dir": proposals_dir}
+    bugs_dir = find_bugs_dir(proposals_dir.parent if proposals_dir else None, root)
+
+    def file_in(directory: Path | None, name: str) -> Path | None:
+        return directory / name if directory is not None and (directory / name).is_file() else None
+
+    paths["index"] = _index_file(proposals_dir) if proposals_dir else None
+    paths["queue"] = file_in(proposals_dir, QUEUE_FILE)
+    paths["history"] = file_in(proposals_dir, HISTORY_FILE)
+    paths["ideas"] = file_in(proposals_dir.parent if proposals_dir else None, "ideas.md")
+    paths["bugs_dir"] = bugs_dir
+    paths["bugs_index"] = _index_file(bugs_dir) if bugs_dir else None
+    return {**{key: str(path) if path is not None else None for key, path in paths.items()},
+            "found_below": found_below}
+
+
+EXIT_NONE = 3
+EXIT_SEVERAL = 4
+
+LOCATE_HELP = """Find the proposals directory for the work at --start, and the files around it.
+
+Searches --start, which defaults to the current directory, and its parents, up to the repo root. The nearest
+spec/proposals, docs/proposals, or proposals directory wins. When none is at or above --start, it looks below it,
+in the same repo and in its checked-out submodules. One directory there is the answer, since a monorepo root with
+a single component has nothing to ask. Several are listed, so the caller can ask which component.
+
+Prints JSON with repo_root, proposals_dir, index, queue, history, ideas, bugs_dir, bugs_index, and found_below.
+Every key but the last is an absolute path, or null when nothing was found. The bugs directory is bugs/ beside the
+proposals directory, else bugs/ at the repo root. An index is index.md or README.md. A directory holding both is
+an error.
+
+found_below is true when the proposals directory is the only one below --start, and false otherwise. Then
+repo_root is the repo that holds it, which can be a submodule. A caller that wants the user to confirm the
+component can ask when found_below is true.
+
+Exit status:
+  0  found a proposals directory, including the only one below --start, or a bugs directory when there is no
+     proposals directory
+  1  an error, such as a directory holding both index.md and README.md, or a --start that is not a directory
+  2  bad usage, such as an unknown option, or --proposals-dir, which locate does not take
+  3  found neither a proposals directory nor a bugs directory. The JSON still prints, with a null for each path
+  4  several proposals directories qualify, at --start or below it. Stdout is {"candidates": [...]}. Run it
+     again with --start set to the one the user picks
+"""
+
+
+def _print_json(value: Any) -> None:
+    json.dump(value, sys.stdout, indent=2)
+    sys.stdout.write("\n")
+
+
+def run_locate(start: Path | None) -> int:
+    start = Path(os.path.abspath(start if start is not None else Path.cwd()))
+    if not start.is_dir():
+        raise ProposalError(f"--start {start} is not a directory")
+
+    try:
+        directory = find_proposals_dir(start)
+    except SeveralProposalsDirs as err:
+        names = ", ".join(str(f) for f in err.found)
+        print(f"proposals.py: found several proposals directories: {names}. Ask which one, then pass it as --start",
+              file=sys.stderr)
+        _print_json({"candidates": [str(f) for f in err.found]})
+        return EXIT_SEVERAL
+    except NoProposalsDir:
+        directory = None
+        below = proposals_below(start)
+        if len(below) == 1:
+            [only] = below
+            print(f"proposals.py: no proposals directory at or above {start}. Using the only one below it: {only}",
+                  file=sys.stderr)
+            _print_json(locate(only, only, found_below=True))
+            return 0
+        if below:
+            names = ", ".join(str(f) for f in below)
+            print(f"proposals.py: no proposals directory at or above {start}, but components below it keep theirs: "
+                  f"{names}. Ask which one, then pass it as --start", file=sys.stderr)
+            _print_json({"candidates": [str(f) for f in below]})
+            return EXIT_SEVERAL
+
+    result = locate(start, directory)
+    _print_json(result)
+    if directory is None and result["bugs_dir"] is None:
+        print(f"proposals.py: {_none_found(start)}, and no bugs directory", file=sys.stderr)
+        return EXIT_NONE
+    return 0
 
 
 def main(argv: list[str]) -> int:
@@ -1590,6 +1799,11 @@ def main(argv: list[str]) -> int:
     )
     parser.add_argument("--proposals-dir", type=Path, default=argparse.SUPPRESS, help=dir_help)
     sub = parser.add_subparsers(dest="command", required=True)
+    locator = sub.add_parser(
+        "locate", help="find the proposals directory and the files around it", description=LOCATE_HELP,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    locator.add_argument("--start", type=Path, help="where to start searching; defaults to the current directory")
     for name in ("check", "row", "freeze", "hooks", "progress", "notice", "next", "candidates"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--proposals-dir", type=Path, default=argparse.SUPPRESS, help=dir_help)
@@ -1618,6 +1832,11 @@ def main(argv: list[str]) -> int:
             cmd.add_argument("--hold", action="append", default=[], help="a proposal whose rows the run holds")
     args = parser.parse_args(argv)
     try:
+        if args.command == "locate":
+            if hasattr(args, "proposals_dir"):
+                locator.error("locate searches for the proposals directory, so it takes --start DIR, "
+                              "not --proposals-dir")
+            return run_locate(args.start)
         if not hasattr(args, "proposals_dir"):
             args.proposals_dir = find_proposals_dir(Path.cwd())
         if getattr(args, "today", None) is not None and not ISO_DATE.match(args.today):
