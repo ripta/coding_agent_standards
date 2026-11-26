@@ -22,10 +22,15 @@ the user gives to every call.
 
 ### Step 1: Locate the Proposals Directory
 
-Find the proposals directory by checking common locations (`spec/proposals/`, `docs/proposals/`, `proposals/`). It
-holds the index, `queue.md`, and `history.md` once a row has finished. The index is `index.md` or `README.md`, per the
-"Index File Name" section of `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. If the directory holds both
-indexes, stop before editing anything. Tell the user to consolidate the two into one file first.
+Find the proposals directory with `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate`, per "Lookup Rule" in
+`${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. It needs no `--proposals-dir`. It finds the nearest of the
+common locations (`spec/proposals/`, `docs/proposals/`, `proposals/`). When it reports several candidates, ask which
+component, with AskUserQuestion, and run it again with `--start` set to a path in that component. When it reports none,
+tell the user there is nothing to clean up, and stop.
+
+The directory holds the index, `queue.md`, and `history.md` once a row has finished. The index is `index.md` or
+`README.md`, per the "Index File Name" section of `tracking.md`. If the directory holds both indexes, stop before
+editing anything. Tell the user to consolidate the two into one file first.
 
 Run `python3 ${CLAUDE_SKILL_DIR}/../../scripts/detect_era.py --specs-dir <specs dir>`. If it reports an era other
 than 3, or `partial`, the project has not finished migrating to era 3. Stop and tell the user to migrate first, with
@@ -88,7 +93,7 @@ implemented proposals. Keep the edges among proposals that are still active.
 
 ### Step 7 (optional): Prune Covered Ideas
 
-Skip this step if the specs directory has no ideas file, such as `spec/ideas.md`. Its format is "Ideas" in
+Skip this step if `locate` reports no `ideas` file, such as `spec/ideas.md`. Its format is "Ideas" in
 `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. Each idea there is a `##` section. An idea is covered when a
 numbered proposal, in any status, has a title or summary that clearly covers the same feature or concern. Check each
 idea against the proposal index. When in doubt, keep the idea.

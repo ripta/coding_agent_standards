@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -20,14 +21,35 @@ def _git(repo: Path, *args: str) -> str:
     ).stdout.strip()
 
 
-def _commit(repo: Path, path: str, message: str) -> str:
+def _commit_staged(repo: Path, message: str, when: str | None = None) -> str:
+    """Commit what is staged. `when` sets both commit dates, as an ISO 8601 string."""
+    env = {**os.environ, "GIT_AUTHOR_DATE": when, "GIT_COMMITTER_DATE": when} if when else None
+    subprocess.run(
+        ["git", "-C", str(repo), "commit", "-q", "-m", message],
+        capture_output=True,
+        text=True,
+        check=True,
+        env=env,
+    )
+    return _git(repo, "rev-parse", "HEAD")
+
+
+def _commit(repo: Path, path: str, message: str, when: str | None = None) -> str:
     target = repo / path
     target.parent.mkdir(parents=True, exist_ok=True)
     with target.open("a") as fh:
         fh.write(f"{message}\n")
     _git(repo, "add", path)
-    _git(repo, "commit", "-q", "-m", message)
-    return _git(repo, "rev-parse", "HEAD")
+    return _commit_staged(repo, message, when)
+
+
+def _init(path: Path) -> Path:
+    path.mkdir(parents=True)
+    _git(path, "init", "-q", "-b", "main")
+    _git(path, "config", "user.email", "t@example.com")
+    _git(path, "config", "user.name", "T")
+    _git(path, "config", "commit.gpgsign", "false")
+    return path
 
 
 @pytest.fixture
@@ -151,6 +173,20 @@ def test_first_run_needs_since_then_scans_only_mapped_paths(capsys, config, repo
     assert entry["commits"][0]["refs"] == ["#7", "CI-2"]
     assert entry["changed_files"] == ["apps/a/x.py"]
     assert entry["tracker"]["site"] == "acme.atlassian.net"
+
+
+def test_the_oldest_commit_in_range_may_have_no_body(capsys, config, repo) -> None:
+    """Regression: an empty body at the end of the log let the output's strip eat the field
+    separators, and scope crashed on a one-line commit. Real history is mostly one-line commits."""
+    setup_jira(capsys, config, repo)
+    run(capsys, config, repo, "add-mapping", "--path", "apps/a", "--group", "j", "epic", "CI-1")
+    base = _git(repo, "rev-parse", "HEAD")
+    _commit(repo, "apps/a/x.py", "feat(a): subject only CI-4")
+
+    _, out, _ = run(capsys, config, repo, "scope", "--since", base)
+    [entry] = out["selected"]
+    assert [c["subject"] for c in entry["commits"]] == ["feat(a): subject only CI-4"]
+    assert entry["commits"][0]["refs"] == ["CI-4"]
 
 
 def test_advance_moves_watermark_forward_only(capsys, config, repo) -> None:
@@ -447,3 +483,159 @@ def test_invalid_kind_in_config_is_rejected(capsys, config, repo) -> None:
     )
     code, _, err = run(capsys, config, repo, "scope")
     assert code == 1 and "not valid for github" in err
+
+
+# -- paths that another repo owns ------------------------------------------
+
+
+@pytest.fixture
+def core(tmp_path: Path) -> Path:
+    """A repo to mount as a submodule."""
+    core = _init(tmp_path / "core")
+    _commit(core, "src/a.py", "init core")
+    return core
+
+
+def _mount(repo: Path, core: Path, mount: str = "libs/core") -> None:
+    _git(repo, "-c", "protocol.file.allow=always", "submodule", "add", "-q", str(core), mount)
+    _git(repo, "commit", "-q", "-m", "add core")
+
+
+def _bump(repo: Path, mount: str = "libs/core") -> None:
+    _git(repo / mount, "pull", "-q", "--ff-only", "origin", "main")
+    _git(repo, "add", mount)
+    _git(repo, "commit", "-q", "-m", "bump core")
+
+
+def _map(capsys, config: Path, repo: Path, path: str) -> None:
+    setup_jira(capsys, config, repo)
+    run(capsys, config, repo, "add-mapping", "--path", path, "--group", "j", "epic", "CI-1")
+
+
+def test_a_path_inside_a_submodule_reports_the_submodules_own_commits(capsys, config, repo, core) -> None:
+    """Catches a log run in the checkout. It answers nothing for a path a submodule owns."""
+    _mount(repo, core)
+    _map(capsys, config, repo, "libs/core/src")
+    base = _git(repo, "rev-parse", "HEAD")
+    _commit(core, "src/b.py", "core: land it\n\nCloses CI-5")
+    _bump(repo)
+
+    _, out, _ = run(capsys, config, repo, "scope", "--since", base)
+    [entry] = out["selected"]
+    assert [c["subject"] for c in entry["commits"]] == ["core: land it"]
+    assert entry["commits"][0]["refs"] == ["CI-5"]
+    assert entry["commits"][0]["repo"] == str((repo / "libs/core").resolve())
+    assert entry["changed_files"] == ["libs/core/src/b.py"]
+    assert entry["external"] == [
+        {
+            "repo": str((repo / "libs/core").resolve()),
+            "paths": ["libs/core/src"],
+            "since": _git(core, "rev-parse", "HEAD~1"),
+            "head": _git(core, "rev-parse", "HEAD"),
+            "range": "pin",
+        }
+    ]
+
+
+def test_a_submodule_root_reports_its_commits_and_the_bump_that_adopted_them(
+    capsys, config, repo, core
+) -> None:
+    """Catches a mapping on the submodule's own path that reports the bump and none of the work."""
+    _mount(repo, core)
+    _map(capsys, config, repo, "libs/core")
+    base = _git(repo, "rev-parse", "HEAD")
+    _commit(core, "src/b.py", "core: land it")
+    _bump(repo)
+
+    _, out, _ = run(capsys, config, repo, "scope", "--since", base)
+    [entry] = out["selected"]
+    assert sorted(c["subject"] for c in entry["commits"]) == ["bump core", "core: land it"]
+    assert entry["changed_files"] == ["libs/core", "libs/core/src/b.py"]
+
+
+def test_a_submodule_commit_the_checkout_does_not_pin_is_not_reported(capsys, config, repo, core) -> None:
+    """The range is what the checkout's default branch adopted, so unadopted work waits for its bump."""
+    _mount(repo, core)
+    _map(capsys, config, repo, "libs/core/src")
+    base = _git(repo, "rev-parse", "HEAD")
+    _commit(core, "src/b.py", "core: adopted")
+    _bump(repo)
+    _commit(core, "src/c.py", "core: not yet adopted")
+    _git(repo / "libs/core", "pull", "-q", "--ff-only", "origin", "main")
+
+    _, out, _ = run(capsys, config, repo, "scope", "--since", base)
+    [entry] = out["selected"]
+    assert [c["subject"] for c in entry["commits"]] == ["core: adopted"]
+    assert entry["changed_files"] == ["libs/core/src/b.py"]
+
+
+def test_a_submodule_pin_the_clone_lacks_stops_and_names_the_path(capsys, config, repo, core) -> None:
+    """Catches a scan that reads a clone behind the pin as no work."""
+    _mount(repo, core)
+    _map(capsys, config, repo, "libs/core/src")
+    base = _git(repo, "rev-parse", "HEAD")
+    _git(repo, "update-index", "--cacheinfo", f"160000,{'1' * 40},libs/core")
+    _git(repo, "commit", "-q", "-m", "pin a commit the clone lacks")
+
+    code, _, err = run(capsys, config, repo, "scope", "--since", base)
+    assert code == 1
+    assert "libs/core" in err and "1" * 40 in err
+
+
+def test_a_symlinked_specs_dir_reports_the_specs_repo_commits_in_the_checkouts_window(
+    capsys, config, repo, tmp_path
+) -> None:
+    """Catches a log run in the checkout. It answers nothing beyond a symlink.
+
+    The specs repo has no pin, so its window is the dates of the watermark and the head. A commit
+    after the head waits for the next sync, and one before the watermark was reported already.
+    """
+    specs = _init(tmp_path / "specs")
+    _commit(specs, "app/proposals/P-1.md", "spec: before the window", when="2024-01-10T12:00:00+00:00")
+    _commit(specs, "app/proposals/P-2.md", "spec: inside the window\n\nCI-6", when="2024-03-01T12:00:00+00:00")
+    _commit(specs, "app/proposals/P-3.md", "spec: after the window", when="2024-05-01T12:00:00+00:00")
+    (repo / "spec").symlink_to(specs / "app")
+    _git(repo, "add", "spec")
+    _commit_staged(repo, "link specs", when="2024-02-01T12:00:00+00:00")
+    _map(capsys, config, repo, "spec/proposals")
+    base = _git(repo, "rev-parse", "HEAD")
+    _commit(repo, "apps/a/x.py", "work", when="2024-04-01T12:00:00+00:00")
+
+    _, out, _ = run(capsys, config, repo, "scope", "--since", base)
+    [entry] = out["selected"]
+    assert [c["subject"] for c in entry["commits"]] == ["spec: inside the window"]
+    assert entry["commits"][0]["refs"] == ["CI-6"]
+    assert entry["changed_files"] == ["spec/proposals/P-2.md"]
+    [external] = entry["external"]
+    assert external["repo"] == str(specs.resolve())
+    assert external["range"] == "date"
+    assert external["paths"] == ["spec/proposals"]
+
+
+def test_a_symlink_inside_the_checkout_reads_the_real_path_and_reports_the_mapped_one(
+    capsys, config, repo
+) -> None:
+    (repo / "link").symlink_to("apps/a")
+    _map(capsys, config, repo, "link")
+    base = _git(repo, "rev-parse", "HEAD")
+    _commit(repo, "apps/a/x.py", "feat(a): land it")
+
+    _, out, _ = run(capsys, config, repo, "scope", "--since", base)
+    [entry] = out["selected"]
+    assert [c["subject"] for c in entry["commits"]] == ["feat(a): land it"]
+    assert entry["changed_files"] == ["link/x.py"]
+    assert "external" not in entry
+    assert all("repo" not in c for c in entry["commits"])
+
+
+def test_a_mapped_path_outside_any_repo_stops(capsys, config, repo, tmp_path) -> None:
+    """Catches a path that no repo tracks, which a log reads as no work."""
+    loose = tmp_path / "loose"
+    loose.mkdir()
+    (repo / "notes").symlink_to(loose)
+    _map(capsys, config, repo, "notes")
+    base = _git(repo, "rev-parse", "HEAD")
+
+    code, _, err = run(capsys, config, repo, "scope", "--since", base)
+    assert code == 1
+    assert "notes" in err and "not in a git repository" in err

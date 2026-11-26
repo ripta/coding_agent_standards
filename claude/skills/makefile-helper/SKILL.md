@@ -11,10 +11,16 @@ and to audit a Makefile against the standards below when asked.
 
 ## Workflow
 
-1. Read the project's Makefile and every file it `include`s to understand available targets and their dependencies
+1. Find the Makefile by "Lookup Rule" in `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. It is the one
+   nearest at or above the path the question concerns, or the current directory when the question names none. Read it
+   and every file it `include`s to understand available targets and their dependencies. Use the nearest Makefile for
+   every answer and every command you run. When the repo root has a Makefile that differs from the nearest one, you may
+   mention it, and say which one a target comes from. Never run it in place of the nearest one. When none sits at or
+   above the path, say so.
 2. Match the user's goal to the appropriate target
 3. Explain what the target does, what tools it runs, and any dependencies
 4. For multi-step tasks, suggest the correct target order
+5. Give the directory to run each target from, when the Makefile is not in the current directory
 
 ## Common Target Categories
 
@@ -40,13 +46,16 @@ Run an audit when the user asks to audit, review, or check a Makefile against th
 Never edit the Makefile. Audit by reading the files. Do not run `make` at all, not even `make help` or `make -n`.
 Parsing a Makefile can run `$(shell ...)` calls and `include`d code.
 
+Audit the Makefile the user asked about. When the user asks about the repo, audit each Makefile that no other Makefile
+includes, and report each one separately.
+
 This checklist covers the checkable rules in `claude/practices/makefile.md` in the coding standards repo. Change it when
 those rules change.
 
-Items 1 and 2 apply to the top-level Makefile only. Included files do not repeat the header or the `help` target.
-Items 3 through 9 apply to the top-level Makefile and every file it includes.
+Items 1 and 2 apply to the Makefile being audited, not to the files it includes. Included files do not repeat the
+header or the `help` target. Items 3 through 9 apply to the Makefile being audited and every file it includes.
 
-1. **Header.** The top-level Makefile opens with all five lines:
+1. **Header.** The Makefile opens with all five lines:
    - `SHELL := bash -o pipefail`. Flag `/bin/bash` (missing on NixOS) and any use of `.SHELLFLAGS` (needs make 3.82).
    - `.DEFAULT_GOAL := help`. Flag a missing default goal, or one that builds or runs anything.
    - `.DELETE_ON_ERROR:`

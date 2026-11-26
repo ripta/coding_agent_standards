@@ -23,7 +23,8 @@ This skill is the coordinator. Subagents triage and fix. You check their work, c
 Approving the run in Step 4 is the user's explicit authorization for this run only. It relaxes these rules:
 
 - The rule against committing on the user's behalf, in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`. Commit each
-  bug's result as Step 5 describes, in the code repo and in the specs repo.
+  bug's result as Step 5 describes, in each repo that owns a file it changed. That covers the code repo, the specs
+  repo, and any submodule.
 - The rule to confirm before moving on, in `${CLAUDE_SKILL_DIR}/../../rules/work-discipline.md`. Do not pause between
   bugs.
 - The rule to ask before deciding, in `${CLAUDE_SKILL_DIR}/../../rules/decision-making.md`, for one kind of decision
@@ -39,10 +40,13 @@ that is checked out. Never create or switch branches. Never commit an edit this 
 1. Do `bug-triage` Step 1: the bugs directory, its index, the build and test commands, the test layout, and the shell
    tools. Stop where it stops.
 2. Find which repo holds the bugs directory. When it is a symlink into a separate specs repo, bug files commit there,
-   and code commits in the project's repo. Read each repo's commit style, per
+   and code commits in the project's repo. A fix can also land in a submodule, which is a repo of its own. See
+   "Submodules and Other Repos" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`. Read each repo's commit style, per
    `${CLAUDE_SKILL_DIR}/../../rules/commit-style.md`.
-3. Run `git status` in each repo. Note every file that is already changed. The run never edits or commits those. When
-   the bug index is one of them, stop and tell the user. Every outcome edits the index.
+3. Take the status snapshot: `git status` in each repo, and `git submodule foreach --recursive 'git status --short'` in
+   each repo that has submodules. A superproject shows a submodule as one modified path, so the snapshot reads each
+   submodule's own files. Note every file that is already changed. The run never edits or commits those. When the bug
+   index is one of them, stop and tell the user. Every outcome edits the index.
 
 ## Step 2: Snapshot the list
 
@@ -99,11 +103,11 @@ over each other's edits.
 Every brief that names `bug-triage` gives the absolute path of its directory. It also says that `${CLAUDE_SKILL_DIR}` in
 that file means that directory, since a subagent reads the file raw.
 
-1. **Triage.** Run `git status` in each repo and keep the output. Start a fresh `general-purpose` agent with model
+1. **Triage.** Take the status snapshot and keep it. Start a fresh `general-purpose` agent with model
    `sonnet`. Tell it to read `bug-triage/SKILL.md` and run it as `unattended <bug file> <build command>`. Tell it to
    report any other bug it finds instead of filing it.
-2. **Check the edits.** Run `git status` in each repo again. Compare it with the output kept before the agent started.
-   Every file that changed since then must be in the agent's report. Check that the bug file's status line and the
+2. **Check the edits.** Take the status snapshot again. Compare it with the one kept before the agent started. Every
+   file that changed since then must be in the agent's report. Check that the bug file's status line and the
    index row agree. When anything else changed, stop the run. Report the stray files, and leave them in place.
 3. **Act on the outcome.**
    - `closed`, `needs-design`, `inconclusive`: commit the bug file, and the index when it changed.
@@ -119,26 +123,29 @@ that file means that directory, since a subagent reads the file raw.
    - When it finds one, add it to the bug's `Estimate:` line by name. The bug is now `needs-design`. Commit the bug
      file.
    - When it finds none, go to step 5.
-5. **Fix.** Run `git status` in each repo and keep the output. Start a second fresh `general-purpose` agent with model
+5. **Fix.** Take the status snapshot and keep it. Start a second fresh `general-purpose` agent with model
    `sonnet`. Tell it to read `bug-triage/SKILL.md` and run it as `unattended fix <bug file> <build command>`. Do not
    resume the triage agent. Give it the triage report in its brief instead, and the known-red tests when there are any.
    Ask it to name the regression test and the files of the fix apart from the test.
 6. **Check the fix.** Do step 2's check again, against the output kept in step 5. Then act on its report:
-   - `fixed`: confirm the regression test yourself. Stash the fix's files apart from the test, by path, with
-     `git stash push -m "bug-sweep check: <bug file name>" -- <paths>`. Run the regression test. It must fail. Then run
-     `git stash pop`. When the test passes without the fix, treat the report as `test-did-not-fail`. Then run the full
-     suite yourself. When it fails no test outside the known-red ones, commit. When the bug file is in the same repo as
-     the code, commit the fix, its test, the bug file, and the index together. When the bugs are in a specs repo, commit
-     the fix and its test in the code repo, then the bug file and the index in the specs repo. The fix commit's body
-     says what the bug was and how it showed, per `${CLAUDE_SKILL_DIR}/../../rules/found-bugs.md`. When the suite fails,
-     treat the report as `suite-failed`.
+   - `fixed`: confirm the regression test yourself. Stash the fix's files apart from the test, by path, in the repo
+     that owns them, with `git -C <repo> stash push -m "bug-sweep check: <bug file name>" -- <paths>`. Give it the
+     paths relative to that repo. A path inside a submodule stashes in the submodule. Run the regression test. It must
+     fail. Then run `git -C <repo> stash pop`. When the test passes without the fix, treat the report as
+     `test-did-not-fail`. Then run the full suite yourself. When it fails no test outside the known-red ones, commit,
+     each file in the repo that owns it. When the bug file is in the same repo as the code, commit the fix, its test,
+     the bug file, and the index together. When the bugs are in a specs repo, commit the fix and its test in the code
+     repo, then the bug file and the index in the specs repo. A fix inside a submodule commits in the submodule first.
+     The code repo's pointer bump is then a commit of its own. The fix commit's body says what the bug was and how it
+     showed, per `${CLAUDE_SKILL_DIR}/../../rules/found-bugs.md`. When the suite fails, treat the report as
+     `suite-failed`.
    - `test-did-not-fail` or `suite-failed`: roll it back, as step 7 says.
-7. **Roll back a failed fix.** Stash every file the fix agent changed, by path, with
-   `git stash push --include-untracked -m "bug-sweep: <bug file name>" -- <paths>`. The bug file and the index stay out
-   of the stash, since they hold the triage estimate. When the fix agent set the bug's status or its index row to
-   `fixed`, edit both back to `open`. Then append a `## Sweep Attempts` entry to the bug file: today's date, the report,
-   each failing test, and the stash's name. Add no `Triaged:` line. Commit the bug file. Run the full suite again. When
-   it does not match the baseline, stop the run.
+7. **Roll back a failed fix.** Stash every file the fix agent changed, by path. Make one stash in each repo that owns
+   some of them, with `git -C <repo> stash push --include-untracked -m "bug-sweep: <bug file name>" -- <paths>`. The
+   bug file and the index stay out of the stash, since they hold the triage estimate. When the fix agent set the bug's
+   status or its index row to `fixed`, edit both back to `open`. Then append a `## Sweep Attempts` entry to the bug
+   file: today's date, the report, each failing test, and the stash's name. Add no `Triaged:` line. Commit the bug
+   file. Run the full suite again. When it does not match the baseline, stop the run.
 8. **Record it.** Write the outcome and any commit subject to the run file.
 
 A bug that a subagent reported is not on the list. File it after the bug in hand, per
@@ -164,7 +171,7 @@ Keep it short. Give one line per bug: its file, its outcome, and its commit subj
 - Every design call the run decided, with the triage agent's reason and the critic's verdict. These are the decisions
   the user did not see. `decision-making.md` requires that the user see each one.
 - Each `needs-design` bug with the decisions its estimate names. These are the bugs to take to `/bug-triage`.
-- Each stash, and the bug it belongs to.
+- Each stash, with its repo, and the bug it belongs to.
 - Each known-red test, and the bug that holds it.
 - Each bug filed during the run.
 - Why the run stopped, when it stopped early.

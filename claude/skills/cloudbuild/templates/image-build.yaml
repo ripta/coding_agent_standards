@@ -30,6 +30,10 @@
 #     them, and do not comment them. The label names say what they are.
 #   - options.pool and options.machineType must stay unset, and their absence
 #     must stay uncommented.
+#   - A per-app config lives at APP/cloudbuild.yaml. Add `dir: APP` to every
+#     step, so `-f Dockerfile .` builds APP's own context, and name the
+#     triggers REPO-APP-pr, REPO-APP-main and REPO-APP-tag in the header. IMAGE
+#     names the app's image. See SKILL.md, "Per-app configs".
 #
 # --------------------------- cut here ------------------------------------
 

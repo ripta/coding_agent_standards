@@ -142,8 +142,10 @@ No question belongs in this step.
    in `needs`. Take the remotes from its `remotes` block, per "Remotes"
 5. Read the repository's own guidance on PRs: `CONTRIBUTING.md`, the PR template, and the project's `CLAUDE.md` or
    `AGENTS.md`. Note what it says about review, merge method, and checks
-6. Find the local check command. Prefer `make ci` when the Makefile has it, since CI runs the same target. Otherwise
-   use the project's documented test and lint commands
+6. Find the local check command. Take the Makefile for the paths the branch changes by the Lookup Rule in
+   `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`, and run each one from the directory that holds it. Prefer
+   its `ci` target when it has one, since CI runs the same target. Otherwise use the project's documented test and lint
+   commands for those paths
 7. Learn who reviews here. Run `gh pr list --state merged --limit 10 --json number,reviews,comments` and note bot
    reviewers and how soon reviews landed. A repo whose PRs get a bot review within minutes is worth waiting for
 
@@ -180,8 +182,11 @@ Report what detection settled in a line or two, beside the question.
 
 1. When you do not own the branch, make one you do. Name it `<prefix><topic>`, where the prefix is preflight's
    `branches.prefix` and the topic is a short kebab-case name for the change. Create it in its own worktree at the
-   target commit: `git worktree add --no-track -b <prefix><topic> .claude/worktrees/<topic> <commit>`. The user's
-   branch is left as it was
+   target commit: `git worktree add --no-track -b <prefix><topic> <toplevel>/.claude/worktrees/<topic> <commit>`, where
+   `<toplevel>` is `git rev-parse --show-toplevel` in the user's checkout. A path relative to a subdirectory would put
+   the worktree inside it. The user's branch is left as it was. When the repo has submodules, run
+   `git submodule update --init --recursive` in the worktree, per "Submodules and Other Repos" in
+   `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`
 2. Work only in that worktree from here on. Never touch the user's checkout
 3. Drop snip commits, as "Snip Commits" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` defines them. They never go
    into a PR. The base for both commands is `git merge-base <mainline-remote>/<merge_into> HEAD`. In the worktree, run
@@ -245,8 +250,10 @@ off. Turn it on only when the PR's `base` equals `merge_into`, per Step 5.
      `check-failed` and `checks-done` again
    - **Infrastructure or permissions.** A missing secret, quota, or credential. Report it to the user. Do not work
      around it
-3. Commit each fix in the worktree with a message that follows the repository's commit style. Run the local check
-   command, then push
+3. Commit each fix in the worktree with a message that follows the repository's commit style. Commit each path in the
+   repo that owns it, per "Submodules and Other Repos" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`. A fix
+   inside a submodule is work in another repo. Report it and the repo to the user, and open no PR there. Run the local
+   check command, then push
 
 ### A failure the base already has
 
@@ -303,7 +310,8 @@ Otherwise leave it.
 
 ### The PR merged
 
-1. Remove the worktree with `git worktree remove <path>`
+1. Remove the worktree with `git worktree remove <path>`. A worktree that holds submodules needs the check in
+   "Submodules and Other Repos" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` first
 2. Delete the local branch. GitHub reports the PR merged, so the work is on the base even when a squash merge stops
    `git branch -d` from seeing it. Use `git branch -D <branch>` for a branch you own
 3. When open PRs are stacked on this branch, retarget them first. See `land-branch`. Then check for the remote branch

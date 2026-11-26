@@ -6,7 +6,8 @@ Triggers are regional. Read `region`, `project`, and the connection name from
 ## Naming convention
 
 Three triggers per repo. A repo without tagged releases needs only the first
-two.
+two. A monorepo whose apps deploy independently gets three per app. See
+"Per-app triggers".
 
 | Trigger | Fires on | Config file |
 | --- | --- | --- |
@@ -35,6 +36,116 @@ the default branch is `<repo>-bench`, described `<owner>/<repo> bench`, tagged
 Manual triggers fall outside this scheme. They have no event, so they get no
 `on:` tag. Tag them `<owner>/<repo>` plus `for:<purpose>`, matching how an extra
 pipeline is tagged.
+
+## Per-app triggers
+
+Use these when the apps in a monorepo deploy independently. Each app has its own
+config at `<app>/cloudbuild.yaml`, and each gets its own three triggers. A repo
+with one deploy unit keeps the root `cloudbuild.yaml` and the three triggers
+above.
+
+`<app>` is the app's path from the repo root, such as `apps/api`.
+
+| Trigger | Fires on | Config file |
+| --- | --- | --- |
+| `<repo>-<app>-pr` | PR against the default branch | `<app>/cloudbuild.yaml` |
+| `<repo>-<app>-<default-branch>` | push to the default branch | `<app>/cloudbuild.yaml` |
+| `<repo>-<app>-tag` | push of a `<app>/v*` tag | `<app>/cloudbuild.yaml` |
+
+The rules above hold, with these changes.
+
+- **Name** joins the repo, the app path, and the role with dashes. The role is
+  the actual default branch for the middle trigger. Slashes and dots become
+  dashes in every part, the way a dot in the repo name already does. Repo
+  `imple.me`, app `apps/web`, branch `main` gives `imple-me-apps-web-main`. Two
+  apps can normalize to one name, so check the names are distinct before writing
+  anything.
+- **Name length.** The API takes 1-64 characters, only alphanumerics and dashes,
+  beginning and ending with an alphanumeric. Source: the `name` field of
+  `BuildTrigger` in the Cloud Build REST reference,
+  `https://docs.cloud.google.com/build/docs/api/reference/rest/v1/projects.triggers`.
+  `gcloud builds triggers create github --help` states no limit. Count the
+  longest of the three names before writing. When it passes 64, ask the user for
+  a shorter label and use it in all three names. The label replaces the path in
+  the name only.
+- **Description** is `<owner>/<repo> <app> <role>`. The app path is written as it
+  is, with slashes and dots intact, the way the description keeps the repo's dot.
+  Example: `ripta/imple.me apps/web PR`.
+- **Tags** are `<owner>/<repo>`, `on:<role>`, and `app:<app>`. The first two are
+  unchanged, so `on:main` still selects every default-branch trigger across all
+  repos. `app:<app>` is new. It takes the app path with dots turned into dashes,
+  the way the owner tag does, and keeps the slashes. It is a `key:value` tag like
+  the other two. `for:<purpose>` is the wrong key. It marks an extra pipeline, and
+  an app named `bench` would collide with `for:bench`. A benchmark pipeline for an
+  app combines them: `<repo>-<app>-bench`, tagged `<owner>/<repo>`, `on:main`,
+  `app:<app>`, `for:bench`.
+- **Config file** is `<app>/cloudbuild.yaml`, and an extra pipeline reads
+  `<app>/cloudbuild.<purpose>.yaml`.
+- **Tag filter** is `^<app>/v.+$`, which matches the release skill's per-app tags
+  such as `apps/api/v1.2.0`. Escape regex characters in the path. `apps/web.v2`
+  becomes `^apps/web\.v2/v.+$`.
+- **`includedFiles`** is `<app>/**` plus the shared paths the app builds from.
+  Ask the user for those. Offer what detection found, such as the root
+  `Makefile`, `go.mod`, `go.work`, a root lockfile, or a shared library
+  directory. A shared path left out of `includedFiles` means a change there
+  skips this app's build.
+
+Two behaviors of `includedFiles` are unverified. The Console documentation,
+`https://docs.cloud.google.com/build/docs/automating-builds/create-manage-triggers`,
+says the filter can be set only for events that push a branch or a new tag. It
+says nothing about a PR trigger, and nothing about how a tag push compares
+changed files. A tag that points at an already-pushed commit may match no
+included file, so the tag trigger would never fire. The tag filter already
+selects the app, so dropping `includedFiles` from the tag trigger is the fix if
+that happens.
+
+After creating the triggers, ask the user to push a test tag and to open a PR
+that touches only the app. Confirm each starts a build.
+
+```yaml
+# api-pr.yaml
+name: REPO-apps-api-pr
+description: OWNER/REPO apps/api PR
+filename: apps/api/cloudbuild.yaml
+includedFiles:
+  - apps/api/**
+  - libs/shared/**
+tags:
+  - OWNER/REPO
+  - on:pr
+  - app:apps/api
+developerConnectEventConfig:
+  gitRepositoryLink: projects/PROJECT/locations/REGION/connections/OWNER/gitRepositoryLinks/OWNER-REPO
+  gitRepositoryLinkType: GITHUB
+  pullRequest:
+    branch: ^main$
+    commentControl: COMMENTS_ENABLED_FOR_EXTERNAL_CONTRIBUTORS_ONLY
+```
+
+The default-branch trigger is `main.yaml` below with the same changes. The tag
+trigger differs only in its filter:
+
+```yaml
+# api-tag.yaml
+name: REPO-apps-api-tag
+description: OWNER/REPO apps/api tag
+filename: apps/api/cloudbuild.yaml
+includedFiles:
+  - apps/api/**
+  - libs/shared/**
+tags:
+  - OWNER/REPO
+  - on:tag
+  - app:apps/api
+developerConnectEventConfig:
+  gitRepositoryLink: projects/PROJECT/locations/REGION/connections/OWNER/gitRepositoryLinks/OWNER-REPO
+  gitRepositoryLinkType: GITHUB
+  push:
+    tag: ^apps/api/v.+$
+```
+
+Import each file the way "Creating the triggers" shows, then describe each one
+and check that `filename` and `includedFiles` came back.
 
 ## Repository link
 

@@ -15,6 +15,11 @@ Mappings are keyed by the normalized URL of the remote that holds the base repo,
 clone, fork checkout, and worktree of a repository shares them. In a fork checkout that remote
 is not `origin`. See base_remote.py for how it is found. `scope` reads the local default branch
 and never fetches.
+
+A mapped path can belong to another repo: a path inside a submodule, or one behind a symlink such
+as a `spec/` linked to a central specs repo. `scope` reads each path in the repo that owns it.
+A submodule is read between the commits the checkout pins at the range's two ends. Any other
+repo is read between the last commits of its mainline made by the dates of those two ends.
 """
 
 from __future__ import annotations
@@ -28,7 +33,7 @@ import sys
 import tempfile
 import urllib.parse
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent / "scripts"))
 
@@ -151,11 +156,18 @@ def resolve_since(root: Path, branch: str, rev: str) -> str:
     return _git(root, "rev-parse", f"{rev}^{{commit}}")
 
 
-def commits_between(root: Path, since: str, head: str, paths: list[str]) -> list[dict[str, Any]]:
-    fmt = "%H%x1f%ad%x1f%s%x1f%b%x1e"
-    out = _git(root, "log", f"--format={fmt}", "--date=short", f"{since}..{head}", "--", *paths)
+def commits_between(repo: Path, since: str | None, head: str, paths: list[str]) -> list[dict[str, Any]]:
+    """List the commits in since..head that touch paths, which are relative to repo.
+
+    No since means every commit that reaches head. NUL ends a record. The git helper strips its
+    output. Python counts the other control separators as whitespace. A record that ends in an
+    empty body would lose its last field separator, and the parse would fail on a one-line commit.
+    """
+    fmt = "%H%x1f%ad%x1f%s%x1f%b%x00"
+    span = f"{since}..{head}" if since else head
+    out = _git(repo, "log", f"--format={fmt}", "--date=short", span, "--", *paths)
     commits = []
-    for record in out.split("\x1e"):
+    for record in out.split("\x00"):
         record = record.strip("\n")
         if not record:
             continue
@@ -166,9 +178,150 @@ def commits_between(root: Path, since: str, head: str, paths: list[str]) -> list
     return commits
 
 
-def changed_files(root: Path, since: str, head: str, paths: list[str]) -> list[str]:
-    out = _git(root, "diff", "--name-only", since, head, "--", *paths)
+def changed_files(repo: Path, since: str | None, head: str, paths: list[str]) -> list[str]:
+    base = since or _git(repo, "hash-object", "-t", "tree", "/dev/null")
+    out = _git(repo, "diff", "--name-only", base, head, "--", *paths)
     return [line for line in out.splitlines() if line]
+
+
+# -- paths that another repo owns ---------------------------------------
+
+
+class Window(NamedTuple):
+    """The commits of a repo that the checkout's range covers.
+
+    `since` is None when the repo has nothing before the range. `head` is None when it has nothing
+    in it. `kind` is `pin` when the checkout pins the repo as a submodule, and `date` otherwise.
+    """
+
+    since: str | None
+    head: str | None
+    kind: str
+
+
+def owning_repo(root_real: Path, mapped: str) -> tuple[Path, str]:
+    """Return the repo that tracks a mapped path, and the path relative to that repo.
+
+    Git does not follow a symlink or enter a submodule on behalf of the checkout, and it answers
+    an empty log. The real path says which repo holds the path. A path that does not exist now is
+    read from its nearest directory that does.
+    """
+    real = (root_real / mapped).resolve()
+    probe = real
+    while not probe.is_dir():
+        probe = probe.parent
+
+    out = _git(probe, "rev-parse", "--show-toplevel", check=False)
+    if not out:
+        raise SyncError(f"path {mapped!r} resolves to {real}, which is not in a git repository")
+
+    top = Path(out).resolve()
+    return top, real.relative_to(top).as_posix()
+
+
+def pinned_commit(root: Path, rev: str, mount: str) -> str | None:
+    """Return the submodule commit that rev records at mount, or None when rev records none."""
+    mode, _, rest = _git(root, "ls-tree", rev, "--", mount, check=False).partition(" ")
+    return rest.split()[1] if mode == "160000" else None
+
+
+def owner_branch(repo: Path) -> str:
+    """Name the branch that stands for a repo's mainline. A repo with none is read at HEAD."""
+    ref = _git(repo, "symbolic-ref", "--quiet", "--short", "refs/remotes/origin/HEAD", check=False)
+    for name in (ref.removeprefix("origin/"), "main", "master"):
+        if name and _git_ok(repo, "rev-parse", "--verify", "--quiet", f"refs/heads/{name}"):
+            return name
+    return "HEAD"
+
+
+def newest_by(repo: Path, branch: str, timestamp: str) -> str | None:
+    return _git(repo, "rev-list", "-1", f"--min-age={timestamp}", branch, check=False) or None
+
+
+def window(root: Path, root_real: Path, top: Path, since: str, head: str) -> tuple[Window, str | None]:
+    """Return the window of another repo for the checkout's range, and the repo's mount point.
+
+    A submodule is read between the commits the checkout pins at since and at head. That is the
+    work the checkout adopted. Any other repo has no pin, so it is read between the last commits of
+    its mainline made by the dates of since and head. The windows of two syncs then meet with no
+    gap and no overlap.
+    """
+    mount = top.relative_to(root_real).as_posix() if root_real in top.parents else None
+    if mount:
+        pin_head = pinned_commit(root, head, mount)
+        if pin_head:
+            pin_since = pinned_commit(root, since, mount)
+            for sha in filter(None, (pin_since, pin_head)):
+                if not _git_ok(top, "cat-file", "-e", f"{sha}^{{commit}}"):
+                    raise SyncError(
+                        f"{mount} is pinned to {sha}, which {top} does not have; "
+                        f"run git submodule update --init {mount} and rerun"
+                    )
+            return Window(pin_since, pin_head, "pin"), mount
+
+    branch = owner_branch(top)
+    since_time = _git(root, "log", "-1", "--format=%ct", since)
+    head_time = _git(root, "log", "-1", "--format=%ct", head)
+    return Window(newest_by(top, branch, since_time), newest_by(top, branch, head_time), "date"), None
+
+
+def mapped_name(pairs: list[tuple[str, str]], name: str) -> str:
+    """Spell a file of another repo the way the mapping does, by the most specific path that holds it."""
+    held = [(m, r) for m, r in pairs if r == "." or name == r or name.startswith(f"{r}/")]
+    mapped, rel = max(held, key=lambda pair: len(pair[1]))
+    return f"{mapped}/{name}" if rel == "." else mapped + name.removeprefix(rel)
+
+
+def history(root: Path, since: str, head: str, mapped: list[str]) -> dict[str, Any]:
+    """Collect the commits and changed files of mapped paths, each read in the repo that owns it.
+
+    A repo other than the checkout marks its commits with `repo`, and is listed under `external`
+    with the window it was read in. Changed files keep the mapping's spelling of the path.
+    """
+    root_real = root.resolve()
+    owned: dict[Path, list[tuple[str, str]]] = {}
+    for path in mapped:
+        top, rel = owning_repo(root_real, path)
+        owned.setdefault(top, []).append((path, rel))
+
+    windows: dict[Path, Window] = {}
+    external = []
+    for top in [t for t in owned if t != root_real]:
+        windows[top], mount = window(root, root_real, top, since, head)
+        external.append(
+            {
+                "repo": str(top),
+                "paths": [m for m, _ in owned[top]],
+                "since": windows[top].since,
+                "head": windows[top].head,
+                "range": windows[top].kind,
+            }
+        )
+
+        # A mapping on the submodule itself covers the bump that adopted its work, which is a commit
+        # of the checkout. A mapping on a path inside the submodule does not.
+        if mount and any(rel == "." for _, rel in owned[top]):
+            owned.setdefault(root_real, []).append((mount, mount))
+
+    commits: list[dict[str, Any]] = []
+    files: list[str] = []
+    for top, pairs in owned.items():
+        found = windows.get(top, Window(since, head, "checkout"))
+        if found.head is None:
+            continue
+
+        repo = root if top == root_real else top
+        rels = sorted({rel for _, rel in pairs})
+        for commit in commits_between(repo, found.since, found.head, rels):
+            commits.append(commit if top == root_real else {**commit, "repo": str(top)})
+        files += [mapped_name(pairs, name) for name in changed_files(repo, found.since, found.head, rels)]
+
+    result: dict[str, Any] = {"commits": commits, "changed_files": list(dict.fromkeys(files))}
+    if external:
+        result["commits"] = sorted(commits, key=lambda c: c["date"], reverse=True)
+        result["changed_files"] = sorted(result["changed_files"])
+        result["external"] = external
+    return result
 
 
 # -- config --------------------------------------------------------------
@@ -385,8 +538,7 @@ def _scan(
         "changed_files": [],
     }
     if since:
-        entry["commits"] = commits_between(root, since, head, mapping["paths"])
-        entry["changed_files"] = changed_files(root, since, head, mapping["paths"])
+        entry.update(history(root, since, head, mapping["paths"]))
     return entry
 
 

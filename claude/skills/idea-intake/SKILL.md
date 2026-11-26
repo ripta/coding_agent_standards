@@ -44,14 +44,19 @@ the proposal and the reason it was dropped in the context paragraph.
 
 Do all of this before any question.
 
-1. **Specs.** Find the proposals directory as the `new-proposal` skill does: `spec/proposals/`, `docs/proposals/`, or
-   `proposals/`. It may be a symlink into a separate specs repo. Follow it. Find its index, `index.md` or `README.md`.
-   When both exist, stop and tell the user to consolidate them, per "Index File Name" in `tracking.md`.
-2. **Ideas file.** Look for `ideas.md` beside the proposals directory, then in `spec/` and `docs/`. When none exists,
-   the first idea to write creates it beside the proposals directory, with a one-line intro. When there is no proposals
-   directory either, note that. It becomes a question in Step 3.
-3. **Components.** Note whether the repo holds several components that keep their own specs. Each idea is then sorted
-   against the component it changes, and written to that component's ideas file.
+1. **Specs.** Run `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate`, per "Lookup Rule" in
+   `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. It finds the nearest of the common locations
+   (`spec/proposals/`, `docs/proposals/`, `proposals/`). When it reports several candidates, they are the components.
+   Go to item 3. Otherwise its `proposals_dir` may be a symlink into a separate specs repo. Follow it. Its `index` is
+   the proposals index. When the directory holds both `index.md` and `README.md`, stop and tell the user to
+   consolidate them, per "Index File Name" in `tracking.md`.
+2. **Ideas file.** Use the `ideas` path that `locate` reports. When it is null, the first idea to write creates
+   `ideas.md` beside the proposals directory, with a one-line intro. When `locate` finds no proposals directory either,
+   note that. It becomes a question in Step 3.
+3. **Components.** Note whether the repo holds several components that keep their own specs. That is so when `locate`
+   reports several candidates, or when the repo has a specs directory per component. Find each component's specs with
+   `locate --start <a path in it>`. Each idea is then sorted against the component it changes, and written to that
+   component's ideas file.
 4. **Reach.** List the repos this session can read: the working directory and any added directories. An idea that
    needs a repo outside them can only be `existing` or `planned` for what is visible. The report says so.
 5. **Git state.** Run `git status` in the repo that holds the ideas file. When the ideas file already has uncommitted

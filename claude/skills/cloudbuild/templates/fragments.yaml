@@ -12,6 +12,7 @@
 # 2. Tag retag             reuse the tested image instead of rebuilding
 # 3. GitHub release        publish artifacts on a tag push
 # 4. Non-gating pipeline   a second config that must never block a merge
+# 5. Submodule init        fetch git submodules before the first step that needs them
 
 
 # ===========================================================================
@@ -116,6 +117,14 @@
 #
 # Writes its decision to /workspace so the next step can read it. That file is
 # the only way to pass state between steps.
+#
+# A per-app config sees the whole tag as $TAG_NAME, such as apps/api/v1.2.0. The
+# regex below does not match it, so the step falls through to a fresh build. An
+# image tag cannot hold a slash either. Strip the prefix in the shell first. The
+# first line is a Cloud Build substitution, the second a shell expansion:
+#
+#   version="$TAG_NAME"
+#   version="$${version#apps/api/}"
 
   - id: Check-Prebuilt-Image
     name: 'gcr.io/cloud-builders/gcloud'
@@ -241,3 +250,62 @@
 #
 # Such a pipeline should read a shared cache and never write it. The gating
 # pipeline owns the cache.
+
+
+# ===========================================================================
+# 5. Submodule init
+# ===========================================================================
+#
+# Add it when the repo has a .gitmodules file and a step reads a submodule's
+# files. Put it first, ahead of every step that needs them. Give it no `dir:`,
+# since the submodule paths are relative to the repo root, even in a per-app
+# config where every other step sets one.
+#
+# Unverified: whether a GitHub-connected trigger's checkout includes submodule
+# contents. The Cloud Build docs call the source a shallow clone copied to
+# /workspace. They do not mention submodules, or whether /workspace holds a .git
+# directory. Run one build that logs `git submodule status` and lists a
+# submodule path. Drop this fragment when the contents are already there. When
+# /workspace has no .git, `git submodule update` fails with "not a git
+# repository" and this fragment cannot work as written.
+#
+# Credentials, also unverified. git clones each submodule inside the step, from
+# the URL in .gitmodules. Nothing in the docs says the trigger's GitHub
+# connection reaches that clone, so a public submodule needs nothing and a
+# private one needs its own read-only credential. The docs do say to keep
+# credentials for a private repo in Secret Manager, in the passage on
+# `git fetch --unshallow`:
+# https://docs.cloud.google.com/build/docs/automating-builds/create-manage-triggers
+# The second variant follows that. It reads a GitHub token with read access to the
+# submodule repo, and the build's service account needs
+# roles/secretmanager.secretAccessor on the secret. An SSH URL in .gitmodules
+# needs a deploy key and known_hosts instead. Neither is covered here.
+
+  # Public submodule.
+  - id: Submodules
+    name: 'gcr.io/cloud-builders/git'
+    args:
+      - 'submodule'
+      - 'update'
+      - '--init'
+      - '--recursive'
+
+  # Private submodule over https. The -c setting lasts for this one command,
+  # unlike `git config --global`, which would leave the token in the step's home.
+  - id: Submodules
+    name: 'gcr.io/cloud-builders/git'
+    entrypoint: 'bash'
+    secretEnv: ['SUBMODULE_TOKEN']
+    args:
+      - '-c'
+      - |
+        set -e
+        git -c "url.https://x-access-token:$$SUBMODULE_TOKEN@github.com/.insteadOf=https://github.com/" \
+          submodule update --init --recursive
+
+# Requires, for the private variant, at the bottom of the config:
+#
+#   availableSecrets:
+#     secretManager:
+#       - versionName: projects/${PROJECT_ID}/secrets/SECRET_NAME/versions/latest
+#         env: 'SUBMODULE_TOKEN'

@@ -16,9 +16,13 @@ analyzing tradeoffs, and recording decisions incrementally.
 ### Step 1: Locate & Confirm Proposal
 
 The user provides a proposal number (required), and optionally a mode:
-`/proposal-reviewer PROJ-NNN [autonomous|converge|manual]`. Search common locations (`spec/proposals/`,
-`docs/proposals/`, `proposals/`) for a file matching that number. The locations may be symlinked, so make sure to follow
-symlinks.
+`/proposal-reviewer PROJ-NNN [autonomous|converge|manual]`. Find the proposals directory with
+`python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate`, per "Lookup Rule" in
+`${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. Its `proposals_dir` may sit behind a symlink, so follow it.
+Look there for a file matching the number.
+
+When `locate` reports several candidates, look in each. Ask which component, with AskUserQuestion, only when more than
+one holds a match. Then run `locate` again with `--start` set to a path in that component.
 
 If no matching proposal is found, inform the user and stop.
 
@@ -27,7 +31,9 @@ Read the proposal and validate it contains the expected sections (Summary, Desig
 Check whether an earlier review left work behind. It did when the Decision Log has entries tagged `(autonomous...)`
 after its last `Review gate` entry. Say so in one line, and see "Resuming".
 
-Check whether the proposal is in a git repository, and whether the proposal file has uncommitted changes.
+Find the repo that owns the proposal's real path, per "Submodules and Other Repos" in
+`${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`. A symlinked specs directory puts it in another repo. Check whether
+the proposal is in a git repository, and whether the proposal file has uncommitted changes, there.
 
 Then ask the entry gates in one AskUserQuestion call:
 
@@ -72,7 +78,8 @@ When the user chose either commit option, that choice is their explicit request 
   gate, and after the wrap-up
 - **Once at the end**: commit once, after the wrap-up, with the ADR review's fixes in. When the user stops the review
   early, commit what was recorded at that point. The message names every question settled this review
-- Commit only the proposal file and any ADR this review created. Name the paths in `git commit -- <paths>`
+- Commit only the proposal file and any ADR this review created. Commit them in the repo that owns them, naming the
+  paths in the commit itself: `git -C <owning repo> commit -- <paths relative to it>`
 - Follow `${CLAUDE_SKILL_DIR}/../../rules/commit-style.md`. Name the questions settled, not the round number
 - Never push, amend an earlier commit, or change branches
 - If a commit fails, say why and stop committing. Keep recording to the file

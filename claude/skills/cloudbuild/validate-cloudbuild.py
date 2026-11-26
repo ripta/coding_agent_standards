@@ -22,7 +22,10 @@ already has PyYAML:
     uv run --script validate-cloudbuild.py cloudbuild.yaml
     python3 validate-cloudbuild.py cloudbuild.yaml
 
-With no path it checks every cloudbuild*.yaml in the current directory.
+With no path it checks every cloudbuild*.yaml and cloudbuild*.yml in the git repo, tracked or
+new, wherever the run starts. A per-app monorepo keeps one config per app, so the root alone is
+not enough. A submodule is its own repo, so run it from inside the submodule. Outside a git repo
+it checks the current directory.
 
 Exit status: 0 when nothing failing is found, 1 when a finding fails the run,
 2 for a usage or I/O problem.
@@ -32,7 +35,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -931,9 +936,45 @@ class Linter:
 
 # --- CLI --------------------------------------------------------------------
 
+# The glob magic makes `**/` match zero directories too, so the root config is listed.
+CONFIG_PATHSPECS = [":(glob)**/cloudbuild*.yaml", ":(glob)**/cloudbuild*.yml"]
+
+
+def repo_configs() -> list[Path] | None:
+    """Return every config in the enclosing git repo, or None when there is no repo to ask.
+
+    The list is tracked files plus untracked ones that are not ignored, so a config written a
+    moment ago is found before it is committed. Paths are relative to the working directory,
+    which keeps the output the same as a plain glob when the run starts at the repo root.
+    """
+    try:
+        top = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+        listed = subprocess.run(
+            ["git", "-C", top, "ls-files", "-z", "--cached", "--others", "--exclude-standard", "--"]
+            + CONFIG_PATHSPECS,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+    found = set()
+    for name in filter(None, listed.split("\0")):
+        candidate = Path(top, name)
+        # A tracked file deleted from the working tree is still listed.
+        if candidate.is_file():
+            found.add(Path(os.path.relpath(candidate)))
+    return sorted(found)
+
 
 def default_paths() -> list[Path]:
-    """Return every cloudbuild config in the current directory."""
+    """Return every cloudbuild config in the repo, or in the current directory outside one."""
+    in_repo = repo_configs()
+    if in_repo is not None:
+        return in_repo
     found = sorted(Path(".").glob("cloudbuild*.yaml")) + sorted(Path(".").glob("cloudbuild*.yml"))
     return found
 
@@ -950,7 +991,10 @@ def main(argv: list[str] | None = None) -> int:
         description="Parse, schema-check, and lint a Cloud Build config.",
     )
     parser.add_argument(
-        "paths", nargs="*", type=Path, help="config files (default: cloudbuild*.yaml)"
+        "paths",
+        nargs="*",
+        type=Path,
+        help="config files (default: every cloudbuild*.yaml and cloudbuild*.yml in the git repo)",
     )
     parser.add_argument("--format", choices=("text", "json"), default="text", help="output format")
     parser.add_argument("--strict", action="store_true", help="fail on warnings and notes too")
@@ -967,7 +1011,7 @@ def main(argv: list[str] | None = None) -> int:
 
     paths = args.paths or default_paths()
     if not paths:
-        print("no cloudbuild*.yaml found; pass a path explicitly", file=sys.stderr)
+        print("no cloudbuild config found; pass a path explicitly", file=sys.stderr)
         return 2
 
     ignored = {code.strip().upper() for code in args.ignore.split(",") if code.strip()}

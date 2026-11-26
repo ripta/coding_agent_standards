@@ -143,6 +143,27 @@ Read evidence at `head`. If the checkout is not the default branch at `head`,
 read through `git show <head>:<path>` and `git grep <pattern> <head>` rather
 than the working tree.
 
+`git show` returns a symlink's target path, not the document behind it. It
+also fails on a path inside a submodule. `scope` already reads each mapped path
+in the repo that owns it, as "Submodules and Other Repos" in
+`${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` says. A group whose paths
+reach another repo carries an `external` list. Each entry names that `repo`, the
+mapped `paths` in it, and the `since` and `head` commits the scan used there.
+`range` says how they were chosen. `pin` means the checkout pins the repo as a
+submodule, so `since` and `head` are the commits the checkout adopted. `date`
+means the repo is not pinned, so they are the last commits of its mainline by
+the dates of the checkout's own `since` and `head`. A `null` `since` means the
+repo has nothing before the range.
+
+Read such a path with `git -C <repo> show <head>:<path>`, using that entry's
+`head` and the path relative to `repo`. Each of its commits in `commits`
+carries the same `repo`, since its `sha` is not a commit of the checkout.
+`changed_files` spells those paths as the mapping does. Name each external
+repo and its `head` in the report.
+
+A submodule that sits below a mapped path, rather than being the path, is read
+as its pin only. Map the submodule's own path to read its commits.
+
 - The mapping's proposal index, `queue.md`, and `history.md`
   (`docs/proposals/` or the project's equivalent), and every proposal among `changed_files`. A milestone's
   status and As built block say what landed.
@@ -217,8 +238,9 @@ Tracker writes go to one subagent per tracker (`model: sonnet`). Give it:
 
 Repository edits (doc drift and backlinks) you make yourself, and only when
 the checkout is the default branch at `head`. Otherwise show them as proposed
-diffs. Before the first edit, run `git status` and note every file that is
-already changed. This run never commits those.
+diffs. Before the first edit, run `git status` in each repo that owns a file
+this run will edit, and note every file that is already changed. This run
+never commits those.
 
 Commit the edits when the user asked for a commit, or the project's rules
 allow commits on the user's behalf. Follow
@@ -228,10 +250,13 @@ style, per `${CLAUDE_SKILL_DIR}/../../rules/commit-style.md`:
 1. Commit only the files this run edited. Leave out every file that was
    already changed, even one this run also touched. The report names it
    instead.
-2. Name the paths in the commit itself, `git commit -- <paths>`.
-3. Make one commit for the run's doc drift fixes and backlinks.
-4. Run `git status` again. Every file this run edited is committed, or the
-   report says why it is not.
+2. Commit each path in the repo that owns it, naming the paths in the commit
+   itself: `git -C <owning repo> commit -- <paths relative to it>`. A symlinked
+   specs directory or a submodule makes that a repo other than the checkout.
+3. Make one commit in each owning repo for the run's doc drift fixes and
+   backlinks.
+4. Run `git status` again in each of those repos. Every file this run edited
+   is committed, or the report says why it is not.
 
 Otherwise, leave the edits uncommitted. The report lists them.
 

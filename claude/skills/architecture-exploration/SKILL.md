@@ -48,19 +48,22 @@ directory, crate, subproject, package, or module. Confine all exploration,
 citations, and output to that scope, and write `ARCHITECTURE.md` at the scope
 root rather than the working directory.
 
-If no arguments were given, the scope is the whole repository and
-`ARCHITECTURE.md` goes in the current working directory.
+If no arguments were given, the scope is the current working directory, and
+`ARCHITECTURE.md` goes there. When the working directory is the repository root,
+that covers the whole repository. When it is below the root, the run covers only
+that subtree, and the Step 4 report says so.
 
 Resolve the scope to a concrete path before continuing, and report it in Step 4.
 
 Then establish two paths used throughout:
 
-- **citation base**: the directory `ARCHITECTURE.md` is written to (the scope
-  root, or the working directory for a whole-repo run). Every citation in the
-  document is written relative to this directory.
+- **citation base**: the scope root, which is the directory `ARCHITECTURE.md` is
+  written to. Every citation in the document is written relative to this
+  directory.
 - **repository root** (`git rev-parse --show-toplevel`): used only to express
   the citation base in a relative, non-absolute form in the document's header
-  note (see Step 6, section 1).
+  note (see Step 6, section 1). It is the citation base itself when the scope is
+  the whole repository.
 
 ### Step 2: Classify the Project
 
@@ -86,9 +89,11 @@ is one agent per section (§§2–6 of Step 6); size only changes whether a heav
 section is *sharded*, not the number of sections. Measure cheaply. These are
 read-only and piggyback on the classify pass:
 
-- **`N_files`**: the line count of `git ls-files -- <scope>`. Tracked files
-  only; excludes the gitignored vendor/build noise that a raw `find` would
-  inflate.
+- **`N_files`**: the line count of `git ls-files --recurse-submodules -- <scope>`.
+  Tracked files only; excludes the gitignored vendor/build noise that a raw
+  `find` would inflate. The flag counts the files inside each initialized
+  submodule. Without it a submodule counts as one file. An uninitialized
+  submodule still counts as one, since its files are not on disk.
 - **`N_units`**: count of the natural partition unit for the detected type, via
   one targeted grep (you know the framework by now): route/handler registrations
   (backend), route entries + top-level components (frontend), command definitions
@@ -147,8 +152,10 @@ Before fanning out, briefly tell the user the resolved scope, the citation base
 (expressed relative to the repository root, so the user sees what paths will be
 anchored to), the detected project type(s), the chosen mode and the measurements
 that selected it, the planned fan-out (agent count and how sections are
-partitioned), and a high-level outline of what you've discovered. Keep this
-short. It confirms direction before the full pass.
+partitioned), and a high-level outline of what you've discovered. When the run
+covers less than the whole repository, say so, and name the repository root as
+the argument that covers all of it. Keep this short. It confirms direction
+before the full pass.
 
 Workflow mode spends materially more than fan-out mode. Report the mode and
 stop for the user's go-ahead before starting Step 5b. Do not launch it on the
@@ -320,9 +327,10 @@ full-stack projects, cover each side.
 
 - A one-line note, near the top of the document, stating the citation base so
   readers know what every path is relative to. Express it relative to the
-  repository root, never as an absolute path. For a whole-repo run write "All
-  paths are relative to the repository root."; when scoped, name the scope, e.g.
-  "All paths are relative to `packages/api/`."
+  repository root, never as an absolute path. When the citation base is the
+  repository root, write "All paths are relative to the repository root."
+  Otherwise name the citation base, e.g. "All paths are relative to
+  `packages/api/`."
 - Language(s), framework(s), build/runtime tooling.
 - How the project is consumed or exposed, and how it's versioned:
   - backend → HTTP server / RPC / GraphQL / outbox views
@@ -425,7 +433,7 @@ In workflow mode, build that summary from the returned `outline` and
   succeeds. A scratch directory left behind means the run did not finish.
   Discovery and verifier subagents are read-only. Brief them as such.
 - If arguments are given, confine exploration and output to that scope; with no
-  arguments, cover the whole repository and write to the working directory. Pass
+  arguments, the scope is the working directory, and the output goes there. Pass
   the resolved scope to every subagent so none strays outside it.
 - Classify the project yourself, then discover in the mode sized in Step 3:
   inline, fan-out (parallel `Explore` subagents, all calls in one message,

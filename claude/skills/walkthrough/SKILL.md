@@ -153,6 +153,18 @@ sha that only the fork holds would 404 there. Cite it as a repo-relative path
 instead. With no usable remote, cite repo-relative paths as plain text instead
 of broken links.
 
+Build each link from the repo that holds the file. Find it with
+`git -C <the file's directory> rev-parse --show-toplevel`. In a monorepo that is
+the base repo for every file. A submodule is its own repo. A file inside one
+links to the submodule's remote, never the superproject's.
+
+Run preflight and the `git branch -r --contains` check from the submodule's
+checkout. Take `<path>` relative to the submodule's root, so strip the
+submodule's path from the evidence paths. Take `<sha>` from the commit the
+superproject records at the revision being explained,
+`git rev-parse <rev>:<submodule path>`. For the working tree, take it from
+`git -C <submodule path> rev-parse HEAD`.
+
 ### Step 4: Verify every claim
 
 Write out every factual claim the page will make as a numbered ledger. A claim

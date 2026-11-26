@@ -72,12 +72,17 @@ No question belongs in this step. A rebase conflict in item 10 is a stop, not a 
    When guidance is silent and the viewer default is not MERGE, stacking would force MERGE. That changes the mainline's
    history shape. Offer it with that stated, and do not recommend it. `deleteBranchOnMerge` is not a condition, since
    Step 5 retargets children before the parent branch is deleted
-9. Do the rest of `merge-fix-loop` Step 1: the local check command, and who reviews here
+9. Do the rest of `merge-fix-loop` Step 1: the local check command, and who reviews here. That command is the run's
+   default. Step 2 settles any batch that needs a different one
 10. Stage the snapshot and rebase it. A branch landed before still holds the commits that landed, since landing copies
     them and leaves the user's branch alone. The rebase drops them, so every run plans against today's mainline. Create
     the staging branch and its worktree at the snapshot:
-    `git worktree add --no-track -b <prefix>stage<sep><topic> .claude/worktrees/stage-<topic> <snapshot>`. It is never
-    pushed. Record `git rev-parse <mainline-remote>/<mainline>` as `onto`. Then run `git rebase <onto>` in that
+    `git worktree add --no-track -b <prefix>stage<sep><topic> <toplevel>/.claude/worktrees/stage-<topic> <snapshot>`,
+    where `<toplevel>` is `git rev-parse --show-toplevel` in the user's checkout. A path relative to a subdirectory
+    would put the worktree inside it. It is never pushed. When the repo has submodules, run
+    `git submodule update --init --recursive` in the worktree, per "Submodules and Other Repos" in
+    `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`. A failure there is not a stop yet. Item 13 reads it. Record
+    `git rev-parse <mainline-remote>/<mainline>` as `onto`. Then run `git rebase <onto>` in that
     worktree. Git skips each commit the mainline already has, and drops each one that becomes empty because it landed
     with edits. It keeps commits that were empty to begin with, such as snip markers. On a conflict, never resolve a
     file wholesale with `--ours` or `--theirs`:
@@ -101,6 +106,17 @@ No question belongs in this step. A rebase conflict in item 10 is a stop, not a 
     When `$ARGUMENTS` named a commit, or the range has no marker, the batch tip is `HEAD`. Otherwise it is the marker
     that closes the oldest segment. When no marker closes it, the batch tip is `HEAD`, and that segment may still be in
     progress. From here on, the range is `<onto>..<batch tip>`, and its markers are its excluded commits
+13. Check the range for work in other repos. Run `land_batch.py submodules` through `cg_run`, with
+    `--worktree <staging worktree> --base <onto> --tip <batch tip>`. The script is
+    `${CLAUDE_SKILL_DIR}/../../scripts/land_batch.py`. It lists each submodule pointer the range bumps, and checks that
+    the commit is on the submodule's remote. A `submodule-commit-not-on-remote` stop ends the run. Tell the user what
+    its `message` says: the submodule, the commit, and the repo that must land it first. A `submodule-update-failed`
+    stop means a bumped submodule would not clone, so its commit could not be checked. It ends the run too. Tell the
+    user git's error from its `message`. Also read the range's commit messages and diffs for a dependency on another
+    repo's unmerged work, such as a pin to a commit no release holds, or a message that names that repo's open PR. Stop
+    on one the same way, and name the repo. The user lands that work, then runs `/land-branch` again. Never open or
+    drive a PR in that repo. See "Submodules and Other Repos" in
+    `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`
 
 ## Step 2: Plan the batches
 
@@ -132,6 +148,13 @@ item 2. Show each `not_empty` commit to the user in Step 3. It is not a snip, so
    not a snip unless the user marked it. `verify` reports the accepted ones under `excluded`. It lists an entry that is
    not empty, or not on the range, under `exclude_errors`, and the plan then fails. An empty commit not in `exclude`
    still counts as `missing`
+9. Choose each batch's checks. List the paths its commits touch with `git show --name-only --format= <commit>`. Take
+   the Makefile for those paths by the Lookup Rule in `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. A
+   batch whose paths all take the root's Makefile needs nothing more, since it runs the run's check command at the
+   root. For any other batch, write a checks file in the scratchpad: a JSON object that maps the batch's name to one
+   check for each Makefile its paths take. A check's `cwd` is the directory that holds the Makefile, relative to the
+   repo root. Its `command` is the target `merge-fix-loop` Step 1.6 picks from that Makefile. A path with no Makefile
+   has no local check. Say so in Step 3
 
 By default a batch that depends on another waits for it to merge, then opens against the mainline. That is a serial
 batch.
@@ -150,7 +173,8 @@ Put every question into one AskUserQuestion call. The plan approval is part of i
 
 - **The plan.** Show each excluded commit with its subject, and say it is left out. Show each batch: its name, its
   commits, what it lands after, and its PR title. Mark which batches open concurrently at the start. Offer to approve
-  it, to land the whole range as one PR, or to adjust it through "Other". When stacking is on offer, show the plan both
+  it, to land the whole range as one PR, or to adjust it through "Other". Show each batch's checks when they differ
+  from the run's, and each path that has none. When stacking is on offer, show the plan both
   ways, stacked and serial, and mark which batches stack on which. Use Step 1's recommendation. When the mainline
   requires up-to-date branches, say that every child rebuilds after its parent merges. Stacking then gains early failure
   detection and early review, not a shorter total time
@@ -179,16 +203,21 @@ verified plan to files in the scratchpad. Then run, through `cg_run`:
 ```sh
 python3 land_batch.py init --plan <plan> --preflight <preflight> --snapshot <snapshot> --onto <onto> \
   --batch-tip <batch tip> --mainline <mainline> --merge-method <method> --topic <topic> \
-  --worktrees .claude/worktrees --staging-branch <prefix>stage<sep><topic> --staging-worktree <staging worktree> \
-  --check-command '<local check command>' --review-policy <policy> --deadline <ISO 8601 time>
+  --worktrees <toplevel>/.claude/worktrees --staging-branch <prefix>stage<sep><topic> \
+  --staging-worktree <staging worktree> --check-command '<local check command>' --review-policy <policy> \
+  --deadline <ISO 8601 time> [--checks-file <checks file>]
 ```
 
-The merge method is the one Step 1 item 8 settled. The script's docstring defines the run file. `init` prints the run
-file's path and the watch state file's path. From then on, only `land_batch.py` writes the run file. A run that stacks
-keeps its run file by hand instead. See "Run state".
+The merge method is the one Step 1 item 8 settled. Pass `--checks-file` when Step 2 wrote one. The script's docstring
+defines the run file and the checks file.
+
+`init` prints the run file's path and the watch state file's path. From then on, only `land_batch.py` writes the run
+file. A run that stacks keeps its run file by hand instead. See "Run state".
 
 To change the local check command mid-run, run `land_batch.py set-check-command --run <run> --check-command '<cmd>'`.
-Never run `init` again for it. The next `open` of each open batch reruns the checks under the new command.
+To change the checks of the batches a checks file names, run
+`land_batch.py set-checks --run <run> --checks-file <file>`. Never run `init` again for either. The next `open` of each
+open batch they cover reruns the checks.
 
 ## Step 5: Land the batches
 
@@ -241,7 +270,21 @@ Act on each `stop` by its name:
   a second `init`. Use `set-check-command` instead of a second `init` next time. Show the user, with `git cherry`
   comparing the batch branch to the source branch. Remove the worktree and the batch branch only with their answer, then
   re-run `open`
-- `local-checks-failed` names a log. Classify the failure as `merge-fix-loop` "A check failed" says, and fix it as above
+- `local-checks-failed` names a log, and the `cwd` and `command` of the check that failed. Classify the failure as
+  `merge-fix-loop` "A check failed" says, and fix it as above
+- `check-dir-missing` means a check's `cwd` is not in the worktree at the batch's head. Correct the checks file, run
+  `set-checks`, and re-run `open`
+- `submodule-commit-not-on-remote` means a pointer the batch bumps names a commit its submodule's remote lacks. Report
+  it as Step 1 item 13 says. Leave the worktree in place. Re-run `open` once the user has landed the commit
+- `submodule-update-failed` means `git submodule update` failed in the worktree for a reason other than a missing
+  commit. Read its `message`, fix the cause in the worktree, and re-run `open`
+- `worktree-not-clean` comes from `finish`, which refuses to remove a worktree that holds uncommitted work in it or in a
+  submodule. Show the user the listed paths, and ask what to do with them. Re-run `finish` once they are settled
+- `worktree-holds-local-work` comes from `finish`, which refuses to remove a worktree whose submodule clones hold a
+  stash or a commit that no remote has. A branch, a tag, a note, or any other local ref can hold the commit.
+  `git status` is clean, so only this stop shows it. Its `work` lists each clone with its `stashes` and `commits`. Show
+  the user each one, and ask what to do with it. Pushing the commits and applying or dropping the stashes are the
+  user's calls. Re-run `finish` once they are settled
 - `checks-failed` names required checks that failed. Fix them as above. `merge` runs again on the next `checks-done`
 - `checks-pending` and `not-clean` wait for the next event. `no-checks` follows `merge-fix-loop` Step 5.2
 - `not-ready`, `not-merged`, `not-open`, and `batch-done` mean the command came too early or too late. Check `status`
@@ -256,7 +299,7 @@ A run that stacks lands each ready batch with these steps:
 
 1. Run `git fetch <mainline-remote>`
 2. Create the batch branch in its own worktree. A serial batch starts from the current mainline:
-   `git worktree add --no-track -b <prefix><topic><sep><batch> .claude/worktrees/<topic>-<batch> <mainline-remote>/<mainline>`.
+   `git worktree add --no-track -b <prefix><topic><sep><batch> <toplevel>/.claude/worktrees/<topic>-<batch> <mainline-remote>/<mainline>`.
    A stacked batch starts from its parent's tip, `<push-remote>/<prefix><topic><sep><parent>`, also with `--no-track`
 3. Cherry-pick the batch's commits in order. A batch whose `after` batches merged, or whose parent branch it started
    from, already has their work, so it cherry-picks only its own commits. A conflict here is handled as
@@ -307,9 +350,12 @@ When every batch has merged:
 1. Run `git fetch <mainline-remote>`. Compare the batch tip with the mainline over the files the range touched:
    `git diff <batch tip> <mainline-remote>/<mainline> -- <files>`. Every difference must trace to a fix this run pushed
    or to other work merged into the mainline meanwhile. Report anything else as lost work
-2. Remove the staging worktree with `git worktree remove`, and delete the staging branch with `git branch -D`. The
-   comparison above showed its work landed. Delete the run file, its watch state file, and the files beside them that
-   share its name, such as `land_batch.py`'s lock and check logs
+2. Remove the staging worktree with `git worktree remove`, and delete the staging branch with `git branch -D`. A
+   worktree that holds submodules needs both checks in "Submodules and Other Repos" in
+   `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md` first: a clean status, and no stash or unpushed commit in any
+   submodule clone. The comparison above showed the range's work landed. It does not cover work that only a submodule
+   clone holds. Delete the run file, its watch state file, and the files beside them that share its name, such as
+   `land_batch.py`'s lock and check logs
 3. Tell the user which commits landed: those up to the batch tip. Their branch still holds the originals. Rebasing it
    onto the mainline is their call. A later run on the same branch drops the landed commits in its rebase. List the
    segments left after the batch tip. When any remain, say that the next `land-branch` run on the branch ships the next
@@ -357,3 +403,4 @@ Each open PR also has `merge-fix-loop`'s state files. Use one watch state file f
   commits. This skill does not stack in squash or rebase repositories
 - When the plan and the code disagree after landing starts, such as a batch needing a commit from a stream it is not
   after, stop that batch and tell the user. Do not reshuffle commits between open PRs
+- Work that depends on another repo stops the run. Name the repo that must land first. Never open or drive a PR there

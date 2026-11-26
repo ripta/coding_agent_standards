@@ -11,10 +11,14 @@ clearly.
 
 ## Workflow
 
-1. Run linters: `make lint` (all) or `make lint-go`, `make lint-buf`, `make lint-md`, `make lint-ui` (selective)
-2. Parse output: group issues by file, highlight severity (error vs warning)
-3. Suggest fixes for obvious issues
-4. Re-lint after fixes to verify
+1. Find the Makefile for each path to lint, by "Lookup Rule" in
+   `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. It is the nearest one at or above the path. The paths are
+   the ones the user names, or else the changed ones from `git status --short`. Group the paths by Makefile.
+2. Run linters from each Makefile's directory: `make lint` (all) or `make lint-go`, `make lint-buf`, `make lint-md`,
+   `make lint-ui` (selective). Use `make -C <dir>` when the directory is not the current one.
+3. Parse output: group issues by file, highlight severity (error vs warning)
+4. Suggest fixes for obvious issues
+5. Re-lint after fixes to verify
 
 ## Rules
 
@@ -29,3 +33,5 @@ clearly.
 - No issues: "All linting checks passed" with per-tool summary
 - Issues found: grouped by file, with line numbers and descriptions
 - Linting failed to run: report command, error, and suggest corrective action (e.g., check tool installation)
+- No Makefile at or above a path: report the path and say it has none. That is not a tool failure, so do not suggest
+  checking tool installation

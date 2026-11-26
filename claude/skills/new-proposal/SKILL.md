@@ -36,14 +36,18 @@ description and move on.
 
 If no arguments were provided, ask for a one-or-two sentence description using AskUserQuestion, on its own, before
 anything else. The description is a prerequisite, not a question: nothing below can be detected without knowing the
-subject. Every other question waits for the single call in Step 4.
+subject. Every other question waits for the single call in Step 4. The one exception is the component in Step 3, when
+`locate` finds several.
 
 ### Step 3: Detect, without asking
 
 Do all of this before any question. Most answers are already on disk.
 
-1. **Directory**: find the proposals directory by checking common locations (`spec/proposals/`, `docs/proposals/`,
-   `proposals/`).
+1. **Directory**: find the proposals directory with `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate`, per
+   "Lookup Rule" in `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. It finds the nearest of the common
+   locations (`spec/proposals/`, `docs/proposals/`, `proposals/`). When it reports several candidates, ask which
+   component on its own, with AskUserQuestion, before the other items. They read the chosen directory. Then run `locate`
+   again with `--start` set to a path in that component. When it reports none, Step 4 asks.
 2. **Prefix**: derive the project-specific token from existing proposal filenames (e.g. `HP-001-*.md` → `HP`). The
    prefix is fixed once chosen.
 3. **Number**: scan existing proposal filenames for the highest number and use the next sequential value. Numbers are
@@ -72,7 +76,7 @@ to the outline.
 
 Ask only from this set:
 
-- **Directory.** Only when no proposals directory exists. Offer the common locations as options.
+- **Directory.** Only when `locate` found none. Offer the common locations as options.
 - **Prefix.** Only when there are no existing proposals to derive it from. Propose a short, distinguishable prefix based
   on the project name (`PROJ` is permitted but discouraged when a more specific prefix fits).
 - **Index.** Only when this is the first proposal and no index exists. Ask whether to create one.

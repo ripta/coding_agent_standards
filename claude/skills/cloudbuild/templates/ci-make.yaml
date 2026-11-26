@@ -31,6 +31,9 @@
 #   - options.machineType must stay unset. The default pool is covered by
 #     free-tier quota.
 #   - Do not comment either of those absences in the shipped file.
+#   - A per-app config lives at APP/cloudbuild.yaml. Add `dir: APP` to every
+#     step and name PROJECT-APP-pr, PROJECT-APP-main and PROJECT-APP-tag in the
+#     header. Nothing else changes. See SKILL.md, "Per-app configs".
 #
 # --------------------------- cut here ------------------------------------
 

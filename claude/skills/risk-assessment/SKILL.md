@@ -9,7 +9,7 @@ description: |
   Triggers: "how risky is this change", "risk assessment", "assess this
   diff/PR".
 model: sonnet
-allowed-tools: Bash, Read, Glob, Grep
+allowed-tools: Bash, Read, Glob, Grep, AskUserQuestion
 ---
 
 You assess how risky a code change is. You do not hunt for defects (that is a
@@ -46,7 +46,8 @@ How much of the system depends on what changed?
 - **LOW**: leaf code, with few or no callers outside its own module and tests.
 
 Measure fan-in with Grep: search for callers/importers of the changed
-functions, types, and modules. Count what you find; do not guess.
+functions, types, and modules. Count what you find; do not guess. Search
+where the change ships. See "Where to Search".
 
 ### Regression history
 
@@ -83,6 +84,29 @@ Does the change follow established patterns?
 - **MED**: variation on an existing pattern.
 - **LOW**: follows an established, repeated codebase pattern.
 
+Judge novelty against the code that ships with the change. See "Where to
+Search".
+
+## Where to Search
+
+Blast radius and novelty depend on more than the changed files. Same repo does
+not mean ships together, and separate repos can ship together. Decide the scope
+of the search from how the code is deployed.
+
+- **One repo, several components**: search from the repo root, not the current
+  directory. Count callers in every component. A component that deploys on its
+  own still calls the shared code. Say which callers ship with the change and
+  which pick it up at their next deploy.
+- **Several repos that ship together**: a client and its server, or a library
+  and the services pinned to it in one release. Ask which repos ship together
+  with this one, via AskUserQuestion. Offer "none, this repo ships alone" as an
+  option, and name the sibling checkouts you can see next to this repo as the
+  others. Search each co-shipping repo with Grep, for callers and for the
+  patterns novelty is judged against. When a co-shipping repo has no local
+  checkout, say so in the report. Do not guess its callers.
+- **A project that already says**: when the project's docs or the user name the
+  co-shipping repos, use them and do not ask.
+
 ## Workflow
 
 ### Step 1: Resolve Target
@@ -117,18 +141,43 @@ It emits: per-file diff stats, summary (files, insertions/deletions, test
 insertion ratio), hotspot bug-fix churn per file, ownership staleness, and
 one-way-door path markers.
 
+Every path is relative to the repo root, whatever directory the script runs
+from. A changed submodule is replaced by the files that changed inside it, under
+the submodule's path. Their hotspot and ownership metrics come from the
+submodule's own history.
+
+The hotspot and ownership metrics read the history before the change. The
+change's own commits never count. That history is `HEAD` for the working tree,
+the base ref for a base, and the merge-base for a base and head. A renamed file
+is listed under its new path, and its history is read under the old one.
+
+When the change touches a submodule, the output adds a `submodules` section: its
+path, old and new commit, and a status. `expanded` means its files are listed.
+Any other status means they are not:
+
+- `not-initialized`: the submodule is not checked out.
+- `missing-objects`: the submodule lacks one of the two commits.
+- `removed`: the change removes the submodule.
+
+For those, the row under `files` stands for the whole submodule, and the metrics
+cover less than the change.
+
 ### Step 3: Assess Dimensions
 
 Read the diff (`git diff`) and enough surrounding code to judge each
 dimension against its rubric. For blast radius, Grep for fan-in of the
-changed symbols. For silent-failure risk, read the tests that touch the
-changed code.
+changed symbols, in the scope that "Where to Search" sets. For silent-failure
+risk, read the tests that touch the changed code.
+
+`git diff` shows a submodule only as a change of commit. Read its content with
+`git -C <path> diff <old> <new>`, using the commits from the `submodules`
+section. When the target is the working tree, leave out `<new>`.
 
 Verification discipline: every MED or HIGH verdict must be backed by either a
-metric from Step 2 or a concrete failure scenario: given these inputs or
-this state, here is the wrong outcome and why nobody notices or cannot roll
-it back. If you cannot construct one, downgrade the verdict one level and say
-what you could not substantiate.
+metric from Step 2 or a concrete failure scenario. A scenario says that given
+these inputs or this state, here is the wrong outcome, and why nobody notices
+or cannot roll it back. If you cannot construct one, downgrade the verdict one
+level and say what you could not substantiate.
 
 ### Step 4: Report
 
@@ -150,8 +199,8 @@ Metrics: 6 files, +240/−31, test insertion ratio 0.30,
 hotspot overlap 0/6 files, oldest untouched file 2019-03-02.
 ```
 
-After the table, expand each MED/HIGH verdict with its failure scenario, and
-close with the one or two mitigations that would most reduce the risk (a
+After the table, expand each MED/HIGH verdict with its failure scenario. Close
+with the one or two mitigations that would most reduce the risk (a
 down-migration, a feature flag, an alert, a test).
 
 ## Rules
@@ -163,6 +212,8 @@ down-migration, a feature flag, an alert, a test).
   you actually ran.
 - Every MED or HIGH verdict cites a metric or a concrete failure scenario;
   otherwise downgrade it and say why.
+- When a changed submodule is not `expanded`, say in the report that its change
+  is not measured. Do not score it LOW for lack of data.
 - HIGH always means high risk. Never rename or reframe a dimension so that
   HIGH reads as desirable.
 - No blended overall score. Give per-dimension verdicts only.

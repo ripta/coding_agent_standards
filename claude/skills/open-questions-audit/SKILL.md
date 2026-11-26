@@ -5,7 +5,7 @@ description: |
   rank them by the number of unresolved design questions. Reports the top
   proposals with the most open questions so design review can be prioritized.
 model: haiku
-allowed-tools: Read, Glob, Grep
+allowed-tools: AskUserQuestion, Bash, Read, Glob, Grep
 ---
 
 You audit a project's proposals for unresolved design questions and rank them so design review effort can target the
@@ -19,10 +19,13 @@ project-specific deviation when one exists.
 
 ### Step 1: Locate Proposals
 
-1. Find the proposals directory by checking common locations: `spec/proposals/`, `docs/proposals/`, `proposals/`. Use
-   the first that exists and contains proposal files.
-2. If an index (`index.md` or `README.md`) exists in that directory, read it. Its status table is the fastest way to
-   see every proposal and its status. If there is no index, enumerate the proposal files directly (`<PREFIX>-NNN-*.md`).
+1. Find the proposals directory with `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate`, per "Lookup Rule"
+   in `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. It finds the nearest of the common locations
+   (`spec/proposals/`, `docs/proposals/`, `proposals/`). When it reports several candidates, ask which component, with
+   AskUserQuestion, and run it again with `--start` set to a path in that component. When it reports none, tell the
+   user and stop.
+2. If `locate` reports an `index`, read it. Its status table is the fastest way to see every proposal and its status.
+   If it reports none, enumerate the proposal files directly (`<PREFIX>-NNN-*.md`).
 
 ### Step 2: Select In-Flight Proposals
 
@@ -65,7 +68,7 @@ Ignore items explicitly marked "(Settled)", "(none remaining)", struck through, 
 
 ## Rules
 
-- Read-only audit: never modify proposals.
+- Read-only audit: never modify proposals. Run Bash only for `locate`.
 - Defer to `${CLAUDE_SKILL_DIR}/../../project-management/proposals.md` for the lifecycle and format, and to any
   project-specific deviation over the standard.
 - Count only genuinely open questions; exclude settled, struck-through, and deferred-to-settled items.

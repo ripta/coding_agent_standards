@@ -19,7 +19,11 @@ Do all of this before any question. Most answers are already on disk.
 
 1. **Research directory**: take it from the user's request if given. Otherwise look for likely candidates (`research/`,
    `docs/research/`, `spec/research/`).
-2. **Proposals directory**: look for an existing one (`spec/proposals/`, `docs/proposals/`, `proposals/`).
+2. **Proposals directory**: run `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate`, per "Lookup Rule" in
+   `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. Pass `--start` the research directory when item 1 found
+   one, so the search starts in the component the research sits in. It finds the nearest of the common locations
+   (`spec/proposals/`, `docs/proposals/`, `proposals/`). When it reports several candidates, ask which component on its
+   own, with AskUserQuestion, before items 3 and 4. They read the chosen directory.
 3. **Prefix**: derive it from existing proposal filenames (e.g. `PROJ-001-*.md` → `PROJ`).
 4. **Number**: scan existing proposal filenames for the next sequential value.
 
@@ -32,7 +36,7 @@ Report what you found in a few lines before asking anything.
 Make a single AskUserQuestion call covering everything Step 1 left unresolved:
 
 - **Research directory**: only when the request gave none and detection found none.
-- **Proposals directory**: only when none exists. Offer the common locations as options.
+- **Proposals directory**: only when `locate` found none. Offer the common locations as options.
 - **Prefix**: only when there are no existing proposals to derive it from. Propose one based on the project name (e.g.
   `PROJ`, `SVC`, `API`).
 

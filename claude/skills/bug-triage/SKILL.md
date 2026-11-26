@@ -36,24 +36,32 @@ format. Read that first and follow it over anything here.
 
 Do all of this before any question.
 
-1. **Bugs directory.** Check `spec/bugs/`, `docs/bugs/`, and `bugs/`. It may be a symlink into a separate specs repo.
-   Follow it. If none exists, tell the user and stop.
+1. **Bugs directory.** Run `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate`, per "Lookup Rule" in
+   `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. Its `bugs_dir` is the directory. It finds `spec/bugs/`,
+   `docs/bugs/`, or `bugs/` beside the proposals directory or at the repo root. It may be a symlink into a separate
+   specs repo. Follow it. When `locate` reports several candidates, ask which component, with AskUserQuestion, and run
+   it again with `--start` set to a path in that component. In unattended mode, set `--start` to the bug file's
+   directory and ask nothing. If it reports no bugs directory, tell the user and stop.
 2. **Bug index.** It is `index.md` or `README.md`, by the same rule as the "Index File Name" section of
    `${CLAUDE_SKILL_DIR}/../../project-management/tracking.md`. If both exist, stop and tell the user to consolidate
    them first. Read the index and any format notes it carries.
-3. **Build and test commands.** Read the project's `CLAUDE.md`, `AGENTS.md`, and `Makefile`. Find how to build the
-   project, how to run one test or one suite, and how to regenerate golden files if the project has them.
+3. **Build and test commands.** Read the project's `CLAUDE.md`, `AGENTS.md`, and the component's `Makefile`. That is the
+   one nearest at or above the component's root, the parent of its `spec/` or `docs/` directory, per the same rule. Find
+   how to build the project, how to run one test or one suite, and how to regenerate golden files if the project has
+   them.
 4. **Test layout.** List the test directories and note how a regression test is shaped here, such as a test function
    in a `_test` file, or an input file with golden sidecars.
 5. **Proposals.** Find the proposals directory, its index, and the project's proposal prefix, as the `new-proposal`
    skill does. You need these only if a bug turns out to need a proposal.
 6. **Shell tools.** Note whether the `cg_run` and `cg_run_many` MCP tools are available.
 7. **Commits.** Read whether the project's rules allow commits on the user's behalf. Run `git status` in the project
-   repo, and in the specs repo when the bugs directory links there. Note every file that is already changed. This run
-   never commits those. Read each repo's commit style, per `${CLAUDE_SKILL_DIR}/../../rules/commit-style.md`.
+   repo, and in the specs repo when the bugs directory links there. A submodule shows in its superproject as one
+   modified path, so run `git -C <submodule> status` too for each submodule a fix may touch. See "Submodules and Other
+   Repos" in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`. Note every file that is already changed. This run never
+   commits those. Read each repo's commit style, per `${CLAUDE_SKILL_DIR}/../../rules/commit-style.md`.
 
-If the build command cannot be found, ask for it with AskUserQuestion before Step 3. That is the only question this
-step may raise.
+If the build command cannot be found, ask for it with AskUserQuestion before Step 3. Apart from the component in item 1,
+that is the only question this step may raise.
 
 ## Step 2: Select the oldest genuinely-open bug
 
@@ -211,14 +219,18 @@ left lying in the working tree. Unattended mode skips this step. Its caller comm
 
 When the user asked for a commit, or the project's rules allow commits on the user's behalf:
 
-1. Run `git status` again. Commit only the files this run edited. Leave out every file Step 1 found already changed,
-   even one this run also touched. The report names it instead.
-2. Name the paths in the commit itself, `git commit -- <paths>`, per `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`.
+1. Run `git status` again, in each repo Step 1 checked. Commit only the files this run edited. Leave out every file
+   Step 1 found already changed, even one this run also touched. The report names it instead.
+2. Commit each path in the repo that owns it, naming the paths in the commit itself:
+   `git -C <owning repo> commit -- <paths relative to it>`. See "Submodules and Other Repos" in
+   `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`.
 3. Commit a fix, its regression test, the bug file, and the index together. When the bugs directory is in a separate
-   specs repo, commit the fix and its test in the code repo, then the bug file and the index in the specs repo.
+   specs repo, commit the fix and its test in the code repo, then the bug file and the index in the specs repo. A fix
+   inside a submodule is committed in the submodule first. The code repo's pointer bump is then a commit of its own.
 4. Commit every other outcome as one commit of the bug file, the index, and any new proposal and proposal index row.
    Commit the index rows Step 2 reconciled in a commit of their own, before it.
-5. Run `git status` once more. Every file this run edited is committed, or the report says why it is not.
+5. Run `git status` once more, in each of those repos. Every file this run edited is committed, or the report says why
+   it is not.
 
 Otherwise, do not commit. The report lists every file this run edited and says they are uncommitted.
 
@@ -238,8 +250,8 @@ the bug file's path and every file this run edited.
 
 - One bug per run. After acting on the selected bug, stop.
 - Step 4 asks after verification on purpose, because what to offer depends on the outcome. This is an exception to
-  the ask-once flow in `skills/README.md`. Step 1 asks only for a build command it cannot find. Unattended mode asks
-  nothing.
+  the ask-once flow in `skills/README.md`. Step 1 asks only for a component when `locate` finds several, and for a
+  build command it cannot find. Unattended mode asks nothing.
 - Never push. Commit by Step 5. A run that may commit and ends with its edits uncommitted is not done.
 - Resolve a trivial design decision yourself and state why in the question. Ask about every non-trivial one. Never
   break a tie between equally good options on your own.
