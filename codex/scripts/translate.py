@@ -553,6 +553,7 @@ and reasons live in the run report, which remains the recovery source.
    waiting on. If the next check shows no progress, stop it with TaskStop.
    Stopping an agent also kills every background command it started. Never
    stop one that is waiting on its own background work.
+
    Spawn a fresh agent with the same brief. Tell it the working tree holds the
    stopped agent's partial work, and to continue from it. Record the restart
    in the session report.

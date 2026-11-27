@@ -461,8 +461,9 @@ is missing:
 The generated Codex plugin follows the same pattern. `codex/hooks/check-setup.py` refreshes the installed link and
 checks the baseline reference in global or project instructions. It prints nothing when setup is complete.
 Otherwise it names the missing setup and the installed script that repairs it. Startup does not edit `AGENTS.md`.
-Only a fresh start moves the link. A resumed, compacted, cleared, or forked thread keeps the snapshot it started with,
-so it only repairs a missing link and checks the snapshot the link names.
+
+Only a fresh start moves the link. A resumed, compacted, cleared, or forked thread keeps the snapshot it started with.
+Such a thread only repairs a missing link and checks the snapshot the link names.
 
 Check Codex setup without changing anything:
 

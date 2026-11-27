@@ -386,8 +386,8 @@ Acceptable revisit hooks include:
 - A condition tied to a specific artifact, such as golden output review or a performance benchmark, that determines when
   the question is reopened
 
-Every deferred question must move from the Open section to the Settled section as a "decision to defer" with the revisit
-hook captured both in the settled entry and in the Decision Log. A hook with a condition or a date is written as a
+Every deferred question must move from the Open section to the Settled section as a "decision to defer". Its revisit
+hook is captured both in the settled entry and in the Decision Log. A hook with a condition or a date is written as a
 `**Revisit:**` line. See "Revisit Hooks".
 
 ## Version Skew
@@ -414,8 +414,8 @@ Dependencies" defines the queue gate for it.
 
 ## Risks
 
-Every proposal carries a Risks section describing what could go wrong with the design, not implementation bugs, but
-design-level exposure: wrong assumptions, one-way doors, blast radius, failure modes nobody would notice.
+Every proposal carries a Risks section. It describes what could go wrong with the design. That means design-level
+exposure, not implementation bugs: wrong assumptions, one-way doors, blast radius, failure modes nobody would notice.
 
 - Each risk states a **likelihood** and an **impact** (low/medium/high) and carries either a **mitigation** (how the
   risk is reduced or detected early) or an explicit **acceptance** with rationale. A risk with neither is an open design
@@ -434,8 +434,8 @@ design-level exposure: wrong assumptions, one-way doors, blast radius, failure m
 
 ## Cross-Proposal Impact
 
-When a design decision in one proposal would change later proposals, the first proposal must note this. If proposal A
-has a decision that affects proposals B and C, A's text says so, and B and C are updated at the time A is decided,
+When a design decision in one proposal would change later proposals, the first proposal must note this. Suppose proposal
+A has a decision that affects proposals B and C. A's text says so. B and C are updated at the time A is decided,
 reviewed, or designed.
 
 The Dependencies section already captures one direction (Y depends on X). The reverse, that X knows Y cares about a

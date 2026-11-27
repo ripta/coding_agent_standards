@@ -200,10 +200,11 @@ the next pass. An `UNSOUND` on the third pass goes to the judge like any other n
 Run it once every open question is settled. It replaces the single whole-proposal review.
 
 It can also run on a draft that still has open questions. Then a finding never settles an open question. A finding that
-bears on one goes onto that question as an option, a constraint, or a `Leaves undone` line. A finding against a
-decision the user made never changes it. It becomes a `**Pending override:**` line under the decision, per "A User's
-Decision" in `proposals.md`. A finding against a decision an agent made becomes a new open question. The draft
-converges when what is left is open questions and pending overrides, not defects.
+bears on one goes onto that question as an option, a constraint, or a `Leaves undone` line.
+
+A finding against a decision the user made never changes it. It becomes a `**Pending override:**` line under the
+decision, per "A User's Decision" in `proposals.md`. A finding against a decision an agent made becomes a new open
+question. The draft converges when what is left is open questions and pending overrides, not defects.
 
 1. **Full pass.** Spawn the critic on the proposal path for a whole-proposal review. List each decision the user kept
    against the critic's dissent. The full pass reports findings of both levels, so a fundamental flaw in the design

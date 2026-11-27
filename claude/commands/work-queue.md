@@ -118,9 +118,10 @@ create or switch branches. Never act on an edit this run did not make.
      Proposals".
    - Unmet: anything else.
 
-   A row is held when the notes hold it, when it has an unmet, blocked, or
-   unresolved dependency, when an earlier row of its proposal is held, or when it depends
-   on a held row. A row gate the user says is not live holds its row too. A
+   A row is held when the notes hold it, or when it has an unmet, blocked, or
+   unresolved dependency. It is also held when an earlier row of its proposal
+   is held, or when it depends on a held row. A row gate the user says is not
+   live holds its row too. A
    held row stays in the plan, but no milestone of it runs. Holding a row
    never blocks the other rows. A dependency cycle among rows in the run is a
    blocker.
@@ -131,12 +132,13 @@ create or switch branches. Never act on an edit this run did not make.
 
    These are the only ways a row or milestone is held. A check only the user
    can perform never holds one. Examples are a live trial, a test in the
-   user's browser, or the user's ruling on a trial's outcome. Build everything
-   up to that check. When the rest of the milestone's checks pass, mark it
-   `DONE` and say in its As built block which check is left to the user. When
-   the proposal makes that check a condition of `DONE`, split it into a new
-   milestone by amendment, as section 2 step 4 describes. Then run everything
-   before it.
+   user's browser, or the user's ruling on a trial's outcome.
+
+   Build everything up to that check. When the rest of the milestone's checks
+   pass, mark it `DONE` and say in its As built block which check is left to
+   the user. When the proposal makes that check a condition of `DONE`, split it
+   into a new milestone by amendment, as section 2 step 4 describes. Then run
+   everything before it.
 
 4. Read the design documents and ADRs the proposals cite. Explore the codebase
    enough to plan every milestone. Use Explore agents for this, so the
@@ -383,6 +385,7 @@ For each milestone picked:
    waiting on. If the next check shows no progress, stop it with TaskStop.
    Stopping an agent also kills every background command it started. Never
    stop one that is waiting on its own background work.
+
    Spawn a fresh agent with the same brief. Tell it the working tree holds the
    stopped agent's partial work, and to continue from it. Record the restart
    in the session report.
@@ -484,7 +487,7 @@ correction of fact. It needs its Decision Log entry, per `proposals.md`
 ## 4. Session reports
 
 Write one report per row, using the `session-report` skill. Create the file
-when the row starts, and name it for the row, e.g.
+when the row starts, and name it for the row, such as
 `YYYYMMDD-proj-004-m3-m5-<short-title>.md`. Then amend that same file after
 every milestone and review: re-read it and update it in place. The skill's rule
 to extend the slug on a filename collision applies only when creating a row's
@@ -506,20 +509,26 @@ The report records, per milestone:
 
 The first row report of the run also carries the run state, near the top. It
 names the base commits and each row's specs commits by subject. It lists every
-milestone with its run status, and each held or blocked row with its reason. Update it whenever a status
-changes. Later row reports link to it. After a context compaction, re-read it,
-the session reports, the proposals, `queue.md`, and `history.md` to find
-where the run stands, then continue. A run resumed in a new session does the same. The run's
-reports are still its own to amend, even once committed.
+milestone with its run status, and each held or blocked row with its reason.
+Update it whenever a status changes. Later row reports link to it.
 
-The report directory may sit inside the code repo or the specs repo, e.g. at
-`./spec/reports`. Decide which by the directory's owning repo, per the
+After a context compaction, re-read the run state, the session reports, the
+proposals, `queue.md`, and `history.md` to find where the run stands, then
+continue. A run resumed in a new session does the same. The run's reports are
+still its own to amend, even once committed.
+
+The report directory may sit inside the code repo or the specs repo, such as
+at `./spec/reports`. Decide which by the directory's owning repo, per the
 skill's "Resolve the target directory" section, not by the path as written.
 A `./spec` that links to a separate specs repo puts the reports in the specs
-repo. Then the run commits the reports in that repo. Each commit the run makes
-there carries the reports' current amendments, by path. A report never names
-the commit that carries it. `git log` on the report finds that commit. When the
-run is done, commit the reports' last amendments by path as their own commit.
+repo. Then the run commits the reports in that repo.
+
+Each commit the run makes there carries the reports' current amendments, by
+path. A report never names the commit that carries it. `git log` on the report
+finds that commit.
+
+When the run is done, commit the reports' last amendments by path as their own
+commit.
 In the code repo, check its message as in section 2, step 6. In the specs repo,
 write its subject in that repo's own style, as for the other specs commits.
 

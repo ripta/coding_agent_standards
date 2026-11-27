@@ -256,10 +256,12 @@ makes a short option look cheap.
 
 Spawn the `design-critic` agent (`coding-standards:design-critic` under the plugin) once for the round. Give it the
 proposal path, each question in the round, and each question's option list with descriptions. Pass any override that
-applies, with its source. Do not give it your comparison's pros and cons. Do not say which option you recommend, and
-strip any recommended marker from the descriptions. Describe every option to the same depth, and do not list your
-favorite first. Put any fact the critic needs into the description of the option it bears on, not into a separate
-"facts" section. The critic ranks blind. A disagreement is only a signal when it does.
+applies, with its source.
+
+Do not give it your comparison's pros and cons. Do not say which option you recommend, and strip any recommended marker
+from the descriptions. Describe every option to the same depth, and do not list your favorite first. Put any fact the
+critic needs into the description of the option it bears on, not into a separate "facts" section. The critic ranks
+blind. A disagreement is only a signal when it does.
 
 When it returns:
 
@@ -283,8 +285,9 @@ If the agent cannot run, say so and continue without it.
 In **autonomous** and **converge** modes, the pass above is the first pass of the loop in
 `${CLAUDE_SKILL_DIR}/../../project-management/design-convergence.md`. Read it before the first round. If it cannot be
 read, stop and tell the user this skill is installed without its standards. Run the loop until every question in the
-round converges or has a judge ruling. The four steps above are its reconcile step. When the design-critic cannot run,
-neither can the loop. Say so, and fall back to manual for the rest of the review.
+round converges or has a judge ruling. The four steps above are its reconcile step.
+
+When the design-critic cannot run, neither can the loop. Say so, and fall back to manual for the rest of the review.
 
 #### 5. Sketch (optional)
 
@@ -377,6 +380,7 @@ pass of this step.
 Its findings are candidates, not conclusions. Check each against the proposal and the code before using it, the same way
 Step 5 #4 checks an objection. A premise finding that holds goes to the Step 3 #4 question, under that step's rule for
 each mode. Feed its inconsistencies, gaps, and weak decisions into the checks below. Hold its unlisted risks for Step 7.
+
 When you drop a finding the critic marked `CONFIRMED`, tell the user why in one line. If the agent cannot run, say so
 and do the checks without it.
 
@@ -433,10 +437,12 @@ Before wrap-up, interrogate the proposal's Risks section against the "Risks" sec
    with a Decision Log entry.
 
 Record each missing risk in the Risks section immediately. Do not ask whether to add it. A risk is a fact about the
-design, not a choice. If you are unsure a risk is real, check the design and code until you know. Ask via
-AskUserQuestion only about what is the user's to decide: a likelihood or impact rating the evidence does not settle, and
-whether to mitigate or accept. Batch these into one call, or successive calls of up to four. Record each answer with a
-Decision Log entry per the standard. In autonomous mode, decide these instead, as "Autonomous Mode" describes.
+design, not a choice. If you are unsure a risk is real, check the design and code until you know.
+
+Ask via AskUserQuestion only about what is the user's to decide: a likelihood or impact rating the evidence does not
+settle, and whether to mitigate or accept. Batch these into one call, or successive calls of up to four. Record each
+answer with a Decision Log entry per the standard. In autonomous mode, decide these instead, as "Autonomous Mode"
+describes.
 
 ### Step 8: Wrap-Up
 
@@ -487,9 +493,10 @@ Read the answers this way:
 
 Record every candidate's outcome in the Decision Log, per "Recording ADR Candidates" in
 `${CLAUDE_SKILL_DIR}/../../project-management/design.md`. A candidate the user picks is `Written as ADR-NN`. One the
-user leaves unpicked is `Declined`. One that fails only Record `Waits on` a concrete hook. A candidate already in the
-log that now fails another test is `Declined`, with the test it fails. Record these even when none is asked about. A
-candidate that was noted and dropped leaves no entry unless it was already in the log.
+user leaves unpicked is `Declined`. One that fails only Record `Waits on` a concrete hook.
+
+A candidate already in the log that now fails another test is `Declined`, with the test it fails. Record these even when
+none is asked about. A candidate that was noted and dropped leaves no entry unless it was already in the log.
 
 For each decision the user picks, read `${CLAUDE_SKILL_DIR}/../../project-management/design.md` and create an ADR
 following its "ADR Document Format" section. That file is the only source for the format; this skill does not carry its
@@ -515,9 +522,11 @@ List any ADRs created with their file paths.
 
 Autonomous mode runs Steps 3 through 7 without asking, then asks everything at one review gate. It never stops for the
 user before the gate. The retraction question, the growth question, and every recommendation against a decision the user
-made wait for the gate too. It changes who decides, not how. The ranking in `decision-making.md` and the convergence
-loop decide each question. Choosing autonomous mode does not lower the bar. An override still needs a source that
-"Overriding the Default" names.
+made wait for the gate too.
+
+Autonomous mode changes who decides, not how. The ranking in `decision-making.md` and the convergence loop decide each
+question. Choosing autonomous mode does not lower the bar. An override still needs a source that "Overriding the
+Default" names.
 
 ### What the user authorizes by choosing it
 
