@@ -27,6 +27,8 @@ Apply these only when the repository expresses no convention of its own.
 
 - Format: `scope: description` (e.g., `auth: handle expired tokens`)
 - Keep the subject line under 72 characters
+- Wrap body lines at 72 characters. A line that cannot break may run longer,
+  such as a URL, a code snippet, or quoted output
 - Use imperative mood: "add feature" not "added feature"
 
 ## Body
