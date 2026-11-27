@@ -41,8 +41,38 @@ export type Worker = {
   lastTool?: string
 }
 
+export type BatchStatus = 'not-started' | 'open' | 'merged' | 'stopped'
+
+export type LandingStep =
+  | 'detecting'
+  | 'planning'
+  | 'opening'
+  | 'waiting'
+  | 'fixing'
+  | 'confirming'
+  | 'finished'
+  | 'stopped'
+
+// One batch of a /land-branch run: the commits that land as one PR.
+export type Batch = {
+  name: string
+  status: BatchStatus
+  pr?: number
+  after?: string[]
+}
+
+export type Landing = {
+  batches: Batch[]
+  // What the coordinator said about a batch, such as why it stopped, keyed by batch name.
+  notes: Record<string, string>
+  current?: { batch?: string; step: LandingStep }
+  // A serial run's land_batch.py run file. When set, the batches are read from it.
+  runFile?: string
+  updatedAt: number
+}
+
 declare module 'claude-code' {
   interface PluginState {
-    'coding-standards': { run: Run | null; workers: Worker[] }
+    'coding-standards': { run: Run | null; workers: Worker[]; landing: Landing | null }
   }
 }

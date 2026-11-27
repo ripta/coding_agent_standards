@@ -111,5 +111,5 @@
       }
     ]
   },
-  "modules": ["./work-queue-progress.tsx"]
+  "modules": ["./progress.tsx"]
 }

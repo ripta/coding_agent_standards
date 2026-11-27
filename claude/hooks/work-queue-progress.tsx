@@ -1,16 +1,21 @@
 import { atom, read, update } from 'claude-code'
-import type { Register } from 'claude-code'
+import type { EngineInterface, Hook, Register } from 'claude-code'
 
 import type { Milestone, MilestoneStatus, Row, Run, Step, Worker } from '../types'
+import { isLanding } from './land-branch-progress'
+import { ACCENT, fitChips } from './progress-band'
+import type { Band } from './progress-band'
 
+type CallHook = Hook<'tool.call'>
+
+// Each file names the atoms it reads. The engine's validator reads an atom only where it is made.
 const run = atom({ plugin: 'coding-standards', key: 'run' } as const, null)
 const workers = atom({ plugin: 'coding-standards', key: 'workers' } as const, [])
+const landing = atom({ plugin: 'coding-standards', key: 'landing' } as const, null)
 
 export const TOOL = 'work_queue_status'
 export const PANE = 'work-queue'
-const ACCENT = '#56b4e0'
-const LABEL = ' work-queue '
-const RULE_LEAD = '──'
+const LABEL = 'work-queue'
 // The pane lists this many recent subagents.
 const WORKER_HISTORY = 8
 
@@ -138,33 +143,35 @@ export function headline(r: Run): string {
   return parts.join(' · ')
 }
 
-// The chips that fit in `columns`, kept around the current milestone. Each
-// chip is its glyph, the id, and one column of gap.
+// The chips that fit in `columns`, kept around the current milestone.
 export function visibleChips(r: Run, columns: number): { chips: Milestone[]; before: number; after: number } {
-  const all = milestonesOf(r)
-  const width = (m: Milestone) => m.id.length + 2
-  const total = all.reduce((n, m) => n + width(m), 0)
-  if (total <= columns) return { chips: all, before: 0, after: 0 }
+  return fitChips(milestonesOf(r), focusOf(r), columns)
+}
 
-  const room = columns - 8 // "+N " on each side
-  let at = all.findIndex(m => m.status === 'IN PROGRESS')
-  if (at < 0) at = Math.max(0, all.findIndex(m => m.status === 'QUEUED'))
-  let lo = at
-  let hi = at + 1
-  let used = width(all[at] as Milestone)
-  while (true) {
-    const next = hi < all.length ? width(all[hi] as Milestone) : Infinity
-    const prev = lo > 0 ? width(all[lo - 1] as Milestone) : Infinity
-    if (Math.min(next, prev) + used > room) break
-    if (next <= prev) {
-      used += next
-      hi += 1
-    } else {
-      used += prev
-      lo -= 1
-    }
+function focusOf(r: Run): number {
+  const all = milestonesOf(r)
+  const at = all.findIndex(m => m.status === 'IN PROGRESS')
+  return at >= 0 ? at : Math.max(0, all.findIndex(m => m.status === 'QUEUED'))
+}
+
+export function isQueueRunning(r: Run | null): boolean {
+  return r !== null && r.current?.step !== 'finished'
+}
+
+export function workQueueBand(r: Run, worker?: Worker): Band {
+  return {
+    label: LABEL,
+    headline: headline(r),
+    chips: milestonesOf(r).map(m => ({
+      id: m.id,
+      glyph: GLYPH[m.status],
+      color: COLOR[m.status],
+      isDim: DIM.has(m.status),
+      isBold: m.status === 'IN PROGRESS',
+    })),
+    focus: focusOf(r),
+    worker,
   }
-  return { chips: all.slice(lo, hi), before: lo, after: all.length - hi }
 }
 
 // A few words on what a subagent's tool call touched.
@@ -175,56 +182,59 @@ export function describeCall(tool: string, input: Record<string, unknown>): stri
   return `${tool} ${brief.length > 40 ? `${brief.slice(0, 39)}…` : brief}`
 }
 
-function isStatusTool(tool: string): boolean {
+// The run's only gate is plan approval, so the status tool never prompts.
+export function isQueueStatusTool(tool: string): boolean {
   return tool.endsWith(`__${TOOL}`)
 }
 
-export const register: Register = on => {
-  on('session.start', async ($, e, next) => {
-    await $.tool.register({ name: TOOL, description: DESCRIPTION, inputSchema: INPUT_SCHEMA })
-    await $.command.register({
-      name: 'queue',
-      description: 'Show the /work-queue run in a pane (/queue clear hides the band)',
-    })
-    return next(e)
+export async function startWorkQueue($: EngineInterface): Promise<void> {
+  await $.tool.register({ name: TOOL, description: DESCRIPTION, inputSchema: INPUT_SCHEMA })
+  await $.command.register({
+    name: 'queue',
+    description: 'Show the /work-queue run in a pane (/queue clear hides the band)',
   })
+}
 
-  // The run's only gate is plan approval, so the status tool never prompts.
-  on('tool.check', ($, e, next) => (isStatusTool(e.tool) ? { decision: 'allow' } : next(e)))
+// A function declaration, since the engine's validator follows `$` across files only into one.
+export async function onQueueToolCall(
+  $: Parameters<CallHook>[0],
+  e: Parameters<CallHook>[1],
+  next: Parameters<CallHook>[2],
+): Promise<Awaited<ReturnType<CallHook>>> {
+  const tool = String(e.tool)
+  const input = e as unknown as Record<string, unknown>
 
-  on('tool.call', async ($, e, next) => {
-    const tool = String(e.tool)
-    const input = e as unknown as Record<string, unknown>
-
-    if (isStatusTool(tool)) {
-      if (e.agentId !== undefined) {
-        return { deny: 'Only the /work-queue coordinator reports run status.' }
-      }
-      const parsed = parseRun(input, await $.clock.now())
-      if (typeof parsed === 'string') return { deny: `${TOOL}: ${parsed}` }
-      await update($, run, () => parsed)
-      const n = milestonesOf(parsed).length
-      return { result: `Recorded ${n} milestones in ${parsed.rows.length} rows.` }
+  if (isQueueStatusTool(tool)) {
+    if (e.agentId !== undefined) {
+      return { deny: 'Only the /work-queue coordinator reports run status.' }
     }
+    const parsed = parseRun(input, await $.clock.now())
+    if (typeof parsed === 'string') return { deny: `${TOOL}: ${parsed}` }
+    await update($, run, () => parsed)
+    const n = milestonesOf(parsed).length
+    return { result: `Recorded ${n} milestones in ${parsed.rows.length} rows.` }
+  }
 
-    const agentId = e.agentId
-    if (agentId !== undefined && (await read($, workers)).some(w => w.agentId === agentId)) {
-      const lastTool = describeCall(tool, input)
-      // A fix round reaches the same agent by SendMessage, so a finished one
-      // turns active again on its next call.
-      await update($, workers, list =>
-        list.map(w =>
-          w.agentId === agentId ? { ...w, isActive: true, toolCalls: w.toolCalls + 1, lastTool } : w,
-        ),
-      )
-    }
-    return next(e)
-  })
+  const agentId = e.agentId
+  if (agentId !== undefined && (await read($, workers)).some(w => w.agentId === agentId)) {
+    const lastTool = describeCall(tool, input)
+    // A fix round reaches the same agent by SendMessage, so a finished one
+    // turns active again on its next call.
+    await update($, workers, list =>
+      list.map(w =>
+        w.agentId === agentId ? { ...w, isActive: true, toolCalls: w.toolCalls + 1, lastTool } : w,
+      ),
+    )
+  }
+  return next(e)
+}
 
+// The session-wide events are hooked once, in progress.tsx. A plugin may hook an event only once
+// without a matcher.
+export const registerWorkQueue: Register = on => {
   on('agent.spawn', async ($, e, next) => {
     const spawned = await next(e)
-    const current = await read($, run)
-    const isRunning = current !== null && current.current?.step !== 'finished'
+    const isRunning = isQueueRunning(await read($, run)) || isLanding(await read($, landing))
     if (spawned.agentId !== undefined && e.parentAgentId === undefined && isRunning) {
       const worker: Worker = {
         agentId: spawned.agentId,
@@ -260,54 +270,6 @@ export const register: Register = on => {
     }
     await $.ui.open({ id: PANE, title: 'Work queue', closeOnEscape: true })
     return { text: 'Work queue pane opened. Esc closes it.' }
-  })
-
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const r = await read($, run)
-    if (r === null || e.props.hasSurvey) return next(e)
-
-    const { Box, Text } = $.ui.resolve(e)
-    const columns = e.props.bodyColumns
-    const { chips, before, after } = visibleChips(r, columns)
-    const active = (await read($, workers)).filter(w => w.isActive).at(-1)
-    const rows = e.props.maxRows
-    // The headline doubles as a rule, setting the band off from the transcript.
-    const title = ` ${headline(r)} `
-    const fill = Math.max(0, columns - RULE_LEAD.length - LABEL.length - RULE_LEAD.length - title.length)
-
-    return (
-      <Box flexDirection="column">
-        <Box flexDirection="row">
-          <Text dimColor>{RULE_LEAD}</Text>
-          <Text bold color={ACCENT}>{LABEL}</Text>
-          <Text dimColor>{RULE_LEAD}</Text>
-          <Text wrap="truncate-end">{title}</Text>
-          {fill > 0 && <Text dimColor>{'─'.repeat(fill)}</Text>}
-        </Box>
-        {rows >= 2 && (
-          <Box flexDirection="row" gap={1}>
-            {before > 0 && <Text dimColor>+{before}</Text>}
-            {chips.map(m => (
-              <Text
-                key={`chip-${m.id}`}
-                color={COLOR[m.status]}
-                dimColor={DIM.has(m.status)}
-                bold={m.status === 'IN PROGRESS'}
-              >
-                {GLYPH[m.status]}{m.id}
-              </Text>
-            ))}
-            {after > 0 && <Text dimColor>+{after}</Text>}
-          </Box>
-        )}
-        {rows >= 3 && active !== undefined && (
-          <Text dimColor wrap="truncate-end">
-            ↳ {active.type} · {active.description} · {active.toolCalls} tools
-            {active.lastTool ? ` · ${active.lastTool}` : ''}
-          </Text>
-        )}
-      </Box>
-    )
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {

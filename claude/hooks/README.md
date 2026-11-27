@@ -87,10 +87,20 @@
   `practices/makefile.md`.
 - `Stop` reminds you to run `make test` and `make lint` when those targets exist.
 
-It also loads one hooks module, `work-queue-progress.tsx`, under `modules`. It
-draws a `/work-queue` run's progress in a band above the prompt. `/queue` opens
-the full queue in a pane, and `/queue clear` hides the band. The coordinator
-reports each change through the `work_queue_status` tool it registers.
+It also loads one hooks module, `progress.tsx`, under `modules`. It draws a
+run's progress in a band above the prompt, for two kinds of run:
+
+- A `/work-queue` run, from `work-queue-progress.tsx`. `/queue` opens the full
+  queue in a pane, and `/queue clear` hides the band. The coordinator reports
+  each change through the `work_queue_status` tool.
+- A `/land-branch` run, from `land-branch-progress.tsx`. `/landing` opens every
+  batch in a pane, and `/landing clear` hides the band. The coordinator reports
+  each step through the `land_branch_status` tool. A serial run's batches come
+  from `land_batch.py`'s run file, which the mod reads again after each tool
+  call while the run is going.
+
+`progress.tsx` hooks the events both runs share, and `progress-band.tsx` draws
+both bands. A session with both runs shows one band for each.
 
 The mod also counts each subagent's tool calls on its own. It stays out of sight
 until a run reports. Check it with `claude plugin validate claude` and

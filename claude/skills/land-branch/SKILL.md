@@ -29,6 +29,26 @@ Every branch this skill creates is yours: the staging branch and every batch bra
 mainline are the user's. Read them and fetch them, but never push, reset, or rebase them. See "Branches the Agent Owns"
 in `${CLAUDE_SKILL_DIR}/../../rules/git-workflow.md`.
 
+## Progress
+
+When a tool whose name ends in `land_branch_status` is available, it shows the run's progress to the user. Skip this
+section when the tool is absent.
+
+- Call it whenever the step changes, with the step in `current.step`. The steps are `detecting` for Step 1, `planning`
+  for Steps 2 and 3, `opening` while a batch opens, `waiting` while the watcher is armed, `fixing` while a batch is
+  being fixed, and `confirming` for Step 6. Name the batch in `current.batch` for `opening` and `fixing`
+- Before a run file exists, pass the planned batches in `batches`, each `not-started`. Pass an empty list until Step 2
+  has a plan
+- Once `land_batch.py init` has printed the run file, pass its path as `run_file`, and leave `batches` out. The tool
+  reads the batches from the file, and reads them again after every tool call. A batch that changes status needs no
+  call of its own
+- A run that stacks has no such file. Pass every batch in `batches` on each call, with its status and its PR number.
+  Call again whenever a batch changes status
+- Say in `notes` why a batch stopped, or what it waits on, keyed by batch name. Each call replaces the notes, so
+  repeat the ones that still hold
+- On a resume, make the first call as soon as Step 1 item 3 finds the run file
+- End with step `finished` once Step 6 is done, or `stopped` when the run stops under "Stopping"
+
 ## Step 1: Detect, without asking
 
 No question belongs in this step. A rebase conflict in item 10 is a stop, not a question.
