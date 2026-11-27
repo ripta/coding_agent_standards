@@ -339,6 +339,18 @@ def test_candidates_read_a_fixed_bug_from_bugs_at_the_repo_root(tmp_path: Path) 
     assert entry["bugs"] == []
 
 
+@pytest.mark.parametrize("status", sorted(proposals.BUG_CLOSED_STATUSES))
+def test_candidates_drop_a_bug_in_any_closed_status(tmp_path: Path, status: str) -> None:
+    """Catches a closed status missing from the checker, so its bug still argues for the work.
+
+    `not-reproducible` was once left out, and a bug triage had closed kept its proposal ranked as bug-driven.
+    """
+    directory = _bug_citing_candidate(tmp_path)
+    _write(tmp_path / "bugs", "20261001-crash.md", f"# Bug\n\n**Status:** {status} 2026-10-02\n")
+    [entry] = proposals.candidates(directory)["ready"]
+    assert entry["bugs"] == []
+
+
 def test_candidates_prefer_the_bugs_dir_beside_the_proposals_dir(tmp_path: Path) -> None:
     """The first bugs directory that exists is the one, as tracking.md says, so the root copy is not read."""
     directory = _bug_citing_candidate(tmp_path, bugs_beside=True)

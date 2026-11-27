@@ -378,6 +378,15 @@ def test_proposal_vocabulary_covers_the_checker() -> None:
     assert used <= tracking_vocabulary("Proposals")
 
 
+def test_bug_closed_statuses_match_the_checker() -> None:
+    """Catches a closed bug status that the candidates report still reads as open, or one it invents."""
+    sys.path.insert(0, str(SCRIPTS))
+    import proposals
+
+    still_open = {"open", "accepted", "proposed"}
+    assert proposals.BUG_CLOSED_STATUSES - {"closed"} == tracking_vocabulary("Bugs") - still_open
+
+
 def test_adr_impact_names_only_adr_statuses() -> None:
     text = (CLAUDE / "agents" / "adr-impact.md").read_text()
     statuses = text.split("Statuses:", 1)[1].split("\n\n", 2)[1]

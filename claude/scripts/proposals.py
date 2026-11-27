@@ -90,6 +90,11 @@ LIVE_AFTER_TARGET = re.compile(r"^([A-Z0-9]*[A-Z][A-Z0-9]*-\d+)(?:\s+M(\d+))?\s+
 META_LINE = re.compile(r"^\*\*(Status|Updated|Revisit):\*\*", re.IGNORECASE)
 PARTIAL_SUPERSESSION = re.compile(r"Superseded in part by [A-Z0-9]*[A-Z][A-Z0-9]*-\d+; see Decision Log\.")
 FROZEN_STATUSES = {"implemented", "superseded"}
+
+# The bug statuses that close a bug, per tracking.md "Status Vocabularies". `closed` is outside
+# that vocabulary. Older bug files carry it, so it still reads as closed.
+BUG_CLOSED_STATUSES = {"fixed", "not-reproducible", "closed"}
+
 LINK_TARGET = re.compile(r"\]\([^)]*\)")
 AUDIT_ENTRY = re.compile(r"\brevisit\b", re.IGNORECASE)
 CORRECTION_ENTRY = re.compile(r"\bcorrection of fact\b", re.IGNORECASE)
@@ -1540,7 +1545,7 @@ def find_bugs_dir(beside: Path | None, root: Path | None) -> Path | None:
 
 
 def _bug_open(bugs_dir: Path | None, name: str) -> bool:
-    """A bug file whose status is fixed or closed no longer argues for the work. An unreadable one still does."""
+    """A bug file whose status closes it no longer argues for the work. An unreadable one still does."""
     if bugs_dir is None:
         return True
     path = bugs_dir / name
@@ -1549,7 +1554,7 @@ def _bug_open(bugs_dir: Path | None, name: str) -> bool:
     for line in path.read_text().splitlines():
         m = PROPOSAL_STATUS.match(line)
         if m:
-            return _base_status(m.group(1)) not in ("fixed", "closed")
+            return _base_status(m.group(1)) not in BUG_CLOSED_STATUSES
     return True
 
 
