@@ -493,7 +493,7 @@ Read the answers this way:
 
 Record every candidate's outcome in the Decision Log, per "Recording ADR Candidates" in
 `${CLAUDE_SKILL_DIR}/../../project-management/design.md`. A candidate the user picks is `Written as ADR-NN`. One the
-user leaves unpicked is `Declined`. One that fails only Record `Waits on` a concrete hook.
+user leaves unpicked is `Declined`. One that fails only the Record test is `Waits on`, with a concrete hook.
 
 A candidate already in the log that now fails another test is `Declined`, with the test it fails. Record these even when
 none is asked about. A candidate that was noted and dropped leaves no entry unless it was already in the log.
