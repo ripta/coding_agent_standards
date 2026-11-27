@@ -26,11 +26,11 @@ test: test-python test-python-floor test-js test-plugin test-opencode ## Run eve
 
 .PHONY: test-python
 test-python: ## Run the pytest suites, including the standards checker
-	uvx --with pyyaml pytest -q $(PYTEST_PATHS)
+	uvx --with pyyaml --with pytest-xdist pytest -q -n auto $(PYTEST_PATHS)
 
 .PHONY: test-python-floor
 test-python-floor: ## Run the pytest suites under the oldest supported Python, PYTHON_FLOOR
-	uvx --python $(PYTHON_FLOOR) --with pyyaml pytest -q $(PYTEST_PATHS)
+	uvx --python $(PYTHON_FLOOR) --with pyyaml --with pytest-xdist pytest -q -n auto $(PYTEST_PATHS)
 
 .PHONY: test-js
 test-js: ## Run the architecture-exploration workflow tests
