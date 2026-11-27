@@ -2,10 +2,11 @@
 name: bug-triage
 description: |
   Verify the oldest open bug in the project's bugs directory. Reproduce it against
-  the current build, then close it if fixed. If it still reproduces, estimate the
-  fix's size and design decisions, then recommend fixing it now or opening a
-  proposal. Reconciles the bug index when a bug file is already closed. Works one
-  bug per run.
+  the current build, then close it if fixed. If it reproduces but a contract says
+  the behavior is intended, offer to close it as by design. If it is still a bug,
+  estimate the fix's size and design decisions, then recommend fixing it now,
+  opening a proposal, or closing it as won't fix. Reconciles the bug index when
+  a bug file is already closed. Works one bug per run.
 argument-hint: "[unattended [fix] <bug file> [build command]]"
 model: sonnet
 allowed-tools: Read, Edit, Write, Bash, Grep, Glob, AskUserQuestion
@@ -73,9 +74,9 @@ that is the only question this step may raise.
    - Trailing annotations, such as `fixed 2026-05-25` or a reference to the work that fixed it.
    - Compound forms, such as `Resolved (for X), Open (for Y)`. Treat it as open if any part is open.
    - `accepted` means a fix was chosen but not yet implemented. It is still open.
-3. **The index can be stale.** If a candidate's file already reads as closed (`fixed`, `resolved`, or
-   `not-reproducible`) while the index says `open`, update the index row to match the file. Note the reconciliation
-   and keep walking. This is bookkeeping, not the run's work.
+3. **The index can be stale.** If a candidate's file already reads as closed (`fixed`, `resolved`, `not-reproducible`,
+   `by-design`, or `wont-fix`) while the index says `open`, update the index row to match the file. Note the
+   reconciliation and keep walking. This is bookkeeping, not the run's work.
 4. **Skip recently-triaged bugs.** A `Triaged:` line in any formatting, such as `**Triaged:** 2026-07-16 (...)`, records
    an earlier run that ended inconclusive. If its date is within the last month, skip the bug, note the skip, and keep
    walking. An older date no longer shields the bug.
@@ -99,6 +100,9 @@ that is the only question this step may raise.
    - Follow any stricter rule the project's hooks enforce.
 6. Classify the outcome:
    - **FIXED.** It no longer reproduces, and the behavior is now correct.
+   - **BY DESIGN.** It reproduces, and a contract says the behavior is intended. The contract is a doc, an ADR, a test
+     that asserts the behavior, or a decision the user recorded. Name it by file and line. When the code disagrees
+     with its own docs, or the contract is only your reading of what the code does, it is STILL A BUG.
    - **STILL A BUG.** It reproduces deterministically.
    - **INCONCLUSIVE.** It is flaky, race-dependent, slow, or environment-specific, and did not reproduce
      deterministically. Never close an inconclusive bug as fixed.
@@ -115,6 +119,19 @@ single AskUserQuestion call.
 2. Identify what fixed it, best-effort. Scan `git log`, `history.md`, `queue.md`, and the proposal index for the
    responsible change. Record a commit hash and subject only if you can identify it confidently. Do not guess.
 3. Set the index row's Status to `fixed`.
+
+### BY DESIGN: confirm, then close
+
+Closing a bug as by design says callers may rely on the behavior. Only the user makes that call. Quote the contract in
+the question text, with its file and line, so the user can check it. Offer three options in one AskUserQuestion call:
+
+- **Close as by design (Recommended).** Set the file's status to `by-design` with today's date, such as
+  `**Status:** by-design 2026-11-27`. Add a `**Resolution:**` line under it that cites the contract. Set the index row
+  to `by-design`.
+- **Treat it as a bug.** The user says the behavior is wrong, so the contract is wrong too. Go to "STILL A BUG", and
+  name the contract among the files the fix touches.
+- **Amend the bug report.** Append the contract you found and the confirmed repro. Add a `Triaged:` line with today's
+  date, such as `**Triaged:** 2026-11-27 (reproduces; may be by design)`. The bug stays open.
 
 ### STILL A BUG: estimate, then offer
 
@@ -143,13 +160,16 @@ alone.
 Then offer options in one AskUserQuestion call. Put the estimate and each decision's resolution in the question text,
 so the user can check your reasoning. The estimate picks which option comes first:
 
-| Estimate                                     | First option (Recommended)                                   | Other options                       |
-|----------------------------------------------|--------------------------------------------------------------|-------------------------------------|
-| Small or medium, all decisions trivial       | Fix now                                                      | Amend the bug report, leave it open |
-| Small or medium, a non-trivial decision      | Fix now, with one option per approach for that decision      | Open a proposal, amend the report   |
-| Large, or several non-trivial decisions      | Open a proposal                                              | Fix now, amend the report           |
+| Estimate                                     | First option (Recommended)                                   | Other options                        |
+|----------------------------------------------|--------------------------------------------------------------|--------------------------------------|
+| Small or medium, all decisions trivial       | Fix now                                                      | Amend the report, won't fix          |
+| Small or medium, a non-trivial decision      | Fix now, with one option per approach for that decision      | Open a proposal, amend the report    |
+| Large, or several non-trivial decisions      | Open a proposal                                              | Fix now, amend the report, won't fix |
 
 A proposal exists to settle design questions. Do not recommend one when every question is already settled.
+
+The user may always close a real bug as won't fix. The middle row has no room for it under the tool's limit of four
+options. There, say in the question text that answering "won't fix" through Other closes the bug.
 
 When Fix now carries one option per approach, rank the approaches by "Choosing Options" in
 `${CLAUDE_SKILL_DIR}/../../rules/decision-making.md`. The recommended approach comes first.
@@ -172,6 +192,9 @@ When Fix now carries one option per approach, rank the approaches by "Choosing O
 - **Amend the bug report.** Append what this run learned to the bug file: the confirmed repro, the files involved, and
   the estimate. Add or update a `Triaged:` line with today's date, such as
   `**Triaged:** 2026-07-16 (still reproduces; small fix, deferred)`. The bug stays open.
+- **Won't fix.** If the user chooses it, append the confirmed repro and the estimate to the bug file. Set the file's
+  status to `wont-fix` with today's date. Add a `**Resolution:**` line under it with the user's reason, in their words.
+  When they gave none, write `declined by the user` and the date. Set the index row to `wont-fix`.
 
 ### INCONCLUSIVE: do not close
 
@@ -188,12 +211,17 @@ runs skips it.
 In unattended mode, Step 4 acts by this table instead of asking. Every outcome skips Step 5 and ends the run with the
 report in Step 6.
 
-| Outcome                                                     | Action                                                                  | Report             |
-|-------------------------------------------------------------|-------------------------------------------------------------------------|--------------------|
-| FIXED                                                       | Close it, as "FIXED: close it" says                                     | `closed`           |
-| STILL A BUG, small or medium, every decision trivial        | Record the estimate. Write no fix yet                                   | `fix-candidate`    |
-| STILL A BUG, large, or any non-trivial decision             | Record the estimate. Add no `Triaged:` line                             | `needs-design`     |
-| INCONCLUSIVE                                                | Append Investigation Notes and a `Triaged:` line, as above              | `inconclusive`     |
+| Outcome                                              | Action                                                                   | Report                |
+|------------------------------------------------------|--------------------------------------------------------------------------|-----------------------|
+| FIXED                                                | Close it, as "FIXED: close it" says                                      | `closed`              |
+| BY DESIGN                                            | Append the contract and the repro. Leave it open. Add no `Triaged:` line | `by-design-candidate` |
+| STILL A BUG, small or medium, every decision trivial | Record the estimate. Write no fix yet                                    | `fix-candidate`       |
+| STILL A BUG, large, or any non-trivial decision      | Record the estimate. Add no `Triaged:` line                              | `needs-design`        |
+| INCONCLUSIVE                                         | Append Investigation Notes and a `Triaged:` line, as above               | `inconclusive`        |
+
+Unattended mode never sets `by-design` or `wont-fix`. Only the user closes a bug either way. A `by-design-candidate`
+report names the contract by file and line. Like `needs-design`, it gets no `Triaged:` line, so the user's next
+interactive run finds it.
 
 A `needs-design` bug gets no `Triaged:` line on purpose. The line would also hide it from the user's interactive runs
 for a month, and those runs are where its design gets settled. The estimate keeps the next run from redoing the
@@ -240,7 +268,8 @@ Summarize concisely:
 
 - Which bug was selected, and any index rows reconciled or bugs skipped along the way.
 - The verification outcome, and how you reached it: what you built and ran.
-- The action taken: closed as fixed, fix offered and its result, proposal opened, or inconclusive.
+- The action taken: closed as fixed, closed as by design with its contract, closed as won't fix, fix offered and its
+  result, proposal opened, or inconclusive.
 - Each commit subject. Or the files left uncommitted, and why.
 
 In unattended mode, the first line of the report is the outcome word from "Unattended outcomes", alone. Follow it with

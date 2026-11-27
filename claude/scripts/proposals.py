@@ -93,7 +93,7 @@ FROZEN_STATUSES = {"implemented", "superseded"}
 
 # The bug statuses that close a bug, per tracking.md "Status Vocabularies". `closed` is outside
 # that vocabulary. Older bug files carry it, so it still reads as closed.
-BUG_CLOSED_STATUSES = {"fixed", "not-reproducible", "closed"}
+BUG_CLOSED_STATUSES = {"fixed", "not-reproducible", "by-design", "wont-fix", "closed"}
 
 LINK_TARGET = re.compile(r"\]\([^)]*\)")
 AUDIT_ENTRY = re.compile(r"\brevisit\b", re.IGNORECASE)

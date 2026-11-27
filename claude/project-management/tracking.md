@@ -65,7 +65,7 @@ is deliberate, not drift.
 - Proposal milestones use uppercase: `NOT STARTED`, `IN PROGRESS`, `DONE`,
   `DROPPED`
 - Bugs use lowercase words: `open`, `accepted`, `proposed`, `fixed`,
-  `not-reproducible`
+  `not-reproducible`, `by-design`, `wont-fix`
 - Ideas use lowercase words: `open`, `unclear`, `infeasible`
 
 Each vocabulary is closed. A value outside it is an error, not a synonym. A
@@ -163,6 +163,17 @@ The status vocabulary is under "Status Vocabularies" above. The sections follow:
 A bug the filer could not confirm stays `open`. A `**Validation:**` line under the status says what was tried, and that
 it did not confirm the bug, such as `**Validation:** not confirmed; the repro needs a second node`. `bug-triage`
 reproduces it later.
+
+`fixed`, `not-reproducible`, `by-design`, and `wont-fix` close a bug. The others leave it open. Two of the closed
+statuses need a `**Resolution:**` line under the status, which says why the bug closed:
+
+- `by-design`: the behavior reproduces, and it is what the code is meant to do. The line cites the contract that says
+  so: a doc, an ADR, a test that asserts the behavior, or a decision the user recorded. Code that disagrees with its
+  own docs is a bug, not a design. Only the user closes a bug as `by-design`
+- `wont-fix`: the bug is real, and the user decided not to fix it. The line gives the user's reason and the date they
+  decided. Only the user closes a bug as `wont-fix`
+
+A bug the filer finds to be by design before filing gets no file. See `rules/found-bugs.md`.
 
 The directory's index opens with a short note on the format, then a table with one row per bug. The columns are Bug,
 Status, and Summary. The Bug cell links the file. The file's `**Status:**` line is the authority, and the index mirrors

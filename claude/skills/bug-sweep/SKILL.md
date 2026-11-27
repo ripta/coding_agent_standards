@@ -110,7 +110,8 @@ that file means that directory, since a subagent reads the file raw.
    file that changed since then must be in the agent's report. Check that the bug file's status line and the
    index row agree. When anything else changed, stop the run. Report the stray files, and leave them in place.
 3. **Act on the outcome.**
-   - `closed`, `needs-design`, `inconclusive`: commit the bug file, and the index when it changed.
+   - `closed`, `by-design-candidate`, `needs-design`, `inconclusive`: commit the bug file, and the index when it
+     changed. Check that a `by-design-candidate` bug is still open. Only the user closes a bug as by design.
    - `already-closed`: the index was right after all, or another session closed the bug mid-run. Note it and move on.
    - `blocked`: stop the run.
    - `fix-candidate`: commit the bug file with its estimate. When the bug file already has a `## Sweep Attempts` entry,
@@ -171,6 +172,7 @@ Keep it short. Give one line per bug: its file, its outcome, and its commit subj
 - Every design call the run decided, with the triage agent's reason and the critic's verdict. These are the decisions
   the user did not see. `decision-making.md` requires that the user see each one.
 - Each `needs-design` bug with the decisions its estimate names. These are the bugs to take to `/bug-triage`.
+- Each `by-design-candidate` bug with the contract it cites. `/bug-triage` asks the user whether to close it.
 - Each stash, with its repo, and the bug it belongs to.
 - Each known-red test, and the bug that holds it.
 - Each bug filed during the run.
