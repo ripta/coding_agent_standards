@@ -29,6 +29,65 @@ QUESTIONS = ("Use a supported question tool within its limits, or ask in chat.\n
 
 
 REPLACEMENTS = {
+    'idea-intake': (
+        ("""Invoked as `/idea-intake
+  <ideas>`.""", """Invoke with `$idea-intake` and the ideas to capture."""),
+        ("""Subagents classify and research one idea each. You split the input,
+ask the user, check the subagents' evidence, and write the ideas file. Nobody else writes it.""",
+         """You split the input, coordinate research, check the evidence, and write the ideas file.
+When delegation is unavailable, classify and research the ideas yourself using the same brief and evidence checks."""),
+        ("""Run `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate`, per "Lookup Rule" in""",
+         """Run `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate` with Python 3.10+, per "Lookup Rule" in"""),
+        ("""The ideas come from the skill's arguments. When there are none, ask for them on their own with AskUserQuestion. Nothing
+else can be detected without them.""",
+         """The ideas come from the user's request. When there are none, ask for them on their own and wait for input."""),
+        ("""in the session's scratchpad""", """in a run-specific temporary directory outside the checkout"""),
+        ("""Ask every question you can answer without research, in one AskUserQuestion call:""",
+         """Collect the questions you can identify without research into one batch. Use a supported question tool within its
+limits or ask in chat. Let the user skip questions:"""),
+        ("""Before you ask, start Step 4's subagents for every idea that has no question. They run in the background while the
+question is open. Do not hold them back.""",
+         """Start research for the ideas that can proceed while answers are pending. Launch read-only subagents when available
+and permitted, or research directly when the question interface lets work continue."""),
+        ("""Skip the question when there is nothing to ask. When there are more than four questions, ask the four that unblock the
+most ideas. Mark the rest `unclear` now, and carry their questions to Step 7. When the user does not answer, mark each
+idea it asked about `unclear` the same way, and go on. The run never stops for an answer.""",
+         """Skip the question when there is nothing to ask. Prioritize up to four questions that unblock the most ideas.
+Carry the rest to Step 7 as `unclear`. Treat an explicit skip or a closed prompt without an answer as `unclear`.
+An asynchronous tool's return leaves the question pending. Continue independent work while it is pending.
+When a destination is missing, wait for the user's choice before writing there. Report any idea without a confirmed
+destination in chat."""),
+        ("""Start one subagent per idea, with the `general-purpose` type and the `sonnet` model. Run at most four at once. Start the
+next as each one finishes. Each subagent is read-only. It never edits a file.""",
+         """Use one read-only Codex subagent per idea when delegation is available and permitted. Use the session's model settings.
+Run at most four at once within the session's slot limit. Start the next as each one finishes. When delegation is
+unavailable, apply the brief below to each idea directly."""),
+        ("""The subagent knows only its brief. Put all of this in it:""",
+         """Give each subagent a self-contained brief. Use the same inputs for direct research:"""),
+        ("""1. Read every cited `file:line`, proposal, and ideas heading yourself. When a result cites more than five, give them to
+   the `citation-verifier` agent (`coding-standards:citation-verifier` under the plugin) instead.""",
+         """1. Read every cited `file:line`, proposal, and ideas heading yourself. For more than five citations, you can delegate
+   this check to a read-only Codex subagent using `${CLAUDE_SKILL_DIR}/../../references/agents/citation-verifier.md`."""),
+        ("""When the evidence fails, run the subagent once more, with the failure in its brief. When it fails again,""",
+         """When the evidence fails, research the failed claim once more. When it fails again,"""),
+        ("""Write them in input order, at the end of the file.""",
+         """Confirm the destination before writing. Replace a matching `unclear` section in place once it is resolved.
+Append new sections in input order."""),
+        ("""Gather every `unclear` idea's questions into one AskUserQuestion call, up to four questions. When there are more, ask in
+rounds of four, with no pause between rounds.""",
+         """Gather the remaining questions for `unclear` ideas. Ask in batches within the question tool's limits or in chat.
+Use the same rules as Step 3 for pending and skipped questions."""),
+        ("""Run the subagent again for each answered idea, with the answers in its brief.""",
+         """Research each answered idea again using the user's answers."""),
+        ("""When the user does not answer, write each idea as `unclear`, with its questions in the section. Do not wait. A later
+  run that gets the same idea asks again""",
+         """When the user skips a question or closes the prompt without an answer, write the idea as `unclear` with its questions
+  if its destination is known. Update a matching `unclear` section in place. A later run that gets the same idea asks again"""),
+        ("""- This skill has two question checkpoints, Step 3 and Step 7. That is a deliberate exception to the one-checkpoint rule
+  in `${CLAUDE_SKILL_DIR}/../README.md`. Step 7's questions come from research, so they cannot be asked up front.
+  Step 3 asks what it can, and Step 7 never blocks: an unanswered idea is written as `unclear`""",
+         """- This skill has two question checkpoints. Step 3 asks what it can up front. Step 7 asks questions raised by research"""),
+    ),
     'land-branch': (
         ("""## Step 1: Detect, without asking""",
          _worktrees("the run file") + """## Step 1: Detect, without asking"""),

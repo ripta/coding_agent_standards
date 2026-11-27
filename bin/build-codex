@@ -14,7 +14,7 @@ SOURCE = REPO / "claude"
 OUTPUT = REPO / "dist" / "codex"
 SKILLS = (
     "bug-sweep", "bug-triage", "debug-ci", "format-checker", "gitignore-maintainer", "go-code-reviewer", "land-branch",
-    "lint-runner", "makefile-helper", "merge-fix-loop", "proposal-reviewer", "release", "risk-assessment",
+    "idea-intake", "lint-runner", "makefile-helper", "merge-fix-loop", "proposal-reviewer", "release", "risk-assessment",
     "schedule-proposal", "session-report", "test-audit", "testing-specialist",
 )
 COMMANDS = ("next-pr", "pr-description", "summary", "work-on", "work-queue")
