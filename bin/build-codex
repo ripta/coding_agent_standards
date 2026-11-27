@@ -14,8 +14,8 @@ SOURCE = REPO / "claude"
 OUTPUT = REPO / "dist" / "codex"
 SKILLS = (
     "bug-sweep", "bug-triage", "debug-ci", "format-checker", "gitignore-maintainer", "go-code-reviewer", "land-branch",
-    "idea-intake", "lint-runner", "makefile-helper", "merge-fix-loop", "proposal-reviewer", "release", "risk-assessment",
-    "schedule-proposal", "session-report", "test-audit", "testing-specialist",
+    "idea-intake", "lint-runner", "makefile-helper", "merge-fix-loop", "new-proposal", "proposal-reviewer", "release",
+    "risk-assessment", "schedule-proposal", "session-report", "test-audit", "testing-specialist",
 )
 COMMANDS = ("next-pr", "pr-description", "summary", "work-on", "work-queue")
 SCRIPTS = ("base_remote.py", "batch_plan.py", "detect_era.py", "land_batch.py", "pr_watch.py", "proposals.py", "snips.py",

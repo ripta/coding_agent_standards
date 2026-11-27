@@ -259,23 +259,26 @@ class BaselineBuildTests(unittest.TestCase):
                         self.builder["main"]()
                 self.assertEqual(marker.read_text(), "keep this build")
 
-    def test_idea_intake_ships_with_its_dependencies(self):
-        """Catch a missing skill or bundled file. A live intake still needs a Codex session."""
-        with tempfile.TemporaryDirectory(prefix="codex ideas ") as temporary:
+    def test_intake_and_drafting_skills_ship_with_their_dependencies(self):
+        """Catch a missing skill or bundled file. Live workflows still need a Codex session."""
+        with tempfile.TemporaryDirectory(prefix="codex drafting ") as temporary:
             output = Path(temporary) / "bundle"
             with patch.dict(self.namespace, OUTPUT=output), patch("sys.argv", [str(BUILD)]):
                 self.builder["main"]()
             moved = output.rename(Path(temporary) / "relocated bundle")
             manifest = json.loads((moved / ".codex-plugin" / "plugin.json").read_text())
-            skill = moved / manifest["skills"] / "idea-intake" / "SKILL.md"
-            contents = skill.read_text()
-            self.assertIn("name: idea-intake\n", contents)
-            self.assertIsNone(self.builder["UNSUPPORTED"].search(contents))
-            self.assertFalse((skill.parent / "agents" / "openai.yaml").exists())
-            for relative in re.findall(r"(?:\./)?(?:\.\./)+[\w./-]+", contents):
-                target = (skill.parent / relative).resolve()
-                self.assertTrue(target.is_relative_to(moved.resolve()))
-                self.assertTrue(target.is_file(), relative)
+            for name in ("idea-intake", "new-proposal"):
+                with self.subTest(skill=name):
+                    skill = moved / manifest["skills"] / name / "SKILL.md"
+                    self.assertTrue(skill.is_file(), f"{name} must be exported")
+                    contents = skill.read_text()
+                    self.assertIn(f"name: {name}\n", contents)
+                    self.assertIsNone(self.builder["UNSUPPORTED"].search(contents))
+                    self.assertFalse((skill.parent / "agents" / "openai.yaml").exists())
+                    for relative in re.findall(r"(?:\./)?(?:\.\./)+[\w./-]+", contents):
+                        target = (skill.parent / relative).resolve()
+                        self.assertTrue(target.is_relative_to(moved.resolve()))
+                        self.assertTrue(target.is_file(), relative)
 
     def test_shared_workflow_updates_survive_conversion(self):
         source = self.namespace["SOURCE"] / "commands" / "work-queue.md"

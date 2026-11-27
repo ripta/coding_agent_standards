@@ -29,6 +29,52 @@ QUESTIONS = ("Use a supported question tool within its limits, or ask in chat.\n
 
 
 REPLACEMENTS = {
+    'new-proposal': (
+        ("""Invoked as `/new-proposal <description>`; the description is optional.""",
+         """Invoke with `$new-proposal` and an optional description."""),
+        ("""The description is passed as the skill's arguments. If arguments were provided, use them as the proposal's starting
+description and move on.""",
+         """Use the description in the user's request as the starting point."""),
+        ("""with `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate`, per
+   "Lookup Rule" in""",
+         """with `python3 ${CLAUDE_SKILL_DIR}/../../scripts/proposals.py locate` using
+   Python 3.10 or later, per "Lookup Rule" in"""),
+        ("""use Agent sub-tasks to scan for code, patterns, types, and conventions relevant to the proposal's
+   domain, so the motivation and design are grounded in what exists.""",
+         """scan for code, patterns, types, and conventions relevant to the proposal's domain. Use read-only
+   Codex subagents when available and permitted, or inspect the code directly."""),
+        ("""spawn the `adr-impact` agent (`coding-standards:adr-impact` under the plugin) on the description. Cite
+   the ADRs it reports under Dependencies or Impacts. In the draft, list each conflict as an open design decision,""",
+         """check the description against the project's ADRs using
+   `${CLAUDE_SKILL_DIR}/../../references/agents/adr-impact.md`. Delegate to a read-only Codex subagent when available
+   and permitted, or apply the same instructions directly. Cite the relevant ADRs under Dependencies or Impacts.
+   In the draft, list each conflict as an open design decision,"""),
+        ("""Make a single AskUserQuestion call. Every question the proposal needs goes in that one call, before you draft anything.""",
+         """Collect every remaining question in one batch before drafting. Use a supported question tool within its
+limits or ask in chat. With an asynchronous tool, wait for answers or an explicit skip before proceeding."""),
+        ("""This is the one approval gate. Before writing the file, present a brief outline and confirm with AskUserQuestion:""",
+         """Before writing the file, present a brief outline and request explicit approval in a supported question tool
+or in chat. Include the following details."""),
+        ("""Offer two approvals: write the draft, or write it and then critique it until it converges (Step 7). Mark neither as
+recommended. The critique takes several agent passes, and only the user knows whether the draft warrants that now.""",
+         """Offer to write the draft. When independent delegation is available and permitted, also offer to write and
+critique the draft under Step 7. Present both choices without a recommendation."""),
+        ("""the
+`design-critic` agent (`coding-standards:design-critic` under the plugin) cannot run, say so and skip this step.""",
+         """independent
+delegation is unavailable, say so and skip this step. Give fresh Codex subagents the bundled role instructions in
+`${CLAUDE_SKILL_DIR}/../../references/agents/design-critic.md` and
+`${CLAUDE_SKILL_DIR}/../../references/agents/design-judge.md` as the loop calls for each role."""),
+        ("""in `/proposal-reviewer`""", """with `$proposal-reviewer`"""),
+        ("""to `/proposal-reviewer`""", """to `$proposal-reviewer`"""),
+        ("""share a single AskUserQuestion call in""",
+         """share a single question batch in"""),
+        ("""using AskUserQuestion, on its own""", """in a question of its own"""),
+        ("""component on its own, with AskUserQuestion, before the other items. They read the chosen directory. Then run `locate`
+   again with `--start` set to a path in that component.""",
+         """component on its own using a supported question tool or chat. Wait for the user's selection, then run
+   `locate` again with `--start` set to a path in that component."""),
+    ),
     'idea-intake': (
         ("""Invoked as `/idea-intake
   <ideas>`.""", """Invoke with `$idea-intake` and the ideas to capture."""),

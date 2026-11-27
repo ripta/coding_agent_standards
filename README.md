@@ -166,8 +166,8 @@ Codex-only skills in `codex/`.
 
 The generated `coding-standards-portable` plugin includes `bug-triage`, `debug-ci`, `format-checker`,
 `gitignore-maintainer`, `go-code-reviewer`, `idea-intake`, `land-branch`, `lint-runner`, `makefile-helper`,
-`merge-fix-loop`, `proposal-reviewer`, `release`, `risk-assessment`, `schedule-proposal`, `session-report`,
-and `testing-specialist`.
+`merge-fix-loop`, `new-proposal`, `proposal-reviewer`, `release`, `risk-assessment`, `schedule-proposal`,
+`session-report`, and `testing-specialist`.
 `bug-sweep` and `test-audit` ship explicit-only, as in Claude. It also converts `summary`, `next-pr`, `pr-description`,
 `work-on`, and `work-queue` into explicit-only skills. Bundled paths resolve relative to each skill, so the package can
 be moved without depending on the source checkout.
